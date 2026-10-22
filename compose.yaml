@@ -1,0 +1,18 @@
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: sydneybuddy
+      POSTGRES_USER: sydneybuddy
+      POSTGRES_PASSWORD: sydneybuddy_dev
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - buddy-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sydneybuddy -d sydneybuddy"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+volumes:
+  buddy-postgres:

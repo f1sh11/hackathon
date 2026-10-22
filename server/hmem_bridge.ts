@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import { HMEM } from './vendor/hmem/src/index.ts';
-// One process per operation; the Python bridge serializes access to persistent state.
+// 每次操作使用一个进程；后端桥接器串行访问持久化状态。
+// One process per operation; the backend bridge serializes access to persistent state.
 const input=JSON.parse(fs.readFileSync(0,'utf8'));
 const engine=new HMEM({actor:'sydney-buddy-user',persistDir:input.directory});
 let result:unknown;
@@ -12,3 +13,4 @@ switch(input.action){
  default:throw new Error('Unsupported memory operation');
 }
 process.stdout.write(JSON.stringify(result));
+

@@ -1,0 +1,14 @@
+namespace SydneyBuddy.Api;
+
+/// <summary>组合各功能的 REST 路由；composes focused endpoint modules for mobile and web clients.</summary>
+public static class ApiEndpoints
+{
+    public static void MapBuddyApi(this WebApplication app, string prefix)
+    {
+        var routes = app.MapGroup(prefix);
+        routes.MapPlanningEndpoints();
+        routes.MapTripEndpoints();
+        routes.MapMemoryEndpoints();
+        routes.MapSettingsEndpoints();
+    }
+}
