@@ -1,6 +1,5 @@
 package com.sydneybuddy.travel
 
-import android.app.DatePickerDialog
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -8,33 +7,29 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import org.json.JSONObject
-import java.time.LocalDate
 
-val Green = Color(0xFF138564)
-val Ink = Color(0xFF153E35)
-val Cream = Color(0xFFF8F7EF)
-val Mint = Color(0xFFE0F1E5)
+val Green = Color(0xFF0D825E)
+val Ink = Color(0xFF193830)
+val Cream = Color(0xFFFAF7F0)
+val Mint = Color(0xFFDBF2E0)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -50,23 +45,18 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable fun BuddyApp(store: BuddyStore = viewModel()) {
-    val tabs = listOf("探索", "行程", "问 AI", "账本", "我的")
     var delete by remember { mutableStateOf<Pair<String, JSONObject>?>(null) }
     Scaffold(containerColor = Cream,
         topBar = {
-            Row(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 22.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Buddy(44); Spacer(Modifier.width(12.dp))
-                Column { Text("Sydney Buddy", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Text(if (store.onboarding) "按你的节奏，发现悉尼" else tabs[store.tab], style = MaterialTheme.typography.labelMedium) }
+            if (!store.onboarding && store.tab != 0) Row(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 22.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(when(store.tab){1->"我的行程";3->"旅行小账本";4->"我的 Buddy";else->"Buddy"},style=MaterialTheme.typography.headlineMedium,fontWeight=FontWeight.Bold)
                 Spacer(Modifier.weight(1f))
-                if (!store.busy && !store.onboarding) TextButton(onClick = store::newTrip) { Text("新建") }
+                if (store.tab==1) TextButton(onClick = store::newTrip,enabled=!store.busy) { Icon(Icons.Outlined.Add,null);Text("新建") }
             }
         },
         bottomBar = {
-            if (!store.onboarding && store.proposal == null) NavigationBar(containerColor = Color.White) {
-                tabs.forEachIndexed { i, title -> NavigationBarItem(selected = store.tab == i,
-                    onClick = { if (!store.busy) store.tab = i }, icon = { Text(listOf("⌖", "▤", "✦", "￥", "☺")[i]) }, label = { Text(title) }) }
-            }
+            if (!store.onboarding && store.proposal == null) IosNavigation(store)
+
         }
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize().imePadding()) {
@@ -98,102 +88,16 @@ class MainActivity : ComponentActivity() {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(22.dp), verticalArrangement = Arrangement.spacedBy(16.dp), content = content)
 }
 @Composable fun Panel(content: @Composable ColumnScope.() -> Unit) {
-    Surface(shape = RoundedCornerShape(22.dp), color = Color.White, modifier = Modifier.fillMaxWidth()) {
+    Surface(shape = RoundedCornerShape(24.dp), color = Color.White, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp), content = content)
     }
 }
 @Composable fun Heading(text: String) { Text(text, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) }
 @Composable fun Small(text: String) { Text(text, style = MaterialTheme.typography.bodySmall, color = Ink.copy(alpha = .75f)) }
-@Composable fun Action(text: String, enabled: Boolean = true, onClick: () -> Unit) {
-    Button(onClick = onClick, enabled = enabled, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp), shape = RoundedCornerShape(16.dp)) { Text(text) }
-}
-@Composable fun Choice(text: String, selected: Boolean, enabled: Boolean = true, onClick: () -> Unit) {
-    OutlinedButton(onClick = onClick, enabled = enabled, modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
-        shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.outlinedButtonColors(containerColor = if (selected) Mint else Color.White)) {
-        Text((if (selected) "✓  " else "") + text)
-    }
-}
-@Composable fun Buddy(size: Int) {
-    Canvas(Modifier.size(size.dp)) {
-        val w = this.size.width; val h = this.size.height
-        drawRoundRect(Green, Offset(w*.08f,h*.18f), Size(w*.84f,h*.69f), CornerRadius(w*.22f))
-        drawLine(Green, Offset(w*.5f,h*.18f),Offset(w*.5f,h*.05f), w*.045f)
-        drawCircle(Green,w*.07f,Offset(w*.5f,h*.05f))
-        drawRoundRect(Mint,Offset(w*.2f,h*.32f),Size(w*.6f,h*.33f),CornerRadius(w*.1f))
-        drawCircle(Ink,w*.045f,Offset(w*.36f,h*.48f)); drawCircle(Ink,w*.045f,Offset(w*.64f,h*.48f))
-        drawLine(Mint,Offset(w*.39f,h*.75f),Offset(w*.61f,h*.75f),w*.04f)
-    }
-}
-
-@Composable fun Onboarding(store: BuddyStore) {
-    var step by rememberSaveable { mutableIntStateOf(0) }
-    val p = store.profile
-    val context = LocalContext.current
-    val titles = listOf("哪天去悉尼玩？", "这次玩几天？", "想用什么节奏？", "什么最让你心动？", "每天准备花多少？", "从哪里开始？", "几点出发返回？", "一起出发吧！")
-    Page {
-        Row(verticalAlignment = Alignment.CenterVertically) { Buddy(70); Spacer(Modifier.width(16.dp)); Column { Text("第 ${step+1} / 8 步", color = Green); Small("每个选择，都按你舒服的来。") } }
-        LinearProgressIndicator(progress = { (step+1)/8f }, modifier = Modifier.fillMaxWidth())
-        Heading(titles[step])
-        when (step) {
-            0 -> { Small("日期按悉尼当地时间安排。")
-                Choice(p.date, true, !store.busy) {
-                    val date = runCatching { LocalDate.parse(p.date) }.getOrDefault(LocalDate.now())
-                    DatePickerDialog(context, { _, y, m, d -> store.profile = p.copy(date = LocalDate.of(y,m+1,d).toString()) }, date.year,date.monthValue-1,date.dayOfMonth).show()
-                }
-            }
-            1 -> (1..3).forEach { n -> Choice("$n 天", p.days == n, !store.busy) { store.profile = p.copy(days = n) } }
-            2 -> listOf(5000 to "轻松逛逛",10000 to "刚刚好",18000 to "活力满满").forEach { (n,t) -> Choice("$t · 约 $n 步以内",p.maxSteps == n,!store.busy) { store.profile=p.copy(maxSteps=n) } }
-            3 -> { Small("可以多选，也可以随心探索。")
-                listOf("风景","美食","艺术","文化","自然","城市").forEach { t -> Choice(t,t in p.interests,!store.busy) {
-                    store.profile=p.copy(interests=if (t in p.interests) p.interests-t else p.interests+t)
-                } }
-            }
-            4 -> { listOf(50,100,150).forEach { n -> Choice("A$$n / 天",p.budget==n,!store.busy) {store.profile=p.copy(budget=n)} }
-                Text("自定：A$${p.budget}"); Slider(value=p.budget.toFloat(),onValueChange={store.profile=p.copy(budget=(it/10).toInt()*10)},valueRange=0f..300f,steps=29,enabled=!store.busy)
-                Small("活动费用估算，不含住宿、机票及全部餐饮。") }
-            5 -> { listOf(Endpoint.quay,Endpoint.central).forEach { e -> Choice(e.name,p.start==e,!store.busy){store.profile=p.copy(start=e,end=e)} }; Small("每天返回同一起点，可在“我的”设置下一次旅行的起终点。") }
-            6 -> listOf(Triple(600,1080,"10:00–18:00 · 悠闲一天"),Triple(540,1020,"09:00–17:00 · 早一点出发"),Triple(780,1080,"13:00–18:00 · 午后小冒险")).forEach { (s,e,t) -> Choice(t,p.startMinute==s && p.endMinute==e,!store.busy){store.profile=p.copy(startMinute=s,endMinute=e)} }
-            else -> { Panel { Text("悉尼 · ${p.days} 天 · ${p.maxSteps} 步以内 / 天",fontWeight=FontWeight.Bold)
-                Text("${p.date} · 每日 A$${p.budget}"); Text("${p.start.name}出发 → ${p.end.name}返回"); Text(p.interests.joinToString(" · ").ifEmpty {"随心探索"}) }
-                OnlineSwitch(store)
-                Small("生成后先展示草案，由你确认后才保存。") }
-        }
-        Action(if(step==7) "让 Buddy 规划路线" else "选好了，继续",!store.busy) { store.rememberProfile(); if(step<7) step++ else store.generate() }
-        if(step>0) TextButton(onClick={step--},enabled=!store.busy) {Text("返回上一步")}
-        if(store.saved.isNotEmpty()) TextButton(onClick=store::resumeSaved,enabled=!store.busy) {Text("回到已保存行程")}
-    }
-    BackHandler(enabled=step>0 && !store.busy) {step--}
-}
-
 @Composable fun OnlineSwitch(store: BuddyStore) {
     Row(verticalAlignment=Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text("使用在线推荐",fontWeight=FontWeight.Bold); Small(if(store.online) "NVIDIA 推荐；有 Google 服务配置时查询在线数据" else "演示模式 · 示例数据，无 AI 调用") }
         Switch(checked=store.online,onCheckedChange={store.online=it},enabled=!store.busy) }
     if(store.online) Small("在线请求会将本次旅行的偏好、日期和起终点发送给 NVIDIA / Google。")
-}
-
-@Composable fun HomeScreen(store: BuddyStore) {
-    var detail by rememberSaveable {mutableStateOf(false)}
-    Page {
-        if(store.trip==null) { Heading("你的小冒险，从这里开始"); Action("规划新行程",!store.busy,store::newTrip); Action("刷新连接",!store.busy,store::reload); return@Page }
-        val trip = store.trip!!
-        Heading(trip.optString("title"))
-        Small(modeLabel(trip.optString("mode")))
-        val days=trip.array("days").objects()
-        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)) { days.forEachIndexed { i,d -> FilterChip(selected=store.dayIndex==i,onClick={store.dayIndex=i},label={Text("第 ${i+1} 天")}) } }
-        RouteMap(store.day)
-        WeatherPanel(store.weather ?: trip.optJSONObject("weather"),!store.busy,store::refreshWeather)
-        val count=listOf("route","weather","bag").count(store::prepared)
-        Panel {
-            Text(if(count==3) "✓ 出发准备小达人 · 3/3" else "出发前的 3 个小任务 · $count/3",fontWeight=FontWeight.Bold)
-            TextButton(onClick={detail=!detail;store.mark("route")}) {Text("${if(store.prepared("route")) "✓ " else ""}查看路线详情")}
-            TextButton(onClick=store::refreshWeather,enabled=!store.busy) {Text("${if(store.prepared("weather")) "✓ " else ""}刷新天气")}
-            Row(verticalAlignment=Alignment.CenterVertically) { Checkbox(checked=store.prepared("bag"),onCheckedChange={store.mark("bag",true)}); Text("我已备好行李") }
-            Small("准备进度按行程保存，没有断签惩罚。")
-        }
-        if(detail) { days.forEach {DaySummary(it)}; Evidence(trip) }
-        else store.day?.let {DaySummary(it)}
-        Action("问 Buddy 调整行程",!store.busy){store.tab=2}
-    }
 }
 
 fun modeLabel(mode:String) = when(mode) {"live"->"在线规划 · 以各项来源和警告为准";"assisted"->"Nemotron 推荐 · 示例地点、天气与路线";else->"演示行程 · 示例数据"}
@@ -258,14 +162,14 @@ fun modeLabel(mode:String) = when(mode) {"live"->"在线规划 · 以各项来�
 
 @Composable fun TripsScreen(store:BuddyStore,onDelete:(JSONObject)->Unit) {
     Page {
-        Heading("每次冒险都值得收藏")
-        Action("规划新行程",!store.busy,store::newTrip)
+        Small("下一站，去发现。每次冒险都值得收藏。")
         TextButton(onClick=store::reload,enabled=!store.busy){Text("刷新行程")}
         if(store.saved.isEmpty()) Small("还没有保存的行程。")
         store.saved.forEach { t -> Panel {
+            TripArtwork()
             Text(t.optString("title"),fontWeight=FontWeight.Bold);Text("${t.getJSONObject("profile").optString("date")} · ${t.array("days").length()} 天")
             Small(modeLabel(t.optString("mode")))
-            Action("查看地图",!store.busy){store.select(t);store.tab=0}
+            TextButton(onClick={store.select(t);store.tab=0},enabled=!store.busy){Text("查看地图",fontWeight=FontWeight.Bold);Spacer(Modifier.width(6.dp));Icon(Icons.Outlined.NorthEast,null,Modifier.size(18.dp))}
             TextButton(onClick={onDelete(t)},enabled=!store.busy){Text("删除行程")}
         } }
     }
@@ -273,14 +177,27 @@ fun modeLabel(mode:String) = when(mode) {"live"->"在线规划 · 以各项来�
 
 @Composable fun AgentScreen(store:BuddyStore) {
     var message by rememberSaveable {mutableStateOf("")}
-    Page {
-        Buddy(85); Heading("一起调整行程")
-        OnlineSwitch(store)
-        Panel {Text(store.trip?.optString("explanation") ?: "先创建并保存一份行程，Buddy 才能帮你调整。");Small("每次调整先生成草案，你确认后才替换原行程。")}
-        Action("少走一点",!store.busy && store.trip!=null){store.generate("少走一点")}
-        Action("下雨了 · 情景测试",!store.busy && store.trip!=null){store.generate("下雨了",true)}
-        Small("雨天按钮是手动情景测试，不代表实时天气。")
-        OutlinedTextField(value=message,onValueChange={message=it.take(1500)},label={Text("想怎么调整？")},modifier=Modifier.fillMaxWidth(),minLines=3,enabled=!store.busy)
+    Column(Modifier.fillMaxSize().padding(24.dp).imePadding(),verticalArrangement=Arrangement.spacedBy(18.dp)) {
+        Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(15.dp)) {
+            Buddy(70)
+            Column(verticalArrangement=Arrangement.spacedBy(6.dp)) {
+                Text("一起调整行程",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Bold)
+                Small(if(store.online)"NVIDIA Nemotron 提供候选建议" else "演示模式 · 本地规则，无 AI 调用")
+            }
+        }
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(18.dp)) {
+            Panel {Text(store.trip?.optString("explanation") ?: "先创建并保存一份行程，Buddy 才能帮你调整。",style=MaterialTheme.typography.bodyMedium)}
+            Row(horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+                OutlinedButton(onClick={store.generate("少走一点")},enabled=!store.busy && store.trip!=null,modifier=Modifier.weight(1f),shape=RoundedCornerShape(16.dp),colors=ButtonDefaults.outlinedButtonColors(containerColor=Mint),border=null) {
+                    Icon(Icons.Outlined.DirectionsWalk,null,Modifier.size(19.dp));Spacer(Modifier.width(6.dp));Text("少走一点",fontWeight=FontWeight.Bold)
+                }
+                OutlinedButton(onClick={store.generate("下雨了",true)},enabled=!store.busy && store.trip!=null,modifier=Modifier.weight(1f),shape=RoundedCornerShape(16.dp),colors=ButtonDefaults.outlinedButtonColors(containerColor=Mint),border=null) {
+                    Icon(Icons.Outlined.Umbrella,null,Modifier.size(19.dp));Spacer(Modifier.width(6.dp));Text("下雨了",fontWeight=FontWeight.Bold)
+                }
+            }
+            Small("每次调整先生成草案，你确认后才替换原行程。雨天按钮是情景测试，不代表实时天气。")
+        }
+        OutlinedTextField(value=message,onValueChange={message=it.take(1500)},label={Text("例如：想多看艺术展，少走一点路")},modifier=Modifier.fillMaxWidth(),minLines=2,maxLines=4,enabled=!store.busy,shape=RoundedCornerShape(20.dp),colors=OutlinedTextFieldDefaults.colors(unfocusedContainerColor=Color.White,focusedContainerColor=Color.White,unfocusedBorderColor=Color.Transparent))
         Action("帮我调整",!store.busy && store.trip!=null && message.isNotBlank()){store.generate(message)}
     }
 }
@@ -288,7 +205,7 @@ fun modeLabel(mode:String) = when(mode) {"live"->"在线规划 · 以各项来�
 @Composable fun LedgerScreen(store:BuddyStore,onDelete:(JSONObject)->Unit) {
     var title by rememberSaveable {mutableStateOf("午餐")}; var amount by rememberSaveable {mutableStateOf("")};var people by rememberSaveable {mutableIntStateOf(2)}
     Page {
-        Heading("旅行小账本");Small("手机本机账本 · AUD · 记录与均分，不执行转账")
+        Small("把花费也安排明白 · 本机账本 · AUD")
         Panel {
             OutlinedTextField(value=title,onValueChange={title=it.take(100)},label={Text("消费项目")},modifier=Modifier.fillMaxWidth())
             OutlinedTextField(value=amount,onValueChange={amount=it.take(20)},label={Text("金额 AUD")},singleLine=true,modifier=Modifier.fillMaxWidth(),keyboardOptions=androidx.compose.foundation.text.KeyboardOptions(keyboardType=androidx.compose.ui.text.input.KeyboardType.Decimal))
@@ -308,7 +225,7 @@ fun modeLabel(mode:String) = when(mode) {"live"->"在线规划 · 以各项来�
 @Composable fun SettingsScreen(store:BuddyStore,onDelete:(JSONObject)->Unit) {
     var consent by rememberSaveable {mutableStateOf(false)}
     Page {
-        Heading("你好，旅行家")
+        Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(18.dp)){Buddy(65);Column(verticalArrangement=Arrangement.spacedBy(6.dp)){Text("你好，旅行家",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Bold);Small("按自己的节奏，发现悉尼")}}
         Panel {
             OnlineSwitch(store)
             Text("电脑规划服务：${if(store.health?.optString("status")=="ok") "已连接" else "未连接"}")

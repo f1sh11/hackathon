@@ -4,9 +4,9 @@
 
 本版本替换仓库原 React/.NET 原型；旧版本保留在 Git 历史中。**当前为本机单用户原型，未部署线上服务，也未提交 HackOS。**
 
-<img src="docs/android-live-map.png" alt="Android 模拟器中的真实 Google 步行路线和天气" width="320">
+<img src="docs/android-ios-home.png" alt="还原 iOS 布局后的 Android 地图首页" width="320">
 
-Android 运行画面（Pixel 7 模拟器 / Android 14）；[保留的 iOS 引导截图](docs/buddy-onboarding.png)。
+Android 运行画面（Pixel 7 模拟器 / Android 14）；[Android 引导页](docs/android-ios-onboarding.png) · [保留的 iOS 引导截图](docs/buddy-onboarding.png)。
 
 [旧版 iOS 地图与出发任务截图](docs/buddy-preparation.png) · [iOS Google 天气截图](docs/app-google-weather.png) · [iOS 演示录像 MP4](docs/app-demo.mp4) · [iOS 验证记录](docs/VERIFICATION.md)
 

@@ -1,5 +1,13 @@
 # Android migration verification
 
+## iOS appearance restoration
+
+On 22 October 2026, the Android presentation was revised against the retained SwiftUI source and iOS screenshots. The home page now uses a full-screen map with floating weather, preparation and route cards, plus the white-and-green Buddy character. Navigation uses the original four destinations; route details and Buddy adjustment open in sheets. Onboarding restores the progress header, dialogue bubble, calendar, selection cards and fixed bottom action. Trip cards include the original sailing motif. Backend APIs and saved data formats are unchanged.
+
+APK assembly, six domain tests, lint (zero errors), and the complete emulator UI flow passed after this revision. Home and onboarding layouts were also checked visually on the Pixel 7 emulator. Screens: [home](android-ios-home.png), [onboarding](android-ios-onboarding.png).
+
+## Migration baseline
+
 Verified on 22 October 2026 using Windows, JDK 21, Gradle 8.9, Android SDK 35, Python 3.13, Node 22.14 (with experimental TypeScript transformation), and a Pixel 7 emulator running Android 14 / API 34. Node 24 remains the recommended team runtime. The starting `dev` commit was `16e4cca6e878ff65017b612e99bb1f1569457551`.
 
 The Android client uses Kotlin and Jetpack Compose. The Python API and official H-MEM engine remain shared; the iOS directory is retained. Explicit UTF-8 decoding was added to the Python catalog, local configuration, and Node bridge output for Windows compatibility. No provider credentials are committed.

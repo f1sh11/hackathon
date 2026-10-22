@@ -13,14 +13,14 @@ class BuddyFlowTest {
 
     private fun click(text: String) {
         val node=rule.onNode(hasText(text,substring=false) and hasClickAction())
-        if(text !in listOf("探索","行程","问 AI","账本","我的","新建")) node.performScrollTo()
+        if(text !in listOf("地图","行程","问 AI","记账","我的","新建","选好了，继续","让 Buddy 规划路线","查看路线","出发前的 3 个小任务","行李备好")) node.performScrollTo()
         node.performClick()
     }
     private fun awaitText(text: String) {
         rule.waitUntil(30000) { rule.onAllNodesWithText(text,substring=true).fetchSemanticsNodes().isNotEmpty() }
     }
     private fun newDemoTrip() {
-        if(rule.onAllNodesWithText("新建",substring=false).fetchSemanticsNodes().isNotEmpty()) click("新建")
+        if(rule.onAllNodesWithText("哪天去悉尼玩？",substring=false).fetchSemanticsNodes().isEmpty()) { click("行程");click("新建") }
         repeat(7) {click("选好了，继续")}
         click("让 Buddy 规划路线")
         awaitText("你的路线准备好了")
@@ -36,11 +36,12 @@ class BuddyFlowTest {
         click("少走一点")
         awaitText("看看这次怎么调整")
         click("取消草案")
-        click("探索")
-        click("查看路线详情")
-        rule.onNodeWithText("我已备好行李").performScrollTo()
-        rule.onNode(isToggleable() and hasAnySibling(hasText("我已备好行李"))).performClick()
-        click("账本")
+        click("地图")
+        click("出发前的 3 个小任务")
+        click("行李备好")
+        click("查看路线")
+        click("完成")
+        click("记账")
         rule.onNodeWithText("金额 AUD").performTextInput("10.01")
         click("＋")
         click("保存消费")
@@ -49,7 +50,7 @@ class BuddyFlowTest {
         rule.activityRule.scenario.recreate()
         awaitText("旅行小账本")
         rule.onAllNodesWithText(split).onFirst().performScrollTo().assertIsDisplayed()
-        click("探索")
+        click("地图")
         newDemoTrip()
         click("行程")
         rule.onAllNodesWithText("查看地图").assertCountEquals(countBefore+2)
