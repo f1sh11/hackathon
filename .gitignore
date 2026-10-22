@@ -27,6 +27,7 @@ android/.idea/
 web/node_modules/
 web/dist/
 web/.vite/
+web/*.tsbuildinfo
 # Local PostgreSQL / editor state
 postgres-data/
 .vs/
