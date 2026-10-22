@@ -1,0 +1,35 @@
+using Microsoft.EntityFrameworkCore;
+
+namespace SydneyBuddy.Api;
+
+/// <summary>集中声明依赖与生命周期；declares lifetimes without mixing startup with business logic.</summary>
+public static class DependencyInjection
+{
+    public static IServiceCollection AddBuddyServices(this IServiceCollection services)
+    {
+        services.AddSingleton(provider => new ProjectPaths(provider.GetRequiredService<IConfiguration>()["SYDNEYBUDDY_ROOT"] ?? ProjectPaths.DiscoverRoot()));
+        services.AddSingleton<SecretStore>();
+        // DbContext 以请求为单位，不能作为单例共享。 / DbContext is scoped, never shared across requests.
+        services.AddDbContext<BuddyDbContext>((provider, options) =>
+        {
+            var connection = provider.GetRequiredService<IConfiguration>().GetConnectionString("SydneyBuddy")
+                ?? "Host=127.0.0.1;Port=55432;Database=sydneybuddy;Username=sydneybuddy;Password=sydneybuddy_dev;Maximum Pool Size=20";
+            options.UseNpgsql(connection);
+        });
+        services.AddScoped<TripRepository>();
+        services.AddScoped<MemoryRepository>();
+        services.AddHttpClient<IExternalJsonClient, ExternalJsonClient>(client => client.Timeout = Timeout.InfiniteTimeSpan);
+        services.AddSingleton<IMemoryService, MemoryService>();
+        services.AddScoped<PreferenceService>();
+        services.AddScoped<WeatherService>();
+        services.AddMemoryCache();
+        services.AddSingleton<CatalogCache>();
+        services.AddSingleton<PlaceCatalog>();
+        services.AddScoped<PlaceService>();
+        services.AddScoped<RecommendationService>();
+        services.AddScoped<RouteService>();
+        services.AddScoped<RouteScheduler>();
+        services.AddScoped<Planner>();
+        return services;
+    }
+}

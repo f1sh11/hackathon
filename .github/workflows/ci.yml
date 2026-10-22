@@ -1,4 +1,4 @@
-name: Sydney Buddy backend checks
+name: Sydney Buddy backend and web checks
 on:
   push:
   pull_request:
@@ -7,23 +7,48 @@ permissions:
 jobs:
   backend:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: sydneybuddy
+          POSTGRES_USER: sydneybuddy
+          POSTGRES_PASSWORD: sydneybuddy_dev
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sydneybuddy -d sydneybuddy"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      ConnectionStrings__SydneyBuddy: Host=localhost;Port=5432;Database=sydneybuddy;Username=sydneybuddy;Password=sydneybuddy_dev
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-dotnet@v4
         with:
-          python-version: '3.14'
+          dotnet-version: '10.0.x'
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Backend unit and HTTP tests
-        run: |
-          python3 server/app.py > /tmp/sydney-buddy.log 2>&1 &
-          server_pid=$!
-          trap 'kill "$server_pid"' EXIT
-          for attempt in $(seq 1 30); do
-            if curl --fail --silent http://127.0.0.1:8787/health > /dev/null; then break; fi
-            sleep 1
-          done
-          python3 -m unittest discover -s server/tests -v
+      - name: Restore backend and test dependencies
+        run: dotnet restore server-dotnet/SydneyBuddy.Api.Tests/SydneyBuddy.Api.Tests.csproj
+      - name: Build backend and tests
+        run: dotnet build server-dotnet/SydneyBuddy.Api.Tests/SydneyBuddy.Api.Tests.csproj --configuration Release --no-restore
+      - name: Backend unit and HTTP compatibility tests
+        run: dotnet test server-dotnet/SydneyBuddy.Api.Tests/SydneyBuddy.Api.Tests.csproj --configuration Release --no-build
       - name: Official H-MEM conformance
         run: HMEM_IMPL="$PWD/server/vendor/hmem/src/index.ts" node --experimental-transform-types server/vendor/hmem/conformance/runner.ts
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install web dependencies
+        run: npm --prefix web ci
+      - name: Build React and TypeScript web app
+        run: npm --prefix web run build
+      - name: Frontend domain tests
+        run: npm --prefix web test

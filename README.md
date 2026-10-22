@@ -1,179 +1,189 @@
 # Sydney Buddy · 悉尼旅行 Agent
 
-原生 **Android（Kotlin + Jetpack Compose）+ Python API** 旅行规划 MVP：单题引导收集偏好，NVIDIA Nemotron 推荐候选地点，程序检查路线约束，再由用户确认保存。地图、地点、路线与天气使用 Google Maps Platform，授权偏好使用官方 Meterless H-MEM 引擎。现有 SwiftUI iOS 客户端保留在 `ios/`，Android 开发不依赖 Xcode。
+**React + TypeScript 网页前端、原生 Android（Kotlin + Jetpack Compose）与 ASP.NET Core（C# / .NET 10）后端，通过 EF Core 和 PostgreSQL 保存行程与偏好。** 单题引导收集旅行偏好，NVIDIA Nemotron 推荐候选地点，程序独立检查路线约束，再由用户确认保存。地图、地点、路线与天气使用 Google Maps Platform，授权偏好检索使用官方 Meterless H-MEM 引擎。
 
-本版本替换仓库原 React/.NET 原型；旧版本保留在 Git 历史中。**当前为本机单用户原型，未部署线上服务，也未提交 HackOS。**
+本次迁移将 Python API 替换为 C#，并增加适配手机和桌面的网页入口。Android 与保留的 SwiftUI iOS 客户端继续使用原接口、JSON 字段和 `8787` 端口。旧 Python 代码与 SQLite 文件保留供对照和回退；新后端不运行 Python，也不会自动导入旧 SQLite 数据。**当前仍为本机单用户原型，未部署线上服务，也未提交 HackOS。**
 
-<img src="docs/android-ios-home.png" alt="还原 iOS 布局后的 Android 地图首页" width="320">
+完整迁移范围与代码阅读说明见 [迁移说明](docs/ASPNET-MIGRATION.md)。
 
-Android 运行画面（Pixel 7 模拟器 / Android 14）；[Android 引导页](docs/android-ios-onboarding.png) · [保留的 iOS 引导截图](docs/buddy-onboarding.png)。
+## 功能与边界
 
-[旧版 iOS 地图与出发任务截图](docs/buddy-preparation.png) · [iOS Google 天气截图](docs/app-google-weather.png) · [iOS 演示录像 MP4](docs/app-demo.mp4) · [iOS 验证记录](docs/VERIFICATION.md)
+- 悉尼市区 1–3 天步行规划，8 个限定候选地标，每天最多 4 站，跨天不重复。
+- Nemotron 只对已知地点 ID 排序；C# 代码独立检查预算、步数、营业时间、休息、衔接和返程。
+- 调整先生成草案，用户确认后才保存。保存使用版本检查，冲突返回 HTTP `409`。
+- 多行程管理、逐日天气刷新，以及需用户同意的偏好保存和撤回。
+- Google Places 提供坐标与常规营业时段，Routes 提供步行路线，Weather 提供未来 10 天逐日预报。
+- Android 原有引导、准备清单与整数分记账保留；这些设备端功能不等于网页已实现相同功能。
 
-## 已实现
+## 本机启动：PostgreSQL + .NET API
 
-- 8步轻量引导：日期、天数、节奏、兴趣、预算、起点、时间、确认。Buddy 即时回应，带进度条与按压反馈。
-- 悉尼市区1–3天步行规划，8个限定候选地标，每天最多4站，跨天不重复。
-- Google 地图标记和真实步行路线；Places 查询坐标与常规营业时段；Weather 获取未来10天逐日预报。
-- Nemotron 只对给定地点ID排序，程序独立检查时间、步数、活动预算、休息、衔接和返程。
-- AI调整先生成草案，展示地点与步数变化，确认后才替换保存；版本冲突返回409。
-- SQLite 多行程管理；Android 和 iOS 本机均分记账以整数分保存。
-- 同意后保存偏好并通过 H-MEM 检索，支持撤回；追加审计账本仍保留历史记录。
-- 出发准备清单：查看路线、成功刷新天气、手动确认行李。进度按行程保存在本机，全部完成显示徽章，不设断签惩罚。
+需要 **.NET 10 SDK**、**Node.js 24** 和 **Docker / Docker Compose**。Node 用于网页构建和官方 Meterless H-MEM 引擎；HTTP API、规划与天气逻辑由 C# 运行。
 
-## 快速运行
-
-### Android（Windows / macOS）
-
-需要 Android Studio、Android SDK 35、JDK 17 或 21、Python 3.9+（含悉尼时区数据）及支持 `--experimental-transform-types` 的 Node.js（建议 24）。
-
-1. 克隆仓库并切换到 `dev`，在 Android Studio 中打开 **`android/`** 文件夹，等待依赖同步。
-2. 启动一个 Android 8.0+ 模拟器，或连接已开启 USB 调试的 Android 手机。Google 地图需要带 Google Play 服务的设备。
-3. 在仓库根目录运行 `python -m pip install -r server/requirements.txt`（仅 Windows 安装时区数据），再运行 `python server/app.py`，保持这个进程运行。
-4. Windows 运行 `powershell -File scripts/connect-android.ps1`；macOS 运行 `sh scripts/connect-android.sh`，将手机本机端口转发到电脑。
-5. 在 Android Studio 运行 `app`。不填密钥即可走完演示流程；地图会明确标注为示意图。
-
-Windows 也可运行 `powershell -File scripts/start-server.ps1` 启动后端。若 `adb` 不在 PATH，连接脚本会尝试从 `ANDROID_HOME` 或默认 SDK 路径查找。每次重启模拟器或重新连接手机后，需要重新转发端口。
-
-命令行构建：在 `android/` 运行 `./gradlew.bat :app:assembleDebug :app:testDebugUnitTest :app:lintDebug`（Windows）或 `sh gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug`（macOS）。APK 位于 `android/app/build/outputs/apk/debug/app-debug.apk`。
-
-真实 Google 底图需要单独的 **Maps SDK for Android** 密钥，填入被忽略的 `android/local.properties`：`MAPS_API_KEY=你的Android地图密钥`。只允许 Maps SDK for Android，并限制为包名 `com.sydneybuddy.travel` 与本机签名 SHA-1；iOS 地图密钥不通用。组员各自运行 `gradlew signingReport` 获取指纹，将需要的包名/指纹添加到 Android 密钥限制。不要共享 debug.keystore 或把密钥提交 Git。
-
-NVIDIA 和 Google 服务端密钥仍通过电脑的 `/setup` 配置，或按 `.secrets.example.json` 创建 `.secrets.json`；它们不进入 APK。每位组员运行自己的后端和本机数据，不共享行程数据库。线上开关会选择 `live`（有 Google 服务端配置）或 `assisted`（只有 NVIDIA）；密钥配置不等于调用成功。
-
-Android 使用相同后端接口，保留 8 步引导、草案确认、调整对比、版本冲突提示、多行程、天气刷新、按行程保存准备进度、手机本机整数分账本，以及需同意的电脑本机偏好存储。取消草案不会替换原行程，新建行程不会覆盖之前的行程。后台加载或保存时禁止切换行程，避免将返回结果写入另一份行程。
-
-这是本机开发版本：Debug 只为 `127.0.0.1` / `localhost` 允许 HTTP，Release 禁止明文连接；后端仍仅监听回环地址。独立联网运行需要另行部署 HTTPS 服务、配置客户端地址并实现身份认证。没有声称已完成应用商店发布或所有 Android 设备兼容性验证。实际测试见 [Android 验证记录](docs/ANDROID-VERIFICATION.md)。
-
-### 保留的 iOS 客户端（macOS）
-
-需要 macOS、Xcode（iOS17+ SDK/模拟器）、Python3.9+（之前验证3.14）、Node.js24。macOS 的 Python 服务使用标准库，无需 pip 安装。首次 Xcode 构建需联网下载 Google Maps SDK11.2.0。
+在包含本次迁移的仓库根目录运行：
 
 ```sh
-git clone https://github.com/f1sh11/hackathon.git
-cd hackathon
-python3 server/app.py
+docker compose up -d db
 ```
 
-也可双击 `scripts/start-server.command`。服务启动在 [http://127.0.0.1:8787](http://127.0.0.1:8787)，然后：
+Compose 的本机开发数据库为 `localhost:55432`，数据库名 `sydneybuddy`，用户名为 `sydneybuddy`，密码为 `sydneybuddy_dev`。这些值只适用于本机开发。按终端设置连接字符串，再启动 API：
 
-1. 打开 `ios/SydneyBuddy.xcodeproj`，选择已安装的 iPhone 模拟器，运行 `SydneyBuddy` scheme。
-2. 不配置密钥也能用演示模式，地图显示明确标注的示意图。
-3. 配置在线服务：在同一台电脑打开 [本机密钥设置页](http://127.0.0.1:8787/setup)，填写自己的密钥并保存。
-4. Google iOS地图密钥保存后，重新构建App。开启引导页或“我的”里的在线推荐。
+**Windows PowerShell**
 
-命令行构建（先用 `xcrun simctl list devices available` 查询可用模拟器）：
+```powershell
+$env:ConnectionStrings__SydneyBuddy = 'Host=localhost;Port=55432;Database=sydneybuddy;Username=sydneybuddy;Password=sydneybuddy_dev'
+dotnet run --project server-dotnet/SydneyBuddy.Api
+```
+
+**macOS / Linux**
 
 ```sh
-xcodebuild -project ios/SydneyBuddy.xcodeproj -scheme SydneyBuddy \
-  -sdk iphonesimulator -configuration Debug \
-  -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+export ConnectionStrings__SydneyBuddy='Host=localhost;Port=55432;Database=sydneybuddy;Username=sydneybuddy;Password=sydneybuddy_dev'
+dotnet run --project server-dotnet/SydneyBuddy.Api
 ```
 
-模拟器无需Apple付费会员即可构建运行；真机需自己的开发团队/签名。**App中的127.0.0.1只适用于同机模拟器**。真机/线上部署需配置HTTPS后端地址、身份认证、访问控制和滥用防护，本版尚未实现。
+首次运行会还原 NuGet 依赖，API 启动时使用 EF Core migrations 创建或更新 PostgreSQL 表。先关闭旧 Python 后端，避免争用 `8787` 端口。服务运行后打开 [健康检查](http://127.0.0.1:8787/health) 或 [本机密钥设置页](http://127.0.0.1:8787/setup)。每位成员使用自己的本机数据库；这仍是单用户开发模式。
 
-## API 密钥配置
+也可通过启动脚本运行：Windows 使用 `powershell -File scripts/start-server.ps1`；macOS / Linux 使用 `sh scripts/start-server.sh`；macOS 也可双击 `scripts/start-server.command`。连接字符串仍需先设置在对应进程的环境中。
 
-仓库发布完整API接口代码和配置模板，**不包含可用密钥**。本机设置页会把密钥保存到忽略文件 `.secrets.json`（权限0600），iOS地图密钥另写入忽略文件 `ios/Config/Secrets.xcconfig`。
+## 网页入口：React + TypeScript
 
-| 配置项 | 用途与限制 |
+另开终端，在仓库根目录运行：
+
+```sh
+npm --prefix web install
+npm --prefix web run dev
+```
+
+打开 Vite 输出的网址。开发服务器将 `/api` 请求代理到 `http://127.0.0.1:8787`，因此 .NET API 需要保持运行。该入口适配桌面与手机浏览器；手机访问另一台电脑上的服务属于额外网络部署，不由本机回环配置自动完成。
+
+构建后可由 ASP.NET Core 提供网页文件：
+
+```sh
+npm --prefix web run build
+dotnet run --project server-dotnet/SydneyBuddy.Api
+```
+
+构建输出在 `web/dist`。如果 API 在构建前已经启动，请先停止并重新启动 API，让它发现网页资源。然后从 [API 的本机地址](http://127.0.0.1:8787) 打开网页。没有构建产物时使用 Vite 开发服务器。
+
+## Android（Windows / macOS）
+
+额外需要 Android Studio、Android SDK 35、JDK 17 或 21，以及带 Google Play 服务的 Android 8.0+ 模拟器或手机。
+
+1. 先按上文启动 PostgreSQL 和 .NET API。
+2. Android Studio 打开 **`android/`**，等待 Gradle 同步。
+3. 连接已开启 USB 调试的手机，或启动模拟器。
+4. Windows 运行 `powershell -File scripts/connect-android.ps1`；macOS 运行 `sh scripts/connect-android.sh`，将设备端口转发到电脑。
+5. 在 Android Studio 运行 `app`。不配置密钥即可测试演示流程，地图会明确标注为示意图。
+
+每次重启模拟器或重新连接手机后，需要重做端口转发。若 `adb` 不在 PATH，连接脚本会尝试从 `ANDROID_HOME` 或默认 SDK 路径查找。命令行构建在 `android/` 中执行：
+
+```sh
+# macOS / Linux；Windows 使用 .\gradlew.bat
+sh gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
+```
+
+APK 输出为 `android/app/build/outputs/apk/debug/app-debug.apk`。真实 Google 底图需要单独的 Maps SDK for Android 密钥，写入被忽略的 `android/local.properties`：`MAPS_API_KEY=你的Android地图密钥`；保留 Android Studio 生成的 `sdk.dir`。iOS 地图密钥不通用，具体密钥限制由项目管理员管理。
+
+Android 仍连接 `http://127.0.0.1:8787`。Debug 允许本机 HTTP，Release 禁止明文连接。独立联网 APK 需要 HTTPS 后端、客户端地址与身份认证；本次技术栈迁移不包含应用商店发布或云端部署。现有 [Android 验证记录](docs/ANDROID-VERIFICATION.md) 属于迁移前的历史证据。
+
+## 保留的 iOS 客户端
+
+需要 macOS、Xcode（iOS 17+ SDK/模拟器）、.NET 10 SDK 和 Node.js 24。先启动 PostgreSQL 和 .NET API，再打开 `ios/SydneyBuddy.xcodeproj`，运行 `SydneyBuddy` scheme。首次 Xcode 构建需联网下载 Google Maps SDK。
+
+同机模拟器继续连接 `127.0.0.1:8787`；iPhone 真机不能用其自身的回环地址访问电脑。iOS 地图密钥更改后需要重新构建。原 [iOS 验证记录](docs/VERIFICATION.md) 是迁移前的历史记录，不能替代新版验证。
+
+## 配置
+
+仓库只提供配置模板，不包含可用服务密钥。服务端读取仓库根目录 `.secrets.json` 或同名环境变量，环境变量优先；不会自动加载 `.env`。Node H-MEM 数据继续保存在 `server/.hmem/`。
+
+| 配置项 | 用途 |
 |---|---|
-| `NVIDIA_API_KEY` | 服务端调用 NVIDIA NIM；不得打包进App |
-| `NVIDIA_MODEL` | 可选；默认 `nvidia/nemotron-3.5-lightning-30b-a3b`，需账号支持 |
-| `GOOGLE_SERVER_KEY` | 仅允许 Places API (New)、Routes API、Weather API；部署后建议按固定服务出口 IP 限制 |
-| `GOOGLE_IOS_KEY` | 仅允许 Maps SDK for iOS，应用限制为 `com.sydneybuddy.travel` |
-| Android `MAPS_API_KEY` | 仅允许 Maps SDK for Android，限制 Android 包名与签名 SHA-1；仅写入 `android/local.properties` |
-| `NODE_BINARY` | 可选，Node24可执行文件路径；否则从PATH查找 |
+| `ConnectionStrings__SydneyBuddy` | PostgreSQL 连接字符串 |
+| `NVIDIA_API_KEY` | 服务端调用 NVIDIA NIM，不进入 APK 或网页源码 |
+| `NVIDIA_MODEL` | 默认 `nvidia/nemotron-3.5-lightning-30b-a3b` |
+| `GOOGLE_SERVER_KEY` | 服务端 Places API (New)、Routes API、Weather API |
+| `GOOGLE_IOS_KEY` | 保留的 iOS 客户端地图 SDK 配置 |
+| Android `MAPS_API_KEY` | 仅写入 `android/local.properties` 的 Android 地图 SDK 密钥 |
+| `NODE_BINARY` | 可选，Node 24 可执行文件路径；默认从 PATH 查找 |
+| `SYDNEYBUDDY_ROOT` | 可选，仓库根目录绝对路径，自动定位失败时设置 |
 
-模板见 [.secrets.example.json](.secrets.example.json) 和 [Secrets.example.xcconfig](ios/Config/Secrets.example.xcconfig)。使用模板时自行复制为实际文件，填入自己的值。也可通过上述同名环境变量配置服务端；本程序**不会自动加载.env**。单独设置 `GOOGLE_IOS_KEY` 环境变量不会生成App配置，应使用设置页或手动填写xcconfig。
+API 密钥也可通过本机 `/setup` 页面保存。模板见 [.secrets.example.json](.secrets.example.json) 和 [Secrets.example.xcconfig](ios/Config/Secrets.example.xcconfig)。单独设置 iOS 环境变量不会自动生成客户端构建配置；应通过设置页或手动填写 xcconfig。
 
-Google项目需要启用计费及所需服务（Android 与 iOS 地图 SDK 分别启用）。已有密钥的 IP 限制换网络后可能失效；应用密钥和服务端密钥应分开配置。团队若选择取消服务端 IP 限制以便异地测试，仍应保留三项 API 限制，密钥只私下分发。Weather、地图、Places 和 Routes 分别计费，以[官方价格](https://developers.google.com/maps/billing-and-pricing/pricing)为准。未配置云端硬性费用上限。
+Google 项目需要启用计费及对应服务。地图 SDK 与服务端 API 分别配置。`/health` 显示已配置，不代表模型、地图、路线或天气真实调用成功；费用参考 [Google 官方价格](https://developers.google.com/maps/billing-and-pricing/pricing)。
 
-## 模式、天气与数据边界
+## 模式和天气
 
 | 模式 | 模型 | 其他数据 |
 |---|---|---|
-| `demo` | 本地规则，不调用AI | 示例地点、天气、营业时段与距离估算 |
-| `assisted` | 真实Nemotron | 示例地点、天气和路线，不请求Google服务端API |
-| `live` | 真实Nemotron | Google Places、Routes、Weather；费用/场内步数/停留时间仍为估算 |
+| `demo` | 本地规则，不调用 AI | 示例地点、天气、营业时段与距离估算 |
+| `assisted` | 真实 Nemotron | 示例地点、天气和路线，不请求 Google 服务端 API |
+| `live` | 真实 Nemotron | Google Places、Routes、Weather；花费、场内步数与停留时间仍为估算 |
 
-在线开关开启后，有Google服务端密钥进入live，否则assisted。存在密钥不代表服务验证成功；地图SDK与后端服务分别配置。
+天气按悉尼旅行日期逐日匹配，并分别影响当天室内/室外筛选。Weather 请求未来 10 天、`pageSize=10`，超时 8 秒；失败或超出范围时明确显示未知。独立刷新天气不会重排已保存行程，调整仍需生成并确认草案。雨天快捷情景明确标注为用户指定，不能当成实时天气证据。
 
-天气按Australia/Sydney日期匹配，每天分别影响室内/室外筛选。Weather每次请求10天、pageSize=10，8秒超时；失败或范围外明确标为未知，不当作晴天。首页可独立刷新天气；刷新不会重排已保存路线，调整要点“问AI”并确认。雨天快捷按钮是用户情景测试，明确标注非实时。Google天气原始响应不做跨请求缓存。
+## API 兼容性
 
-## 后端接口
+本机服务仍使用 `127.0.0.1:8787`，无账户系统，保留本机来源检查。JSON 请求使用 `Content-Type: application/json`。
 
-默认仅监听127.0.0.1:8787，无账户系统，不可直接暴露公网。JSON请求使用 `Content-Type: application/json`；跨站请求受本机来源检查限制。
-
-| 方法/路径 | 说明 |
+| 方法 / 路径 | 说明 |
 |---|---|
-| `GET /health` | 服务状态、配置是否存在；不返回密钥 |
-| `GET /catalog` | 8个候选地点的演示基础数据 |
-| `POST /plan` | 按profile和mode生成草案，不保存 |
-| `POST /weather` | 按profile日期获取Google天气，不保存或重排行程 |
-| `GET /trips` | 已保存的行程 |
-| `POST /trips` | `{ "trip": <草案>, "expectedRevision": 0 }`；首次保存revision1，修改时传当前revision |
+| `GET /health` | 服务状态与配置是否存在，不返回密钥 |
+| `GET /catalog` | 8 个候选地点的示例基础数据 |
+| `POST /plan` | 按 profile 和 mode 生成草案，不保存 |
+| `POST /weather` | 刷新天气，不保存或重排行程 |
+| `GET /trips` | 已保存行程 |
+| `POST /trips` | `{ "trip": <草案>, "expectedRevision": 0 }`；修改时传当前 revision |
 | `DELETE /trips/{id}` | 删除指定行程 |
 | `GET /memories` | 已保存的授权偏好 |
 | `POST /memories` | `{ "consent": true, "summary": "喜欢艺术", "profile": {"interests":["艺术"],"maxSteps":5000} }` |
-| `DELETE /memories/{id}` | 从可检索记忆撤回；不抹除追加审计历史 |
-| `GET /setup` | 本机密钥配置表单；POST需要页面提供的CSRF令牌 |
+| `DELETE /memories/{id}` | 从可检索记忆撤回，保留追加审计历史 |
+| `GET/POST /setup` | 本机配置页，提交需要页面提供的 CSRF 令牌 |
 
-规划请求示例（日期自行调整；live天气只支持未来10天）：
-
-```sh
-curl -s http://127.0.0.1:8787/plan -H 'Content-Type: application/json' -d '{
-  "mode":"demo", "date":"2026-10-24", "days":1,
-  "budget":100, "maxSteps":10000, "startMinute":600, "endMinute":1080,
-  "interests":["艺术","风景"], "mustVisit":[], "request":"想多看看艺术馆",
-  "start":{"name":"环形码头","lat":-33.8611,"lng":151.2126},
-  "end":{"name":"环形码头","lat":-33.8611,"lng":151.2126}
-}'
-```
-
-budget是每天澳元活动预算；时间用当地午夜起算分钟。约束无可行解返回422；保存版本冲突409；非法来源403。API不会预订、付款或提交赛事。
+网页通过 `/api` 前缀访问对应接口；Android / iOS 保留上述原路径。约束无可行解为 `422`，保存版本冲突为 `409`，非法来源为 `403`。API 不执行订票、付款或赛事提交。
 
 ## 测试与 CI
 
 ```sh
-# 先启动本机服务；HTTP测试只删除自己创建的记录
-python3 -m unittest discover -s server/tests -v
-# Node24，官方H-MEM conformance
+dotnet restore server-dotnet/SydneyBuddy.Api.Tests/SydneyBuddy.Api.Tests.csproj
+dotnet build server-dotnet/SydneyBuddy.Api.Tests/SydneyBuddy.Api.Tests.csproj --no-restore
+dotnet test server-dotnet/SydneyBuddy.Api.Tests/SydneyBuddy.Api.Tests.csproj --no-build
+npm --prefix web run build
+npm --prefix web test
+# macOS / Linux：官方 H-MEM conformance
 HMEM_IMPL="$PWD/server/vendor/hmem/src/index.ts" \
   node --experimental-transform-types server/vendor/hmem/conformance/runner.ts
 ```
 
-Android 已通过 APK 构建、6 项域逻辑测试、静态检查及 Pixel 7 模拟器界面流程测试。后端 21 项测试和官方 H-MEM 的 13 项检查也已通过。GitHub Actions 分别构建 Android APK、运行 Android 域逻辑测试及静态检查，以及执行后端和 H-MEM 测试，不调用付费服务。Android 实际在线请求与设备边界见[验证记录](docs/ANDROID-VERIFICATION.md)；之前的 iOS 构建记录见[旧版验证说明](docs/VERIFICATION.md)。
+后端集成测试在上述 PostgreSQL 连接中创建专属随机 schema，完成后清理；连接用户需要创建 schema 的权限。详细说明见 [迁移说明](docs/ASPNET-MIGRATION.md)。GitHub Actions 启动 PostgreSQL 服务，使用 .NET 10 构建与测试，运行 H-MEM 检查和网页构建。Android 继续使用原构建工作流。自动测试不调用付费 API。迁移后的测试结果以当前 CI 和迁移说明为准；原 Python / Android / iOS 版本的成功记录不能直接作为新版在线或真机验收结果。
 
 ## 项目结构
 
-```text
-android/               Kotlin / Jetpack Compose Android App、Gradle Wrapper、测试
-ios/                   保留的 SwiftUI App、Xcode工程、配置模板
-server/app.py          本机HTTP API与SQLite存储
-server/planner.py      候选收集、Nemotron排序与确定性约束检查
-server/weather.py      Google天气、日期匹配与失败处理
-server/memory.py        Node24 H-MEM桥接
-server/vendor/hmem/    官方参考实现、许可和来源
-server/tests/          后端与HTTP测试
-scripts/               启动和工程生成脚本
-docs/                  App截图、演示录像、验证与参赛清单
-.github/workflows/     Android 构建、域逻辑与静态检查；后端自动检查
-```
+| 路径 | 职责 |
+|---|---|
+| `web/` | React / TypeScript 响应式网页与 Vite 构建 |
+| `android/` | Kotlin / Jetpack Compose Android 客户端 |
+| `ios/` | 保留的 SwiftUI 客户端 |
+| `server-dotnet/SydneyBuddy.Api/` | ASP.NET Core REST API、C# 规划、天气、依赖注入、EF Core / PostgreSQL 存储 |
+| `server-dotnet/SydneyBuddy.Api.Tests/` | 新后端的单元与 HTTP 兼容性测试 |
+| `server/places.json` | 沿用的候选地点基础数据 |
+| `server/hmem_bridge.ts`、`server/vendor/hmem/` | 由 C# 调用的官方 H-MEM 引擎与许可 |
+| `server/.hmem/` | 本机记忆与审计数据，Git 忽略目录 |
+| `server/*.py`、`server/tests/` | 旧 Python 实现和对照测试，不参与新后端运行 |
+| `compose.yaml` | 本机 PostgreSQL 开发服务 |
 
 ## 限制与黑客松状态
 
-- 限定8个悉尼地标、步行模式，最多尝试8个候选顺序，不保证全局最优。Google常规营业时段不保证节假日正确；缺失数据使用明确标记的假设。
-- 费用、步数、停留时间为估算；没有住宿、全餐饮、实时票价、排队、坡度和无障碍模型。
-- 没有多人账户、社区、共享同步、支付、订票、酒店预订、航班追踪或后台GPS。出发准备徽章不等于到访认证。
-- H-MEM为本机单用户；删除后不再检索，但追加审计账本保留历史。未启用自动dreaming/sleep。
-- NVIDIA直连NIM和官方Meterless H-MEM已验证。**Cursor、Zetaris按团队要求暂缓，Nightshift未接入；不声称满足全部赛事要求。** 最终赛道、赞助商要求与HackOS提交仍需团队确认。[参赛清单](docs/submission-checklist.md)
-- 视频是之前版本的原始录屏，没有新版任务引导、解说或全部增量功能；以源码与当前截图为准。演示稿未存入本仓库。
+- 限定 8 个悉尼地标、步行模式，每天最多尝试 8 个初筛候选顺序，不保证全局最优。Google 常规营业时段可能不适用于节假日。
+- 花费、步数和停留时间为估算；没有住宿、全部餐饮、实时票价、排队、坡度或无障碍模型。
+- 没有多人账户、共享同步、支付、订票、酒店预订、航班追踪或后台 GPS。PostgreSQL 支持存储，并不自动提供用户隔离或云端同步。
+- H-MEM 为本机单用户，撤回后不再检索，但审计历史保留；未启用自动 dreaming / sleep。
+- 原 Python 版本有 NVIDIA NIM 和 H-MEM 验证记录；迁移后的真实在线功能需使用本机配置重新验收。Cursor、Zetaris 按团队原要求暂缓，Nightshift 未接入；不声称满足全部赛事要求。见 [参赛清单](docs/submission-checklist.md)。
+- `docs/` 中既有截图与视频描述迁移前版本；网页和 .NET 后端以当前代码和测试结果为准。
 
 ## 来源与许可
 
-项目沿用[MIT许可证](LICENSE)。`server/vendor/hmem`为官方参考实现，保留独立Apache-2.0许可和[来源说明](server/vendor/hmem/UPSTREAM.md)。Google SDK及在线服务受各自条款约束。
+项目沿用 [MIT 许可证](LICENSE)。`server/vendor/hmem` 保留官方参考实现的 Apache-2.0 许可和 [来源说明](server/vendor/hmem/UPSTREAM.md)。Google SDK 及在线服务受各自条款约束。
 
 [Google Maps iOS](https://developers.google.com/maps/documentation/ios-sdk/config) · [Places](https://developers.google.com/maps/documentation/places/web-service/text-search) · [Routes](https://developers.google.com/maps/documentation/routes/compute_route_directions) · [Weather](https://developers.google.com/maps/documentation/weather/overview) · [NVIDIA NIM](https://docs.api.nvidia.com/nim/reference/llm-apis) · [Meterless](https://github.com/Meterless/Meterless/tree/main/engines/hmem)
 
-交互借鉴[Duolingo的小步学习、即时反馈和完成奖励](https://blog.duolingo.com/duolingo-teaching-method/)，使用原创Buddy角色；本项目与Duolingo无关联。
+交互借鉴 Duolingo 的小步学习、即时反馈与完成奖励，使用原创 Buddy 角色；本项目与 Duolingo 无关联。
