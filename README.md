@@ -1,125 +1,151 @@
-# hackathon · 漫游旅行规划 MVP
+# Sydney Buddy · 悉尼旅行 Agent
 
-卡通冒险风格的手机旅行规划 MVP：根据问答生成固定画像，创建任务，获得考虑预算、时间和预计精力的完整行程，并在地图页衔接 Apple Maps。
+原生 **SwiftUI iOS + Python API** 旅行规划 MVP：单题引导收集偏好，NVIDIA Nemotron 推荐候选地点，程序检查路线约束，再由用户确认保存。地图、地点、路线与天气使用 Google Maps Platform，授权偏好使用官方 Meterless H-MEM 引擎。
 
-[![Local MVP checks](https://github.com/f1sh11/hackathon/actions/workflows/ci.yml/badge.svg)](https://github.com/f1sh11/hackathon/actions/workflows/ci.yml)
+本版本替换仓库原 React/.NET 原型；旧版本保留在 Git 历史中。**当前为本机单用户原型，未部署线上服务，也未提交 HackOS。**
 
-**React + TypeScript · ASP.NET Core .NET 10 · PostgreSQL 17 · Docker Compose**
+![游戏化引导](docs/buddy-onboarding.png)
 
-![卡通旅行助手与地图功能](docs/game-map-preview/overview.jpg)
+[地图与出发任务截图](docs/buddy-preparation.png) · [Google 天气截图](docs/app-google-weather.png) · [演示录像 MP4](docs/app-demo.mp4) · [验证记录](docs/verification.md)
 
-## 手机 App 界面
+## 已实现
 
-底部导航包含「行程 / 地图 / 创建 / 画像」。明亮配色、立体按钮、原创背包伙伴与关卡式行程卡贯穿问答和规划；画像仍为固定只读。填写任务日期、预算、精力和主题后，查看完整行程、每站变化及轻松版历史。
+- 8步轻量引导：日期、天数、节奏、兴趣、预算、起点、时间、确认。Buddy 即时回应，带进度条与按压反馈。
+- 悉尼市区1–3天步行规划，8个限定候选地标，每天最多4站，跨天不重复。
+- Google 地图标记和真实步行路线；Places 查询坐标与常规营业时段；Weather 获取未来10天逐日预报。
+- Nemotron 只对给定地点ID排序，程序独立检查时间、步数、活动预算、休息、衔接和返程。
+- AI调整先生成草案，展示地点与步数变化，确认后才替换保存；版本冲突返回409。
+- SQLite 多行程管理；iOS 本机均分记账以整数分保存。
+- 同意后保存偏好并通过 H-MEM 检索，支持撤回；追加审计账本仍保留历史记录。
+- 出发准备清单：查看路线、成功刷新天气、手动确认行李。进度按行程保存在本机，全部完成显示徽章，不设断签惩罚。
 
-「地图」显示明确标注的路线示意，支持任务、版本、站点和交通方式选择，并通过官方链接在 Apple Maps 中查看地点或导航。泛化活动先搜索，返程需自行填写地址。没有内嵌 Apple 底图或接入实时地图 API，详见 [地图功能说明](docs/APPLE-MAPS.md)。
+## 快速运行
 
-界面以手机为主要尺寸，电脑上呈现居中的手机画布。这一版是连接真实 .NET 后端的移动网页，尚未生成 iOS、Android 或 Unity 安装包。附带独立窗口显示的 Web App manifest；没有配置离线运行。当前服务只开放本机访问，不代表另一台手机已经能够直连。
-
-[问答](docs/mobile-preview/01-questionnaire.jpg) · [固定画像](docs/mobile-preview/02-fixed-profile.jpg) · [创建任务](docs/mobile-preview/03-create-task.jpg) · [行程详情](docs/mobile-preview/04-itinerary.jpg)
-
-## 本地运行
-
-安装并启动 Docker Desktop，或其他支持 Docker Compose 的运行环境，然后：
+需要 macOS、Xcode（iOS17+ SDK/模拟器）、Python3.9+（本次验证3.14）、Node.js24。Python 服务只用标准库，无需 pip 安装。首次 Xcode 构建需联网下载 Google Maps SDK11.2.0。
 
 ```sh
 git clone https://github.com/f1sh11/hackathon.git
 cd hackathon
-docker compose up --build --detach --wait
+python3 server/app.py
 ```
 
-打开 **http://127.0.0.1:5080** 。首次构建需要联网下载依赖和基础镜像，应用本身不调用外部旅行、地图、模型或预订 API。
+也可双击 `scripts/start-server.command`。服务启动在 **http://127.0.0.1:8787**，然后：
 
-macOS / Linux 也可以运行 `./scripts/start.sh`；macOS 可双击 `启动漫游.command`。
+1. 打开 `ios/SydneyBuddy.xcodeproj`，选择已安装的 iPhone 模拟器，运行 `SydneyBuddy` scheme。
+2. 不配置密钥也能用演示模式，地图显示明确标注的示意图。
+3. 配置在线服务：在同一台电脑打开 **http://127.0.0.1:8787/setup**，填写自己的密钥并保存。
+4. Google iOS地图密钥保存后，重新构建App。开启引导页或“我的”里的在线推荐。
 
-可复制 `.env.example` 为 `.env` 自定义本地端口与开发数据库凭据。请在首次初始化之前设置数据库名称与密码；修改已经初始化的 PostgreSQL 卷的这些环境变量，不会自动重建数据库或变更现有账户密码。实际 `.env` 不提交。
-
-服务只绑定 `127.0.0.1`，数据库端口不向宿主发布。默认凭据仅用于本地开发。
-
-## 第一版功能
-
-- 六个问题生成后端派生的固定画像；雷达图不能手动调分。
-- 支持悉尼、单人、一日游；设置日期、预算、出发与返回时间、精力和主题。
-- 纯 C# 规划器组合地点并校验开放时段、转场、返程、预算、步行与每一段 HP。
-- 无可行解时显示冲突，不伪造成功行程。
-- PostgreSQL 保存画像、任务和行程历史版本；支持生成轻松版。
-- 相同请求编号重试不会重复创建任务或版本。
-- 地图页查看行程版本与每站余量，支持 Apple Maps 地点搜索和步行 / 驾车 / 公交导航跳转。
-
-[查看手机行程示例](docs/mobile-preview/04-itinerary.jpg)
-
-## 数据与产品边界
-
-地点、开放时段、费用、转场和 HP 全部为明确标记的示例数据，不能作为真实出行保证。日期随任务保存，暂不处理节假日差异。自由文本备注只保存，规划按结构化表单执行，不包含自然语言理解。
-
-当前面向本地单个使用者，所有浏览器共享同一个固定画像。第一版不提供修改画像接口、账号体系、预订支付或媒体上传。
-
-图片与视频适合存储于媒体目录或对象存储，PostgreSQL 保存元信息与关联；本版仅预留 `media_assets` 表。
-
-## 停止与数据保存
+命令行构建（先用 `xcrun simctl list devices available` 查询可用模拟器）：
 
 ```sh
-docker compose down
+xcodebuild -project ios/SydneyBuddy.xcodeproj -scheme SydneyBuddy \
+  -sdk iphonesimulator -configuration Debug \
+  -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
 ```
 
-数据库保存在 `postgres-data` 命名卷。停止、重建应用容器和再次启动不会清空数据。`down --volumes` 会删除该数据库卷，请勿用于保留数据的正常停止流程。
+模拟器无需Apple付费会员即可构建运行；真机需自己的开发团队/签名。**App中的127.0.0.1只适用于同机模拟器**。真机/线上部署需配置HTTPS后端地址、身份认证、访问控制和滥用防护，本版尚未实现。
+
+## API 密钥配置
+
+仓库发布完整API接口代码和配置模板，**不包含可用密钥**。本机设置页会把密钥保存到忽略文件 `.secrets.json`（权限0600），iOS地图密钥另写入忽略文件 `ios/Config/Secrets.xcconfig`。
+
+| 配置项 | 用途与限制 |
+|---|---|
+| `NVIDIA_API_KEY` | 服务端调用 NVIDIA NIM；不得打包进App |
+| `NVIDIA_MODEL` | 可选；默认 `nvidia/nemotron-3.5-lightning-30b-a3b`，需账号支持 |
+| `GOOGLE_SERVER_KEY` | 仅允许 Places API (New)、Routes API、Weather API，按运行服务的出口IP限制 |
+| `GOOGLE_IOS_KEY` | 仅允许 Maps SDK for iOS，应用限制为 `com.sydneybuddy.travel` |
+| `NODE_BINARY` | 可选，Node24可执行文件路径；否则从PATH查找 |
+
+模板见 [.secrets.example.json](.secrets.example.json) 和 [Secrets.example.xcconfig](ios/Config/Secrets.example.xcconfig)。使用模板时自行复制为实际文件，填入自己的值。也可通过上述同名环境变量配置服务端；本程序**不会自动加载.env**。单独设置 `GOOGLE_IOS_KEY` 环境变量不会生成App配置，应使用设置页或手动填写xcconfig。
+
+Google项目需要启用计费及上述4项服务。已有密钥的IP限制换网络后可能失效；不要取消所有限制来排错。Weather每月前10,000次免费，之后第一档US$0.15/1,000次；地图、Places和Routes分别计费，以[官方价格](https://developers.google.com/maps/billing-and-pricing/pricing)为准。未配置云端硬性费用上限。
+
+## 模式、天气与数据边界
+
+| 模式 | 模型 | 其他数据 |
+|---|---|---|
+| `demo` | 本地规则，不调用AI | 示例地点、天气、营业时段与距离估算 |
+| `assisted` | 真实Nemotron | 示例地点、天气和路线，不请求Google服务端API |
+| `live` | 真实Nemotron | Google Places、Routes、Weather；费用/场内步数/停留时间仍为估算 |
+
+在线开关开启后，有Google服务端密钥进入live，否则assisted。存在密钥不代表服务验证成功；地图SDK与后端服务分别配置。
+
+天气按Australia/Sydney日期匹配，每天分别影响室内/室外筛选。Weather每次请求10天、pageSize=10，8秒超时；失败或范围外明确标为未知，不当作晴天。首页可独立刷新天气；刷新不会重排已保存路线，调整要点“问AI”并确认。雨天快捷按钮是用户情景测试，明确标注非实时。Google天气原始响应不做跨请求缓存。
+
+## 后端接口
+
+默认仅监听127.0.0.1:8787，无账户系统，不可直接暴露公网。JSON请求使用 `Content-Type: application/json`；跨站请求受本机来源检查限制。
+
+| 方法/路径 | 说明 |
+|---|---|
+| `GET /health` | 服务状态、配置是否存在；不返回密钥 |
+| `GET /catalog` | 8个候选地点的演示基础数据 |
+| `POST /plan` | 按profile和mode生成草案，不保存 |
+| `POST /weather` | 按profile日期获取Google天气，不保存或重排行程 |
+| `GET /trips` | 已保存的行程 |
+| `POST /trips` | `{ "trip": <草案>, "expectedRevision": 0 }`；首次保存revision1，修改时传当前revision |
+| `DELETE /trips/{id}` | 删除指定行程 |
+| `GET /memories` | 已保存的授权偏好 |
+| `POST /memories` | `{ "consent": true, "summary": "喜欢艺术", "profile": {"interests":["艺术"],"maxSteps":5000} }` |
+| `DELETE /memories/{id}` | 从可检索记忆撤回；不抹除追加审计历史 |
+| `GET /setup` | 本机密钥配置表单；POST需要页面提供的CSRF令牌 |
+
+规划请求示例（日期自行调整；live天气只支持未来10天）：
+
+```sh
+curl -s http://127.0.0.1:8787/plan -H 'Content-Type: application/json' -d '{
+  "mode":"demo", "date":"2026-10-24", "days":1,
+  "budget":100, "maxSteps":10000, "startMinute":600, "endMinute":1080,
+  "interests":["艺术","风景"], "mustVisit":[], "request":"想多看看艺术馆",
+  "start":{"name":"环形码头","lat":-33.8611,"lng":151.2126},
+  "end":{"name":"环形码头","lat":-33.8611,"lng":151.2126}
+}'
+```
+
+budget是每天澳元活动预算；时间用当地午夜起算分钟。约束无可行解返回422；保存版本冲突409；非法来源403。API不会预订、付款或提交赛事。
 
 ## 测试与 CI
 
-安装 .NET 10 SDK 后运行核心测试：
-
 ```sh
-dotnet run --project tests/Roam.Core.Tests --configuration Release
+# 先启动本机服务；HTTP测试只删除自己创建的记录
+python3 -m unittest discover -s server/tests -v
+# Node24，官方H-MEM conformance
+HMEM_IMPL="$PWD/server/vendor/hmem/src/index.ts" \
+  node --experimental-transform-types server/vendor/hmem/conformance/runner.ts
 ```
 
-启动应用后，使用 Node.js 24 执行真实 HTTP 验收：
-
-```sh
-node scripts/smoke.mjs
-```
-
-该脚本会创建自动验收任务，不删除已有记录。纯 C# 测试覆盖 13 组情景，其中包括 160 个固定随机种子的约束案例。
-
-GitHub Actions 会执行前端构建、Apple Maps 链接校验、.NET 规划器测试、后端构建、Docker Compose 启动、HTTP 验收，并明确对比容器重启前后的画像、任务 ID 与行程版本。[查看运行记录](https://github.com/f1sh11/hackathon/actions)
-
-这是本地部署项目；没有配置线上服务器 CD，GitHub Pages 也不承担 .NET 和 PostgreSQL 的运行。
+本机已通过21项后端测试和13项官方H-MEM测试，iOS模拟器构建/启动已验证。GitHub Actions会启动独立服务执行后端及H-MEM测试，不调用付费服务，也不冒充iOS云端构建验证。真实在线请求记录见[验证说明](docs/verification.md)。
 
 ## 项目结构
 
-五人团队从 [前后端目录框架与分工](docs/PROJECT-FRAMEWORK.md) 开始。前端按画像、任务、行程、地图拆分；后端按接口、请求响应结构、数据存取及独立规划核心拆分。后端开发可以直接打开根目录的 `Roam.slnx`。
-
 ```text
-client/src/app/           全局状态与页面流程
-client/src/components/    公共图标与卡通伙伴
-client/src/features/      profile / tasks / trips / maps 页面
-client/src/services/      HTTP 与业务接口调用
-client/src/types/         前后端数据类型
-src/Roam.Api/             Features / Contracts / Infrastructure / Database
-src/Roam.Core/            Profiles / Planning / Models
-tests/Roam.Core.Tests/    无第三方测试框架依赖的核心测试
-scripts/                 本地启动、HTTP 验收、持久化核验
-compose.yaml             应用与 PostgreSQL
-Roam.slnx                后端与测试的 solution
-.github/workflows/       GitHub Actions 自动检查
+ios/                   SwiftUI App、Xcode工程、配置模板
+server/app.py          本机HTTP API与SQLite存储
+server/planner.py      候选收集、Nemotron排序与确定性约束检查
+server/weather.py      Google天气、日期匹配与失败处理
+server/memory.py        Node24 H-MEM桥接
+server/vendor/hmem/    官方参考实现、许可和来源
+server/tests/          后端与HTTP测试
+scripts/               启动和工程生成脚本
+docs/                  App截图、演示录像、验证与参赛清单
+.github/workflows/     后端自动检查
 ```
 
-## 非容器开发模式
+## 限制与黑客松状态
 
-需要 Node.js 24、pnpm 11.25.0、.NET 10 SDK 和独立的 PostgreSQL 数据库。
+- 限定8个悉尼地标、步行模式，最多尝试8个候选顺序，不保证全局最优。Google常规营业时段不保证节假日正确；缺失数据使用明确标记的假设。
+- 费用、步数、停留时间为估算；没有住宿、全餐饮、实时票价、排队、坡度和无障碍模型。
+- 没有多人账户、社区、共享同步、支付、订票、酒店预订、航班追踪或后台GPS。出发准备徽章不等于到访认证。
+- H-MEM为本机单用户；删除后不再检索，但追加审计账本保留历史。未启用自动dreaming/sleep。
+- NVIDIA直连NIM和官方Meterless H-MEM已验证。**Cursor、Zetaris按团队要求暂缓，Nightshift未接入；不声称满足全部赛事要求。** 最终赛道、赞助商要求与HackOS提交仍需团队确认。[参赛清单](docs/submission-checklist.md)
+- 视频是之前版本的原始录屏，没有新版任务引导、解说或全部增量功能；以源码与当前截图为准。演示稿未存入本仓库。
 
-```sh
-cd client
-pnpm install --frozen-lockfile
-pnpm build
-cd ..
-mkdir -p src/Roam.Api/wwwroot
-cp -R client/dist/. src/Roam.Api/wwwroot/
-export ConnectionStrings__Roam='Host=127.0.0.1;Port=5432;Database=roam;Username=roam;Password=YOUR_LOCAL_PASSWORD'
-dotnet run --project src/Roam.Api --urls http://127.0.0.1:5080
-```
+## 来源与许可
 
-也可使用 `pnpm dev`，开发代理将 `/api` 和 `/health` 转发到本地后端。
+项目沿用[MIT许可证](LICENSE)。`server/vendor/hmem`为官方参考实现，保留独立Apache-2.0许可和[来源说明](server/vendor/hmem/UPSTREAM.md)。Google SDK及在线服务受各自条款约束。
 
-需要连接其他本地测试端口时，启动前设置 `ROAM_API_ORIGIN`，例如 `ROAM_API_ORIGIN=http://127.0.0.1:5083 pnpm dev`。默认仍为 `http://127.0.0.1:5080`，生产构建使用同源 API。
+[Google Maps iOS](https://developers.google.com/maps/documentation/ios-sdk/config) · [Places](https://developers.google.com/maps/documentation/places/web-service/text-search) · [Routes](https://developers.google.com/maps/documentation/routes/compute_route_directions) · [Weather](https://developers.google.com/maps/documentation/weather/overview) · [NVIDIA NIM](https://docs.api.nvidia.com/nim/reference/llm-apis) · [Meterless](https://github.com/Meterless/Meterless/tree/main/engines/hmem)
 
-验收口径见 [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md)，首次本地验证记录见 [docs/VERIFICATION.md](docs/VERIFICATION.md)。项目沿用仓库的 [MIT License](LICENSE)。
+交互借鉴[Duolingo的小步学习、即时反馈和完成奖励](https://blog.duolingo.com/duolingo-teaching-method/)，使用原创Buddy角色；本项目与Duolingo无关联。

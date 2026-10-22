@@ -1,46 +1,29 @@
-name: Local MVP checks
+name: Sydney Buddy backend checks
 on:
   push:
   pull_request:
-  workflow_dispatch:
 permissions:
   contents: read
 jobs:
-  verify:
+  backend:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-dotnet@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          dotnet-version: '10.0.x'
-      - uses: actions/setup-node@v6
+          python-version: '3.14'
+      - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Install pinned frontend package manager
-        run: npm install --global pnpm@11.25.0
-      - name: Build frontend
-        working-directory: client
-        run: pnpm install --frozen-lockfile && pnpm build
-      - name: Check Apple Maps destinations and links
-        run: node scripts/check-map-links.mjs
-      - name: Run C# planning checks
-        run: dotnet run --project tests/Roam.Core.Tests --configuration Release
-      - name: Compile backend
-        run: dotnet build Roam.slnx --configuration Release
-      - name: Start actual local stack
-        run: docker compose up --build --detach --wait --wait-timeout 180
-      - name: HTTP acceptance against .NET and PostgreSQL
-        run: node scripts/smoke.mjs
-      - name: Verify PostgreSQL survives stack restart
+      - name: Backend unit and HTTP tests
         run: |
-          node scripts/check-persistence.mjs snapshot
-          docker compose restart
-          timeout 120 bash -c 'until curl --fail --silent http://127.0.0.1:5080/health; do sleep 2; done'
-          node scripts/check-persistence.mjs verify
-      - name: Print logs on failure
-        if: failure()
-        run: docker compose logs --no-color
-      - name: Stop test stack
-        if: always()
-        run: docker compose down
+          python3 server/app.py > /tmp/sydney-buddy.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid"' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8787/health > /dev/null; then break; fi
+            sleep 1
+          done
+          python3 -m unittest discover -s server/tests -v
+      - name: Official H-MEM conformance
+        run: HMEM_IMPL="$PWD/server/vendor/hmem/src/index.ts" node --experimental-transform-types server/vendor/hmem/conformance/runner.ts

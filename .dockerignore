@@ -1,9 +1,0 @@
-.git
-**/bin
-**/obj
-**/node_modules
-client/dist
-src/Roam.Api/wwwroot
-.env
-artifacts
-**/.checks

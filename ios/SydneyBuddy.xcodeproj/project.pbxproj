@@ -1,0 +1,231 @@
+// !$*UTF8*$!
+{
+  archiveVersion = 1;
+  classes = {
+  };
+  objectVersion = 56;
+  objects = {
+    D22C2DEA88DA5AD5F3DEA760 = {
+      isa = "PBXFileReference";
+      lastKnownFileType = "sourcecode.swift";
+      path = "MapView.swift";
+      sourceTree = "<group>";
+    };
+    958AEEDAB1FDB695731EEDE0 = {
+      isa = "PBXBuildFile";
+      fileRef = "D22C2DEA88DA5AD5F3DEA760";
+    };
+    8BF4A28E43F6CF370D3EE1C2 = {
+      isa = "PBXFileReference";
+      lastKnownFileType = "sourcecode.swift";
+      path = "Models.swift";
+      sourceTree = "<group>";
+    };
+    487C502A5481E87001E8CC43 = {
+      isa = "PBXBuildFile";
+      fileRef = "8BF4A28E43F6CF370D3EE1C2";
+    };
+    D90469F66BBCF96E82C302CA = {
+      isa = "PBXFileReference";
+      lastKnownFileType = "sourcecode.swift";
+      path = "SettingsViews.swift";
+      sourceTree = "<group>";
+    };
+    15C8F3262E55FB3D7DC0ED21 = {
+      isa = "PBXBuildFile";
+      fileRef = "D90469F66BBCF96E82C302CA";
+    };
+    D3B99BADD38FD7F79CA7F8C1 = {
+      isa = "PBXFileReference";
+      lastKnownFileType = "sourcecode.swift";
+      path = "SydneyBuddyApp.swift";
+      sourceTree = "<group>";
+    };
+    658A1241C451AE78218EE389 = {
+      isa = "PBXBuildFile";
+      fileRef = "D3B99BADD38FD7F79CA7F8C1";
+    };
+    F4B96E2FB567E0F7FD282DD4 = {
+      isa = "PBXFileReference";
+      lastKnownFileType = "sourcecode.swift";
+      path = "TripViews.swift";
+      sourceTree = "<group>";
+    };
+    5CD6439BB3413D308E4941A5 = {
+      isa = "PBXBuildFile";
+      fileRef = "F4B96E2FB567E0F7FD282DD4";
+    };
+    1405DF66CBE219B0BF6355BC = {
+      isa = "PBXFileReference";
+      lastKnownFileType = "text.xcconfig";
+      path = "Config/Base.xcconfig";
+      sourceTree = "<group>";
+    };
+    0112DAE3F84CB4DF5179BE01 = {
+      isa = "PBXFileReference";
+      lastKnownFileType = "text.plist.xml";
+      path = "Config/Info.plist";
+      sourceTree = "<group>";
+    };
+    482182478A3ECD4745BEA917 = {
+      isa = "PBXGroup";
+      children = ("D22C2DEA88DA5AD5F3DEA760", "8BF4A28E43F6CF370D3EE1C2", "D90469F66BBCF96E82C302CA", "D3B99BADD38FD7F79CA7F8C1", "F4B96E2FB567E0F7FD282DD4");
+      path = "SydneyBuddy";
+      sourceTree = "<group>";
+    };
+    7D1043473D55BFA90E8530D3 = {
+      isa = "PBXFileReference";
+      explicitFileType = "wrapper.application";
+      path = "SydneyBuddy.app";
+      sourceTree = "BUILT_PRODUCTS_DIR";
+    };
+    FBDC4F23F93125BBEEAE800C = {
+      isa = "PBXGroup";
+      children = ("7D1043473D55BFA90E8530D3");
+      name = "Products";
+      sourceTree = "<group>";
+    };
+    B28B7AF69320201D1CF206EB = {
+      isa = "PBXGroup";
+      children = ("482182478A3ECD4745BEA917", "1405DF66CBE219B0BF6355BC", "0112DAE3F84CB4DF5179BE01", "FBDC4F23F93125BBEEAE800C");
+      sourceTree = "<group>";
+    };
+    B56FEFA5E14F842C2B6FF70D = {
+      isa = "XCRemoteSwiftPackageReference";
+      repositoryURL = "https://github.com/googlemaps/ios-maps-sdk";
+      requirement = {
+        kind = "exactVersion";
+        version = "11.2.0";
+      };
+    };
+    36CDE4CBCC694109FAA30F36 = {
+      isa = "XCSwiftPackageProductDependency";
+      package = "B56FEFA5E14F842C2B6FF70D";
+      productName = "GoogleMaps";
+    };
+    D5F74F95B1AEB73E97848A3D = {
+      isa = "PBXBuildFile";
+      productRef = "36CDE4CBCC694109FAA30F36";
+    };
+    BCE16DD0260827ECF338C787 = {
+      isa = "PBXSourcesBuildPhase";
+      buildActionMask = 2147483647;
+      files = ("958AEEDAB1FDB695731EEDE0", "487C502A5481E87001E8CC43", "15C8F3262E55FB3D7DC0ED21", "658A1241C451AE78218EE389", "5CD6439BB3413D308E4941A5");
+      runOnlyForDeploymentPostprocessing = 0;
+    };
+    7561BFB015D8F536760CB671 = {
+      isa = "PBXFrameworksBuildPhase";
+      buildActionMask = 2147483647;
+      files = ("D5F74F95B1AEB73E97848A3D");
+      runOnlyForDeploymentPostprocessing = 0;
+    };
+    0189424A5A60FED329FA868E = {
+      isa = "PBXResourcesBuildPhase";
+      buildActionMask = 2147483647;
+      files = ();
+      runOnlyForDeploymentPostprocessing = 0;
+    };
+    89E1FD6268CC0F221A2BE178 = {
+      isa = "XCBuildConfiguration";
+      buildSettings = {
+        SDKROOT = "iphoneos";
+        IPHONEOS_DEPLOYMENT_TARGET = "17.0";
+        CLANG_ENABLE_MODULES = "YES";
+        SWIFT_VERSION = "5.0";
+        SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+      };
+      name = "Debug";
+    };
+    E6DE6C99132752C914FEF632 = {
+      isa = "XCBuildConfiguration";
+      buildSettings = {
+        SDKROOT = "iphoneos";
+        IPHONEOS_DEPLOYMENT_TARGET = "17.0";
+        CLANG_ENABLE_MODULES = "YES";
+        SWIFT_VERSION = "5.0";
+        SWIFT_OPTIMIZATION_LEVEL = "-O";
+      };
+      name = "Release";
+    };
+    FBD3510CED826C9DAA696E48 = {
+      isa = "XCConfigurationList";
+      buildConfigurations = ("89E1FD6268CC0F221A2BE178", "E6DE6C99132752C914FEF632");
+      defaultConfigurationIsVisible = 0;
+      defaultConfigurationName = "Release";
+    };
+    7082CC0B6FC1282FCEABD07A = {
+      isa = "XCBuildConfiguration";
+      buildSettings = {
+        PRODUCT_BUNDLE_IDENTIFIER = "com.sydneybuddy.travel";
+        PRODUCT_NAME = "$(TARGET_NAME)";
+        INFOPLIST_FILE = "Config/Info.plist";
+        TARGETED_DEVICE_FAMILY = "1";
+        CODE_SIGN_STYLE = "Automatic";
+        MARKETING_VERSION = "0.1.0";
+        CURRENT_PROJECT_VERSION = "1";
+        GENERATE_INFOPLIST_FILE = "NO";
+        OTHER_LDFLAGS = ("$(inherited)", "-ObjC");
+        LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks");
+        SWIFT_EMIT_LOC_STRINGS = "YES";
+        SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+      };
+      name = "Debug";
+      baseConfigurationReference = "1405DF66CBE219B0BF6355BC";
+    };
+    639A7CA24D39909E713B47F7 = {
+      isa = "XCBuildConfiguration";
+      buildSettings = {
+        PRODUCT_BUNDLE_IDENTIFIER = "com.sydneybuddy.travel";
+        PRODUCT_NAME = "$(TARGET_NAME)";
+        INFOPLIST_FILE = "Config/Info.plist";
+        TARGETED_DEVICE_FAMILY = "1";
+        CODE_SIGN_STYLE = "Automatic";
+        MARKETING_VERSION = "0.1.0";
+        CURRENT_PROJECT_VERSION = "1";
+        GENERATE_INFOPLIST_FILE = "NO";
+        OTHER_LDFLAGS = ("$(inherited)", "-ObjC");
+        LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks");
+        SWIFT_EMIT_LOC_STRINGS = "YES";
+        SWIFT_OPTIMIZATION_LEVEL = "-O";
+      };
+      name = "Release";
+      baseConfigurationReference = "1405DF66CBE219B0BF6355BC";
+    };
+    DBC1F132A3B6D94B1DF33607 = {
+      isa = "XCConfigurationList";
+      buildConfigurations = ("7082CC0B6FC1282FCEABD07A", "639A7CA24D39909E713B47F7");
+      defaultConfigurationIsVisible = 0;
+      defaultConfigurationName = "Release";
+    };
+    0E8A3AD980EC179856012B7E = {
+      isa = "PBXNativeTarget";
+      buildConfigurationList = "DBC1F132A3B6D94B1DF33607";
+      buildPhases = ("BCE16DD0260827ECF338C787", "7561BFB015D8F536760CB671", "0189424A5A60FED329FA868E");
+      buildRules = ();
+      dependencies = ();
+      name = "SydneyBuddy";
+      packageProductDependencies = ("36CDE4CBCC694109FAA30F36");
+      productName = "SydneyBuddy";
+      productReference = "7D1043473D55BFA90E8530D3";
+      productType = "com.apple.product-type.application";
+    };
+    98F54143AB4E86B28C3AFEE0 = {
+      isa = "PBXProject";
+      attributes = {
+        LastUpgradeCheck = "2700";
+      };
+      buildConfigurationList = "FBD3510CED826C9DAA696E48";
+      compatibilityVersion = "Xcode 14.0";
+      developmentRegion = "zh-Hans";
+      hasScannedForEncodings = 0;
+      knownRegions = ("en", "zh-Hans", "Base");
+      mainGroup = "B28B7AF69320201D1CF206EB";
+      packageReferences = ("B56FEFA5E14F842C2B6FF70D");
+      productRefGroup = "FBDC4F23F93125BBEEAE800C";
+      projectDirPath = "";
+      projectRoot = "";
+      targets = ("0E8A3AD980EC179856012B7E");
+    };
+  };
+  rootObject = "98F54143AB4E86B28C3AFEE0";
+}

@@ -1,0 +1,49 @@
+{
+  "elapsedSeconds": 12.68,
+  "weather": {
+    "source": "Google Maps · Weather API",
+    "rainy": false,
+    "status": "ok",
+    "days": [
+      {
+        "date": "2026-10-23",
+        "summary": "多云间晴 · 17.8–22.1°C · 降水概率 20%",
+        "rainy": false,
+        "available": true,
+        "temperatureMin": 17.8,
+        "temperatureMax": 22.1,
+        "precipitationProbability": 20
+      },
+      {
+        "date": "2026-10-24",
+        "summary": "多云间晴 · 18.2–24.4°C · 降水概率 10%",
+        "rainy": false,
+        "available": true,
+        "temperatureMin": 18.2,
+        "temperatureMax": 24.4,
+        "precipitationProbability": 10
+      }
+    ],
+    "fetchedAt": "2026-10-22T06:30:11.061470+00:00",
+    "summary": "10-23 多云间晴 · 17.8–22.1°C · 降水概率 20% / 10-24 多云间晴 · 18.2–24.4°C · 降水概率 10%"
+  },
+  "days": [
+    {
+      "date": "2026-10-23",
+      "stops": [
+        "皇家植物园",
+        "悉尼歌剧院",
+        "岩石区",
+        "澳大利亚当代艺术博物馆"
+      ]
+    },
+    {
+      "date": "2026-10-24",
+      "stops": [
+        "维多利亚女王大厦",
+        "澳大利亚博物馆",
+        "新南威尔士州美术馆"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+[
+ {"id":"opera","name":"悉尼歌剧院","query":"Sydney Opera House","lat":-33.8568,"lng":151.2153,"category":"风景","indoor":false,"visitMinutes":60,"cost":0,"openMinute":540,"closeMinute":1080,"note":"外部游览示例；内部参观费用与预约另计"},
+ {"id":"rocks","name":"岩石区","query":"The Rocks Sydney","lat":-33.8599,"lng":151.2090,"category":"美食","indoor":false,"visitMinutes":70,"cost":30,"openMinute":600,"closeMinute":1140,"note":"餐饮预算为估算，店铺营业时间各异"},
+ {"id":"garden","name":"皇家植物园","query":"Royal Botanic Garden Sydney","lat":-33.8642,"lng":151.2166,"category":"自然","indoor":false,"visitMinutes":60,"cost":0,"openMinute":600,"closeMinute":1020,"note":"开放时段为演示假设，需核实当日信息"},
+ {"id":"mca","name":"澳大利亚当代艺术博物馆","query":"Museum of Contemporary Art Australia","lat":-33.8599,"lng":151.2091,"category":"艺术","indoor":true,"visitMinutes":75,"cost":25,"openMinute":600,"closeMinute":1020,"note":"门票预算为演示估算，非实际报价"},
+ {"id":"qvb","name":"维多利亚女王大厦","query":"Queen Victoria Building Sydney","lat":-33.8719,"lng":151.2067,"category":"城市","indoor":true,"visitMinutes":50,"cost":0,"openMinute":600,"closeMinute":1020,"note":"不含购物消费，开放时间待核实"},
+ {"id":"gallery","name":"新南威尔士州美术馆","query":"Art Gallery of New South Wales","lat":-33.8688,"lng":151.2173,"category":"艺术","indoor":true,"visitMinutes":80,"cost":0,"openMinute":600,"closeMinute":1020,"note":"免费常设展的演示预算，特别展另计"},
+ {"id":"museum","name":"澳大利亚博物馆","query":"Australian Museum Sydney","lat":-33.8749,"lng":151.2133,"category":"文化","indoor":true,"visitMinutes":90,"cost":0,"openMinute":600,"closeMinute":1020,"note":"费用和开放时间须核实，特别展另计"},
+ {"id":"darling","name":"达令港","query":"Darling Harbour Sydney","lat":-33.8730,"lng":151.2009,"category":"风景","indoor":false,"visitMinutes":60,"cost":0,"openMinute":540,"closeMinute":1200,"note":"公共区域示例，不含收费活动"}
+]
