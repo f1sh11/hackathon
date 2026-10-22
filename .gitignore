@@ -16,3 +16,17 @@ android/local.properties
 android/.idea/
 *.jks
 *.keystore
+
+# ASP.NET Core / test build outputs
+**/bin/
+**/obj/
+**/TestResults/
+*.user
+*.suo
+# React / Vite
+web/node_modules/
+web/dist/
+web/.vite/
+# Local PostgreSQL / editor state
+postgres-data/
+.vs/
