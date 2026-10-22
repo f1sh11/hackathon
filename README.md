@@ -1,12 +1,20 @@
 # hackathon · 漫游旅行规划 MVP
 
-根据问答生成固定旅行画像，创建规划任务，获得考虑预算、时间和预计精力的完整行程。
+手机 App 形态的旅行规划 MVP：根据问答生成固定旅行画像，创建任务，获得考虑预算、时间和预计精力的完整行程。
 
 [![Local MVP checks](https://github.com/f1sh11/hackathon/actions/workflows/ci.yml/badge.svg)](https://github.com/f1sh11/hackathon/actions/workflows/ci.yml)
 
 **React + TypeScript · ASP.NET Core .NET 10 · PostgreSQL 17 · Docker Compose**
 
-![旅行画像问答](preview-start.png)
+![手机端固定雷达画像](docs/mobile-preview/02-fixed-profile.jpg)
+
+## 手机 App 界面
+
+底部导航包含「行程 / 创建 / 画像」。六个问题逐屏作答，生成只读雷达角色卡后，填写任务的日期、预算、精力和主题，查看完整行程、每站变化及轻松版历史。
+
+界面以手机为主要尺寸，电脑上呈现居中的手机画布。这一版是连接真实 .NET 后端的移动网页，尚未生成 iOS、Android 或 Unity 安装包。附带独立窗口显示的 Web App manifest；没有配置离线运行。当前服务只开放本机访问，不代表另一台手机已经能够直连。
+
+[问答](docs/mobile-preview/01-questionnaire.jpg) · [固定画像](docs/mobile-preview/02-fixed-profile.jpg) · [创建任务](docs/mobile-preview/03-create-task.jpg) · [行程详情](docs/mobile-preview/04-itinerary.jpg)
 
 ## 本地运行
 
@@ -35,7 +43,7 @@ macOS / Linux 也可以运行 `./scripts/start.sh`；macOS 可双击 `启动漫�
 - PostgreSQL 保存画像、任务和行程历史版本；支持生成轻松版。
 - 相同请求编号重试不会重复创建任务或版本。
 
-[查看行程页面示例](preview-itinerary.png) · [查看手机页面示例](preview-mobile.png)
+[查看手机行程示例](docs/mobile-preview/04-itinerary.jpg)
 
 ## 数据与产品边界
 
@@ -101,5 +109,7 @@ dotnet run --project src/Roam.Api --urls http://127.0.0.1:5080
 ```
 
 也可使用 `pnpm dev`，开发代理将 `/api` 和 `/health` 转发到本地后端。
+
+需要连接其他本地测试端口时，启动前设置 `ROAM_API_ORIGIN`，例如 `ROAM_API_ORIGIN=http://127.0.0.1:5083 pnpm dev`。默认仍为 `http://127.0.0.1:5080`，生产构建使用同源 API。
 
 验收口径见 [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md)，首次本地验证记录见 [docs/VERIFICATION.md](docs/VERIFICATION.md)。项目沿用仓库的 [MIT License](LICENSE)。
