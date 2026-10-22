@@ -29,11 +29,11 @@ cd hackathon
 python3 server/app.py
 ```
 
-也可双击 `scripts/start-server.command`。服务启动在 **http://127.0.0.1:8787**，然后：
+也可双击 `scripts/start-server.command`。服务启动在 [http://127.0.0.1:8787](http://127.0.0.1:8787)，然后：
 
 1. 打开 `ios/SydneyBuddy.xcodeproj`，选择已安装的 iPhone 模拟器，运行 `SydneyBuddy` scheme。
 2. 不配置密钥也能用演示模式，地图显示明确标注的示意图。
-3. 配置在线服务：在同一台电脑打开 **http://127.0.0.1:8787/setup**，填写自己的密钥并保存。
+3. 配置在线服务：在同一台电脑打开 [本机密钥设置页](http://127.0.0.1:8787/setup)，填写自己的密钥并保存。
 4. Google iOS地图密钥保存后，重新构建App。开启引导页或“我的”里的在线推荐。
 
 命令行构建（先用 `xcrun simctl list devices available` 查询可用模拟器）：
