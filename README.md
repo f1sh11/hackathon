@@ -1,16 +1,18 @@
 # hackathon · 漫游旅行规划 MVP
 
-手机 App 形态的旅行规划 MVP：根据问答生成固定旅行画像，创建任务，获得考虑预算、时间和预计精力的完整行程。
+卡通冒险风格的手机旅行规划 MVP：根据问答生成固定画像，创建任务，获得考虑预算、时间和预计精力的完整行程，并在地图页衔接 Apple Maps。
 
 [![Local MVP checks](https://github.com/f1sh11/hackathon/actions/workflows/ci.yml/badge.svg)](https://github.com/f1sh11/hackathon/actions/workflows/ci.yml)
 
 **React + TypeScript · ASP.NET Core .NET 10 · PostgreSQL 17 · Docker Compose**
 
-![手机端固定雷达画像](docs/mobile-preview/02-fixed-profile.jpg)
+![卡通旅行助手与地图功能](docs/game-map-preview/overview.jpg)
 
 ## 手机 App 界面
 
-底部导航包含「行程 / 创建 / 画像」。六个问题逐屏作答，生成只读雷达角色卡后，填写任务的日期、预算、精力和主题，查看完整行程、每站变化及轻松版历史。
+底部导航包含「行程 / 地图 / 创建 / 画像」。明亮配色、立体按钮、原创背包伙伴与关卡式行程卡贯穿问答和规划；画像仍为固定只读。填写任务日期、预算、精力和主题后，查看完整行程、每站变化及轻松版历史。
+
+「地图」显示明确标注的路线示意，支持任务、版本、站点和交通方式选择，并通过官方链接在 Apple Maps 中查看地点或导航。泛化活动先搜索，返程需自行填写地址。没有内嵌 Apple 底图或接入实时地图 API，详见 [地图功能说明](docs/APPLE-MAPS.md)。
 
 界面以手机为主要尺寸，电脑上呈现居中的手机画布。这一版是连接真实 .NET 后端的移动网页，尚未生成 iOS、Android 或 Unity 安装包。附带独立窗口显示的 Web App manifest；没有配置离线运行。当前服务只开放本机访问，不代表另一台手机已经能够直连。
 
@@ -42,6 +44,7 @@ macOS / Linux 也可以运行 `./scripts/start.sh`；macOS 可双击 `启动漫�
 - 无可行解时显示冲突，不伪造成功行程。
 - PostgreSQL 保存画像、任务和行程历史版本；支持生成轻松版。
 - 相同请求编号重试不会重复创建任务或版本。
+- 地图页查看行程版本与每站余量，支持 Apple Maps 地点搜索和步行 / 驾车 / 公交导航跳转。
 
 [查看手机行程示例](docs/mobile-preview/04-itinerary.jpg)
 
@@ -77,7 +80,7 @@ node scripts/smoke.mjs
 
 该脚本会创建自动验收任务，不删除已有记录。纯 C# 测试覆盖 13 组情景，其中包括 160 个固定随机种子的约束案例。
 
-GitHub Actions 会执行前端构建、.NET 规划器测试、后端构建、Docker Compose 启动、HTTP 验收，并明确对比容器重启前后的画像、任务 ID 与行程版本。[查看运行记录](https://github.com/f1sh11/hackathon/actions)
+GitHub Actions 会执行前端构建、Apple Maps 链接校验、.NET 规划器测试、后端构建、Docker Compose 启动、HTTP 验收，并明确对比容器重启前后的画像、任务 ID 与行程版本。[查看运行记录](https://github.com/f1sh11/hackathon/actions)
 
 这是本地部署项目；没有配置线上服务器 CD，GitHub Pages 也不承担 .NET 和 PostgreSQL 的运行。
 

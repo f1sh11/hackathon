@@ -1,0 +1,58 @@
+#roam-app .map-screen{color:#4b4b4b;min-width:0}
+#roam-app .map-intro{margin-bottom:22px}
+#roam-app .map-eyebrow{font-size:11px;font-weight:900;letter-spacing:1.4px;color:#1cb0f6}
+#roam-app .map-screen h1{font:900 28px/1.35 -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;letter-spacing:0;margin:7px 0 8px;color:#4b4b4b}
+#roam-app .map-intro p{font-size:14px;color:#777;line-height:1.7}
+#roam-app .map-source-card{display:grid;gap:14px;padding:16px;background:#fff;border:2px solid #e5e5e5;border-radius:18px;box-shadow:0 3px 0 #e5e5e5;margin-bottom:20px}
+#roam-app .map-label{display:grid;gap:8px;min-width:0;color:#777;font-size:12px;font-weight:800}
+#roam-app .map-label select,#roam-app .map-label input{width:100%;min-width:0;max-width:100%;border:2px solid #e5e5e5;border-radius:12px;background:#f7f7f7;padding:11px 10px;font-size:16px;color:#4b4b4b;min-height:48px;line-height:1.5}
+#roam-app .map-version-label{grid-template-columns:auto minmax(0,1fr);align-items:center;gap:12px}
+#roam-app .map-version-label select{font-size:16px;min-height:44px;padding:8px 10px}
+#roam-app .map-canvas-wrap{position:relative;overflow:hidden;border:2px solid #d6e6c1;border-radius:21px;box-shadow:0 4px 0 #d6e6c1;background:#f2f9df;margin-bottom:18px}
+#roam-app .map-canvas-label{position:absolute;z-index:1;top:10px;left:10px;display:flex;align-items:center;gap:4px;font-size:10px;font-weight:900;color:#638548;background:#ffffffed;border:1px solid #d9e5cd;border-radius:20px;padding:4px 8px;pointer-events:none}
+#roam-app .map-canvas-label svg{width:13px;height:13px}
+#roam-app .map-canvas{width:100%;height:auto;display:block;touch-action:manipulation}
+#roam-app .map-water-label{font:800 10px -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;fill:#4e9ab3;text-anchor:middle;letter-spacing:1px}
+#roam-app .map-node{cursor:pointer;outline:none}
+#roam-app .map-node:focus-visible circle{stroke:#1cb0f6;stroke-width:4}
+#roam-app .map-node:hover circle{filter:brightness(1.03)}
+#roam-app .map-node text{pointer-events:none;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}
+#roam-app .map-canvas-bottom{display:block;background:#fff;border-top:1px solid #e2ecd6;padding:9px 12px;color:#82a367;text-align:center;font-size:11px;font-weight:800}
+#roam-app .map-stop-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+#roam-app .map-stop-tab{display:flex;align-items:center;gap:6px;max-width:100%;padding:8px 10px;min-height:44px;border:2px solid #e5e5e5;border-radius:13px;background:#fff;color:#8a8a8a;font-size:11px;font-weight:800;line-height:1.4;box-shadow:0 2px 0 #e5e5e5}
+#roam-app .map-stop-tab span{min-width:0;overflow-wrap:anywhere}
+#roam-app .map-stop-tab b{display:grid;place-items:center;flex-shrink:0;width:20px;height:20px;border-radius:7px;background:#f1f1f1;font-size:12px}
+#roam-app .map-stop-tab[aria-pressed=true]{border-color:#84d839;background:#f2fbe7;color:#58a700;box-shadow:0 2px 0 #84d839}
+#roam-app .map-stop-tab[aria-pressed=true] b{background:#58cc02;color:#fff}
+#roam-app .map-destination{padding:18px 16px;background:#fff;border:2px solid #e5e5e5;border-radius:19px;box-shadow:0 4px 0 #e5e5e5;min-width:0}
+#roam-app .map-destination-top{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:12px}
+#roam-app .map-level{display:inline-block;background:#ddf4c8;color:#58a700;border-radius:9px;padding:5px 8px;font-size:11px;font-weight:900}
+#roam-app .map-connect-badge{font-size:11px;font-weight:900;color:#1cb0f6}
+#roam-app .map-destination h2{font-size:18px;font-weight:900;color:#4b4b4b;line-height:1.5;margin:0 0 11px;overflow-wrap:anywhere}
+#roam-app .map-stop-metrics{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 13px}
+#roam-app .map-stop-metrics span{font-size:10px;font-weight:800;line-height:1.5;border-radius:7px;padding:5px 6px;background:#f5f8ec;color:#729844}
+#roam-app .map-reference{font-size:12px;font-weight:800;line-height:1.7;color:#777;margin:0 0 5px}
+#roam-app .map-reference-note{font-size:11px;line-height:1.7;color:#999;margin:0}
+#roam-app .map-modes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:18px 0}
+#roam-app .map-modes button{min-height:44px;font-size:12px;font-weight:900;border:2px solid #e5e5e5;border-radius:11px;background:#fff;color:#999;box-shadow:0 2px 0 #e5e5e5;padding:8px 4px}
+#roam-app .map-modes button[aria-pressed=true]{color:#1899d6;background:#e7f6fe;border-color:#84d8ff;box-shadow:0 2px 0 #84d8ff}
+#roam-app .map-apple-actions{display:grid;gap:12px}
+#roam-app .map-action{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:49px;border:2px solid #e5e5e5;border-radius:13px;text-decoration:none;font-size:13px;font-weight:900;line-height:1.5;padding:11px 10px;transition:transform .1s,box-shadow .1s;touch-action:manipulation;text-align:center}
+#roam-app .map-action-primary{background:#58cc02;color:#fff;border-color:#58cc02;box-shadow:0 4px 0 #46a302}
+#roam-app .map-action-secondary{background:#fff;color:#1cb0f6;border-color:#e5e5e5;box-shadow:0 4px 0 #e5e5e5}
+#roam-app .map-action:not(:disabled):active{transform:translateY(3px);box-shadow:0 1px 0 #46a302}
+#roam-app .map-action:disabled{background:#f1f1f1;border-color:#e5e5e5;color:#a9a9a9;box-shadow:0 4px 0 #e5e5e5;opacity:1}
+#roam-app .map-handoff-note{font-size:10px;line-height:1.8;color:#999;margin:15px 0 0;text-align:center}
+#roam-app .map-return-card{margin-top:22px;padding:17px;background:#f7fbf1;border:2px solid #e1edce;border-radius:16px}
+#roam-app .map-return-card p{font-size:11px;color:#8e9e79;line-height:1.8;margin:10px 0 0}
+#roam-app .map-message{padding:24px 16px;text-align:center;border:2px dashed #d7e8c4;border-radius:18px;background:#f7fcf0;color:#86a65e;margin:20px 0}
+#roam-app .map-message>svg{width:40px;height:40px;margin-bottom:10px}
+#roam-app .map-message h2{font-size:17px;line-height:1.6;font-weight:900;margin:0 0 9px}
+#roam-app .map-message p{font-size:12px;line-height:1.8;margin:0 0 14px}
+#roam-app .map-message ul{padding-left:18px;font-size:12px;text-align:left;line-height:1.8;margin:0 0 17px}
+#roam-app .map-message li+li{margin-top:8px}
+#roam-app .map-error{color:#b76b1f;background:#fff7e9;border-color:#f0d9af}
+#roam-app .map-footnote{font-size:10px;line-height:1.9;color:#a4a4a4;margin:24px 0 0;overflow-wrap:anywhere}
+#roam-app .map-screen a:focus-visible,#roam-app .map-screen button:focus-visible{outline:3px solid #1cb0f6;outline-offset:4px}
+@media(max-width:360px){#roam-app .map-destination{padding:16px 12px}#roam-app .map-stop-tab{font-size:10px;padding:7px 8px}#roam-app .map-source-card{padding:14px 12px}#roam-app .map-action{font-size:12px}#roam-app .map-destination h2{font-size:17px}}
+@media(prefers-reduced-motion:reduce){#roam-app .map-action{transition:none}}

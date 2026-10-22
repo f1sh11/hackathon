@@ -22,6 +22,8 @@ jobs:
       - name: Build frontend
         working-directory: client
         run: pnpm install --frozen-lockfile && pnpm build
+      - name: Check Apple Maps destinations and links
+        run: node scripts/check-map-links.mjs
       - name: Run C# planning checks
         run: dotnet run --project tests/Roam.Core.Tests --configuration Release
       - name: Compile backend
