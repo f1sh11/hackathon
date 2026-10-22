@@ -1,0 +1,44 @@
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+
+const base=(process.env.ROAM_URL||'http://127.0.0.1:5080').replace(/\/$/,'');
+let checks=0;
+async function api(path,method='GET',body,expected=200){
+  const response=await fetch(base+path,{method,headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});
+  const data=await response.json();
+  assert.equal(response.status,expected,`${method} ${path}: ${JSON.stringify(data)}`);checks++;
+  return data;
+}
+const health=await api('/health');assert.equal(health.database,'PostgreSQL');
+let bootstrap=await api('/api/bootstrap');
+const profile=bootstrap.profile||await api('/api/profiles','POST',{answers:[1,0,1,1,1,0]});
+assert.equal(profile.values.length,6);checks++;
+await api('/api/profiles','POST',{answers:[1,1]},400);
+await api('/api/profiles','POST',{answers:profile.answers.map((a,i)=>i===0?(a+1)%3:a)},409);
+const request={profileId:profile.id,title:'自动验收 · 海港一日游',date:'2026-10-24',startTime:'09:00',endTime:'18:00',budget:120,energy:100,theme:'harbour',notes:'离线测试：备注只保存',idempotencyKey:randomUUID()};
+const trip=await api('/api/trips','POST',request);
+assert.equal(trip.status,'completed');assert.equal(trip.latestVersion,1);
+const plan=trip.versions[0].plan;assert.ok(plan.stops.length>=2);assert.equal(plan.stops.at(-1).id,'return');
+assert.ok(plan.totalCost<=request.budget);assert.ok(plan.remainingHp>=25);assert.ok(plan.returnTime<=request.endTime);
+assert.ok(Math.abs(plan.stops.reduce((sum,s)=>sum+s.cost,0)-plan.totalCost)<.001);assert.ok(plan.stops.every(s=>s.remainingHp>=0));checks+=8;
+const duplicate=await api('/api/trips','POST',request);assert.equal(duplicate.id,trip.id);checks++;
+await api('/api/trips','POST',{...request,title:'Different'},409);
+const replanRequest={easier:true,idempotencyKey:randomUUID()};
+const replans=await Promise.all([api(`/api/trips/${trip.id}/replan`,'POST',replanRequest),api(`/api/trips/${trip.id}/replan`,'POST',replanRequest)]);
+for(const replanned of replans){assert.equal(replanned.latestVersion,2);assert.equal(replanned.versions.length,2);}checks+=4;
+const refreshed=await api(`/api/trips/${trip.id}`);assert.equal(refreshed.versions[0].plan.totalCost,plan.totalCost);checks++;
+await api('/api/trips','POST',{...request,idempotencyKey:replanRequest.idempotencyKey},409);
+await api(`/api/trips/${trip.id}/replan`,'POST',{easier:true,idempotencyKey:request.idempotencyKey},409);
+await api('/api/trips','POST',{...request,idempotencyKey:randomUUID(),startTime:'18:00',endTime:'09:00'},400);
+await api('/api/trips','POST',{...request,idempotencyKey:randomUUID(),budget:-1},400);
+await api('/api/trips','POST',{...request,idempotencyKey:randomUUID(),budget:1.001},400);
+await api('/api/trips','POST',{...request,idempotencyKey:randomUUID(),energy:0},400);
+await api('/api/trips','POST',{...request,idempotencyKey:randomUUID(),date:'2026-02-30'},400);
+const infeasible=await api('/api/trips','POST',{...request,idempotencyKey:randomUUID(),startTime:'23:50',endTime:'23:59'});
+assert.equal(infeasible.status,'infeasible');assert.equal(infeasible.versions[0].plan,null);assert.ok(infeasible.versions[0].conflicts.length>0);checks+=3;
+const zeroBudget=await api('/api/trips','POST',{...request,idempotencyKey:randomUUID(),budget:0});
+assert.ok(['completed','infeasible'].includes(zeroBudget.status));if(zeroBudget.status==='completed')assert.equal(zeroBudget.versions[0].plan.totalCost,0);checks++;
+await api(`/api/trips/${randomUUID()}`,'GET',undefined,404);
+await api('/api/not-an-endpoint','GET',undefined,404);
+bootstrap=await api('/api/bootstrap');assert.ok(bootstrap.trips.some(t=>t.id===trip.id));assert.deepEqual(bootstrap.profile.values,profile.values);checks+=2;
+console.log(`PASS: ${checks} checks against real .NET + PostgreSQL. Trip ${trip.id}; retries, version history, constraints, malformed inputs, immutable profile and bootstrap persistence verified.`);

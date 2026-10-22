@@ -1,0 +1,44 @@
+name: Local MVP checks
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - name: Install pinned frontend package manager
+        run: npm install --global pnpm@11.25.0
+      - name: Build frontend
+        working-directory: client
+        run: pnpm install --frozen-lockfile && pnpm build
+      - name: Run C# planning checks
+        run: dotnet run --project tests/Roam.Core.Tests --configuration Release
+      - name: Compile backend
+        run: dotnet build src/Roam.Api/Roam.Api.csproj --configuration Release
+      - name: Start actual local stack
+        run: docker compose up --build --detach --wait --wait-timeout 180
+      - name: HTTP acceptance against .NET and PostgreSQL
+        run: node scripts/smoke.mjs
+      - name: Verify PostgreSQL survives stack restart
+        run: |
+          node scripts/check-persistence.mjs snapshot
+          docker compose restart
+          timeout 120 bash -c 'until curl --fail --silent http://127.0.0.1:5080/health; do sleep 2; done'
+          node scripts/check-persistence.mjs verify
+      - name: Print logs on failure
+        if: failure()
+        run: docker compose logs --no-color
+      - name: Stop test stack
+        if: always()
+        run: docker compose down

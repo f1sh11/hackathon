@@ -147,3 +147,15 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# Roam .NET and local build artifacts
+**/bin/
+**/obj/
+client/node_modules/
+client/dist/
+src/Roam.Api/wwwroot/
+.env
+*.log
+.DS_Store
+artifacts/
+**/.checks/
