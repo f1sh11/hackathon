@@ -11,7 +11,7 @@ The Android client uses Kotlin and Jetpack Compose. The Python API and official 
 - `python -m unittest discover -s server/tests -v`: all 21 tests passed, including HTTP save/revision conflict/deletion, preference consent/retrieval/revocation, invalid inputs, deterministic route constraints, and weather failures.
 - Official H-MEM conformance: 13/13 passed on Windows.
 
-The UI test recreates an Activity; it does not simulate an OS process kill. Local preferences use Android SharedPreferences, and saved itineraries are reloaded from the computer backend. Local test data is separate from any deployed service.
+The UI test recreates an Activity. In a separate manual check, the installed application process was force-stopped and restarted after saving a live adjustment; the saved itinerary was restored. Local preferences use Android SharedPreferences, and saved itineraries are reloaded from the computer backend. Local test data is separate from any deployed service.
 
 ## Online checks
 
@@ -20,6 +20,8 @@ An actual NVIDIA assisted request succeeded. An actual live planning request for
 The first Google request returned `API_KEY_IP_ADDRESS_BLOCKED`. After the owner explicitly approved removing the server key's IP restriction while retaining the Places / Routes / Weather API restriction, the live request succeeded. This account configuration is not embedded in source code.
 
 Maps SDK for Android was enabled with the owner's approval. A separate Android-only key was created with package and debug-signature restrictions and saved in ignored `android/local.properties`. Google base map tiles and itinerary markers were visually verified in the running emulator. Demo connectors are grey and explicitly labelled as illustrative; they are not presented as real walking routes.
+
+The Android UI also completed an actual online “walk less” adjustment for 22 October 2026. It displayed the comparison and live weather before explicit confirmation, saved revision 2 of the existing itinerary, and displayed all three returned route polylines on the Google map. See [the captured Android screen](android-live-map.png).
 
 ## Running and remaining boundaries
 
