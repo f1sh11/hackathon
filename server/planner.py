@@ -11,14 +11,14 @@ from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parent
 SYDNEY = ZoneInfo('Australia/Sydney')
-CATALOG = json.loads((ROOT / 'places.json').read_text())
+CATALOG = json.loads((ROOT / 'places.json').read_text(encoding='utf-8'))
 
 class ServiceError(Exception):
     pass
 
 def credentials():
     p = ROOT.parent / '.secrets.json'
-    local = json.loads(p.read_text()) if p.exists() else {}
+    local = json.loads(p.read_text(encoding='utf-8')) if p.exists() else {}
     return {k: os.environ.get(k, local.get(k, '')) for k in ['NVIDIA_API_KEY', 'GOOGLE_SERVER_KEY', 'GOOGLE_IOS_KEY', 'NVIDIA_MODEL']}
 
 def fetch_json(url, payload=None, headers=None, timeout=25):

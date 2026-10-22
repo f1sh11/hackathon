@@ -1,0 +1,3 @@
+# Copy to local.properties. Android Studio writes sdk.dir for your own computer.
+# Optional Android-only Google Maps key. Restrict by package and signing SHA-1.
+MAPS_API_KEY=

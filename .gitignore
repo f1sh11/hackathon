@@ -9,3 +9,10 @@ DerivedData/
 *.xcuserstate
 xcuserdata/
 server/.hmem/
+android/.gradle/
+android/.kotlin/
+android/**/build/
+android/local.properties
+android/.idea/
+*.jks
+*.keystore

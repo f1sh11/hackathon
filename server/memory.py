@@ -17,7 +17,7 @@ def run(action, **kwargs):
     directory.mkdir(mode=0o700,exist_ok=True)
     payload={'action':action,'directory':str(directory),**kwargs}
     with LOCK:
-        result=subprocess.run([node,'--experimental-transform-types',str(ROOT/'hmem_bridge.ts')],input=json.dumps(payload),text=True,capture_output=True,timeout=15)
+        result=subprocess.run([node,'--experimental-transform-types',str(ROOT/'hmem_bridge.ts')],input=json.dumps(payload),text=True,encoding='utf-8',capture_output=True,timeout=15)
     if result.returncode:
         raise ServiceError('H-MEM 操作失败，未声称记忆已保存或撤回。')
     return json.loads(result.stdout)

@@ -1,0 +1,2 @@
+# Windows needs an IANA timezone database for zoneinfo.ZoneInfo('Australia/Sydney').
+tzdata==2025.3; sys_platform == "win32"

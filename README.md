@@ -1,6 +1,6 @@
 # Sydney Buddy · 悉尼旅行 Agent
 
-原生 **SwiftUI iOS + Python API** 旅行规划 MVP：单题引导收集偏好，NVIDIA Nemotron 推荐候选地点，程序检查路线约束，再由用户确认保存。地图、地点、路线与天气使用 Google Maps Platform，授权偏好使用官方 Meterless H-MEM 引擎。
+原生 **Android（Kotlin + Jetpack Compose）+ Python API** 旅行规划 MVP：单题引导收集偏好，NVIDIA Nemotron 推荐候选地点，程序检查路线约束，再由用户确认保存。地图、地点、路线与天气使用 Google Maps Platform，授权偏好使用官方 Meterless H-MEM 引擎。现有 SwiftUI iOS 客户端保留在 `ios/`，Android 开发不依赖 Xcode。
 
 本版本替换仓库原 React/.NET 原型；旧版本保留在 Git 历史中。**当前为本机单用户原型，未部署线上服务，也未提交 HackOS。**
 
@@ -21,7 +21,31 @@
 
 ## 快速运行
 
-需要 macOS、Xcode（iOS17+ SDK/模拟器）、Python3.9+（本次验证3.14）、Node.js24。Python 服务只用标准库，无需 pip 安装。首次 Xcode 构建需联网下载 Google Maps SDK11.2.0。
+### Android（Windows / macOS）
+
+需要 Android Studio、Android SDK 35、JDK 17 或 21、Python 3.9+（含悉尼时区数据）及支持 `--experimental-transform-types` 的 Node.js（建议 24）。
+
+1. 克隆仓库并切换到 `dev`，在 Android Studio 中打开 **`android/`** 文件夹，等待依赖同步。
+2. 启动一个 Android 8.0+ 模拟器，或连接已开启 USB 调试的 Android 手机。Google 地图需要带 Google Play 服务的设备。
+3. 在仓库根目录运行 `python -m pip install -r server/requirements.txt`（仅 Windows 安装时区数据），再运行 `python server/app.py`，保持这个进程运行。
+4. Windows 运行 `powershell -File scripts/connect-android.ps1`；macOS 运行 `sh scripts/connect-android.sh`，将手机本机端口转发到电脑。
+5. 在 Android Studio 运行 `app`。不填密钥即可走完演示流程；地图会明确标注为示意图。
+
+Windows 也可运行 `powershell -File scripts/start-server.ps1` 启动后端。若 `adb` 不在 PATH，连接脚本会尝试从 `ANDROID_HOME` 或默认 SDK 路径查找。每次重启模拟器或重新连接手机后，需要重新转发端口。
+
+命令行构建：在 `android/` 运行 `./gradlew.bat :app:assembleDebug :app:testDebugUnitTest :app:lintDebug`（Windows）或 `sh gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug`（macOS）。APK 位于 `android/app/build/outputs/apk/debug/app-debug.apk`。
+
+真实 Google 底图需要单独的 **Maps SDK for Android** 密钥，填入被忽略的 `android/local.properties`：`MAPS_API_KEY=你的Android地图密钥`。只允许 Maps SDK for Android，并限制为包名 `com.sydneybuddy.travel` 与本机签名 SHA-1；iOS 地图密钥不通用。组员各自运行 `gradlew signingReport` 获取指纹，将需要的包名/指纹添加到 Android 密钥限制。不要共享 debug.keystore 或把密钥提交 Git。
+
+NVIDIA 和 Google 服务端密钥仍通过电脑的 `/setup` 配置，或按 `.secrets.example.json` 创建 `.secrets.json`；它们不进入 APK。每位组员运行自己的后端和本机数据，不共享行程数据库。线上开关会选择 `live`（有 Google 服务端配置）或 `assisted`（只有 NVIDIA）；密钥配置不等于调用成功。
+
+Android 使用相同后端接口，保留 8 步引导、草案确认、调整对比、版本冲突提示、多行程、天气刷新、按行程保存准备进度、手机本机整数分账本，以及需同意的电脑本机偏好存储。取消草案不会替换原行程，新建行程不会覆盖之前的行程。后台加载或保存时禁止切换行程，避免将返回结果写入另一份行程。
+
+这是本机开发版本：Debug 只为 `127.0.0.1` / `localhost` 允许 HTTP，Release 禁止明文连接；后端仍仅监听回环地址。独立联网运行需要另行部署 HTTPS 服务、配置客户端地址并实现身份认证。没有声称已完成应用商店发布或所有 Android 设备兼容性验证。实际测试见 [Android 验证记录](docs/ANDROID-VERIFICATION.md)。
+
+### 保留的 iOS 客户端（macOS）
+
+需要 macOS、Xcode（iOS17+ SDK/模拟器）、Python3.9+（之前验证3.14）、Node.js24。macOS 的 Python 服务使用标准库，无需 pip 安装。首次 Xcode 构建需联网下载 Google Maps SDK11.2.0。
 
 ```sh
 git clone https://github.com/f1sh11/hackathon.git
@@ -56,6 +80,7 @@ xcodebuild -project ios/SydneyBuddy.xcodeproj -scheme SydneyBuddy \
 | `NVIDIA_MODEL` | 可选；默认 `nvidia/nemotron-3.5-lightning-30b-a3b`，需账号支持 |
 | `GOOGLE_SERVER_KEY` | 仅允许 Places API (New)、Routes API、Weather API，按运行服务的出口IP限制 |
 | `GOOGLE_IOS_KEY` | 仅允许 Maps SDK for iOS，应用限制为 `com.sydneybuddy.travel` |
+| Android `MAPS_API_KEY` | 仅允许 Maps SDK for Android，限制 Android 包名与签名 SHA-1；仅写入 `android/local.properties` |
 | `NODE_BINARY` | 可选，Node24可执行文件路径；否则从PATH查找 |
 
 模板见 [.secrets.example.json](.secrets.example.json) 和 [Secrets.example.xcconfig](ios/Config/Secrets.example.xcconfig)。使用模板时自行复制为实际文件，填入自己的值。也可通过上述同名环境变量配置服务端；本程序**不会自动加载.env**。单独设置 `GOOGLE_IOS_KEY` 环境变量不会生成App配置，应使用设置页或手动填写xcconfig。
@@ -121,7 +146,8 @@ HMEM_IMPL="$PWD/server/vendor/hmem/src/index.ts" \
 ## 项目结构
 
 ```text
-ios/                   SwiftUI App、Xcode工程、配置模板
+android/               Kotlin / Jetpack Compose Android App、Gradle Wrapper、测试
+ios/                   保留的 SwiftUI App、Xcode工程、配置模板
 server/app.py          本机HTTP API与SQLite存储
 server/planner.py      候选收集、Nemotron排序与确定性约束检查
 server/weather.py      Google天气、日期匹配与失败处理
