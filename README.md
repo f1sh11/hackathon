@@ -6,9 +6,9 @@
 
 <img src="docs/android-live-map.png" alt="Android 模拟器中的真实 Google 步行路线和天气" width="320">
 
-Android 实机画面（Pixel 7 模拟器 / Android 14）；[保留的 iOS 引导截图](docs/buddy-onboarding.png)。
+Android 运行画面（Pixel 7 模拟器 / Android 14）；[保留的 iOS 引导截图](docs/buddy-onboarding.png)。
 
-[地图与出发任务截图](docs/buddy-preparation.png) · [Google 天气截图](docs/app-google-weather.png) · [演示录像 MP4](docs/app-demo.mp4) · [验证记录](docs/verification.md)
+[旧版 iOS 地图与出发任务截图](docs/buddy-preparation.png) · [iOS Google 天气截图](docs/app-google-weather.png) · [iOS 演示录像 MP4](docs/app-demo.mp4) · [iOS 验证记录](docs/VERIFICATION.md)
 
 ## 已实现
 
@@ -17,7 +17,7 @@ Android 实机画面（Pixel 7 模拟器 / Android 14）；[保留的 iOS 引导
 - Google 地图标记和真实步行路线；Places 查询坐标与常规营业时段；Weather 获取未来10天逐日预报。
 - Nemotron 只对给定地点ID排序，程序独立检查时间、步数、活动预算、休息、衔接和返程。
 - AI调整先生成草案，展示地点与步数变化，确认后才替换保存；版本冲突返回409。
-- SQLite 多行程管理；iOS 本机均分记账以整数分保存。
+- SQLite 多行程管理；Android 和 iOS 本机均分记账以整数分保存。
 - 同意后保存偏好并通过 H-MEM 检索，支持撤回；追加审计账本仍保留历史记录。
 - 出发准备清单：查看路线、成功刷新天气、手动确认行李。进度按行程保存在本机，全部完成显示徽章，不设断签惩罚。
 
@@ -80,14 +80,14 @@ xcodebuild -project ios/SydneyBuddy.xcodeproj -scheme SydneyBuddy \
 |---|---|
 | `NVIDIA_API_KEY` | 服务端调用 NVIDIA NIM；不得打包进App |
 | `NVIDIA_MODEL` | 可选；默认 `nvidia/nemotron-3.5-lightning-30b-a3b`，需账号支持 |
-| `GOOGLE_SERVER_KEY` | 仅允许 Places API (New)、Routes API、Weather API，按运行服务的出口IP限制 |
+| `GOOGLE_SERVER_KEY` | 仅允许 Places API (New)、Routes API、Weather API；部署后建议按固定服务出口 IP 限制 |
 | `GOOGLE_IOS_KEY` | 仅允许 Maps SDK for iOS，应用限制为 `com.sydneybuddy.travel` |
 | Android `MAPS_API_KEY` | 仅允许 Maps SDK for Android，限制 Android 包名与签名 SHA-1；仅写入 `android/local.properties` |
 | `NODE_BINARY` | 可选，Node24可执行文件路径；否则从PATH查找 |
 
 模板见 [.secrets.example.json](.secrets.example.json) 和 [Secrets.example.xcconfig](ios/Config/Secrets.example.xcconfig)。使用模板时自行复制为实际文件，填入自己的值。也可通过上述同名环境变量配置服务端；本程序**不会自动加载.env**。单独设置 `GOOGLE_IOS_KEY` 环境变量不会生成App配置，应使用设置页或手动填写xcconfig。
 
-Google项目需要启用计费及上述4项服务。已有密钥的IP限制换网络后可能失效；不要取消所有限制来排错。Weather每月前10,000次免费，之后第一档US$0.15/1,000次；地图、Places和Routes分别计费，以[官方价格](https://developers.google.com/maps/billing-and-pricing/pricing)为准。未配置云端硬性费用上限。
+Google项目需要启用计费及所需服务（Android 与 iOS 地图 SDK 分别启用）。已有密钥的 IP 限制换网络后可能失效；应用密钥和服务端密钥应分开配置。团队若选择取消服务端 IP 限制以便异地测试，仍应保留三项 API 限制，密钥只私下分发。Weather、地图、Places 和 Routes 分别计费，以[官方价格](https://developers.google.com/maps/billing-and-pricing/pricing)为准。未配置云端硬性费用上限。
 
 ## 模式、天气与数据边界
 
@@ -143,7 +143,7 @@ HMEM_IMPL="$PWD/server/vendor/hmem/src/index.ts" \
   node --experimental-transform-types server/vendor/hmem/conformance/runner.ts
 ```
 
-本机已通过21项后端测试和13项官方H-MEM测试，iOS模拟器构建/启动已验证。GitHub Actions会启动独立服务执行后端及H-MEM测试，不调用付费服务，也不冒充iOS云端构建验证。真实在线请求记录见[验证说明](docs/verification.md)。
+Android 已通过 APK 构建、6 项域逻辑测试、静态检查及 Pixel 7 模拟器界面流程测试。后端 21 项测试和官方 H-MEM 的 13 项检查也已通过。GitHub Actions 分别构建 Android APK、运行 Android 域逻辑测试及静态检查，以及执行后端和 H-MEM 测试，不调用付费服务。Android 实际在线请求与设备边界见[验证记录](docs/ANDROID-VERIFICATION.md)；之前的 iOS 构建记录见[旧版验证说明](docs/VERIFICATION.md)。
 
 ## 项目结构
 
@@ -158,7 +158,7 @@ server/vendor/hmem/    官方参考实现、许可和来源
 server/tests/          后端与HTTP测试
 scripts/               启动和工程生成脚本
 docs/                  App截图、演示录像、验证与参赛清单
-.github/workflows/     后端自动检查
+.github/workflows/     Android 构建、域逻辑与静态检查；后端自动检查
 ```
 
 ## 限制与黑客松状态

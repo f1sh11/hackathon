@@ -1,7 +1,7 @@
 {
   "name": "Sydney Buddy",
-  "description": "Native iOS Sydney travel planning MVP with bounded Nemotron recommendations, deterministic feasibility checks and consented H-MEM preferences.",
-  "platform": "iOS / SwiftUI",
+  "description": "Native Android Sydney travel planning MVP with bounded Nemotron recommendations, deterministic feasibility checks and consented H-MEM preferences; legacy iOS client retained.",
+  "platform": "Android / Kotlin / Jetpack Compose; retained iOS / SwiftUI",
   "status": "local prototype; not submitted",
   "sponsor_technologies": {
     "nvidia": "Direct NIM endpoint; nemotron-3.5-lightning-30b-a3b successfully tested",
@@ -9,7 +9,7 @@
     "cursor": "deferred by user",
     "zetaris": "deferred by user"
   },
-  "google_maps": "Maps SDK for iOS 11.2.0; Places, Routes and Weather live calls verified; IP-restricted server key and bundle-restricted iOS key",
+  "google_maps": "Maps SDK for Android with package/signature-restricted key; Places, Routes and Weather live calls verified; server key restricted to these three APIs; legacy iOS SDK retained",
   "repository_url": "https://github.com/f1sh11/hackathon",
   "demo_video_url": "https://github.com/f1sh11/hackathon/blob/main/docs/app-demo.mp4",
   "slides_url": null,
