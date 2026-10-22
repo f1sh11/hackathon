@@ -26,6 +26,9 @@ if (Directory.Exists(paths.WebDist))
     app.UseDefaultFiles(new DefaultFilesOptions { FileProvider = files });
     app.UseStaticFiles(new StaticFileOptions { FileProvider = files });
 }
+// 先提供网页文件，再匹配 API/404；否则 fallback 会阻止静态文件中间件。
+// Resolve static files before endpoint routing so the 404 fallback cannot intercept them.
+app.UseRouting();
 app.MapBuddyApi("");
 app.MapBuddyApi("/api");
 app.MapFallback((HttpContext context) => Results.Json(new { error = "未找到" }, statusCode: 404));

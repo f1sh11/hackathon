@@ -32,6 +32,24 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     }
 
     [Fact]
+    public async Task BuiltWebFilesAreServedBeforeApiFallbackRouting()
+    {
+        var home = await fixture.Client.GetAsync("/");
+        Assert.Equal(HttpStatusCode.OK, home.StatusCode);
+        Assert.Equal("text/html", home.Content.Headers.ContentType?.MediaType);
+        Assert.Contains("Sydney Buddy test shell", await home.Content.ReadAsStringAsync());
+        var asset = await fixture.Client.GetAsync("/assets/test.js");
+        Assert.Equal(HttpStatusCode.OK, asset.StatusCode);
+        Assert.Contains("window.fixtureAsset=true", await asset.Content.ReadAsStringAsync());
+        var api = await fixture.Client.GetAsync("/api/health");
+        Assert.Equal(HttpStatusCode.OK, api.StatusCode);
+        Assert.Equal("ok", (await api.Content.ReadFromJsonAsync<JsonObject>())!.Str("status"));
+        var unknown = await fixture.Client.GetAsync("/api/no-such-endpoint");
+        Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
+        Assert.False(string.IsNullOrEmpty((await unknown.Content.ReadFromJsonAsync<JsonObject>())!.Str("error")));
+    }
+
+    [Fact]
     public async Task DraftDoesNotSaveUntilConfirmedAndUpdatesRequireCurrentRevision()
     {
         var draft = await PlanAsync();
@@ -224,6 +242,11 @@ public sealed class ApiFixture : IAsyncLifetime
     {
         Directory.CreateDirectory(Path.Combine(TemporaryRoot, "server"));
         File.Copy(Path.Combine(TestSupport.RepositoryRoot(), "server", "places.json"), Path.Combine(TemporaryRoot, "server", "places.json"));
+        // 必须在应用启动前放置构建产物；static middleware discovers the built web directory during startup.
+        var web = Path.Combine(TemporaryRoot, "web", "dist");
+        Directory.CreateDirectory(Path.Combine(web, "assets"));
+        await File.WriteAllTextAsync(Path.Combine(web, "index.html"), "<!doctype html><html><body>Sydney Buddy test shell</body></html>");
+        await File.WriteAllTextAsync(Path.Combine(web, "assets", "test.js"), "window.fixtureAsset=true;");
         await using var connection = new NpgsqlConnection(_baseConnection);
         // 数据库不可用会明确失败；missing PostgreSQL is never silently skipped or replaced.
         await connection.OpenAsync();
