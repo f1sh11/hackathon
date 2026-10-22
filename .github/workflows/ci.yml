@@ -27,7 +27,7 @@ jobs:
       - name: Run C# planning checks
         run: dotnet run --project tests/Roam.Core.Tests --configuration Release
       - name: Compile backend
-        run: dotnet build src/Roam.Api/Roam.Api.csproj --configuration Release
+        run: dotnet build Roam.slnx --configuration Release
       - name: Start actual local stack
         run: docker compose up --build --detach --wait --wait-timeout 180
       - name: HTTP acceptance against .NET and PostgreSQL

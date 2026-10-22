@@ -1,9 +1,11 @@
 using System.Text.Json;
 using Npgsql;
 using NpgsqlTypes;
+using Roam.Api.Contracts;
+using Roam.Api.Infrastructure.Errors;
 using Roam.Core;
 
-namespace Roam.Api;
+namespace Roam.Api.Infrastructure.Persistence;
 
 public sealed class TripStore(NpgsqlDataSource dataSource)
 {

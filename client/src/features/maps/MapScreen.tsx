@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { api, type Trip, type TripSummary } from './api';
+import type { Trip, TripSummary } from '../../types/contracts';
+import { getTrip } from '../../services/travelApi';
 import { appleMapsPlaceActions, getPlaceReference, type MapMode } from './appleMaps';
 import './maps.css';
 
@@ -37,7 +38,7 @@ export function MapScreen({ trips, selectedTrip, selectedVersion }: MapScreenPro
     }
     setTrip(null);
     setLoading(true);
-    void api<Trip>(`/api/trips/${encodeURIComponent(tripId)}`).then(data => {
+    void getTrip(tripId).then(data => {
       if (!active) return;
       setTrip(data);
       setVersionNumber(data.latestVersion);

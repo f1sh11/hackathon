@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import {
   PLACE_REFERENCES, getPlaceReference, appleMapsSearchUrl,
   appleMapsDirectionsUrl, appleMapsPlaceActions,
-} from '../client/src/appleMaps.ts';
+} from '../client/src/features/maps/appleMaps.ts';
 
 let checks = 0;
 const check = (name, run) => { run(); checks++; console.log(`PASS ${name}`); };
@@ -11,7 +11,7 @@ const check = (name, run) => { run(); checks++; console.log(`PASS ${name}`); };
 check('Every planner activity and return has an explicit reference', () => {
   assert.equal(Object.keys(PLACE_REFERENCES).length, 17);
 });
-const plannerSource = await readFile(new URL('../src/Roam.Core/Planner.cs', import.meta.url), 'utf8');
+const plannerSource = await readFile(new URL('../src/Roam.Core/Planning/Planner.cs', import.meta.url), 'utf8');
 const plannerIds = [...plannerSource.matchAll(/new\("([a-z]+)",/g)].map(match => match[1]);
 check('Planner catalog IDs are all covered by the mapping', () => {
   assert.equal(plannerIds.length, 16);

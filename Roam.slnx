@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="src/Roam.Api/Roam.Api.csproj" />
+  <Project Path="src/Roam.Core/Roam.Core.csproj" />
+  <Project Path="tests/Roam.Core.Tests/Roam.Core.Tests.csproj" />
+</Solution>

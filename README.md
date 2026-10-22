@@ -86,13 +86,20 @@ GitHub Actions 会执行前端构建、Apple Maps 链接校验、.NET 规划器�
 
 ## 项目结构
 
+五人团队从 [前后端目录框架与分工](docs/PROJECT-FRAMEWORK.md) 开始。前端按画像、任务、行程、地图拆分；后端按接口、请求响应结构、数据存取及独立规划核心拆分。后端开发可以直接打开根目录的 `Roam.slnx`。
+
 ```text
-client/                   React + TypeScript 页面与锁文件
-src/Roam.Api/             .NET API、PostgreSQL 存取、建表脚本
-src/Roam.Core/            画像、纯 C# 规划器、示例地点
+client/src/app/           全局状态与页面流程
+client/src/components/    公共图标与卡通伙伴
+client/src/features/      profile / tasks / trips / maps 页面
+client/src/services/      HTTP 与业务接口调用
+client/src/types/         前后端数据类型
+src/Roam.Api/             Features / Contracts / Infrastructure / Database
+src/Roam.Core/            Profiles / Planning / Models
 tests/Roam.Core.Tests/    无第三方测试框架依赖的核心测试
 scripts/                 本地启动、HTTP 验收、持久化核验
 compose.yaml             应用与 PostgreSQL
+Roam.slnx                后端与测试的 solution
 .github/workflows/       GitHub Actions 自动检查
 ```
 

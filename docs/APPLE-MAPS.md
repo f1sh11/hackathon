@@ -28,8 +28,8 @@ https://maps.apple.com/directions?destination=...&mode=walking
 
 ## 代码与检查
 
-- `client/src/MapScreen.tsx`：地图页与任务 / 版本切换。
-- `client/src/appleMaps.ts`：地点参考和官方链接生成。
+- `client/src/features/maps/MapScreen.tsx`：地图页与任务 / 版本切换。
+- `client/src/features/maps/appleMaps.ts`：地点参考和官方链接生成。
 - `scripts/check-map-links.mjs`：真实 helper 检查，覆盖目录完整性、特殊字符、交通模式、未知地点、未确认活动及返程地址。
 
 使用 Node.js 24：
