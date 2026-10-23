@@ -3,6 +3,21 @@ import SwiftUI
 @testable import SydneyBuddy
 
 @MainActor final class ScheduleTests:XCTestCase {
+    func testSavedTripNavigationChoosesTodayOrAsksForDate() throws {
+        var trip=try fixture()
+        XCTAssertEqual(savedTripNavigationDay(trip,today:trip.days[1].date),1)
+        XCTAssertNil(savedTripNavigationDay(trip,today:"2099-01-01"))
+        trip.days=Array(trip.days.prefix(1));XCTAssertEqual(savedTripNavigationDay(trip,today:"2099-01-01"),0)
+        trip.days=[];XCTAssertNil(savedTripNavigationDay(trip,today:"2099-01-01"))
+    }
+    func testSavedDayNavigationKeepsSavedOrderStopsAndReturnPoint() throws {
+        let trip=try fixture();let day=trip.days[1]
+        let navigator=WalkingNavigator(day:day,tripID:"saved-trip-card-test",endpoint:"http://127.0.0.1:8787/navigation/route")
+        XCTAssertEqual(navigator.points.map(\.name),[day.start.name]+day.stops.map(\.name)+[day.end.name+"（返回）"])
+        XCTAssertEqual(Array(navigator.points.dropFirst().dropLast()).map(\.stay),day.stops.map(\.visitMinutes))
+        let other=WalkingNavigator(day:trip.days[0],tripID:"saved-trip-card-test",endpoint:"http://127.0.0.1:8787/navigation/route")
+        XCTAssertNotEqual(navigator.storageKey,other.storageKey);navigator.pause();other.pause()
+    }
     func testPoiSearchDistinguishesFailureEmptyAndSuccessfulRetry() async throws {
         let model=PoiSearchModel();var status=503;var body=Data("{\"error\":\"服務測試中斷\"}".utf8)
         model.category="facilities"

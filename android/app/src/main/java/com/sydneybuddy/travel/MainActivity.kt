@@ -8,6 +8,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
+import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -162,20 +163,42 @@ fun modeLabel(mode:String) = when(mode) {"live"->"在线规划 · 以各项来�
     }
 }
 
+internal fun savedTripNavigationDay(trip:JSONObject,today:String=java.time.LocalDate.now(java.time.ZoneId.of("Australia/Sydney")).toString()):Int? {
+    val days=trip.array("days").objects();val index=days.indexOfFirst{it.optString("date")==today}
+    return if(index>=0)index else if(days.size==1)0 else null
+}
+@Composable internal fun SavedTripCard(t:JSONObject,enabled:Boolean=true,onEdit:()->Unit,onNavigate:()->Unit,onMap:()->Unit,onDelete:()->Unit) {
+    Surface(onClick=onEdit,enabled=enabled,shape=RoundedCornerShape(24.dp),color=Color.White,modifier=Modifier.fillMaxWidth().testTag("edit-trip-${t.optString("id")}")) {
+        Column(Modifier.padding(18.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
+            TripArtwork()
+            Text(t.optString("title"),fontWeight=FontWeight.Bold);Text("${t.getJSONObject("profile").optString("date")} · ${t.array("days").length()} 天")
+            Small(modeLabel(t.optString("mode")))
+            Row(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+                TextButton(onClick=onNavigate,enabled=enabled,modifier=Modifier.testTag("navigate-trip-${t.optString("id")}")){Icon(Icons.Outlined.Navigation,null,Modifier.size(18.dp));Text("開始導航")}
+                TextButton(onClick=onMap,enabled=enabled){Text("查看地图",fontWeight=FontWeight.Bold)}
+                TextButton(onClick=onDelete,enabled=enabled){Text("删除行程")}
+            }
+        }
+    }
+}
 @Composable fun TripsScreen(store:BuddyStore,onDelete:(JSONObject)->Unit) {
+    var choosing by remember{mutableStateOf<JSONObject?>(null)}
+    var navigation by remember{mutableStateOf(false)}
+    fun start(trip:JSONObject,index:Int){store.select(trip);store.dayIndex=index;choosing=null;navigation=true}
     Page {
         Small("下一站，去发现。每次冒险都值得收藏。")
         TextButton(onClick=store::reload,enabled=!store.busy){Text("刷新行程")}
         Action("試用 3 天時間軸",!store.busy,store::tryScheduleDemo)
         if(store.saved.isEmpty()) Small("还没有保存的行程。")
-        store.saved.forEach { t -> Panel {
-            TripArtwork()
-            Text(t.optString("title"),fontWeight=FontWeight.Bold);Text("${t.getJSONObject("profile").optString("date")} · ${t.array("days").length()} 天")
-            Small(modeLabel(t.optString("mode")))
-            TextButton(onClick={store.editSchedule(t)},enabled=!store.busy){Text("編輯時間軸")}
-            TextButton(onClick={store.select(t);store.tab=0},enabled=!store.busy){Text("查看地图",fontWeight=FontWeight.Bold);Spacer(Modifier.width(6.dp));Icon(Icons.Outlined.NorthEast,null,Modifier.size(18.dp))}
-            TextButton(onClick={onDelete(t)},enabled=!store.busy){Text("删除行程")}
-        } }
+        store.saved.forEach { t -> SavedTripCard(t,!store.busy,onEdit={store.editSchedule(t)},onNavigate={val day=savedTripNavigationDay(t);if(day!=null)start(t,day)else choosing=t},onMap={store.select(t);store.tab=0},onDelete={onDelete(t)}) }
+    }
+    choosing?.let{trip->AlertDialog(onDismissRequest={choosing=null},title={Text("選擇導航日期")},text={Column(Modifier.verticalScroll(rememberScrollState())){
+        Small("今天不在旅程日期內，請選擇要導航的行程")
+        trip.array("days").objects().forEachIndexed{i,day->TextButton(onClick={start(trip,i)}){Text("第 ${i+1} 天 · ${day.optString("date")} · ${day.array("stops").length()} 個站點")}}
+    }},confirmButton={TextButton(onClick={choosing=null}){Text("取消")}})}
+    if(navigation) {
+        if(store.trip?.optString("mode")=="live")AlertDialog(onDismissRequest={navigation=false},text={Text("這份行程使用 Google 地點資料，目前 App 內逐站步行導航僅支援開源行程。請從查看地圖使用 Google 交通路線規劃。")},confirmButton={TextButton(onClick={navigation=false}){Text("關閉")}})
+        else WalkingNavigationDialog(store,autoStart=true){navigation=false}
     }
 }
 

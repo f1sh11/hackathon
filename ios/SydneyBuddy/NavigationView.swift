@@ -189,13 +189,18 @@ struct WalkingNavigationView: View {
     @Environment(\.scenePhase) var scenePhase
     @StateObject private var navigator: WalkingNavigator
     @State private var reset = false
-    init(day: DayPlan, tripID: String) {
+    @State private var autoStarted = false
+    var autoStart:Bool
+    var dayDate:String
+    init(day: DayPlan, tripID: String,autoStart:Bool=false) {
+        self.autoStart=autoStart;self.dayDate=day.date
         _navigator = StateObject(wrappedValue: WalkingNavigator(day: day, tripID: tripID, endpoint: "http://127.0.0.1:8787/navigation/route"))
     }
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
+                    Text("導航日期："+dayDate).font(.caption).foregroundStyle(Palette.muted)
                     Text("第 \(navigator.progress.leg + 1) / \(navigator.count) 段 · 步行").font(.headline)
                     Text(navigator.progress.finished ? "今天的行程已完成" : "前往 " + navigator.target.name).font(.title2.bold())
                     Picker("底图", selection: $store.mapProvider) {
@@ -256,11 +261,13 @@ struct WalkingNavigationView: View {
                     Button("重置今天导航进度", role: .destructive) { reset = true }
                 }.padding(20)
             }.background(Palette.cream).navigationTitle("逐段导航").navigationBarTitleDisplayMode(.inline)
+                .task(id:store.health?.navigationConfigured){if autoStart && !autoStarted && store.health?.navigationConfigured==true {autoStarted=true;navigator.start()}}
                 .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("关闭") { dismiss() } } }
                 .confirmationDialog("重置今天的导航进度？", isPresented: $reset) { Button("重置", role: .destructive) { navigator.reset() } }
         }
         .onDisappear { navigator.pause() }
-        .onChange(of: scenePhase) { _, phase in if phase != .active { navigator.pause() } }
+        // A system location prompt makes the scene inactive; keep the pending start alive until authorization returns.
+        .onChange(of: scenePhase) { _, phase in if phase == .background { navigator.pause() } }
     }
 }
 

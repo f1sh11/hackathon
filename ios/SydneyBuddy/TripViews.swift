@@ -77,6 +77,7 @@ struct TripDetailView:View {
 struct TripsView:View {
     @EnvironmentObject var store:AppStore
     @State var detail=false
+    @State private var navigationTrip:Trip?
     var body:some View {
         NavigationStack {
             ScrollView {
@@ -86,16 +87,47 @@ struct TripsView:View {
                     if store.saved.isEmpty {ContentUnavailableView("还没有行程",systemImage:"suitcase",description:Text("创建你的第一份悉尼旅行计划"))}
                     ForEach(store.saved,id:\.id){t in
                         VStack(alignment:.leading,spacing:16){
+                            Button{store.trip=t;store.proposal=t} label:{VStack(alignment:.leading,spacing:16){
                             ZStack(alignment:.bottomLeading){LinearGradient(colors:[Palette.mint,Color(red:0.68,green:0.85,blue:0.90)],startPoint:.bottomLeading,endPoint:.topTrailing);Image(systemName:"sailboat.fill").font(.system(size:80)).foregroundStyle(.white).frame(maxWidth:.infinity,alignment:.trailing).padding(22);Text("SYDNEY").font(.system(size:25,weight:.black,design:.rounded)).tracking(4).foregroundStyle(Palette.green).padding(22)}.frame(height:145).clipShape(RoundedRectangle(cornerRadius:20))
                             HStack {VStack(alignment:.leading,spacing:7){Text(t.title).font(.headline);Text("\(t.profile.date) · \(t.days.count) 天 · \(t.days.flatMap(\.stops).count) 个地点").font(.caption).foregroundStyle(Palette.muted)};Spacer();Image(systemName:"arrow.up.right").foregroundStyle(Palette.green)}
-                            HStack {Button("編輯時間軸"){store.trip=t;store.proposal=t}.font(.subheadline.bold()).tint(Palette.green);Button("查看地图"){store.trip=t;store.dayIndex=0;store.tab=0}.font(.subheadline.bold()).tint(Palette.green);Spacer();Text(t.mode=="live" ? "在线数据规划" : (t.mode=="assisted" ? "Nemotron · 示例地点" : "演示行程")).font(.caption2).foregroundStyle(Palette.muted);Menu{Button("删除行程",role:.destructive){Task{await store.deleteTrip(t)}}}label:{Image(systemName:"ellipsis").padding(8)}}
+                            }}.buttonStyle(.plain).accessibilityLabel("編輯行程："+t.title).accessibilityIdentifier("edit-trip-"+(t.id ?? "draft"))
+                            HStack {Button{navigationTrip=t}label:{Label("開始導航",systemImage:"location.fill")}.font(.subheadline.bold()).tint(Palette.green).accessibilityIdentifier("navigate-trip-"+(t.id ?? "draft"));Button("查看地图"){store.trip=t;store.dayIndex=0;store.tab=0}.font(.subheadline.bold()).tint(Palette.green);Spacer();Text(t.mode=="live" ? "在线数据规划" : (t.mode=="assisted" ? "Nemotron · 示例地点" : "演示行程")).font(.caption2).foregroundStyle(Palette.muted);Menu{Button("删除行程",role:.destructive){Task{await store.deleteTrip(t)}}}label:{Image(systemName:"ellipsis").padding(8)}}
                         }.padding(18).background(.white,in:RoundedRectangle(cornerRadius:26))
                     }
                     HStack{Robot(size:70);Text("不必赶路，\n按自己的节奏出发。").font(.headline).foregroundStyle(Palette.ink)}.padding(.vertical,10)
                 }.padding(24)
             }.background(Palette.cream).navigationTitle("我的行程").refreshable{await store.reload()}
-        }
+        }.fullScreenCover(item:$navigationTrip){trip in SavedTripNavigationView(trip:trip)}
     }
+}
+
+// Use the actual calendar date; a trip outside today must explicitly choose a day.
+func savedTripNavigationDay(_ trip:Trip,today:String=TripProfile.dateString(Date()))->Int? {
+    if let index=trip.days.firstIndex(where:{$0.date==today}){return index}
+    return trip.days.count==1 ? 0:nil
+}
+struct SavedTripNavigationView:View {
+    let trip:Trip
+    @EnvironmentObject var store:AppStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var dayIndex:Int?
+    init(trip:Trip){self.trip=trip;_dayIndex=State(initialValue:savedTripNavigationDay(trip))}
+    var body:some View {
+        Group {
+            if let index=dayIndex,trip.days.indices.contains(index) {
+                if trip.mode=="live" {
+                    NavigationStack{VStack(spacing:20){Text("這份行程使用 Google 地點資料，目前 App 內逐站步行導航僅支援開源行程。請從查看地圖使用 Google 交通路線規劃。");Button("關閉"){dismiss()}}.padding().navigationTitle("開始導航")}
+                } else {
+                    WalkingNavigationView(day:trip.days[index],tripID:(trip.id ?? "draft")+":\(trip.revision ?? 0)",autoStart:true)
+                }
+            } else {
+                NavigationStack{List{Section("今天不在旅程日期內，請選擇要導航的行程"){ForEach(Array(trip.days.enumerated()),id:\.offset){i,day in
+                    Button{select(i)}label:{VStack(alignment:.leading,spacing:6){Text("第 \(i+1) 天 · \(day.date)").bold();Text("\(day.start.name) → \(day.stops.count) 個站點 → \(day.end.name)").font(.caption).foregroundStyle(Palette.muted)}}
+                }}}.navigationTitle("選擇導航日期").toolbar{Button("取消"){dismiss()}}}
+            }
+        }.onAppear{if let dayIndex{select(dayIndex)}}
+    }
+    private func select(_ index:Int){store.trip=trip;store.dayIndex=index;dayIndex=index}
 }
 
 struct WeatherCard: View {

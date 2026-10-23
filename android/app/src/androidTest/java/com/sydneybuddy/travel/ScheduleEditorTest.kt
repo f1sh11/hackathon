@@ -48,6 +48,28 @@ class ScheduleEditorTest {
         File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null),"schedule-android-test.png").outputStream().use{image.compress(Bitmap.CompressFormat.PNG,100,it)};image.recycle()
         c.stop()
     }
+    @Test fun savedTripCardEditsOnTapAndNavigationButtonsDoNotOpenEditor() {
+        val trip=fixture();var edit=0;var navigation=0;var map=0;var delete=0
+        rule.setContent{MaterialTheme{SavedTripCard(trip,onEdit={edit++},onNavigate={navigation++},onMap={map++},onDelete={delete++})}}
+        rule.onNodeWithText("編輯時間軸").assertDoesNotExist()
+        rule.onNodeWithText("開始導航").performClick()
+        rule.runOnIdle{assertEquals(1,navigation);assertEquals(0,edit)}
+        rule.onNodeWithText("查看地图").performClick();rule.onNodeWithText("删除行程").performClick()
+        rule.runOnIdle{assertEquals(1,map);assertEquals(1,delete);assertEquals(0,edit)}
+        rule.onNodeWithTag("edit-trip-${trip.optString("id")}").performClick()
+        rule.runOnIdle{assertEquals(1,edit);assertEquals(1,navigation)}
+    }
+    @Test fun savedTripNavigationSelectsTodayAndKeepsSavedStopOrder() {
+        val trip=fixture();val days=trip.array("days").objects()
+        assertEquals(1,savedTripNavigationDay(trip,days[1].getString("date")))
+        assertNull(savedTripNavigationDay(trip,"2099-01-01"))
+        val single=trip.copy().put("days",org.json.JSONArray().put(days[0]));assertEquals(0,savedTripNavigationDay(single,"2099-01-01"))
+        assertNull(savedTripNavigationDay(trip.copy().put("days",org.json.JSONArray()),"2099-01-01"))
+        val context=InstrumentationRegistry.getInstrumentation().targetContext
+        val nav=WalkingNavigator(context,days[1],"card-order-test","http://127.0.0.1:8787/navigation/route")
+        val expected=listOf(days[1].getJSONObject("start").getString("name"))+days[1].array("stops").objects().map{it.getString("name")}+listOf(days[1].getJSONObject("end").getString("name")+"（返回）")
+        assertEquals(expected,nav.points.map{it.name});nav.close()
+    }
     @Test fun poiAutomaticallyLoadsCategoriesAndSeparatesFailureFromEmptyResults() {
         val inst=InstrumentationRegistry.getInstrumentation();lateinit var store:BuddyStore
         val categories=mutableListOf<String>();var fail=false

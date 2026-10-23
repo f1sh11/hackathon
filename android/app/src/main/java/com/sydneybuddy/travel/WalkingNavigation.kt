@@ -171,7 +171,7 @@ internal fun walkingConfig()=NavigationControllerConfig(WaypointAdvanceMode.Wayp
     RouteDeviationTracking.StaticThreshold(50u,40.0),CourseFiltering.RAW)
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Composable fun WalkingNavigationDialog(store:BuddyStore,suppliedNavigator:WalkingNavigator?=null,onClose:()->Unit) {
+@Composable fun WalkingNavigationDialog(store:BuddyStore,suppliedNavigator:WalkingNavigator?=null,autoStart:Boolean=false,onClose:()->Unit) {
     val day=store.day ?: return
     val context=LocalContext.current
     val uri=LocalUriHandler.current
@@ -183,6 +183,14 @@ internal fun walkingConfig()=NavigationControllerConfig(WaypointAdvanceMode.Wayp
     val permission=rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
         if(result[Manifest.permission.ACCESS_FINE_LOCATION]==true) nav.start()
         else store.error="请允许精确定位，或选择模拟导航。"
+    }
+    var autoStarted by remember(key){mutableStateOf(false)}
+    LaunchedEffect(autoStart,store.health?.optBoolean("navigationConfigured")) {
+        if(autoStart && !autoStarted && store.health?.optBoolean("navigationConfigured")==true){
+            autoStarted=true
+            if(ContextCompat.checkSelfPermission(context,Manifest.permission.ACCESS_FINE_LOCATION)==PackageManager.PERMISSION_GRANTED)nav.start()
+            else permission.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.ACCESS_COARSE_LOCATION))
+        }
     }
     DisposableEffect(nav,lifecycle) {
         val observer=LifecycleEventObserver{_,event->if(event==Lifecycle.Event.ON_STOP)nav.pause()}
@@ -198,6 +206,7 @@ internal fun walkingConfig()=NavigationControllerConfig(WaypointAdvanceMode.Wayp
         }
         Scaffold(topBar={TopAppBar(title={Text("逐段导航")},actions={TextButton(onClick=onClose){Text("关闭")}})}) { padding ->
             Column(Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),verticalArrangement=Arrangement.spacedBy(14.dp)) {
+                Small("導航日期："+day.optString("date"))
                 Text("第 ${nav.progress.leg+1} / ${nav.count} 段 · 步行",style=MaterialTheme.typography.titleMedium)
                 Heading(if(nav.progress.finished) "今天的行程已完成" else "前往 ${nav.target.name}")
                 Row(Modifier.horizontalScroll(rememberScrollState())) {MapProvider.entries.forEach{p->FilterChip(selected=store.mapProvider==p,onClick={store.chooseMapProvider(p)},label={Text(p.label)})}}
