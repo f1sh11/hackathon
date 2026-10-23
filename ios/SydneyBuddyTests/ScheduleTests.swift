@@ -4,6 +4,16 @@ import MapKit
 @testable import SydneyBuddy
 
 @MainActor final class ScheduleTests:XCTestCase {
+    func testCompactHomeRendersSavedTripWithoutChangingIt() async throws {
+        let store=AppStore();let original=store.mapProvider;defer{store.mapProvider=original};store.mapProvider = .schematic;store.trip=try fixture()
+        let before=store.trip!.days.flatMap(\.stops).map(\.id)
+        let scene=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.first!
+        let old=scene.windows.first{$0.isKeyWindow};let window=UIWindow(windowScene:scene);window.frame=scene.screen.bounds
+        window.rootViewController=UIHostingController(rootView:HomeView().environmentObject(store))
+        window.makeKeyAndVisible();defer{window.isHidden=true;old?.makeKeyAndVisible()}
+        try await Task.sleep(nanoseconds:300_000_000)
+        XCTAssertEqual(store.trip!.days.flatMap(\.stops).map(\.id),before);XCTAssertNil(store.proposal)
+    }
     func testAllowanceKeepsNegativeRemainingAndClampsOnlyBar() {
         let over=ScheduleAllowance(limit:10000,used:11234)
         XCTAssertEqual(over.remaining,-1234);XCTAssertEqual(over.fraction,0);XCTAssertTrue(over.exceeded)

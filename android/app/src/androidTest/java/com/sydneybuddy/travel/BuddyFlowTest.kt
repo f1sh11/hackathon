@@ -28,7 +28,7 @@ class BuddyFlowTest {
         rule.waitUntil(30000){rule.onAllNodes(hasText("確認並保存") and isEnabled()).fetchSemanticsNodes().isNotEmpty()}
         click("確認並保存")
         rule.onNodeWithText("確認保存").performClick()
-        awaitText("出发前的 3 个小任务")
+        awaitText("開始導航")
     }
 
     @Test fun onboardingSaveAdjustmentCancelAndLocalPersistence() {
@@ -40,8 +40,8 @@ class BuddyFlowTest {
         awaitText("我的時間軸")
         click("取消草案")
         click("地图")
-        click("出发前的 3 个小任务")
-        click("行李备好")
+        rule.onNodeWithTag("home-info-toggle").performClick()
+        rule.onNodeWithText("行李备好").performScrollTo().performClick()
         click("查看路线")
         click("完成")
         click("记账")

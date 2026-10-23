@@ -40,7 +40,7 @@ struct GoogleRouteMap: UIViewRepresentable {
     func makeUIView(context: Context) -> GMSMapView {
         let options=GMSMapViewOptions();options.camera=GMSCameraPosition(latitude:-33.865,longitude:151.212,zoom:14)
         let map=GMSMapView(options:options);map.settings.compassButton=true;map.settings.rotateGestures=false;map.delegate=context.coordinator
-        map.padding=expanded ? UIEdgeInsets(top:90,left:25,bottom:160,right:25) : UIEdgeInsets(top:260,left:25,bottom:380,right:25)
+        map.padding=expanded ? UIEdgeInsets(top:90,left:25,bottom:160,right:25) : UIEdgeInsets(top:140,left:25,bottom:240,right:25)
         return map
     }
     func updateUIView(_ map:GMSMapView,context:Context) {
@@ -248,7 +248,7 @@ struct NativeRouteMap:UIViewRepresentable {
                 let point=MKMapPoint(coordinate)
                 return rect.union(MKMapRect(x:point.x,y:point.y,width:1,height:1))
             }
-            let padding=expanded ? UIEdgeInsets(top:110,left:45,bottom:180,right:45) : UIEdgeInsets(top:275,left:45,bottom:400,right:45)
+            let padding=expanded ? UIEdgeInsets(top:110,left:45,bottom:180,right:45) : UIEdgeInsets(top:150,left:35,bottom:240,right:35)
             DispatchQueue.main.async {map.setVisibleMapRect(bounds,edgePadding:padding,animated:false)}
         }
     }
@@ -363,6 +363,7 @@ struct SchematicMap: View {
 struct HomeView: View {
     @EnvironmentObject var store:AppStore
     @State var poiSearch=false
+    @State private var homeInfo=false
     @State var chat=false
     @State var details=false
     @State var expandedMap=false
@@ -373,46 +374,41 @@ struct HomeView: View {
         ZStack(alignment:.top) {
             ProviderRouteMap(overview:overview.key == mapSceneKey(store.currentDay) ? overview.route : nil,sections:overview.key == mapSceneKey(store.currentDay) ? (overview.plan?.sections ?? []) : [],overviewIsGoogle:overview.plan?.source == "Google Routes").ignoresSafeArea(edges:.top)
             VStack(spacing:10) {
-                HStack { HStack(spacing:8) { Image(systemName:"mappin.circle.fill").foregroundStyle(Palette.green); VStack(alignment:.leading,spacing:3) { Text("悉尼 · 小冒险").font(.headline); Text(store.currentDay?.date ?? "准备出发").font(.caption).foregroundStyle(Palette.muted) } }.padding(.horizontal,18).padding(.vertical,12).background(.white,in:Capsule()); Spacer(); Button {store.tab=3} label:{Image(systemName:"person.crop.circle.fill").font(.system(size:42)).foregroundStyle(Palette.green).background(.white,in:Circle())} }.padding(.horizontal,20)
-                HStack { Text(store.mapProvider.label).font(.caption2.bold()).padding(.horizontal,12).padding(.vertical,6).background(.white.opacity(0.9),in:Capsule()); if store.mapProvider == .osm {Link("© OpenStreetMap contributors",destination:URL(string:"https://www.openstreetmap.org/copyright")!).font(.caption2).padding(6).background(.white.opacity(0.95),in:Capsule())} }
-                Button{poiSearch=true}label:{Label("搜尋景點、餐廳與設施",systemImage:"magnifyingglass").font(.subheadline).padding(10).frame(maxWidth:.infinity,alignment:.leading).background(.white,in:Capsule())}.padding(.horizontal,20)
-                if let t=store.trip,t.days.count>1 { Picker("天数",selection:$store.dayIndex) { ForEach(t.days.indices,id:\.self) { Text("第 \($0+1) 天").tag($0) } }.pickerStyle(.segmented).padding(.horizontal,24) }
-                if let t=store.trip { WeatherCard(weather:store.refreshedWeather ?? t.weather,compact:true).padding(.horizontal,20) }
-                if store.trip != nil {
-                    HStack {Spacer();Button {expandedMap=true} label:{Label("展开地图",systemImage:"arrow.up.left.and.arrow.down.right").font(.caption.bold()).padding(10).background(.white,in:Capsule())}}.padding(.horizontal,20)
+                HStack(spacing:8){
+                    Button{poiSearch=true}label:{Label("搜尋景點、餐廳與設施",systemImage:"magnifyingglass").font(.subheadline).padding(14).frame(maxWidth:.infinity,alignment:.leading).background(.white,in:Capsule())}
+                    Menu{Picker("底圖",selection:$store.mapProvider){ForEach(MapProvider.allCases){Text($0.label).tag($0)}}}label:{Image(systemName:"square.3.layers.3d").frame(width:46,height:46).background(.white,in:Circle())}.accessibilityLabel("切換底圖")
                 }
-                Spacer()
-                if store.trip != nil {PreparationTrail {details=true}.padding(.horizontal,20)}
-                HStack(alignment:.bottom,spacing:12) {
-                    VStack(alignment:.leading,spacing:12) {
-                        Text(store.trip?.title ?? "悉尼一日游").font(.title3.bold()).foregroundStyle(Palette.ink)
-                        if let day=store.currentDay {
-                            Text("\(day.stops.count) 个地点 · 约 \(day.estimatedSteps) 步").font(.caption).foregroundStyle(Palette.muted)
-                            HStack(spacing:8) { Label("A$\(Int(day.estimatedCost))",systemImage:"wallet.bifold"); Text("·");Text("\(day.finishTime) 返回") }.font(.caption.bold()).foregroundStyle(Palette.green)
-                            HStack(spacing:12) {
-                                Button("交通路线规划"){journey=true}
-                                Button("逐段步行导航"){navigation=true}.disabled(store.mapProvider != .osm)
-                            }.font(.caption.bold()).tint(Palette.green).lineLimit(1).minimumScaleFactor(0.8)
-                            ScrollView(.horizontal,showsIndicators:false) {
-                                HStack(spacing:8) {
-                                    Text("起 · \(day.start.name)")
-                                    ForEach(Array(day.stops.enumerated()),id:\.offset) { i, stop in Text("→ \(i+1) · \(stop.name) \(stop.arrival)") }
-                                    Text("→ 终 · \(day.end.name)")
-                                }.font(.caption).foregroundStyle(Palette.green)
-                            }.accessibilityLabel("行程站点顺序")
-                            if store.trip?.mode != "live", store.mapProvider == .osm || store.mapProvider == .apple {
-                                Button(overview.busy ? "正在取得步行路线…" : overview.summary) {overview.load(day,provider:store.mapProvider)}
-                                    .font(.caption.bold()).tint(Palette.green).disabled(overview.busy || overview.route != nil)
-                                if overview.plan == nil,let route=overview.route {ScrollView(.horizontal,showsIndicators:false){Text(route.segments).font(.caption2).foregroundStyle(Palette.muted)}}
-                                if let message=overview.message {Text(message).font(.caption2).foregroundStyle(Palette.muted)}
+                HStack(spacing:10){
+                    Text("悉尼 · "+(store.currentDay?.date.suffix(5).description ?? "準備出發")).font(.caption.bold()).padding(.horizontal,12).padding(.vertical,9).background(.white.opacity(0.95),in:Capsule())
+                    if let t=store.trip,t.days.count>1{Picker("天数",selection:$store.dayIndex){ForEach(t.days.indices,id:\.self){Text("第 \($0+1) 天").tag($0)}}.pickerStyle(.segmented)}
+                    else{Spacer()}
+                }
+                Spacer(minLength:20)
+                HStack{Spacer();if store.trip != nil{Button{expandedMap=true}label:{Image(systemName:"arrow.up.left.and.arrow.down.right").frame(width:42,height:42).background(.white,in:Circle())}.accessibilityLabel("展开地图")};Button{chat=true}label:{Label("问 AI",systemImage:"sparkles").font(.caption.bold()).padding(12).background(.white,in:Capsule())}.accessibilityLabel("问 AI")}
+                VStack(alignment:.leading,spacing:10){
+                    HStack(alignment:.top){
+                        VStack(alignment:.leading,spacing:5){Text(store.trip?.title ?? "開始你的悉尼旅行").font(.headline).foregroundStyle(Palette.ink);if let day=store.currentDay{Text("\(day.stops.count) 站 · \(day.estimatedSteps.formatted()) 步 · A$\(Int(day.estimatedCost)) · \(day.finishTime) 返回").font(.caption).foregroundStyle(Palette.muted)}}
+                        Spacer(minLength:4)
+                        if store.trip != nil{Button{withAnimation{homeInfo.toggle()}}label:{Image(systemName:homeInfo ? "chevron.down.circle.fill":"ellipsis.circle").font(.title2)}.accessibilityLabel(homeInfo ? "收起行程資訊":"展開行程資訊").accessibilityIdentifier("home-info-toggle")}
+                    }
+                    if homeInfo,let trip=store.trip {
+                        ScrollView{VStack(alignment:.leading,spacing:12){
+                            WeatherCard(weather:store.refreshedWeather ?? trip.weather,compact:true)
+                            PreparationTrail{details=true}
+                            Button("交通路线规划"){journey=true}.font(.subheadline.bold())
+                            if let day=store.currentDay{
+                                ScrollView(.horizontal,showsIndicators:false){Text("起 · \(day.start.name) → "+day.stops.enumerated().map{"\($0.offset+1) · \($0.element.name) \($0.element.arrival)"}.joined(separator:" → ")+" → 终 · \(day.end.name)").font(.caption)}.accessibilityLabel("行程站点顺序")
+                                if trip.mode != "live",store.mapProvider == .osm || store.mapProvider == .apple{Button(overview.busy ? "正在取得步行路线…":overview.summary){overview.load(day,provider:store.mapProvider)}.font(.caption.bold()).disabled(overview.busy || overview.route != nil);if let message=overview.message{Text(message).font(.caption).foregroundStyle(Palette.muted)}}
                             }
-                        } else { Text("让 Buddy 帮你选出刚刚好的路线").font(.caption).foregroundStyle(Palette.muted) }
-                        Button { if store.trip==nil {store.newTrip()} else {details=true} } label:{ HStack {Text(store.trip==nil ? "开始规划" : "查看路线").fontWeight(.bold);Spacer();Image(systemName:"arrow.up.right")}.padding(13).foregroundStyle(.white).background(Palette.green,in:RoundedRectangle(cornerRadius:14)) }
-                    }.padding(18).frame(maxWidth:.infinity,alignment:.leading).background(.white,in:RoundedRectangle(cornerRadius:25)).shadow(color:Palette.ink.opacity(0.08),radius:12,y:4)
-                    Button {chat=true} label:{ VStack(spacing:0) {Text("问 AI").font(.headline.bold()).padding(.horizontal,18).padding(.vertical,12).foregroundStyle(.white).background(Palette.green,in:Capsule());Robot(size:80)} }.buttonStyle(.plain).accessibilityLabel("问 AI")
-                }.padding(.horizontal,20)
-                Text(store.trip?.mode=="live" ? (store.mapProvider == .google ? "Google 路线 · 费用与步数为估算" : "Google 行程图层已隐藏，请切换 Google 底图查看") : (store.mapProvider == .schematic ? "离线顺序示意 · 非道路路线" : overview.route == nil ? "尚未查询道路路线 · 仅显示站点" : "已规划道路路线 · 不含景点停留时间")).font(.system(size:10)).foregroundStyle(Palette.ink.opacity(0.7)).padding(7).background(.white.opacity(0.85),in:Capsule())
-            }.padding(.top,12).padding(.bottom,12)
+                        }}.frame(maxHeight:220).accessibilityIdentifier("home-extra-info")
+                    }
+                    HStack(spacing:10){
+                        if store.trip != nil{Button{details=true}label:{Text("查看路线").font(.subheadline.bold()).frame(maxWidth:.infinity).padding(.vertical,12).background(Palette.mint,in:RoundedRectangle(cornerRadius:13))}}
+                        Button{if store.trip==nil{store.newTrip()}else{navigation=true}}label:{Label(store.trip==nil ? "開始規劃":"開始導航",systemImage:"location.fill").font(.subheadline.bold()).frame(maxWidth:.infinity).padding(.vertical,12).foregroundStyle(.white).background(Palette.green,in:RoundedRectangle(cornerRadius:13))}
+                    }
+                    HStack(spacing:4){Text(store.mapProvider.label).fontWeight(.medium);if store.mapProvider == .osm{Link("© OpenStreetMap contributors",destination:URL(string:"https://www.openstreetmap.org/copyright")!)};Spacer(minLength:0);Text(store.trip?.mode=="live" ? (store.mapProvider == .google ? "Google 路線":"需 Google 底圖"):store.mapProvider == .schematic ? "離線示意":overview.route==nil ? "僅顯示站點":"已規劃路線")}.font(.system(size:9)).foregroundStyle(Palette.muted).lineLimit(1).minimumScaleFactor(0.8)
+                }.padding(16).background(.white,in:RoundedRectangle(cornerRadius:24)).shadow(color:Palette.ink.opacity(0.08),radius:12,y:4)
+            }.padding(.horizontal,18).padding(.top,10).padding(.bottom,10).tint(Palette.green)
         }.task(id:mapSceneKey(store.currentDay)+"|"+(store.trip?.mode ?? "")) {overview.reset(mapSceneKey(store.currentDay))}
         .sheet(isPresented:$poiSearch){PoiDiscoveryView()}
         .sheet(isPresented:$chat){AgentView()}.sheet(isPresented:$details){TripDetailView()}

@@ -29,9 +29,10 @@ class ItineraryOverviewUiTest {
                 store=ViewModelProvider(activity)[BuddyStore::class.java]
                 store.onboarding=false;store.tab=0;store.chooseMapProvider(MapProvider.OSM);store.select(trip)
             }
+            rule.onNodeWithTag("home-info-toggle").performClick()
             rule.onNodeWithContentDescription("行程站点顺序").assertExists()
-            rule.onNodeWithText("显示步行路线").assertIsDisplayed()
-            rule.onNodeWithText("展开地图").performClick()
+            rule.onNodeWithText("显示步行路线").performScrollTo().assertIsDisplayed()
+            rule.onNodeWithContentDescription("展开地图").performClick()
             rule.onNodeWithText("全天行程顺序").assertIsDisplayed()
             rule.onNodeWithText("尚未查询道路路线 · 仅显示站点").assertIsDisplayed()
             rule.waitUntil(30000){rule.onAllNodes(hasText("地图已加载",substring=true) and hasAnyAncestor(hasTestTag("expanded-itinerary-map"))).fetchSemanticsNodes().isNotEmpty()}
@@ -51,7 +52,7 @@ class ItineraryOverviewUiTest {
             val route=OverviewRoute.parse(recorded)
             assertEquals(-33.861,route.points.first().first,0.003)
             assertTrue(route.meters>500);assertTrue(route.legSeconds.size==1)
-            rule.onNodeWithText("展开地图").assertIsDisplayed()
+            rule.onNodeWithContentDescription("展开地图").assertIsDisplayed()
             lateinit var unavailable:ItineraryOverview
             rule.runOnIdle {unavailable=ItineraryOverview();unavailable.load(trip.getJSONArray("days").getJSONObject(0),"http://127.0.0.1:1")}
             rule.waitUntil(10000){!unavailable.busy}

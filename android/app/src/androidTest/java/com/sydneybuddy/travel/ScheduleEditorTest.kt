@@ -49,6 +49,27 @@ class ScheduleEditorTest {
         File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null),"schedule-android-test.png").outputStream().use{image.compress(Bitmap.CompressFormat.PNG,100,it)};image.recycle()
         c.stop()
     }
+    @Test fun mapHomeKeepsSecondaryDetailsCollapsedAndCanExpandWithoutEditingTrip() {
+        val inst=InstrumentationRegistry.getInstrumentation();lateinit var store:BuddyStore
+        val prefs=inst.targetContext.getSharedPreferences("buddy",0);val selected=prefs.getString("selectedTrip",null);val provider=prefs.getString("mapProvider",null)
+        rule.runOnIdle{store=BuddyStore(inst.targetContext.applicationContext as Application)}
+        rule.waitUntil(15000){!store.busy}
+        val trip=fixture().put("id","local-home-clean-test")
+        rule.runOnIdle{store.select(trip);store.chooseMapProvider(MapProvider.SCHEMATIC)}
+        rule.setContent{MaterialTheme{HomeScreen(store)}}
+        try {
+            rule.onNodeWithTag("home-extra-info").assertDoesNotExist()
+            rule.onNodeWithText("開始導航").assertIsDisplayed();rule.onNodeWithText("查看路线").assertIsDisplayed()
+            rule.onNodeWithContentDescription("切換底圖").assertIsDisplayed()
+            rule.onNodeWithTag("home-info-toggle").performClick()
+            rule.onNodeWithTag("home-extra-info").assertExists()
+            rule.onNodeWithText("悉尼天气").assertExists()
+            rule.onNodeWithContentDescription("行程站点顺序").assertExists()
+            rule.onNodeWithTag("home-info-toggle").performClick()
+            rule.onNodeWithTag("home-extra-info").assertDoesNotExist()
+            rule.runOnIdle{assertEquals(trip.toString(),store.trip.toString())}
+        }finally{prefs.edit().apply{if(selected==null)remove("selectedTrip")else putString("selectedTrip",selected);if(provider==null)remove("mapProvider")else putString("mapProvider",provider)}.commit()}
+    }
     @Test fun allowanceShowsNegativeRemainingAndClearsWarningsAfterRecovery() {
         val state=fixture().getJSONObject("schedule");val limits=state.getJSONObject("settings")
         val original=state.array("days").getJSONObject(0);var day by mutableStateOf(original.copy().put("estimatedSteps",limits.getInt("maxSteps")+1234).put("estimatedCost",limits.getDouble("dailyBudget")+25).put("timeUsed",limits.getInt("timeLimit")+15))
