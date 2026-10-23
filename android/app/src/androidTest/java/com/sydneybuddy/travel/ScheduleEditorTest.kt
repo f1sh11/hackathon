@@ -70,6 +70,27 @@ class ScheduleEditorTest {
         rule.onNodeWithText("完成").performClick()
         assertEquals(before,c.state!!.array("days").toString());c.stop()
     }
+    @Test fun toolboxMovesExistingWithoutDuplicateAndBlocksOtherDaysAndLocks() {
+        val c=setup();val day=c.state!!.array("days").getJSONObject(0)
+        val before=day.array("activities").objects().first{it.optString("placeId")=="mca"};val id=before.getString("id");val duration=before.getInt("duration")
+        rule.onNodeWithTag("schedule-workbench").performScrollTo()
+        rule.onNodeWithTag("toolbox-drag-gallery").assertDoesNotExist()
+        val source=rule.onNodeWithTag("toolbox-drag-mca").fetchSemanticsNode().boundsInRoot
+        val canvas=rule.onNodeWithTag("timeline-canvas").fetchSemanticsNode().boundsInRoot
+        val viewport=rule.onNodeWithTag("timeline-viewport").fetchSemanticsNode().boundsInRoot
+        val target=Offset(viewport.right-30f,minOf(canvas.top+350f,viewport.bottom-50f))
+        rule.onNodeWithTag("toolbox-drag-mca").performTouchInput{down(center);advanceEventTime(800);moveBy(target-source.center,delayMillis=700);up()}
+        rule.waitUntil(5000){!c.busy}
+        var items=c.state!!.array("days").getJSONObject(0).array("activities").objects()
+        val moved=items.single{it.optString("placeId")=="mca"};assertEquals(id,moved.getString("id"));assertEquals(duration,moved.getInt("duration"));assertTrue(moved.has("fixedStart"))
+        rule.runOnIdle{c.place(c.state!!.array("candidates").objects().first{it.optString("id")=="gallery"},720)}
+        assertFalse(c.busy);assertFalse(c.state!!.array("days").getJSONObject(0).array("activities").objects().any{it.optString("placeId")=="gallery"})
+        rule.runOnIdle{c.edit{s->s.array("days").getJSONObject(0).array("activities").objects().first{it.optString("placeId")=="mca"}.put("locked",true)}}
+        rule.waitUntil(5000){!c.busy};rule.onNodeWithTag("toolbox-drag-mca").assertDoesNotExist()
+        val start=c.state!!.array("days").getJSONObject(0).array("activities").objects().first{it.optString("placeId")=="mca"}.optInt("fixedStart")
+        rule.runOnIdle{c.place(c.state!!.array("candidates").objects().first{it.optString("id")=="mca"},900)}
+        assertFalse(c.busy);assertEquals(start,c.state!!.array("days").getJSONObject(0).array("activities").objects().first{it.optString("placeId")=="mca"}.optInt("fixedStart"));c.stop()
+    }
     @Test fun toolboxDragDropsNewAttractionAtActualTime() {
         val c=setup()
         rule.onNodeWithTag("schedule-workbench").performScrollTo()

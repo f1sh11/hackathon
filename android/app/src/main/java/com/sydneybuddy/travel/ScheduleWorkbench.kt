@@ -56,15 +56,16 @@ internal fun toolboxMinute(y:Float,scale:Float,first:Int,start:Int,end:Int):Int?
                 Text("依推薦排序\n按住 ☰ 拖到右側",fontSize=10.sp,color=Color.Gray)
                 Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(10.dp)) {
                     state.array("candidates").objects().forEachIndexed{i,p->key(p.getString("id")) {
-                        val id=p.getString("id");var grip by remember{mutableStateOf(Offset.Zero)}
+                        val id=p.getString("id");val locked=day.array("activities").objects().any{it.optString("placeId")==id&&it.optBoolean("locked")};var grip by remember{mutableStateOf(Offset.Zero)}
                         Column(Modifier.fillMaxWidth().background(Color.White,RoundedCornerShape(13.dp)).border(1.dp,Green.copy(alpha=.12f),RoundedCornerShape(13.dp)).padding(8.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
                             Text("%02d".format(i+1),fontSize=10.sp,color=Green,fontWeight=FontWeight.Bold)
                             Text(p.optString("name"),fontSize=12.sp,fontWeight=FontWeight.SemiBold)
                             Text(if(p.optString("source")=="OpenStreetMap")"${p.optInt("visitMinutes")} 分 · 費用未知"else "${p.optInt("visitMinutes")} 分 · A$${p.optInt("cost")}",fontSize=10.sp,color=Color.Gray)
                             selected[id]?.let{Text("第 ${it+1} 天已排",fontSize=10.sp,color=Green)}
+                            if(locked)Text("已鎖定",fontSize=10.sp,color=Color.Gray)
                             Row(verticalAlignment=Alignment.CenterVertically){
                                 TextButton(onClick={detail=p},modifier=Modifier.width(42.dp).testTag("toolbox-info-$id"),contentPadding=PaddingValues(0.dp)){Text("介紹",fontSize=11.sp)}
-                                if(!c.busy&&(selected[id]==null||selected[id]==c.dayIndex))Text("☰",Modifier.size(32.dp,36.dp).onGloballyPositioned{grip=it.positionInRoot()}.testTag("toolbox-drag-$id").pointerInput(id,day.toString(),viewport,canvasOrigin,scale,density){detectDragGesturesAfterLongPress(onDragStart={dragging=p;pointer=grip+it},onDrag={change,amount->change.consume();pointer+=amount},onDragCancel={dragging=null},onDragEnd={
+                                if(!c.busy&&!locked&&(selected[id]==null||selected[id]==c.dayIndex))Text("☰",Modifier.size(32.dp,36.dp).onGloballyPositioned{grip=it.positionInRoot()}.testTag("toolbox-drag-$id").pointerInput(id,day.toString(),viewport,canvasOrigin,scale,density){detectDragGesturesAfterLongPress(onDragStart={dragging=p;pointer=grip+it},onDrag={change,amount->change.consume();pointer+=amount},onDragCancel={dragging=null},onDragEnd={
                                     val time=if(viewport.contains(pointer))toolboxMinute((pointer.y-canvasOrigin.y)/density,scale,first,day.optInt("startMinute"),day.optInt("endMinute"))else null
                                     dragging=null;if(time!=null)c.place(p,time)
                                 })},fontSize=18.sp,color=Green)

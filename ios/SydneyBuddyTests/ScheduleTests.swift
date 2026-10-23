@@ -3,6 +3,40 @@ import SwiftUI
 @testable import SydneyBuddy
 
 @MainActor final class ScheduleTests:XCTestCase {
+    func testCanvasReportsActualGeometryForCrossColumnDrag() async throws {
+        let day=try fixture().schedule!.days[0]
+        var layout=ScheduleCanvasGeometry()
+        let scene=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.first!
+        let old=scene.windows.first{$0.isKeyWindow};let window=UIWindow(windowScene:scene);window.frame=scene.screen.bounds
+        window.rootViewController=UIHostingController(rootView:ScrollView{ScheduleTimeCanvas(day:day,onChange:{_,_,_ in},onEdit:{_ in},onAdd:{},onGeometry:{layout=$0}).frame(width:220)}.coordinateSpace(name:"scheduleWorkbench"))
+        window.makeKeyAndVisible();defer{window.isHidden=true;old?.makeKeyAndVisible()}
+        try await Task.sleep(nanoseconds:500_000_000)
+        XCTAssertGreaterThan(layout.frame.width,200);XCTAssertGreaterThan(layout.frame.height,1000)
+        XCTAssertEqual(layout.first,600);XCTAssertEqual(layout.scale,3)
+    }
+    func testCrossColumnDropAccountsForScrollZoomAndExcludesRulerAndHeader() {
+        let viewport=CGRect(x:130,y:80,width:220,height:500)
+        var canvas=ScheduleCanvasGeometry(frame:CGRect(x:130,y:150,width:220,height:1700),first:600,scale:3)
+        XCTAssertEqual(ScheduleDropTime.minute(at:CGPoint(x:220,y:330),viewport:viewport,canvas:canvas,start:600,end:1140),660)
+        canvas.frame.origin.y = -30
+        XCTAssertEqual(ScheduleDropTime.minute(at:CGPoint(x:220,y:330),viewport:viewport,canvas:canvas,start:600,end:1140),720)
+        canvas.scale=6
+        XCTAssertEqual(ScheduleDropTime.minute(at:CGPoint(x:220,y:330),viewport:viewport,canvas:canvas,start:600,end:1140),660)
+        XCTAssertNil(ScheduleDropTime.minute(at:CGPoint(x:140,y:330),viewport:viewport,canvas:canvas,start:600,end:1140))
+        XCTAssertNil(ScheduleDropTime.minute(at:CGPoint(x:220,y:50),viewport:viewport,canvas:canvas,start:600,end:1140))
+        XCTAssertNil(ScheduleDropTime.minute(at:CGPoint(x:220,y:590),viewport:viewport,canvas:canvas,start:600,end:1140))
+    }
+    func testOtherDayAndLockedAttractionsCannotBeMovedFromToolbox() throws {
+        var trip=try fixture();trip.schedule!.days[0].activities[1].locked=true
+        let model=ScheduleEditorModel();model.prepare(trip)
+        let locked=trip.schedule!.days[0].activities[1]
+        let same=trip.schedule!.candidates.first{$0.id==locked.placeId}!
+        model.place(same,at:720)
+        XCTAssertFalse(model.busy);XCTAssertEqual(model.state!.days[0].activities[1].scheduledStart,locked.scheduledStart)
+        let otherID=trip.schedule!.days[1].activities.first{$0.placeId != nil}!.placeId!
+        model.place(trip.schedule!.candidates.first{$0.id==otherID}!,at:720)
+        XCTAssertFalse(model.busy);XCTAssertFalse(model.state!.days[0].activities.contains{$0.placeId==otherID});model.stop()
+    }
     func testImportedMapPoiIsIncludedInSharedApiRequest() async throws {
         let trip=try fixture();let model=ScheduleEditorModel();model.prepare(trip)
         var candidate=trip.schedule!.candidates[0];candidate.id="osm:node:123";candidate.source="OpenStreetMap";candidate.name="Test Cafe"

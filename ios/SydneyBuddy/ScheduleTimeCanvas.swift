@@ -15,12 +15,27 @@ struct ScheduleTimeEdit:Equatable {
     }
 }
 
+struct ScheduleCanvasGeometry:Equatable {
+    var frame:CGRect = .zero
+    var first:Int = 0
+    var scale:CGFloat = 3
+}
+enum ScheduleDropTime {
+    static func minute(at point:CGPoint,viewport:CGRect,canvas:ScheduleCanvasGeometry,start:Int,end:Int)->Int? {
+        guard canvas.scale>0,viewport.contains(point),canvas.frame.contains(point),point.x>=canvas.frame.minX+40 else{return nil}
+        let minute=canvas.first+Int(((point.y-canvas.frame.minY)/canvas.scale/5).rounded())*5
+        return minute>=start && minute<end ? minute:nil
+    }
+}
+
 struct ScheduleTimeCanvas:View {
     var day:ScheduleDay
     var onChange:(String,Int,Int)->Void
     var onEdit:(ScheduleActivity)->Void
     var onAdd:()->Void
     var onPlace:(String,Int)->Void = {_,_ in}
+    var onGeometry:(ScheduleCanvasGeometry)->Void = {_ in}
+    var dropHint:String? = nil
     @State private var targeted=false
     @State private var scale:CGFloat=3
     @State private var dragging:String?
@@ -35,7 +50,7 @@ struct ScheduleTimeCanvas:View {
     }
     var body:some View {
         VStack(alignment:.leading,spacing:14) {
-            Text(targeted ? "放開以加入這個時段":"時間軸 · 每格 5 分").font(.caption.bold()).foregroundStyle(Palette.green)
+            Text(dropHint ?? (targeted ? "放開以加入這個時段":"時間軸 · 每格 5 分")).font(.caption.bold()).foregroundStyle(Palette.green)
             HStack {Text("停留時間").font(.caption2);Spacer();Button("−"){scale=max(2,scale-1)}.accessibilityLabel("縮小時間軸");Button("＋"){scale=min(6,scale+1)}.accessibilityLabel("放大時間軸")}.font(.caption)
 
             ZStack(alignment:.topLeading) {
@@ -56,7 +71,11 @@ struct ScheduleTimeCanvas:View {
                     block(a).padding(.leading,40).offset(y:y(edit(a).start+(a.queueMinutes ?? 0))).zIndex(dragging==a.id ? 10:1)
                 }
             }.frame(height:CGFloat(last-first)*scale+20,alignment:.top)
-            .background(targeted ? Palette.green.opacity(0.08):Color.clear)
+            .background(GeometryReader {proxy in
+                let layout=ScheduleCanvasGeometry(frame:proxy.frame(in:.named("scheduleWorkbench")),first:first,scale:scale)
+                Color.clear.onAppear{onGeometry(layout)}.onChange(of:layout){_,value in onGeometry(value)}
+            })
+            .background(targeted || dropHint != nil ? Palette.green.opacity(0.08):Color.clear)
             .contentShape(Rectangle())
             .onDrop(of:[UTType.text],isTargeted:$targeted){providers,location in
                 let minute=first+Int((Double(location.y/scale)/5).rounded())*5
