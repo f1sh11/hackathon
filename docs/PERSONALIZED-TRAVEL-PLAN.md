@@ -1,8 +1,11 @@
 # 客製化旅遊規劃 App｜功能修改規劃書
 
-版本：提案 v1.6  
-日期：2026-10-23  
-適用平台：iOS、Android，共用 ASP.NET Core API 及 PostgreSQL  
+版本：提案 v1.6
+
+日期：2026-10-23
+
+適用平台：iOS、Android，共用 ASP.NET Core API 及 PostgreSQL
+
 狀態：產品需求與開發目標；本機示例原型的已實作範圍與限制見 [時間軸說明](SCHEDULE-EDITOR.md)。未接入的真實資料服務不視為已完成。
 
 ## 1. 產品定位與本次目標
