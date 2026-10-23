@@ -35,7 +35,7 @@ import kotlin.math.ceil
 
 fun transportLabel(mode:String)=when(mode){"walk"->"步行";"drive"->"开车";"transit"->"大众运输";"bus"->"公车";"rail"->"火车";"metro"->"地铁";"tram"->"轻轨";"ferry"->"渡轮";else->"交通"}
 fun transportGlyph(mode:String)=when(mode){"walk"->"🚶";"drive"->"🚗";"bus"->"🚌";"ferry"->"⛴";else->"🚆"}
-fun transportColor(mode:String)=when(mode){"walk"->Color(0xFF1976D2);"drive"->Green;else->Color(0xFFC66A00)}
+fun transportColor(mode:String)=when(mode){"walk"->Color(0xFF555555);"drive"->Green;else->Color(0xFF1976D2)}
 fun journeyTime(raw:String)=runCatching{OffsetDateTime.parse(raw).atZoneSameInstant(ZoneId.of("Australia/Sydney")).format(DateTimeFormatter.ofPattern("HH:mm"))}.getOrDefault("时间未提供")
 data class JourneyMapSection(val mode:String,val points:List<Pair<Double,Double>>,val boarding:String="",val alighting:String="",val line:String?=null) {
     val stops get()=if(mode in listOf("walk","drive") || points.size<2)emptyList()else listOf(points.first() to "上车 · $boarding",points.last() to "下车 · $alighting")
@@ -145,7 +145,7 @@ class JourneyModel(private val client:OkHttpClient=OkHttpClient.Builder().callTi
                                 }
                             }
                             result?.warnings?.forEach{Text(it,fontSize=11.sp,color=Muted)}
-                            Text(result?.source ?: "步行：蓝色点线 · 开车：绿色实线 · 公共交通：橙色实线。尚未查询时仅显示站点，不画直线；路线沿服务回传的道路线形。",fontSize=11.sp,color=Muted)
+                            Text(result?.source ?: "步行：灰色小圆点 · 开车：绿色细实线 · 公共交通：蓝色细实线。尚未查询时仅显示站点，不画直线；路线沿服务回传的道路线形。",fontSize=11.sp,color=Muted)
                         }
                         model.error?.let{Text(it,color=Color.Red,fontSize=12.sp,modifier=Modifier.testTag("journey-error"))}
                         Row(horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically){

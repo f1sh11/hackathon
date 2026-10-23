@@ -32,7 +32,7 @@ struct JourneyMapSection {
 }
 func transportLabel(_ mode:String)->String {switch mode {case "walk":return "步行";case "drive":return "开车";case "transit":return "大众运输";case "bus":return "公车";case "rail":return "火车";case "metro":return "地铁";case "tram":return "轻轨";case "ferry":return "渡轮";default:return "交通"}}
 func transportSymbol(_ mode:String)->String {switch mode {case "walk":return "figure.walk";case "drive":return "car.fill";case "bus":return "bus.fill";case "ferry":return "ferry.fill";default:return "tram.fill"}}
-func transportColor(_ mode:String)->Color {switch mode {case "walk":return .blue;case "drive":return Palette.green;default:return .orange}}
+func transportColor(_ mode:String)->Color {switch mode {case "walk":return Color(uiColor:.darkGray);case "drive":return Palette.green;default:return .blue}}
 func journeyTime(_ raw:String)->String {
     let parser=ISO8601DateFormatter();parser.formatOptions=[.withInternetDateTime,.withFractionalSeconds]
     let date=parser.date(from:raw) ?? ISO8601DateFormatter().date(from:raw)
@@ -157,7 +157,7 @@ struct JourneyPlannerView:View {
                             }
                         }
                         if let result {ForEach(result.warnings,id:\.self){Text($0).font(.caption2).foregroundStyle(Palette.muted)};Text("\(result.source) · 时间为悉尼当地时间").font(.caption2)}
-                        else {Text("步行：蓝色点线 · 开车：绿色实线 · 公共交通：橙色实线。尚未查询时仅显示站点，不画直线；路线沿服务回传的道路线形。").font(.caption2).foregroundStyle(Palette.muted)}
+                        else {Text("步行：灰色小圆点 · 开车：绿色细实线 · 公共交通：蓝色细实线。尚未查询时仅显示站点，不画直线；路线沿服务回传的道路线形。").font(.caption2).foregroundStyle(Palette.muted)}
                     }.padding(.vertical,4)
                 }.frame(maxHeight:360)
             }

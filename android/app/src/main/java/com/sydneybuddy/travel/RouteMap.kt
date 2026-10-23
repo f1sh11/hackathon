@@ -77,12 +77,11 @@ import org.json.JSONObject
                 val actual=overview!=null || (routes.size==points.size-1 && routes.all{it.size>1})
                 val geometry=overview?.points?.map{LatLng(it.first,it.second)} ?: if(actual)routes.flatten() else emptyList()
                 if(sections.isEmpty() && geometry.size>1){
-                    Polyline(points=geometry,color=Color.White,width=18f)
-                    Polyline(points=geometry,color=Color(0xFF1976D2),width=10f,pattern=listOf(com.google.android.gms.maps.model.Dot(),com.google.android.gms.maps.model.Gap(15f)))
+                    Polyline(points=geometry,color=Color(0xFF555555),width=4f,pattern=listOf(com.google.android.gms.maps.model.Dot(),com.google.android.gms.maps.model.Gap(15f)))
                 } else sections.filter{it.points.size>1}.forEach{section->
                     val path=section.points.map{LatLng(it.first,it.second)}
-                    Polyline(points=path,color=Color.White,width=18f)
-                    Polyline(points=path,color=transportColor(section.mode),width=10f,pattern=if(section.mode=="walk")listOf(com.google.android.gms.maps.model.Dot(),com.google.android.gms.maps.model.Gap(15f))else null)
+                    if(section.mode!="walk")Polyline(points=path,color=Color.White,width=10f)
+                    Polyline(points=path,color=transportColor(section.mode),width=if(section.mode=="walk")4f else 6f,pattern=if(section.mode=="walk")listOf(com.google.android.gms.maps.model.Dot(),com.google.android.gms.maps.model.Gap(15f))else null)
                 }
                 (if(sections.isEmpty())geometry else emptyList()).zipWithNext().forEachIndexed {i,(a,b)->
                     if(geometry.size>30 && i % (geometry.size/8).coerceAtLeast(1)!=0)return@forEachIndexed

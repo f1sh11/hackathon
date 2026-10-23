@@ -137,10 +137,10 @@ internal const val OSM_STYLE="""{
                     val id="journey-$i"
                     val shape=org.maplibre.geojson.LineString.fromLngLats(section.points.map{org.maplibre.geojson.Point.fromLngLat(it.second,it.first)})
                     style.addSource(org.maplibre.android.style.sources.GeoJsonSource(id,org.maplibre.geojson.Feature.fromGeometry(shape)))
-                    style.addLayer(org.maplibre.android.style.layers.LineLayer("$id-border",id).withProperties(org.maplibre.android.style.layers.PropertyFactory.lineColor(android.graphics.Color.WHITE),org.maplibre.android.style.layers.PropertyFactory.lineWidth(9f)))
-                    val color=when(section.mode){"walk"->android.graphics.Color.rgb(25,118,210);"drive"->android.graphics.Color.rgb(13,130,94);else->android.graphics.Color.rgb(198,106,0)}
-                    val stroke=org.maplibre.android.style.layers.LineLayer("$id-stroke",id).withProperties(org.maplibre.android.style.layers.PropertyFactory.lineColor(color),org.maplibre.android.style.layers.PropertyFactory.lineWidth(5f),org.maplibre.android.style.layers.PropertyFactory.lineCap("round"))
-                    if(section.mode=="walk")stroke.setProperties(org.maplibre.android.style.layers.PropertyFactory.lineDasharray(arrayOf(0.2f,1.6f)))
+                    if(section.mode!="walk")style.addLayer(org.maplibre.android.style.layers.LineLayer("$id-border",id).withProperties(org.maplibre.android.style.layers.PropertyFactory.lineColor(android.graphics.Color.WHITE),org.maplibre.android.style.layers.PropertyFactory.lineWidth(5f)))
+                    val color=when(section.mode){"walk"->android.graphics.Color.rgb(85,85,85);"drive"->android.graphics.Color.rgb(13,130,94);else->android.graphics.Color.rgb(25,118,210)}
+                    val stroke=org.maplibre.android.style.layers.LineLayer("$id-stroke",id).withProperties(org.maplibre.android.style.layers.PropertyFactory.lineColor(color),org.maplibre.android.style.layers.PropertyFactory.lineWidth(if(section.mode=="walk")2f else 3f),org.maplibre.android.style.layers.PropertyFactory.lineCap("round"))
+                    if(section.mode=="walk")stroke.setProperties(org.maplibre.android.style.layers.PropertyFactory.lineDasharray(arrayOf(0.1f,3f)))
                     style.addLayer(stroke)
                 }
             }

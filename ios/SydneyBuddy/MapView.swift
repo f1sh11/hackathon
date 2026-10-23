@@ -43,17 +43,16 @@ struct GoogleRouteMap: UIViewRepresentable {
         if let overview { overview.coordinates.forEach { path.add($0) } }
         else if actual { paths.forEach { leg in for i in 0..<leg.count() { path.add(leg.coordinate(at:i)) } } }
 
-        let casing=GMSPolyline(path:path);casing.strokeColor = .white;casing.strokeWidth=9;casing.map=map
-        let line=GMSPolyline(path:path);line.strokeColor = .systemBlue;line.strokeWidth=5
-        if path.count()>1 {line.spans=GMSStyleSpans(path,[GMSStrokeStyle.solidColor(.systemBlue),GMSStrokeStyle.solidColor(.clear)],[2,18],.rhumb)}
+        let line=GMSPolyline(path:path);line.strokeColor = .darkGray;line.strokeWidth=2
+        if path.count()>1 {line.spans=GMSStyleSpans(path,[GMSStrokeStyle.solidColor(.darkGray),GMSStrokeStyle.solidColor(.clear)],[1,12],.rhumb)}
         line.map=map
         if !sections.isEmpty {
-            casing.map=nil;line.map=nil
+            line.map=nil
             for section in sections where section.coordinates.count>1 {
                 let sectionPath=GMSMutablePath();section.coordinates.forEach{sectionPath.add($0)}
-                let border=GMSPolyline(path:sectionPath);border.strokeColor = .white;border.strokeWidth=9;border.map=map
-                let stroke=GMSPolyline(path:sectionPath);stroke.strokeColor=UIColor(transportColor(section.mode));stroke.strokeWidth=5
-                if section.mode == "walk" {stroke.spans=GMSStyleSpans(sectionPath,[GMSStrokeStyle.solidColor(.systemBlue),GMSStrokeStyle.solidColor(.clear)],[2,18],.rhumb)}
+                if section.mode != "walk" {let border=GMSPolyline(path:sectionPath);border.strokeColor = .white;border.strokeWidth=5;border.map=map}
+                let stroke=GMSPolyline(path:sectionPath);stroke.strokeColor=UIColor(transportColor(section.mode));stroke.strokeWidth=section.mode == "walk" ? 2 : 3
+                if section.mode == "walk" {stroke.spans=GMSStyleSpans(sectionPath,[GMSStrokeStyle.solidColor(.darkGray),GMSStrokeStyle.solidColor(.clear)],[1,12],.rhumb)}
                 stroke.map=map
             }
         }
@@ -148,13 +147,12 @@ struct NativeRouteMap:UIViewRepresentable {
         if let day {
             map.addAnnotations(sections.flatMap(\.stopPins)+overviewPins(day))
             let geometry = overview?.coordinates ?? []
-            let casing=MKPolyline(coordinates:geometry,count:geometry.count);casing.title="casing"
             let line=MKPolyline(coordinates:geometry,count:geometry.count);line.title="walk"
-            if sections.isEmpty && geometry.count>1 {map.addOverlay(casing,level:.aboveLabels);map.addOverlay(line,level:.aboveLabels)}
+            if sections.isEmpty && geometry.count>1 {map.addOverlay(line,level:.aboveLabels)}
             else {for section in sections where section.coordinates.count>1 {
                 let border=MKPolyline(coordinates:section.coordinates,count:section.coordinates.count);border.title="casing"
                 let stroke=MKPolyline(coordinates:section.coordinates,count:section.coordinates.count);stroke.title=section.mode
-                map.addOverlay(border,level:.aboveLabels);map.addOverlay(stroke,level:.aboveLabels)
+                if section.mode != "walk" {map.addOverlay(border,level:.aboveLabels)};map.addOverlay(stroke,level:.aboveLabels)
             }}
             if sections.isEmpty {map.addAnnotations(overviewDirections(geometry))}
         }
@@ -198,10 +196,10 @@ struct NativeRouteMap:UIViewRepresentable {
             if let line=overlay as? MKPolyline {
                 let renderer=MKPolylineRenderer(polyline:line)
                 renderer.strokeColor = line.title == "casing" ? .white : line.title == "walking" || line.title == "schematic" ? UIColor(Palette.green) : UIColor(transportColor(line.title ?? "walk"))
-                renderer.lineWidth = line.title == "casing" ? 9 : 5
+                renderer.lineWidth = line.title == "casing" ? 5 : line.title == "walk" ? 2 : 3
                 renderer.lineCap = .round;renderer.lineJoin = .round
                 if line.title == "schematic" {renderer.lineDashPattern=[9,6]}
-                if line.title == "walk" {renderer.lineDashPattern=[1,12]}
+                if line.title == "walk" {renderer.lineDashPattern=[0.1,8]}
                 return renderer
             }
             return MKOverlayRenderer(overlay:overlay)

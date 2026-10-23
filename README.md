@@ -460,6 +460,6 @@ server-dotnet/
 - **Google**：Google Routes 道路／公交；只可顯示在 Google 底圖，須服務端金鑰與付費開關，預設仍禁用。
 - **Apple（iOS）**：MKDirections 原生步行／開車。MapKit 不提供 App 內完整公交線形和班次明細；可另選 NSW／開源，或開啟 Apple Maps 查首個公交區間。
 
-共用 `JourneyPlan → legs → steps → geometry`，每段獨立畫線：步行藍色點線、車行實線、藍色起點、空心編號站點、紅色終點及上下車圓點。路線來自服務回傳的道路线形，未查詢或缺少線形時不畫站點直線。切換來源清空舊結果，不自動退回其他供應商。既有 Ferrostar 逐段導航目前限定 OSM / open 步行。
+共用 `JourneyPlan → legs → steps → geometry`，每段獨立畫線：步行灰色小圓點虛線、大眾運輸藍色細實線（含 Metro / Train）、開車綠色細實線、藍色起點、空心編號站點、紅色終點及上下車圓點。路線來自服務回傳的道路线形，未查詢或缺少線形時不畫站點直線。切換來源清空舊結果，不自動退回其他供應商。既有 Ferrostar 逐段導航目前限定 OSM / open 步行。
 
 **目前尚未設定 NSW 金鑰或部署 OTP，真實公交班次尚未啟用。** Apple 原生步行路線已實際查詢驗證；Google／NSW 轉接器已完成本地契約測試，尚未使用真實金鑰連線。 本地測試使用明確標示的 `TEST-01` 合成資料，正式畫面不會自行產生測試公車。設定方式、資料來源、API 與驗證限制見 [開放交通串接說明](docs/OPEN-TRANSIT.md)。
