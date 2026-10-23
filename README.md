@@ -1,8 +1,8 @@
 # Sydney Buddy · 悉尼旅行 Agent
 
-**React + TypeScript 网页前端、原生 Android（Kotlin + Jetpack Compose）与 ASP.NET Core（C# / .NET 10）后端，通过 EF Core 和 PostgreSQL 保存行程与偏好。** 单题引导收集旅行偏好，NVIDIA Nemotron 推荐候选地点，程序独立检查路线约束，再由用户确认保存。地图、地点、路线与天气使用 Google Maps Platform，授权偏好检索使用官方 Meterless H-MEM 引擎。
+**原生 iOS（SwiftUI）、Android（Kotlin + Jetpack Compose）与 ASP.NET Core（C# / .NET 10）后端，通过 EF Core 和 PostgreSQL 保存行程与偏好。** 单题引导收集旅行偏好，NVIDIA Nemotron 推荐候选地点，程序独立检查路线约束，再由用户确认保存。地图、地点、路线与天气使用 Google Maps Platform，授权偏好检索使用官方 Meterless H-MEM 引擎。
 
-本次迁移将 Python API 替换为 C#，并增加适配手机和桌面的网页入口。Android 与保留的 SwiftUI iOS 客户端继续使用原接口、JSON 字段和 `8787` 端口。旧 Python 代码与 SQLite 文件保留供对照和回退；新后端不运行 Python，也不会自动导入旧 SQLite 数据。**当前仍为本机单用户原型，未部署线上服务，也未提交 HackOS。**
+当前维护原生 iOS、Android 及其共用的 C# API。React 网页客户端与独立的旧版 React/.NET 原型已移除。Android 与保留的 SwiftUI iOS 客户端继续使用原接口、JSON 字段和 `8787` 端口。旧 Python 代码与 SQLite 文件保留供对照和回退；新后端不运行 Python，也不会自动导入旧 SQLite 数据。**当前仍为本机单用户原型，未部署线上服务，也未提交 HackOS。**
 
 完整迁移范围与代码阅读说明见 [迁移说明](docs/ASPNET-MIGRATION.md)。
 
@@ -13,11 +13,11 @@
 - 调整先生成草案，用户确认后才保存。保存使用版本检查，冲突返回 HTTP `409`。
 - 多行程管理、逐日天气刷新，以及需用户同意的偏好保存和撤回。
 - Google Places 提供坐标与常规营业时段，Routes 提供步行路线，Weather 提供未来 10 天逐日预报。
-- Android 原有引导、准备清单与整数分记账保留；这些设备端功能不等于网页已实现相同功能。
+- Android 原有引导、准备清单与整数分记账保留，准备进度与账本保存在设备本机。
 
 ## 本机启动：PostgreSQL + .NET API
 
-需要 **.NET 10 SDK**、**Node.js 24** 和 **Docker / Docker Compose**。Node 用于网页构建和官方 Meterless H-MEM 引擎；HTTP API、规划与天气逻辑由 C# 运行。
+需要 **.NET 10 SDK**、**Node.js 24** 和 **Docker / Docker Compose**。Node 仅用于官方 Meterless H-MEM 引擎；HTTP API、规划与天气逻辑由 C# 运行。
 
 在包含本次迁移的仓库根目录运行：
 
@@ -44,26 +44,6 @@ dotnet run --project server-dotnet/SydneyBuddy.Api
 首次运行会还原 NuGet 依赖，API 启动时使用 EF Core migrations 创建或更新 PostgreSQL 表。先关闭旧 Python 后端，避免争用 `8787` 端口。服务运行后打开 [健康检查](http://127.0.0.1:8787/health) 或 [本机密钥设置页](http://127.0.0.1:8787/setup)。每位成员使用自己的本机数据库；这仍是单用户开发模式。
 
 也可通过启动脚本运行：Windows 使用 `powershell -File scripts/start-server.ps1`；macOS / Linux 使用 `sh scripts/start-server.sh`；macOS 也可双击 `scripts/start-server.command`。连接字符串仍需先设置在对应进程的环境中。
-
-## 网页入口：React + TypeScript
-
-另开终端，在仓库根目录运行：
-
-```sh
-npm --prefix web install
-npm --prefix web run dev
-```
-
-打开 Vite 输出的网址。开发服务器将 `/api` 请求代理到 `http://127.0.0.1:8787`，因此 .NET API 需要保持运行。该入口适配桌面与手机浏览器；手机访问另一台电脑上的服务属于额外网络部署，不由本机回环配置自动完成。
-
-构建后可由 ASP.NET Core 提供网页文件：
-
-```sh
-npm --prefix web run build
-dotnet run --project server-dotnet/SydneyBuddy.Api
-```
-
-构建输出在 `web/dist`。如果 API 在构建前已经启动，请先停止并重新启动 API，让它发现网页资源。然后从 [API 的本机地址](http://127.0.0.1:8787) 打开网页。没有构建产物时使用 Vite 开发服务器。
 
 ## Android（Windows / macOS）
 
@@ -99,7 +79,7 @@ Android 仍连接 `http://127.0.0.1:8787`。Debug 允许本机 HTTP，Release �
 | 配置项 | 用途 |
 |---|---|
 | `ConnectionStrings__SydneyBuddy` | PostgreSQL 连接字符串 |
-| `NVIDIA_API_KEY` | 服务端调用 NVIDIA NIM，不进入 APK 或网页源码 |
+| `NVIDIA_API_KEY` | 服务端调用 NVIDIA NIM，不进入 Android APK 或 iOS App |
 | `NVIDIA_MODEL` | 默认 `nvidia/nemotron-3.5-lightning-30b-a3b` |
 | `GOOGLE_SERVER_KEY` | 服务端 Places API (New)、Routes API、Weather API |
 | `GOOGLE_IOS_KEY` | 保留的 iOS 客户端地图 SDK 配置 |
@@ -139,7 +119,7 @@ Google 项目需要启用计费及对应服务。地图 SDK 与服务端 API 分
 | `DELETE /memories/{id}` | 从可检索记忆撤回，保留追加审计历史 |
 | `GET/POST /setup` | 本机配置页，提交需要页面提供的 CSRF 令牌 |
 
-网页通过 `/api` 前缀访问对应接口；Android / iOS 保留上述原路径。约束无可行解为 `422`，保存版本冲突为 `409`，非法来源为 `403`。API 不执行订票、付款或赛事提交。
+Android / iOS 使用上述接口。服务不再托管 React 静态文件或注册旧网页的 `/api` 别名；根路径 `/` 返回 JSON 404，本机配置仍从 `/setup` 进入。约束无可行解为 `422`，保存版本冲突为 `409`，非法来源为 `403`。API 不执行订票、付款或赛事提交。
 
 ## 测试与 CI
 
@@ -147,20 +127,17 @@ Google 项目需要启用计费及对应服务。地图 SDK 与服务端 API 分
 dotnet restore server-dotnet/SydneyBuddy.Api.Tests/SydneyBuddy.Api.Tests.csproj
 dotnet build server-dotnet/SydneyBuddy.Api.Tests/SydneyBuddy.Api.Tests.csproj --no-restore
 dotnet test server-dotnet/SydneyBuddy.Api.Tests/SydneyBuddy.Api.Tests.csproj --no-build
-npm --prefix web run build
-npm --prefix web test
 # macOS / Linux：官方 H-MEM conformance
 HMEM_IMPL="$PWD/server/vendor/hmem/src/index.ts" \
   node --experimental-transform-types server/vendor/hmem/conformance/runner.ts
 ```
 
-后端集成测试在上述 PostgreSQL 连接中创建专属随机 schema，完成后清理；连接用户需要创建 schema 的权限。详细说明见 [迁移说明](docs/ASPNET-MIGRATION.md)。GitHub Actions 启动 PostgreSQL 服务，使用 .NET 10 构建与测试，运行 H-MEM 检查和网页构建。Android 继续使用原构建工作流。自动测试不调用付费 API。迁移后的测试结果以当前 CI 和迁移说明为准；原 Python / Android / iOS 版本的成功记录不能直接作为新版在线或真机验收结果。
+后端集成测试在上述 PostgreSQL 连接中创建专属随机 schema，完成后清理；连接用户需要创建 schema 的权限。详细说明见 [迁移说明](docs/ASPNET-MIGRATION.md)。GitHub Actions 启动 PostgreSQL 服务，使用 .NET 10 构建与测试，运行 H-MEM 检查。Android 继续使用原构建工作流。自动测试不调用付费 API。迁移后的测试结果以当前 CI 和迁移说明为准；原 Python / Android / iOS 版本的成功记录不能直接作为新版在线或真机验收结果。
 
 ## 项目结构
 
 | 路径 | 职责 |
 |---|---|
-| `web/` | React / TypeScript 响应式网页与 Vite 构建 |
 | `android/` | Kotlin / Jetpack Compose Android 客户端 |
 | `ios/` | 保留的 SwiftUI 客户端 |
 | `server-dotnet/SydneyBuddy.Api/` | ASP.NET Core REST API、C# 规划、天气、依赖注入、EF Core / PostgreSQL 存储 |
@@ -171,6 +148,166 @@ HMEM_IMPL="$PWD/server/vendor/hmem/src/index.ts" \
 | `server/*.py`、`server/tests/` | 旧 Python 实现和对照测试，不参与新后端运行 |
 | `compose.yaml` | 本机 PostgreSQL 开发服务 |
 
+## 程序架构与数据流
+
+手机 App 负责界面、交互和设备本机状态；ASP.NET Core 负责规划规则、外部服务调用和数据库。两端通过 HTTP / JSON 沟通，手机不会直接连接 PostgreSQL。开发时后端运行在电脑上；未来可部署到服务器，再将手机的 API 地址改为 HTTPS 服务地址，无需把后端放进手机。
+
+```mermaid
+flowchart TD
+    Android["Android · Kotlin / Compose"] -->|HTTP / JSON| API["ASP.NET Core API"]
+    iOS["iOS · SwiftUI"] -->|HTTP / JSON| API
+    API --> Planning["Planning · 行程规划与约束检查"]
+    API --> Repositories["Data · 行程与偏好存取"]
+    Repositories --> EF["EF Core"]
+    EF --> DB[(PostgreSQL)]
+    Planning --> Providers["Google Places / Routes / Weather · NVIDIA NIM"]
+    Planning --> Memory["MemoryService · 授权偏好检索"]
+    API --> Preferences["PreferenceService · 偏好保存与撤回"]
+    Preferences --> Repositories
+    Preferences --> Memory
+    Memory --> Bridge["Node 24 · hmem_bridge.ts"]
+    Bridge --> HMEM["官方 H-MEM · 本机记忆与审计文件"]
+```
+
+Google 地图底图由 Android / iOS 各自的 Maps SDK 显示；后端的 Places、Routes 和 Weather 则提供地点、路线和天气资料。手机地图 SDK 使用各自平台的地图密钥，NVIDIA 与 Google 服务端密钥留在后端。
+
+一次行程操作分为两阶段：
+
+1. **生成草案**：手机收集偏好 → `POST /plan` → 验证输入 → 收集地点、天气和推荐 → 检查整条路线 → 返回草案。此时不保存行程。
+2. **确认保存**：用户确认 → `POST /trips`，传入草案及 `expectedRevision` → 检查行程结构和版本 → 写入 PostgreSQL。旧版本提交返回 `409`，手机需要刷新后再调整。
+
+| 数据 | 保存位置 | 负责部分 |
+|---|---|---|
+| 已确认行程、revision、授权偏好摘要 | PostgreSQL | C# Repository / EF Core |
+| 偏好检索内容与追加审计记录 | `server/.hmem/` | 官方 H-MEM，经 C# 调用 Node |
+| 默认旅行偏好、准备进度、记账 | 各自手机的本机存储 | Android `BuddyStore`、iOS `AppStore` |
+| 服务端配置与密钥 | 环境变量或被 Git 忽略的 `.secrets.json` | `SecretStore` |
+
+设备本机数据目前不跨手机同步。PostgreSQL 偏好摘要与 H-MEM 是两个存储，`PreferenceService` 协调它们；数据库保存失败时尝试撤回刚添加的记忆，不是跨存储事务。
+
+## 主要文件用途
+
+### Android 前端
+
+以下 Kotlin 文件都位于 `android/app/src/main/java/com/sydneybuddy/travel/`。
+
+| 文件 | 用途与常见修改场景 |
+|---|---|
+| `MainActivity.kt` | App 入口、主画面切换，以及草案、行程列表、AI 调整、记账和设置画面；修改主流程时从这里看起 |
+| `IosStyle.kt` | Android 的 iOS 风格首页、8 步引导、日历、导航及共用视觉元件；这是 Kotlin Android 文件，不是 iOS 代码 |
+| `BuddyStore.kt` | ViewModel 状态、HTTP 请求、草案与行程操作、天气和偏好操作、本机资料保存；也是 Android 后端地址的设置位置 |
+| `Domain.kt` | 旅行偏好与起终点模型、JSON 转换、输入检查、整数分金额与均分、保存载荷、路线 polyline 解码 |
+| `RouteMap.kt` | Google 地图、景点标记与路线展示，以及未配置地图时的示意图 |
+
+| 配置 / 测试文件 | 用途 |
+|---|---|
+| `android/app/build.gradle.kts` | SDK、App 版本、依赖、地图金钥引用与测试依赖 |
+| `android/app/src/main/AndroidManifest.xml` | 入口 Activity、网络权限、地图 SDK 与安全设置 |
+| `android/app/src/main/res/` | 图示、系统主题、备份与网络安全规则；`src/debug/res/` 覆盖本机开发网络规则 |
+| `android/app/src/test/java/com/sydneybuddy/travel/DomainTest.kt` | 金额、模型、版本保存与路线解码的单元测试 |
+| `android/app/src/androidTest/java/com/sydneybuddy/travel/BuddyFlowTest.kt` | 在模拟器 / 装置操作引导、保存、取消调整、准备清单与记账流程；需后端和端口转发 |
+
+### iOS 前端
+
+Swift 文件位于 `ios/SydneyBuddy/`。`Models.swift` 同时包含数据模型和 `AppStore`，不只是类型声明。
+
+| 文件 | 用途与常见修改场景 |
+|---|---|
+| `SydneyBuddyApp.swift` | App 入口、根画面、8 步引导，以及 Buddy 角色、颜色和共用按钮 |
+| `Models.swift` | API 数据模型、`AppStore` 状态管理、网络请求、草案与保存流程、本机存储；也是 iOS 后端地址的设置位置 |
+| `MapView.swift` | 首页、Google 地图与未配置时的示意地图 |
+| `TripViews.swift` | 行程草案、确认保存、AI 调整、行程列表、天气与出发准备画面 |
+| `SettingsViews.swift` | 记账、设置，以及需要同意的偏好保存与撤回画面 |
+| `ios/Config/Base.xcconfig`、`Secrets.example.xcconfig`、`Info.plist` | 建置设置、本机地图金钥范本与 App 配置，实际配置目录为 `ios/Config/` |
+| `ios/SydneyBuddy.xcodeproj/project.pbxproj` | Xcode 工程、来源文件、建置目标与 Google Maps 套件设置 |
+
+### ASP.NET Core 共用后端
+
+后端按用途分层，目录如下。表中的路径相对于 `server-dotnet/SydneyBuddy.Api/`。
+
+```text
+server-dotnet/
+├── SydneyBuddy.Api/
+│   ├── Program.cs          启动、依赖注册、数据库迁移与路由
+│   ├── Api/                HTTP 请求与响应边界
+│   ├── Planning/           行程业务规则与调度
+│   ├── Services/           天气、外部请求和记忆整合
+│   ├── Data/               EF Core 模型、数据库迁移和存取
+│   └── Infrastructure/     配置、资源路径及共用工具
+└── SydneyBuddy.Api.Tests/  后端单元与整合测试
+```
+
+| 文件 | 用途 |
+|---|---|
+| `Program.cs` | 设置端口与请求限制，注册服务，启动时应用数据库迁移，并挂上手机 API |
+| `Api/ApiEndpoints.cs` | 组合规划、行程、偏好与设置的路由模块 |
+| `Api/PlanningEndpoints.cs` | 健康状态、景点目录、生成草案与天气接口 |
+| `Api/TripEndpoints.cs` | 已保存行程的查询、保存、删除及版本冲突响应 |
+| `Api/MemoryEndpoints.cs` | 授权偏好的查询、保存和撤回接口 |
+| `Api/SettingsEndpoints.cs`、`SetupPage.cs` | 本机 `/setup` 配置表单及 CSRF 检查；不是 React 网页客户端 |
+| `Api/RequestJson.cs`、`TripContractValidator.cs` | 读取 JSON 请求，以及检查保存草案的数据结构 |
+| `Api/LocalRequestMiddleware.cs` | 本机访问限制、响应头、统一错误处理与请求日志 |
+| `Planning/Planner.cs` | 编排输入验证、地点、天气、推荐和调度，返回未保存草案 |
+| `Planning/PlanValidator.cs` | 检查并补全日期、天数、预算、步数、时间与起终点 |
+| `Planning/PlaceCatalog.cs`、`CatalogCache.cs` | 读取及缓存本机景点目录；不缓存私人偏好或实时天气 |
+| `Planning/PlaceService.cs` | 取得示例或 Google Places 候选地点 |
+| `Planning/RecommendationService.cs` | 检索授权偏好，并在在线模式调用 Nemotron 对已知地点排序 |
+| `Planning/RouteService.cs` | Google 步行路线查询、演示距离估算与本次规划内的路段复用 |
+| `Planning/RouteScheduler.cs` | 安排多日景点顺序，检查营业窗口、转场、休息、预算、步数和返程 |
+| `Planning/PlanningContext.cs` | 单次规划的模式、配置快照、证据记录与路段缓存 |
+| `Services/WeatherService.cs` | 天气查询、逐日匹配，以及范围外或查不到资料的处理 |
+| `Services/ExternalJsonClient.cs` | 外部 HTTP / JSON 请求、超时和提供商错误处理 |
+| `Services/MemoryService.cs` | 管理 Node 子进程，调用 H-MEM，控制并发和超时 |
+| `Services/PreferenceService.cs` | 协调 H-MEM 与 PostgreSQL 的偏好摘要保存和撤回 |
+| `Data/BuddyDbContext.cs` | EF Core 实体、表与 JSONB 字段映射 |
+| `Data/TripEntity.cs`、`MemoryEntity.cs` | 行程与授权偏好摘要的数据库实体 |
+| `Data/TripRepository.cs` | 行程查询、保存、删除与原子 revision 检查 |
+| `Data/MemoryRepository.cs` | 授权偏好摘要的数据库存取 |
+| `Data/Migrations/` | 数据库结构变更及模型快照；修改表结构时维护迁移 |
+| `Infrastructure/DependencyInjection.cs` | 集中注册服务与生命周期；DbContext / Repository 随请求建立 |
+| `Infrastructure/ProjectPaths.cs` | 定位仓库、景点资料、密钥及 H-MEM 目录 |
+| `Infrastructure/SecretStore.cs` | 读取环境变量 / 私有配置，保存本机配置及 iOS 地图设置 |
+| `Infrastructure/JsonExtensions.cs`、`ServiceException.cs` | JSON 字段读取工具与业务错误类型 |
+| `SydneyBuddy.Api.csproj` | .NET 目标版本、EF Core 和 PostgreSQL 依赖 |
+
+### 共享资料、工具与历史代码
+
+| 路径 | 用途 |
+|---|---|
+| `server/places.json` | 当前 C# 后端仍在读取的景点基础资料 |
+| `server/hmem_bridge.ts` | 将 C# 的记忆操作转交给官方引擎；删除 React 后仍需保留 |
+| `server/vendor/hmem/` | 第三方记忆引擎、相容性测试、来源与独立许可，通常不直接改动 |
+| `server/*.py`、`server/requirements.txt`、`server/tests/` | 历史 Python 后端和对照测试；当前启动脚本与 .NET API 不使用它们 |
+| `scripts/start-server.sh`、`.command`、`.ps1` | 各平台的 .NET 后端启动入口 |
+| `scripts/connect-android.sh`、`.ps1` | Android 装置到电脑后端的 `adb reverse` 端口转发 |
+| `scripts/generate_project.py` | 重新产生 iOS Xcode 工程与 Info.plist 的辅助工具，日常启动不需执行 |
+| `compose.yaml` | 本机 PostgreSQL 容器、端口、健康检查与持久化 volume |
+| `global.json` | .NET SDK 版本选择规则 |
+| `.secrets.example.json` | 服务端配置范本；实际 `.secrets.json` 不提交 Git |
+| `.github/workflows/ci.yml` | PostgreSQL、.NET 后端测试与官方 H-MEM 检查 |
+| `.github/workflows/android.yml` | Android APK 建置、领域测试及静态检查 |
+| `docs/` | 迁移说明、历史验证记录、截图、演示与参赛清单 |
+
+## 团队分工与建议阅读顺序
+
+| 小组 / 工作 | 主要修改位置 | 需要共同约定的事项 |
+|---|---|---|
+| Android 前端 | Kotlin 画面、`BuddyStore.kt`、`Domain.kt` | API JSON、错误码、载入与保存状态 |
+| iOS 前端 | SwiftUI 画面、`Models.swift` 中的 `AppStore` | 与 Android 一致的业务流程和 API 契约 |
+| 后端业务 | `Api/`、`Planning/`、`Services/` | 字段含义、可行性规则、失败情境 |
+| 数据库与整合 | `Data/`、`Infrastructure/`、Compose | 迁移、配置、版本冲突与资料边界 |
+
+前后端保留在同一个仓库即可独立分工。修改 API 字段时同时核对 Android 的 JSON 转换、iOS 的 Codable 模型及后端 HTTP 测试；修改业务约束时优先从后端规划层处理。Android 的画面和 iOS 的模型 / 状态管理目前集中在少数文件，同组多人同时修改时应先约定负责范围。
+
+第一次接手建议依序阅读：
+
+1. **画面入口**：Android `MainActivity.kt` / `IosStyle.kt`，或 iOS `SydneyBuddyApp.swift`，了解用户流程。
+2. **请求与状态**：Android `BuddyStore.kt`，或 iOS `Models.swift`，追踪产生草案和确认保存。
+3. **HTTP 边界**：`PlanningEndpoints.cs` / `TripEndpoints.cs`，了解请求如何进入后端。
+4. **业务规则**：`Planner.cs` → `PlanValidator.cs` → `RouteScheduler.cs`，理解模型推荐与程序验证的分工。
+5. **持久化**：`TripRepository.cs` → `BuddyDbContext.cs`，理解确认保存和 revision 冲突。
+6. **验证**：阅读 `SydneyBuddy.Api.Tests/` 与 Android 的测试，了解已有案例和环境需求。
+
 ## 限制与黑客松状态
 
 - 限定 8 个悉尼地标、步行模式，每天最多尝试 8 个初筛候选顺序，不保证全局最优。Google 常规营业时段可能不适用于节假日。
@@ -178,7 +315,7 @@ HMEM_IMPL="$PWD/server/vendor/hmem/src/index.ts" \
 - 没有多人账户、共享同步、支付、订票、酒店预订、航班追踪或后台 GPS。PostgreSQL 支持存储，并不自动提供用户隔离或云端同步。
 - H-MEM 为本机单用户，撤回后不再检索，但审计历史保留；未启用自动 dreaming / sleep。
 - 原 Python 版本有 NVIDIA NIM 和 H-MEM 验证记录；迁移后的真实在线功能需使用本机配置重新验收。Cursor、Zetaris 按团队原要求暂缓，Nightshift 未接入；不声称满足全部赛事要求。见 [参赛清单](docs/submission-checklist.md)。
-- `docs/` 中既有截图与视频描述迁移前版本；网页和 .NET 后端以当前代码和测试结果为准。
+- `docs/` 中既有截图与视频描述迁移前版本；当前原生客户端与 .NET 后端以代码和测试结果为准。
 
 ## 来源与许可
 

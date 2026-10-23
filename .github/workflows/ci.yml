@@ -1,4 +1,4 @@
-name: Sydney Buddy backend and web checks
+name: Sydney Buddy backend checks
 on:
   push:
   pull_request:
@@ -39,16 +39,3 @@ jobs:
         run: dotnet test server-dotnet/SydneyBuddy.Api.Tests/SydneyBuddy.Api.Tests.csproj --configuration Release --no-build
       - name: Official H-MEM conformance
         run: HMEM_IMPL="$PWD/server/vendor/hmem/src/index.ts" node --experimental-transform-types server/vendor/hmem/conformance/runner.ts
-  web:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-      - name: Install web dependencies
-        run: npm --prefix web ci
-      - name: Build React and TypeScript web app
-        run: npm --prefix web run build
-      - name: Frontend domain tests
-        run: npm --prefix web test

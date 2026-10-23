@@ -16,7 +16,7 @@ namespace SydneyBuddy.Api.Tests;
 public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
 {
     [Fact]
-    public async Task HealthAndCatalogPreserveMobileAndWebContracts()
+    public async Task HealthAndCatalogPreserveMobileContracts()
     {
         var health = await fixture.Client.GetFromJsonAsync<JsonObject>("/health");
         Assert.NotNull(health);
@@ -26,27 +26,19 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
         Assert.False(health.ContainsKey("NVIDIA_API_KEY"));
         Assert.False(health.ContainsKey("GOOGLE_SERVER_KEY"));
         var mobile = await fixture.Client.GetFromJsonAsync<JsonArray>("/catalog");
-        var web = await fixture.Client.GetFromJsonAsync<JsonArray>("/api/catalog");
         Assert.Equal(8, mobile!.Count);
-        Assert.True(JsonNode.DeepEquals(mobile, web));
     }
 
-    [Fact]
-    public async Task BuiltWebFilesAreServedBeforeApiFallbackRouting()
+    [Theory]
+    [InlineData("/")]
+    [InlineData("/assets/test.js")]
+    [InlineData("/api/health")]
+    public async Task RemovedWebRoutesReturnJsonNotFound(string path)
     {
-        var home = await fixture.Client.GetAsync("/");
-        Assert.Equal(HttpStatusCode.OK, home.StatusCode);
-        Assert.Equal("text/html", home.Content.Headers.ContentType?.MediaType);
-        Assert.Contains("Sydney Buddy test shell", await home.Content.ReadAsStringAsync());
-        var asset = await fixture.Client.GetAsync("/assets/test.js");
-        Assert.Equal(HttpStatusCode.OK, asset.StatusCode);
-        Assert.Contains("window.fixtureAsset=true", await asset.Content.ReadAsStringAsync());
-        var api = await fixture.Client.GetAsync("/api/health");
-        Assert.Equal(HttpStatusCode.OK, api.StatusCode);
-        Assert.Equal("ok", (await api.Content.ReadFromJsonAsync<JsonObject>())!.Str("status"));
-        var unknown = await fixture.Client.GetAsync("/api/no-such-endpoint");
-        Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
-        Assert.False(string.IsNullOrEmpty((await unknown.Content.ReadFromJsonAsync<JsonObject>())!.Str("error")));
+        var response = await fixture.Client.GetAsync(path);
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
+        Assert.False(string.IsNullOrEmpty((await response.Content.ReadFromJsonAsync<JsonObject>())!.Str("error")));
     }
 
     [Fact]
@@ -83,7 +75,7 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
             var right = (JsonObject)saved.DeepClone(); right["title"] = "right";
             var responses = await Task.WhenAll(
                 fixture.Client.PostAsJsonAsync("/trips", new { trip = left, expectedRevision = 1 }),
-                fixture.Client.PostAsJsonAsync("/api/trips", new { trip = right, expectedRevision = 1 }));
+                fixture.Client.PostAsJsonAsync("/trips", new { trip = right, expectedRevision = 1 }));
             Assert.Equal(1, responses.Count(response => response.IsSuccessStatusCode));
             Assert.Equal(1, responses.Count(response => response.StatusCode == HttpStatusCode.Conflict));
             var persisted = Assert.Single((await ListAsync()).OfType<JsonObject>(), trip => trip.Str("id") == id);
@@ -113,7 +105,7 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     {
         var refusal = await fixture.Client.PostAsJsonAsync("/memories", new { consent = false, summary = "do not retain" });
         Assert.Equal(HttpStatusCode.UnprocessableEntity, refusal.StatusCode);
-        var response = await fixture.Client.PostAsJsonAsync("/api/memories", new
+        var response = await fixture.Client.PostAsJsonAsync("/memories", new
         {
             consent = true, summary = "quiet art galleries", profile = new { interests = new[] { "艺术" }, maxSteps = 5000 }
         });
@@ -126,7 +118,7 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
             Assert.Equal("local_only", memory.Str("scope"));
             Assert.Contains((await fixture.Client.GetFromJsonAsync<JsonArray>("/memories"))!, item => item!.Str("id") == id);
         }
-        finally { (await fixture.Client.DeleteAsync("/api/memories/" + id)).EnsureSuccessStatusCode(); }
+        finally { (await fixture.Client.DeleteAsync("/memories/" + id)).EnsureSuccessStatusCode(); }
         Assert.DoesNotContain((await fixture.Client.GetFromJsonAsync<JsonArray>("/memories"))!, item => item!.Str("id") == id);
     }
 
@@ -190,7 +182,7 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     [Fact]
     public async Task CrossOriginMutationIsRejectedBeforePlanning()
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/plan")
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/plan")
         {
             Content = JsonContent.Create(TestSupport.Profile())
         };
@@ -242,11 +234,6 @@ public sealed class ApiFixture : IAsyncLifetime
     {
         Directory.CreateDirectory(Path.Combine(TemporaryRoot, "server"));
         File.Copy(Path.Combine(TestSupport.RepositoryRoot(), "server", "places.json"), Path.Combine(TemporaryRoot, "server", "places.json"));
-        // 必须在应用启动前放置构建产物；static middleware discovers the built web directory during startup.
-        var web = Path.Combine(TemporaryRoot, "web", "dist");
-        Directory.CreateDirectory(Path.Combine(web, "assets"));
-        await File.WriteAllTextAsync(Path.Combine(web, "index.html"), "<!doctype html><html><body>Sydney Buddy test shell</body></html>");
-        await File.WriteAllTextAsync(Path.Combine(web, "assets", "test.js"), "window.fixtureAsset=true;");
         await using var connection = new NpgsqlConnection(_baseConnection);
         // 数据库不可用会明确失败；missing PostgreSQL is never silently skipped or replaced.
         await connection.OpenAsync();

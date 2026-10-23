@@ -11,7 +11,6 @@ public sealed class ProjectPaths
     public string DataDirectory { get; }
     public string HmemDirectory => Path.Combine(DataDirectory, ".hmem");
     public string SecretsFile => Path.Combine(RepoRoot, ".secrets.json");
-    public string WebDist => Path.Combine(RepoRoot, "web", "dist");
 
     public ProjectPaths(string repoRoot, string? dataDirectory = null)
     {
