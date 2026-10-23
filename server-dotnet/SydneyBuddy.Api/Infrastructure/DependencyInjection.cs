@@ -12,6 +12,14 @@ public static class DependencyInjection
         services.AddSingleton<PaidServicePolicy>();
         services.AddHttpClient<NavigationService>(client => client.Timeout = Timeout.InfiniteTimeSpan)
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+        services.AddHttpClient<JourneyService>(client => client.Timeout = Timeout.InfiniteTimeSpan)
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+        services.AddHttpClient<GoogleJourneyProvider>(client => client.Timeout = TimeSpan.FromSeconds(25))
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+        services.AddHttpClient<NswJourneyProvider>(client => client.Timeout = TimeSpan.FromSeconds(25))
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+        services.AddTransient<IJourneyProvider>(p => p.GetRequiredService<GoogleJourneyProvider>());
+        services.AddTransient<IJourneyProvider>(p => p.GetRequiredService<NswJourneyProvider>());
         // DbContext 以请求为单位，不能作为单例共享。 / DbContext is scoped, never shared across requests.
         services.AddDbContext<BuddyDbContext>((provider, options) =>
         {

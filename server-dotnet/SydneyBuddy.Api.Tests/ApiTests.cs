@@ -16,6 +16,14 @@ namespace SydneyBuddy.Api.Tests;
 public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
 {
     [Fact]
+    public async Task JourneyEndpointIsAvailableAndUnconfiguredTransitIsExplicit()
+    {
+        var response=await fixture.Client.PostAsJsonAsync("/journey/plan",JsonNode.Parse("""{"departureTime":"2026-10-23T10:00:00+11:00","modes":["transit"],"points":[{"name":"Start","lat":-33.86,"lng":151.21},{"name":"End","lat":-33.85,"lng":151.22}]}"""));
+        Assert.Equal(HttpStatusCode.UnprocessableEntity,response.StatusCode);
+        Assert.Contains("尚未启用",(await response.Content.ReadFromJsonAsync<JsonObject>())!.Str("error"));
+        Assert.False((await fixture.Client.GetFromJsonAsync<JsonObject>("/health"))!.Bool("transitConfigured"));
+    }
+    [Fact]
     public async Task HealthAndCatalogPreserveMobileContracts()
     {
         var health = await fixture.Client.GetFromJsonAsync<JsonObject>("/health");
@@ -298,6 +306,7 @@ internal sealed class BuddyApiFactory(string connection, ProjectPaths paths) : W
             ["ConnectionStrings:SydneyBuddy"] = connection,
             ["AllowPaidServices"] = "false",
             ["Navigation:ValhallaUrl"] = "",
+            ["Transit:OtpGraphqlUrl"] = "",
             ["SYDNEYBUDDY_ROOT"] = paths.RepoRoot
         }));
         builder.ConfigureServices(services =>

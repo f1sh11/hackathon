@@ -11,6 +11,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
@@ -173,14 +175,18 @@ fun durationLabel(startMinute: Int, endMinute: Int): String {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun HomeScreen(store:BuddyStore) {
     var detail by rememberSaveable {mutableStateOf(false)}
+    var journey by rememberSaveable {mutableStateOf(false)}
+    var expandedMap by rememberSaveable {mutableStateOf(false)}
     var navigation by rememberSaveable {mutableStateOf(false)}
     var chat by rememberSaveable {mutableStateOf(false)}
     var expanded by rememberSaveable {mutableStateOf(false)}
     val trip=store.trip
     val day=store.day
+    val overview=remember(day.toString(),trip?.optString("mode"),store.mapProvider){ItineraryOverview()}
+    DisposableEffect(overview){onDispose{overview.close()}}
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val compact=maxHeight<650.dp
-        RouteMap(day,Modifier.fillMaxSize(),true,store.mapProvider,trip?.optString("mode")=="live",store.mapViewport,{store.mapViewport=it})
+        RouteMap(day,Modifier.fillMaxSize(),true,store.mapProvider,trip?.optString("mode")=="live",store.mapViewport,{store.mapViewport=it},overview.route)
         Column(Modifier.fillMaxSize().padding(horizontal=20.dp).padding(top=12.dp,bottom=10.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
             Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
                 Surface(shape=CircleShape,color=Color.White,shadowElevation=2.dp) {
@@ -203,6 +209,9 @@ fun durationLabel(startMinute: Int, endMinute: Int): String {
                 }
             }
             if(trip!=null) CompactWeather(store)
+            if(trip!=null) Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End) {
+                Surface(shape=CircleShape,color=Color.White){TextButton(onClick={expandedMap=true}){Text("展开地图")}}
+            }
             Spacer(Modifier.weight(1f))
             if(trip!=null) {
                 val count=listOf("route","weather","bag").count(store::prepared)
@@ -231,9 +240,21 @@ fun durationLabel(startMinute: Int, endMinute: Int): String {
                         if(day!=null) {
                             Text("${day.array("stops").length()} 个地点 · 约 ${"%,d".format(day.optInt("estimatedSteps"))} 步",fontSize=12.sp,color=Muted)
                             Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(5.dp)){Icon(Icons.Outlined.AccountBalanceWallet,null,Modifier.size(16.dp),tint=Green);Text("A$${day.optDouble("estimatedCost").toInt()}  ·  ${day.optString("finishTime")} 返回",fontSize=12.sp,color=Green,fontWeight=FontWeight.Bold)}
-                            Text(day.array("stops").objects().joinToString(" → "){it.optString("name")},fontSize=12.sp,color=Muted,maxLines=2)
+                            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).semantics{contentDescription="行程站点顺序"}) {
+                                Text("起 · ${day.getJSONObject("start").optString("name")}"+day.array("stops").objects().mapIndexed{i,s->" → ${i+1} · ${s.optString("name")} ${s.optString("arrival")}"}.joinToString("")+" → 终 · ${day.getJSONObject("end").optString("name")}",fontSize=12.sp,color=Green)
+                            }
+                            if(trip?.optString("mode")!="live" && store.mapProvider==MapProvider.OSM) {
+                                TextButton(onClick={overview.load(day,store.base)},enabled=!overview.busy && overview.route==null) {
+                                    Text(if(overview.busy)"正在取得步行路线…" else overview.route?.let{"步行约 ${it.meters.toInt()} 米 · ${kotlin.math.ceil(it.seconds/60).toInt()} 分钟"} ?: "显示步行路线",fontSize=12.sp)
+                                }
+                                overview.route?.let{Text(it.segments,Modifier.horizontalScroll(rememberScrollState()),fontSize=11.sp,color=Muted)}
+                                overview.message?.let{Text(it,fontSize=11.sp,color=Muted)}
+                            }
                         } else Text("让 Buddy 帮你选出刚刚好的路线",fontSize=12.sp,color=Muted)
-                        if(trip!=null) TextButton(onClick={navigation=true}){Text("逐段步行导航")}
+                        if(trip!=null) Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(4.dp)) {
+                            TextButton(onClick={journey=true},modifier=Modifier.weight(1f),contentPadding=PaddingValues(0.dp)){Text("交通路线规划",fontSize=12.sp,maxLines=1)}
+                            TextButton(onClick={navigation=true},enabled=store.mapProvider==MapProvider.OSM,modifier=Modifier.weight(1f),contentPadding=PaddingValues(0.dp)){Text("逐段步行导航",fontSize=12.sp,maxLines=1)}
+                        }
                         Button(onClick={if(trip==null)store.newTrip() else {store.mark("route");detail=true}},enabled=!store.busy,modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(14.dp),contentPadding=PaddingValues(horizontal=13.dp,vertical=12.dp)) {
                             Text(if(trip==null)"开始规划" else "查看路线",fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f));Icon(Icons.Outlined.NorthEast,null,Modifier.size(19.dp))
                         }
@@ -245,9 +266,36 @@ fun durationLabel(startMinute: Int, endMinute: Int): String {
                 }
             }
             Surface(shape=CircleShape,color=Color.White.copy(alpha=.9f),modifier=Modifier.align(Alignment.CenterHorizontally)) {
-                Text(if(trip?.optString("mode")=="live" && store.mapProvider!=MapProvider.GOOGLE)"Google 行程图层已隐藏，请切换 Google 底图查看" else if(trip?.optString("mode")=="live")"Google 路线 · 费用与步数为估算" else "路线与营业时间为示例 · 非导航路径",Modifier.padding(horizontal=10.dp,vertical=5.dp),fontSize=9.sp,color=Muted)
+                Text(if(trip?.optString("mode")=="live" && store.mapProvider!=MapProvider.GOOGLE)"Google 行程图层已隐藏，请切换 Google 底图查看" else if(trip?.optString("mode")=="live")"Google 路线 · 费用与步数为估算" else if(overview.route!=null && store.mapProvider!=MapProvider.SCHEMATIC) "沿道路步行路线 · 不含景点停留时间" else if(store.mapProvider==MapProvider.SCHEMATIC)"离线顺序示意 · 非道路路线" else "尚未查询道路路线 · 仅显示站点",Modifier.padding(horizontal=10.dp,vertical=5.dp),fontSize=9.sp,color=Muted)
             }
         }
+    }
+    if(expandedMap) Dialog(onDismissRequest={expandedMap=false},properties=androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth=false)) {
+        Box(Modifier.fillMaxSize().background(Color.White).testTag("expanded-itinerary-map")) {
+            RouteMap(day,Modifier.fillMaxSize(),true,store.mapProvider,trip?.optString("mode")=="live",overview=overview.route,expanded=true)
+            Column(Modifier.fillMaxSize().padding(18.dp),verticalArrangement=Arrangement.SpaceBetween) {
+                Surface(shape=RoundedCornerShape(18.dp),color=Color.White) {
+                    Row(Modifier.fillMaxWidth().padding(12.dp),verticalAlignment=Alignment.CenterVertically) {Text("全天行程顺序",modifier=Modifier.weight(1f),fontWeight=FontWeight.Bold);TextButton(onClick={expandedMap=false}){Text("关闭地图")}}
+                }
+                Surface(shape=RoundedCornerShape(18.dp),color=Color.White) {
+                    Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                        Text(if(overview.route==null || store.mapProvider==MapProvider.SCHEMATIC)"尚未查询道路路线 · 仅显示站点" else "沿道路步行路线 · 不含景点停留时间",fontSize=12.sp,color=Green)
+                        if(day!=null) {
+                            Text(walkingPoints(day).mapIndexed{i,p->"${if(i==0)"起" else if(i==walkingPoints(day).lastIndex)"终" else "$i"} · ${p.name}"}.joinToString(" → "),Modifier.horizontalScroll(rememberScrollState()),fontSize=12.sp)
+                            if(trip?.optString("mode")!="live" && store.mapProvider==MapProvider.OSM) {
+                                TextButton(onClick={overview.load(day,store.base)},enabled=!overview.busy && overview.route==null){Text(if(overview.busy)"正在取得步行路线…" else overview.route?.let{"步行约 ${it.meters.toInt()} 米 · ${kotlin.math.ceil(it.seconds/60).toInt()} 分钟"} ?: "显示步行路线")}
+                                overview.route?.let{Text(it.segments,Modifier.horizontalScroll(rememberScrollState()),fontSize=11.sp,color=Muted)}
+                                overview.message?.let{Text(it,fontSize=12.sp)}
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if(journey && day!=null) {
+        if(trip?.optString("mode")=="live" && store.mapProvider!=MapProvider.GOOGLE) AlertDialog(onDismissRequest={journey=false},title={Text("请切换 Google 地图")},text={Text("此行程的交通规划需搭配 Google 底图与 Google Routes。")},confirmButton={TextButton(onClick={journey=false}){Text("关闭")}})
+        else JourneyPlannerDialog(day,store.base,store.mapProvider,{journey=false},{journey=false;navigation=true},contentSource=if(trip?.optString("mode")=="live")"google" else "open")
     }
     if(navigation) {
         if(trip?.optString("mode")=="live") AlertDialog(onDismissRequest={navigation=false},text={Text("此行程含 Google 地点资料。开源导航测试请先建立示例行程。")},confirmButton={TextButton(onClick={navigation=false}){Text("关闭")}})

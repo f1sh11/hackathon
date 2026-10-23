@@ -41,7 +41,7 @@ struct SettingsView:View {
                     Picker("地图来源",selection:$store.mapProvider) {
                         ForEach(MapProvider.allCases) { source in Text(source.label).tag(source) }
                     }
-                    Text("切换只改变底图，不重新规划。OSM 需联网加载图砖；离线示意图不请求图砖。").font(.caption).foregroundStyle(Palette.muted)
+                    Text("切换后，交通规划会预选对应路线服务，需点查询才取得新路线。NSW 资料可另选；Google 仍需启用服务。").font(.caption).foregroundStyle(Palette.muted)
                     if store.mapProvider == .google && !SydneyBuddyApp.mapConfigured {
                         Text("Google 地图未配置密钥，请选择 OpenStreetMap 或 Apple Maps。").font(.caption)
                     }

@@ -2,52 +2,97 @@ import SwiftUI
 import GoogleMaps
 import MapKit
 
+// Screen points, independent of Retina scale and geographic zoom.
+private func walkingDotMetrics(_ size:CGSize)->(width:CGFloat,halo:CGFloat,spacing:CGFloat) {
+    let shortSide=min(size.width,size.height)
+    let scale=max(0.9,min(1.15,(shortSide>0 ? shortSide : 390)/390))
+    return (4.4*scale,0.65*scale,10*scale)
+}
+
 struct GoogleRouteMap: UIViewRepresentable {
     var day: DayPlan?
+    var overview: OverviewRoute? = nil
+    var expanded = false
     var viewport: MapViewport?
     var onViewport: (MapViewport) -> Void
+    var sections:[JourneyMapSection] = []
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     final class Coordinator: NSObject, GMSMapViewDelegate {
         var parent: GoogleRouteMap
         var sceneKey: String?
+        var cameraSceneKey: String?
+        var walkingLines:[GMSPolyline]=[]
+        func restyleWalking(_ map:GMSMapView) {
+            let metrics=walkingDotMetrics(map.bounds.size)
+            let metersPerPoint=156543.03392*cos(map.camera.target.latitude * .pi/180)/pow(2,Double(map.camera.zoom))
+            for line in walkingLines {
+                line.strokeWidth=metrics.width
+                if let path=line.path {line.spans=GMSStyleSpans(path,[GMSStrokeStyle.solidColor(UIColor(transportColor("walk"))),GMSStrokeStyle.solidColor(.clear)],[NSNumber(value:0.1*metersPerPoint),NSNumber(value:Double(metrics.spacing)*metersPerPoint)],.rhumb)}
+            }
+        }
         init(_ parent: GoogleRouteMap) { self.parent=parent }
         func mapView(_ mapView: GMSMapView, idleAt position: GMSCameraPosition) {
             guard sceneKey != nil else {return}
+            restyleWalking(mapView)
             parent.onViewport(MapViewport(sceneKey:mapSceneKey(parent.day),lat:position.target.latitude,lng:position.target.longitude,zoom:Double(position.zoom)))
         }
     }
     func makeUIView(context: Context) -> GMSMapView {
         let options=GMSMapViewOptions();options.camera=GMSCameraPosition(latitude:-33.865,longitude:151.212,zoom:14)
-        let map=GMSMapView(options:options);map.settings.compassButton=true;map.delegate=context.coordinator
-        map.padding=UIEdgeInsets(top:100,left:20,bottom:260,right:20)
+        let map=GMSMapView(options:options);map.settings.compassButton=true;map.settings.rotateGestures=false;map.delegate=context.coordinator
+        map.padding=expanded ? UIEdgeInsets(top:90,left:25,bottom:160,right:25) : UIEdgeInsets(top:260,left:25,bottom:380,right:25)
         return map
     }
     func updateUIView(_ map:GMSMapView,context:Context) {
         context.coordinator.parent=self
-        let key=mapSceneKey(day)
+        let key=mapSceneKey(day)+"|"+String(overview?.coordinates.count ?? 0)
         guard context.coordinator.sceneKey != key else {return}
         context.coordinator.sceneKey=key
         map.clear()
+        context.coordinator.walkingLines=[]
         guard let day else {
-            if let saved=viewport, saved.sceneKey==key {map.camera=GMSCameraPosition(latitude:saved.lat,longitude:saved.lng,zoom:Float(saved.zoom))}
+            if let saved=viewport, saved.sceneKey==mapSceneKey(day) {map.camera=GMSCameraPosition(latitude:saved.lat,longitude:saved.lng,zoom:Float(saved.zoom))}
             return
         }
         var bounds=GMSCoordinateBounds(coordinate:day.start.location,coordinate:day.end.location)
-        for (i,stop) in day.stops.enumerated() {
-            let pin=GMSMarker(position:stop.coordinate);pin.title="\(i+1). \(stop.name)";pin.snippet="\(stop.arrival)–\(stop.departure)"
-            pin.icon=GMSMarker.markerImage(with:UIColor(Palette.green));pin.map=map
-            bounds=bounds.includingCoordinate(stop.coordinate)
+        let paths = day.legs.compactMap { GMSPath(fromEncodedPath: $0.polyline) }.filter { $0.count() > 1 }
+        let actual = overview != nil || (paths.count == day.stops.count+1)
+        let path=GMSMutablePath()
+        if let overview { overview.coordinates.forEach { path.add($0) } }
+        else if actual { paths.forEach { leg in for i in 0..<leg.count() { path.add(leg.coordinate(at:i)) } } }
+
+        let line=GMSPolyline(path:path);line.strokeColor=UIColor(transportColor("walk"));line.strokeWidth=2
+        if path.count()>1 {line.spans=GMSStyleSpans(path,[GMSStrokeStyle.solidColor(UIColor(transportColor("walk"))),GMSStrokeStyle.solidColor(.clear)],[1,7],.rhumb)}
+        line.map=map
+        context.coordinator.walkingLines.append(line)
+        if !sections.isEmpty {
+            line.map=nil
+            context.coordinator.walkingLines=[]
+            for section in sections where section.coordinates.count>1 {
+                let sectionPath=GMSMutablePath();section.coordinates.forEach{sectionPath.add($0)}
+                if section.mode != "walk" {let border=GMSPolyline(path:sectionPath);border.strokeColor = .white;border.strokeWidth=5;border.map=map}
+                let stroke=GMSPolyline(path:sectionPath);stroke.strokeColor=UIColor(transportColor(section.mode));stroke.strokeWidth=section.mode == "walk" ? 2 : 3
+                if section.mode == "walk" {stroke.spans=GMSStyleSpans(sectionPath,[GMSStrokeStyle.solidColor(UIColor(transportColor("walk"))),GMSStrokeStyle.solidColor(.clear)],[1,7],.rhumb)}
+                stroke.map=map
+                if section.mode == "walk" {context.coordinator.walkingLines.append(stroke)}
+            }
         }
-        for leg in day.legs where !leg.polyline.isEmpty {
-            guard let path=GMSPath(fromEncodedPath:leg.polyline) else {continue}
-            let line=GMSPolyline(path:path);line.strokeColor=UIColor(Palette.green);line.strokeWidth=5;line.map=map
+        context.coordinator.restyleWalking(map)
+        for item in sections.flatMap(\.stopPins)+overviewPins(day) {
+            let pin=GMSMarker(position:item.coordinate);pin.title=item.title;pin.snippet=item.subtitle
+            pin.icon=overviewBadge(item.badge);pin.groundAnchor=CGPoint(x:0.5,y:0.5);pin.zIndex=2;pin.map=map
+            bounds=bounds.includingCoordinate(item.coordinate)
         }
-        if day.legs.allSatisfy({$0.polyline.isEmpty}) {
-            // Illustrative connectors are deliberately visually different from navigable routes.
-            let path=GMSMutablePath();path.add(day.start.location);day.stops.forEach{path.add($0.coordinate)};path.add(day.end.location)
-            let line=GMSPolyline(path:path);line.strokeColor=UIColor.gray;line.strokeWidth=2;line.map=map
+        let coordinates=(0..<path.count()).map {path.coordinate(at:$0)}
+        for item in (sections.isEmpty ? overviewDirections(coordinates) : []) {
+            let pin=GMSMarker(position:item.coordinate);pin.icon=overviewBadge(item.badge,direction:true)
+            pin.groundAnchor=CGPoint(x:0.5,y:0.5);pin.zIndex=1;pin.map=map
         }
-        if let saved=viewport, saved.sceneKey==key {map.camera=GMSCameraPosition(latitude:saved.lat,longitude:saved.lng,zoom:Float(saved.zoom))}
+        coordinates.forEach {bounds=bounds.includingCoordinate($0)}
+        let cameraKey=key
+        guard context.coordinator.cameraSceneKey != cameraKey else {return}
+        context.coordinator.cameraSceneKey=cameraKey
+        if overview == nil,let saved=viewport, saved.sceneKey==mapSceneKey(day) {map.camera=GMSCameraPosition(latitude:saved.lat,longitude:saved.lng,zoom:Float(saved.zoom))}
         else {map.moveCamera(GMSCameraUpdate.fit(bounds,withPadding:55))}
     }
 }
@@ -64,7 +109,8 @@ enum MapProvider: String, CaseIterable, Identifiable {
 struct MapViewport { var sceneKey:String; var lat:Double; var lng:Double; var zoom:Double; var latitudeDelta:Double? = nil; var longitudeDelta:Double? = nil }
 func mapSceneKey(_ day:DayPlan?) -> String {
     guard let day else {return "overview"}
-    return (try? JSONEncoder().encode(day).base64EncodedString()) ?? day.date
+    let encoder=JSONEncoder();encoder.outputFormatting=[.sortedKeys]
+    return (try? encoder.encode(day).base64EncodedString()) ?? day.date
 }
 
 /// OSM replaces MapKit's base tiles; requests identify this app and honour HTTP caching.
@@ -94,62 +140,154 @@ final class OsmTiles: MKTileOverlay {
     }
 }
 
+/// Project the supplied roads into the actual viewport, then sample in screen points.
+/// This avoids MapKit's tiled overlay zoom scaling and merges coincident return paths.
+private final class WalkingDotsView:UIView {
+    weak var map:MKMapView?
+    var paths:[[CLLocationCoordinate2D]]=[]
+    init(map:MKMapView) {
+        self.map=map;super.init(frame:map.bounds)
+        isOpaque=false;backgroundColor = .clear;isUserInteractionEnabled=false
+        autoresizingMask=[.flexibleWidth,.flexibleHeight]
+    }
+    required init?(coder:NSCoder) {fatalError("init(coder:) has not been implemented")}
+    override func draw(_ rect:CGRect) {
+        guard let map,let context=UIGraphicsGetCurrentContext() else {return}
+        let dots=walkingDotMetrics(bounds.size),radius=dots.width/2
+        let exclusion=map.annotations.compactMap{$0 as? ItineraryPin}.map{(map.convert($0.coordinate,toPointTo:self),$0.direction ? CGFloat(15) : CGFloat(24))}
+        // Deduplicate nearby samples from outward/return legs using screen-space buckets.
+        let separation=dots.spacing*0.65
+        var buckets:[String:[CGPoint]]=[:]
+        func key(_ x:Int,_ y:Int)->String {"\(x),\(y)"}
+        func paint(_ point:CGPoint) {
+            guard bounds.insetBy(dx:-radius,dy:-radius).contains(point),
+                  !exclusion.contains(where:{hypot($0.0.x-point.x,$0.0.y-point.y)<$0.1}) else {return}
+            let x=Int(floor(point.x/separation)),y=Int(floor(point.y/separation))
+            for dx in -1...1 {for dy in -1...1 {
+                if buckets[key(x+dx,y+dy),default:[]].contains(where:{hypot($0.x-point.x,$0.y-point.y)<separation}) {return}
+            }}
+            buckets[key(x,y),default:[]].append(point)
+            context.setFillColor(UIColor.white.cgColor)
+            context.fillEllipse(in:CGRect(x:point.x-radius-dots.halo,y:point.y-radius-dots.halo,width:2*(radius+dots.halo),height:2*(radius+dots.halo)))
+            context.setFillColor(UIColor(transportColor("walk")).cgColor)
+            context.fillEllipse(in:CGRect(x:point.x-radius,y:point.y-radius,width:2*radius,height:2*radius))
+        }
+        for path in paths where path.count>1 {
+            let points=path.map{map.convert($0,toPointTo:self)}
+            var remaining:CGFloat=0
+            for (a,b) in zip(points,points.dropFirst()) {
+                let length=hypot(b.x-a.x,b.y-a.y)
+                guard length.isFinite,length>0 else {continue}
+                // Ignore distant segments without losing sampling phase.
+                let limit=min(length,remaining+dots.spacing*8000)
+                while remaining<=limit {
+                    let t=remaining/length
+                    paint(CGPoint(x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t))
+                    remaining+=dots.spacing
+                }
+                remaining=(remaining-length).truncatingRemainder(dividingBy:dots.spacing)
+                if remaining<0 {remaining+=dots.spacing}
+            }
+        }
+    }
+}
+
 struct NativeRouteMap:UIViewRepresentable {
     var day:DayPlan?
+    var overview:OverviewRoute? = nil
+    var expanded = false
     var provider:MapProvider
     var viewport:MapViewport?
     var onViewport:(MapViewport)->Void
+    var sections:[JourneyMapSection] = []
     func makeCoordinator()->Coordinator {Coordinator(self)}
     func makeUIView(context:Context)->MKMapView {
         let map=MKMapView();map.delegate=context.coordinator
         map.showsUserLocation=false;map.isPitchEnabled=false;map.isRotateEnabled=false
         map.pointOfInterestFilter = .excludingAll
-        map.layoutMargins=UIEdgeInsets(top:150,left:30,bottom:300,right:30)
-        if provider == .osm {map.addOverlay(OsmTiles(),level:.aboveLabels)}
+        map.layoutMargins = .zero
+        if provider == .osm {map.addOverlay(OsmTiles(),level:.aboveRoads)}
+        let dots=WalkingDotsView(map:map);context.coordinator.walkingDots=dots;map.addSubview(dots)
         return map
     }
     func updateUIView(_ map:MKMapView,context:Context) {
         context.coordinator.parent=self
-        let key=mapSceneKey(day)
+        let key=mapSceneKey(day)+"|"+String(overview?.coordinates.count ?? 0)
         guard context.coordinator.sceneKey != key else {return}
         context.coordinator.sceneKey=key
+        context.coordinator.walkingDots?.paths=sections.isEmpty ? [overview?.coordinates ?? []] : sections.filter{$0.mode == "walk"}.map(\.coordinates)
+        context.coordinator.walkingDots?.setNeedsDisplay()
         map.removeAnnotations(map.annotations)
         map.removeOverlays(map.overlays.filter {!($0 is MKTileOverlay)})
         let start=day?.start ?? .quay,end=day?.end ?? .central
-        var coordinates=[start.location]+(day?.stops.map(\.coordinate) ?? [])+[end.location]
+        let coordinates=[start.location]+(day?.stops.map(\.coordinate) ?? [])+[end.location]
         if let day {
-            for (i,stop) in day.stops.enumerated() {
-                let pin=MKPointAnnotation();pin.coordinate=stop.coordinate;pin.title="\(i+1). \(stop.name)";map.addAnnotation(pin)
+            map.addAnnotations(sections.flatMap(\.stopPins)+overviewPins(day))
+            let geometry = overview?.coordinates ?? []
+            let line=MKPolyline(coordinates:geometry,count:geometry.count);line.title="walk"
+            if sections.isEmpty && geometry.count>1 {
+                let border=MKPolyline(coordinates:geometry,count:geometry.count);border.title="walk-casing"
+                map.addOverlay(border,level:.aboveLabels);map.addOverlay(line,level:.aboveLabels)
             }
-            for point in [start,end] {let pin=MKPointAnnotation();pin.coordinate=point.location;pin.title=point.name;map.addAnnotation(pin)}
-            // Never draw Google Routes geometry on another provider's map.
-            map.addOverlay(MKPolyline(coordinates:&coordinates,count:coordinates.count))
+            else {for section in sections where section.coordinates.count>1 {
+                let border=MKPolyline(coordinates:section.coordinates,count:section.coordinates.count);border.title=section.mode == "walk" ? "walk-casing" : "casing"
+                let stroke=MKPolyline(coordinates:section.coordinates,count:section.coordinates.count);stroke.title=section.mode
+                map.addOverlay(border,level:.aboveLabels);map.addOverlay(stroke,level:.aboveLabels)
+            }}
+            if sections.isEmpty {map.addAnnotations(overviewDirections(geometry))}
         }
-        if let saved=viewport,saved.sceneKey==key {
+        let cameraKey=key
+        guard context.coordinator.cameraSceneKey != cameraKey else {return}
+        context.coordinator.cameraSceneKey=cameraKey
+        if overview == nil,let saved=viewport,saved.sceneKey==mapSceneKey(day) {
             let longitudeDelta=saved.longitudeDelta ?? 360/pow(2,saved.zoom)
             let latitudeDelta=saved.latitudeDelta ?? longitudeDelta*Double(max(1,map.bounds.height)/max(1,map.bounds.width))*cos(saved.lat*Double.pi/180)
             map.setRegion(MKCoordinateRegion(center:CLLocationCoordinate2D(latitude:saved.lat,longitude:saved.lng),span:MKCoordinateSpan(latitudeDelta:latitudeDelta,longitudeDelta:longitudeDelta)),animated:false)
         } else {
-            let bounds=coordinates.reduce(MKMapRect.null) {rect,coordinate in
+            let bounds=(coordinates+(overview?.coordinates ?? [])).reduce(MKMapRect.null) {rect,coordinate in
                 let point=MKMapPoint(coordinate)
                 return rect.union(MKMapRect(x:point.x,y:point.y,width:1,height:1))
             }
-            map.setVisibleMapRect(bounds,edgePadding:UIEdgeInsets(top:170,left:50,bottom:310,right:50),animated:false)
+            let padding=expanded ? UIEdgeInsets(top:110,left:45,bottom:180,right:45) : UIEdgeInsets(top:275,left:45,bottom:400,right:45)
+            DispatchQueue.main.async {map.setVisibleMapRect(bounds,edgePadding:padding,animated:false)}
         }
     }
     final class Coordinator:NSObject,MKMapViewDelegate {
         var parent:NativeRouteMap
+        fileprivate var walkingDots:WalkingDotsView?
         var sceneKey:String?
+        var cameraSceneKey:String?
         init(_ parent:NativeRouteMap) {self.parent=parent}
         func mapView(_ mapView:MKMapView,regionDidChangeAnimated animated:Bool) {
-            guard let key=sceneKey else {return}
+            guard sceneKey != nil else {return}
+            walkingDots?.setNeedsDisplay()
             let center=mapView.region.center
-            parent.onViewport(MapViewport(sceneKey:key,lat:center.latitude,lng:center.longitude,zoom:log2(360/max(0.00001,mapView.region.span.longitudeDelta)),latitudeDelta:mapView.region.span.latitudeDelta,longitudeDelta:mapView.region.span.longitudeDelta))
+            parent.onViewport(MapViewport(sceneKey:mapSceneKey(parent.day),lat:center.latitude,lng:center.longitude,zoom:log2(360/max(0.00001,mapView.region.span.longitudeDelta)),latitudeDelta:mapView.region.span.latitudeDelta,longitudeDelta:mapView.region.span.longitudeDelta))
+        }
+        func mapViewDidChangeVisibleRegion(_ mapView:MKMapView) {walkingDots?.setNeedsDisplay()}
+        func mapView(_ mapView:MKMapView,viewFor annotation:MKAnnotation)->MKAnnotationView? {
+            guard let pin=annotation as? ItineraryPin else {return nil}
+            let id=pin.direction ? "direction" : "itinerary"
+            let view=mapView.dequeueReusableAnnotationView(withIdentifier:id) ?? MKAnnotationView(annotation:pin,reuseIdentifier:id)
+            view.annotation=pin;view.image=overviewBadge(pin.badge,direction:pin.direction)
+            view.canShowCallout = !pin.direction;view.displayPriority = pin.direction ? .defaultLow : .required
+            view.collisionMode = .circle;view.layer.zPosition = pin.direction ? 1 : 2
+            return view
         }
         func mapView(_ mapView:MKMapView,rendererFor overlay:MKOverlay)->MKOverlayRenderer {
             if let tile=overlay as? MKTileOverlay {return MKTileOverlayRenderer(tileOverlay:tile)}
             if let line=overlay as? MKPolyline {
-                let renderer=MKPolylineRenderer(polyline:line);renderer.strokeColor = .gray;renderer.lineWidth=2;renderer.lineDashPattern=[6,6];return renderer
+                if line.title == "walk" || line.title == "walk-casing" {
+                    return MKOverlayRenderer(overlay:line)
+                }
+                let renderer=MKPolylineRenderer(polyline:line)
+                renderer.strokeColor = line.title == "casing" || line.title == "walk-casing" ? .white : line.title == "walking" || line.title == "schematic" ? UIColor(Palette.green) : UIColor(transportColor(line.title ?? "walk"))
+                let dots=walkingDotMetrics(mapView.bounds.size)
+                renderer.lineWidth = line.title == "casing" ? 5 : line.title == "walk-casing" ? dots.width+2*dots.halo : line.title == "walk" ? dots.width : 3
+                renderer.lineCap = .round;renderer.lineJoin = .round
+                if line.title == "schematic" {renderer.lineDashPattern=[9,6]}
+                if line.title == "walk" || line.title == "walk-casing" {renderer.lineDashPattern=[0.1,NSNumber(value:Double(dots.spacing))]}
+                return renderer
             }
             return MKOverlayRenderer(overlay:overlay)
         }
@@ -157,16 +295,23 @@ struct NativeRouteMap:UIViewRepresentable {
 }
 
 struct ProviderRouteMap:View {
+    var overview: OverviewRoute? = nil
+    var sections:[JourneyMapSection] = []
+    var overviewIsGoogle=false
+    var expanded = false
     @EnvironmentObject var store:AppStore
     var body:some View {
         // A live trip contains Google Places coordinates as well as Google route paths.
         // Keep that entire overlay on Google; changing the base never triggers provider calls.
         let visibleDay=store.trip?.mode=="live" && store.mapProvider != .google ? nil : store.currentDay
+        let canShowOverview = (!overviewIsGoogle || store.mapProvider == .google) && (store.trip?.mode != "live" || overviewIsGoogle)
+        let safeOverview = canShowOverview ? overview : nil
+        let safeSections = canShowOverview ? sections : []
         switch store.mapProvider {
         case .osm,.apple:
-            NativeRouteMap(day:visibleDay,provider:store.mapProvider,viewport:store.mapViewport,onViewport:{store.mapViewport=$0}).id(store.mapProvider)
+            NativeRouteMap(day:visibleDay,overview:safeOverview,expanded:expanded,provider:store.mapProvider,viewport:expanded ? nil : store.mapViewport,onViewport:{if !expanded {store.mapViewport=$0}},sections:safeSections).id(store.mapProvider)
         case .google:
-            if SydneyBuddyApp.mapReady {GoogleRouteMap(day:visibleDay,viewport:store.mapViewport,onViewport:{store.mapViewport=$0})}
+            if SydneyBuddyApp.mapReady {GoogleRouteMap(day:visibleDay,overview:safeOverview,expanded:expanded,viewport:expanded ? nil : store.mapViewport,onViewport:{if !expanded {store.mapViewport=$0}},sections:safeSections)}
             else {Palette.mint.overlay(Text("Google 地图未配置密钥\n请在“我的”选择其他底图").multilineTextAlignment(.center))}
         case .schematic:SchematicMap(day:visibleDay)
         }
@@ -219,15 +364,21 @@ struct HomeView: View {
     @EnvironmentObject var store:AppStore
     @State var chat=false
     @State var details=false
+    @State var expandedMap=false
+    @State var journey=false
     @State var navigation=false
+    @StateObject private var overview=ItineraryOverview()
     var body:some View {
         ZStack(alignment:.top) {
-            ProviderRouteMap().ignoresSafeArea(edges:.top)
+            ProviderRouteMap(overview:overview.key == mapSceneKey(store.currentDay) ? overview.route : nil,sections:overview.key == mapSceneKey(store.currentDay) ? (overview.plan?.sections ?? []) : [],overviewIsGoogle:overview.plan?.source == "Google Routes").ignoresSafeArea(edges:.top)
             VStack(spacing:10) {
                 HStack { HStack(spacing:8) { Image(systemName:"mappin.circle.fill").foregroundStyle(Palette.green); VStack(alignment:.leading,spacing:3) { Text("悉尼 · 小冒险").font(.headline); Text(store.currentDay?.date ?? "准备出发").font(.caption).foregroundStyle(Palette.muted) } }.padding(.horizontal,18).padding(.vertical,12).background(.white,in:Capsule()); Spacer(); Button {store.tab=3} label:{Image(systemName:"person.crop.circle.fill").font(.system(size:42)).foregroundStyle(Palette.green).background(.white,in:Circle())} }.padding(.horizontal,20)
                 HStack { Text(store.mapProvider.label).font(.caption2.bold()).padding(.horizontal,12).padding(.vertical,6).background(.white.opacity(0.9),in:Capsule()); if store.mapProvider == .osm {Link("© OpenStreetMap contributors",destination:URL(string:"https://www.openstreetmap.org/copyright")!).font(.caption2).padding(6).background(.white.opacity(0.95),in:Capsule())} }
                 if let t=store.trip,t.days.count>1 { Picker("天数",selection:$store.dayIndex) { ForEach(t.days.indices,id:\.self) { Text("第 \($0+1) 天").tag($0) } }.pickerStyle(.segmented).padding(.horizontal,24) }
                 if let t=store.trip { WeatherCard(weather:store.refreshedWeather ?? t.weather,compact:true).padding(.horizontal,20) }
+                if store.trip != nil {
+                    HStack {Spacer();Button {expandedMap=true} label:{Label("展开地图",systemImage:"arrow.up.left.and.arrow.down.right").font(.caption.bold()).padding(10).background(.white,in:Capsule())}}.padding(.horizontal,20)
+                }
                 Spacer()
                 if store.trip != nil {PreparationTrail {details=true}.padding(.horizontal,20)}
                 HStack(alignment:.bottom,spacing:12) {
@@ -236,16 +387,64 @@ struct HomeView: View {
                         if let day=store.currentDay {
                             Text("\(day.stops.count) 个地点 · 约 \(day.estimatedSteps) 步").font(.caption).foregroundStyle(Palette.muted)
                             HStack(spacing:8) { Label("A$\(Int(day.estimatedCost))",systemImage:"wallet.bifold"); Text("·");Text("\(day.finishTime) 返回") }.font(.caption.bold()).foregroundStyle(Palette.green)
-                            Button("逐段步行导航") { navigation=true }.font(.subheadline.bold()).tint(Palette.green)
-                            Text(day.stops.map(\.name).joined(separator:" → ")).font(.caption).lineLimit(2).foregroundStyle(Palette.muted)
+                            HStack(spacing:12) {
+                                Button("交通路线规划"){journey=true}
+                                Button("逐段步行导航"){navigation=true}.disabled(store.mapProvider != .osm)
+                            }.font(.caption.bold()).tint(Palette.green).lineLimit(1).minimumScaleFactor(0.8)
+                            ScrollView(.horizontal,showsIndicators:false) {
+                                HStack(spacing:8) {
+                                    Text("起 · \(day.start.name)")
+                                    ForEach(Array(day.stops.enumerated()),id:\.offset) { i, stop in Text("→ \(i+1) · \(stop.name) \(stop.arrival)") }
+                                    Text("→ 终 · \(day.end.name)")
+                                }.font(.caption).foregroundStyle(Palette.green)
+                            }.accessibilityLabel("行程站点顺序")
+                            if store.trip?.mode != "live", store.mapProvider == .osm || store.mapProvider == .apple {
+                                Button(overview.busy ? "正在取得步行路线…" : overview.summary) {overview.load(day,provider:store.mapProvider)}
+                                    .font(.caption.bold()).tint(Palette.green).disabled(overview.busy || overview.route != nil)
+                                if overview.plan == nil,let route=overview.route {ScrollView(.horizontal,showsIndicators:false){Text(route.segments).font(.caption2).foregroundStyle(Palette.muted)}}
+                                if let message=overview.message {Text(message).font(.caption2).foregroundStyle(Palette.muted)}
+                            }
                         } else { Text("让 Buddy 帮你选出刚刚好的路线").font(.caption).foregroundStyle(Palette.muted) }
                         Button { if store.trip==nil {store.newTrip()} else {details=true} } label:{ HStack {Text(store.trip==nil ? "开始规划" : "查看路线").fontWeight(.bold);Spacer();Image(systemName:"arrow.up.right")}.padding(13).foregroundStyle(.white).background(Palette.green,in:RoundedRectangle(cornerRadius:14)) }
                     }.padding(18).frame(maxWidth:.infinity,alignment:.leading).background(.white,in:RoundedRectangle(cornerRadius:25)).shadow(color:Palette.ink.opacity(0.08),radius:12,y:4)
                     Button {chat=true} label:{ VStack(spacing:0) {Text("问 AI").font(.headline.bold()).padding(.horizontal,18).padding(.vertical,12).foregroundStyle(.white).background(Palette.green,in:Capsule());Robot(size:80)} }.buttonStyle(.plain).accessibilityLabel("问 AI")
                 }.padding(.horizontal,20)
-                Text(store.trip?.mode=="live" ? (store.mapProvider == .google ? "Google 路线 · 费用与步数为估算" : "Google 行程图层已隐藏，请切换 Google 底图查看") : "路线与营业时间为示例 · 非导航路径").font(.system(size:10)).foregroundStyle(Palette.ink.opacity(0.7)).padding(7).background(.white.opacity(0.85),in:Capsule())
+                Text(store.trip?.mode=="live" ? (store.mapProvider == .google ? "Google 路线 · 费用与步数为估算" : "Google 行程图层已隐藏，请切换 Google 底图查看") : (store.mapProvider == .schematic ? "离线顺序示意 · 非道路路线" : overview.route == nil ? "尚未查询道路路线 · 仅显示站点" : "已规划道路路线 · 不含景点停留时间")).font(.system(size:10)).foregroundStyle(Palette.ink.opacity(0.7)).padding(7).background(.white.opacity(0.85),in:Capsule())
             }.padding(.top,12).padding(.bottom,12)
-        }.sheet(isPresented:$chat){AgentView()}.sheet(isPresented:$details){TripDetailView()}
+        }.task(id:mapSceneKey(store.currentDay)+"|"+(store.trip?.mode ?? "")) {overview.reset(mapSceneKey(store.currentDay))}
+        .sheet(isPresented:$chat){AgentView()}.sheet(isPresented:$details){TripDetailView()}
+        .fullScreenCover(isPresented:$expandedMap) {
+            ZStack(alignment:.top) {
+                ProviderRouteMap(overview:overview.key == mapSceneKey(store.currentDay) ? overview.route : nil,sections:overview.key == mapSceneKey(store.currentDay) ? (overview.plan?.sections ?? []) : [],overviewIsGoogle:overview.plan?.source == "Google Routes",expanded:true).ignoresSafeArea()
+                VStack {
+                    HStack {Text("全天行程顺序").font(.headline);Spacer();Button("关闭地图"){expandedMap=false}}.padding().background(.white,in:RoundedRectangle(cornerRadius:18))
+                    Spacer()
+                    VStack(alignment:.leading,spacing:10) {
+                        Text(overview.route == nil ? "尚未查询道路路线 · 仅显示站点" : "已规划道路路线 · 不含景点停留时间").font(.caption.bold())
+                        if let day=store.currentDay {
+                            ScrollView(.horizontal,showsIndicators:false) {Text("起 · \(day.start.name) → " + day.stops.enumerated().map {"\($0.offset+1) · \($0.element.name)"}.joined(separator:" → ")+" → 终 · \(day.end.name)").font(.caption)}
+                            if store.trip?.mode != "live",store.mapProvider == .osm || store.mapProvider == .apple {
+                                Button(overview.busy ? "正在取得步行路线…" : overview.summary) {overview.load(day,provider:store.mapProvider)}.disabled(overview.busy || overview.route != nil)
+                                if overview.plan == nil,let route=overview.route {ScrollView(.horizontal,showsIndicators:false){Text(route.segments).font(.caption2)}}
+                                if let message=overview.message {Text(message).font(.caption)}
+                            }
+                        }
+                        if store.mapProvider == .osm {Link("© OpenStreetMap contributors",destination:URL(string:"https://www.openstreetmap.org/copyright")!).font(.caption2)}
+                    }.padding().frame(maxWidth:.infinity,alignment:.leading).background(.white,in:RoundedRectangle(cornerRadius:18))
+                }.padding().tint(Palette.green)
+            }.task(id:mapSceneKey(store.currentDay)+"|"+store.mapProvider.rawValue) {
+                if let day=store.currentDay,store.trip?.mode != "live",store.mapProvider == .apple || store.mapProvider == .osm {
+                    overview.load(day,provider:store.mapProvider)
+                }
+            }
+        }
+        .onChange(of:store.mapProvider){overview.clear()}
+        .fullScreenCover(isPresented:$journey) {
+            if let day=store.currentDay,let trip=store.trip {
+                if trip.mode == "live" && store.mapProvider != .google {VStack(spacing:20){Text("此行程的交通规划需搭配 Google 底图与 Google Routes，请切换底图。");Button("关闭"){journey=false}}.padding()}
+                else {JourneyPlannerView(day:day,tripID:(trip.id ?? "draft")+":\(trip.revision ?? 0)",provider:store.mapProvider,contentSource:trip.mode == "live" ? "google" : "open",onPlan:{overview.accept($0,day:day)})}
+            }
+        }
         .fullScreenCover(isPresented:$navigation) {
             if let day=store.currentDay, let trip=store.trip {
                 if trip.mode == "live" { NavigationStack { VStack(spacing:20) { Text("此行程含 Google 地点资料，请使用原地图查看。开源导航测试请先建立示例行程。");Button("关闭"){navigation=false} }.padding() } }

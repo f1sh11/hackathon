@@ -11,6 +11,7 @@ public static class SetupPage
         var labels = new Dictionary<string, string>
         {
             ["NVIDIA_API_KEY"] = "NVIDIA API key（仅服务端 / server only）",
+            ["TFNSW_API_KEY"] = "Transport for NSW Trip Planner API key（仅服务端保存）",
             ["GOOGLE_SERVER_KEY"] = "Google 服务端 key（Places / Routes / Weather）",
             ["GOOGLE_IOS_KEY"] = "Google iOS key（保留的 iOS 客户端 / retained iOS client）"
         };

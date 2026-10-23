@@ -69,7 +69,7 @@ fun savePayload(proposal: Proposal): JSONObject {
     return JSONObject().put("trip", trip).put("expectedRevision", proposal.expectedRevision)
 }
 
-fun decodePolyline(encoded: String): List<Pair<Double, Double>> {
+fun decodePolyline(encoded: String, scale: Double = 1e5): List<Pair<Double, Double>> {
     var index = 0; var lat = 0; var lng = 0
     fun next(): Int {
         var result = 0; var shift = 0
@@ -83,6 +83,6 @@ fun decodePolyline(encoded: String): List<Pair<Double, Double>> {
         return if (result and 1 != 0) (result shr 1).inv() else result shr 1
     }
     return buildList {
-        while (index < encoded.length) { lat += next(); lng += next(); add(lat / 1e5 to lng / 1e5) }
+        while (index < encoded.length) { lat += next(); lng += next(); add(lat / scale to lng / scale) }
     }
 }

@@ -36,13 +36,13 @@ projconfig=configs('project',None,{'SDKROOT':'iphoneos','IPHONEOS_DEPLOYMENT_TAR
 targetconfig=configs('target',configfile,{'PRODUCT_BUNDLE_IDENTIFIER':'com.sydneybuddy.travel','PRODUCT_NAME':'$(TARGET_NAME)','INFOPLIST_FILE':'Config/Info.plist','TARGETED_DEVICE_FAMILY':'1','CODE_SIGN_STYLE':'Automatic','MARKETING_VERSION':'0.1.0','CURRENT_PROJECT_VERSION':'1','GENERATE_INFOPLIST_FILE':'NO','OTHER_LDFLAGS':['$(inherited)','-ObjC'],'LD_RUNPATH_SEARCH_PATHS':['$(inherited)','@executable_path/Frameworks'],'SWIFT_EMIT_LOC_STRINGS':'YES'})
 target=obj('target',{'isa':'PBXNativeTarget','buildConfigurationList':targetconfig,'buildPhases':[sources,frameworks,resources],'buildRules':[],'dependencies':[],'name':'SydneyBuddy','packageProductDependencies':[prod,navprod],'productName':'SydneyBuddy','productReference':product,'productType':'com.apple.product-type.application'})
 # XCTest host verifies itinerary progress and the real Ferrostar parser/simulator without network calls.
-testref=obj('navigationtests',{'isa':'PBXFileReference','lastKnownFileType':'sourcecode.swift','path':'SydneyBuddyTests/NavigationTests.swift','sourceTree':'<group>'})
-fixture=obj('navigationfixture',{'isa':'PBXFileReference','lastKnownFileType':'text.json','path':'../tests/fixtures/walking-sydney.json','sourceTree':'<group>'})
-objects[main]['children'] += [testref,fixture]
+testrefs=[obj('test'+p.name,{'isa':'PBXFileReference','lastKnownFileType':'sourcecode.swift','path':'SydneyBuddyTests/'+p.name,'sourceTree':'<group>'}) for p in sorted((root/'SydneyBuddyTests').glob('*.swift'))]
+fixtures=[obj('fixture'+name,{'isa':'PBXFileReference','lastKnownFileType':'text.json','path':'../tests/fixtures/'+name,'sourceTree':'<group>'}) for name in ['walking-sydney.json','journey-plan-test.json']]
+objects[main]['children'] += testrefs+fixtures
 testproduct=obj('testproduct',{'isa':'PBXFileReference','explicitFileType':'wrapper.cfbundle','path':'SydneyBuddyTests.xctest','sourceTree':'BUILT_PRODUCTS_DIR'})
 objects[products]['children'].append(testproduct)
-testsources=obj('testsources',{'isa':'PBXSourcesBuildPhase','buildActionMask':2147483647,'files':[obj('buildnavigationtests',{'isa':'PBXBuildFile','fileRef':testref})],'runOnlyForDeploymentPostprocessing':0})
-testresources=obj('testresources',{'isa':'PBXResourcesBuildPhase','buildActionMask':2147483647,'files':[obj('buildnavigationfixture',{'isa':'PBXBuildFile','fileRef':fixture})],'runOnlyForDeploymentPostprocessing':0})
+testsources=obj('testsources',{'isa':'PBXSourcesBuildPhase','buildActionMask':2147483647,'files':[obj('buildtest'+ref,{'isa':'PBXBuildFile','fileRef':ref}) for ref in testrefs],'runOnlyForDeploymentPostprocessing':0})
+testresources=obj('testresources',{'isa':'PBXResourcesBuildPhase','buildActionMask':2147483647,'files':[obj('buildfixture'+ref,{'isa':'PBXBuildFile','fileRef':ref}) for ref in fixtures],'runOnlyForDeploymentPostprocessing':0})
 testframeworks=obj('testframeworks',{'isa':'PBXFrameworksBuildPhase','buildActionMask':2147483647,'files':[obj('testferrostarbuild',{'isa':'PBXBuildFile','productRef':navprod})],'runOnlyForDeploymentPostprocessing':0})
 testconfig=configs('tests',None,{'PRODUCT_NAME':'$(TARGET_NAME)','PRODUCT_BUNDLE_IDENTIFIER':'com.sydneybuddy.travel.tests','GENERATE_INFOPLIST_FILE':'YES','SDKROOT':'iphonesimulator','IPHONEOS_DEPLOYMENT_TARGET':'17.0','SWIFT_VERSION':'5.0','TEST_HOST':'$(BUILT_PRODUCTS_DIR)/SydneyBuddy.app/SydneyBuddy','BUNDLE_LOADER':'$(TEST_HOST)','TARGETED_DEVICE_FAMILY':'1','CODE_SIGN_STYLE':'Automatic'})
 objects[uid('targetDebug')]['buildSettings']['ENABLE_TESTABILITY']='YES'
