@@ -31,7 +31,14 @@ public sealed class ScheduleEditorService(PlaceCatalog catalog)
     public JsonObject Build(JsonObject request) {
         var trip=Copy(request.Object("trip")??throw new ServiceException("缺少行程。"));
         if(trip.Str("mode")!="demo")throw new ServiceException("時間軸目前為本機示例測試，請使用 demo 行程，不混用線上來源資料。");
-        var places=catalog.Get();
+        var places=catalog.Get().ToList();
+        var imported=request.Array("candidates")??trip.Object("schedule")?.Array("candidates");
+        if(imported is not null) {
+            if(imported.Count>150)throw new ServiceException("工具箱最多 150 個地點。");
+            foreach(var p in imported.OfType<JsonObject>().Where(p=>p.Str("id").StartsWith("osm:"))) {
+                var normalized=PoiService.Import(p);if(places.All(x=>x.Str("id")!=normalized.Str("id")))places.Add(normalized);
+            }
+        }
         // The legacy Rocks estimate includes food; meals have their own allowance here.
         foreach(var place in places.Where(p=>p.Str("id")=="rocks")) {place["cost"]=0;place["note"]="街區遊覽不含餐飲；餐費由用餐站另計，避免重複預留。";}
         var profile=PlanValidator.Validate(trip.Object("profile")??throw new ServiceException("缺少偏好。"),places);
@@ -108,10 +115,11 @@ public sealed class ScheduleEditorService(PlaceCatalog catalog)
                 var id=a.Str("id");if(id.Length is <1 or >120||!ids.Add(id))throw new ServiceException("活動 ID 無效或重複。");
                 var kind=a.Str("kind");if(kind is not("attraction" or "meal" or "restroom" or "rest" or "bag-drop" or "bag-pickup" or "stay" or "checkout"))throw new ServiceException("活動類型不合法。");
                 JsonObject point;
-                if(kind=="attraction"){
+                if(kind=="attraction"||a.Str("placeId").StartsWith("osm:")){
                     point=places.FirstOrDefault(p=>p.Str("id")==a.Str("placeId"))??throw new ServiceException("景點不在目錄。");
                     if(!selected.Add(point.Str("id")))throw new ServiceException("同一景點不能重複排入多天。");
-                    a["name"]=point.Str("name");a["lat"]=point.Number("lat");a["lng"]=point.Number("lng");a["cost"]=point.Number("cost");a["indoor"]=point.Bool("indoor");
+                    if(point.Str("source")=="OpenStreetMap") {if(kind!=PoiService.ActivityKind(point))throw new ServiceException("OSM 地點活動類型不一致。");Issue("poi-unknown",point.Str("name")+(kind!="attraction"&&a.Number("cost")>0?"的費用為使用者預留，營業時間仍未知。":"的費用與營業時間未知，預算未包含此地點費用。"),id);}
+                    a["name"]=point.Str("name");a["lat"]=point.Number("lat");a["lng"]=point.Number("lng");a["cost"]=point.Str("source")=="OpenStreetMap"&&kind!="attraction"?Cost(a,"cost"):point.Number("cost");a["indoor"]=point.Bool("indoor");
                 }else{point=a;CheckPoint(point);facilityUnknown|=!a.Bool("confirmed");}
                 var duration=N(a,"duration",30,5,240);var cost=Cost(a,"cost");var leg=RouteService.EstimateLeg(previous,point);leg["source"]="示例距離估算，非道路導航";
                 var minutes=(int)leg.Number("minutes");var arrival=clock+minutes;var fixedStart=a["fixedStart"] is null?(int?)null:N(a,"fixedStart",0,0,1439);
@@ -120,7 +128,8 @@ public sealed class ScheduleEditorService(PlaceCatalog catalog)
                 var begin=Math.Max(arrival,fixedStart??arrival);var queue=0;
                 if(kind=="attraction"){
                     if(a["queueMinutes"] is null)unknown=true;else queue=N(a,"queueMinutes",0,0,360);
-                    var windows=RouteScheduler.OpeningWindows(point,date,out var verified);var fits=windows.Where(w=>Math.Max(begin,w.Open)+queue+duration<=w.Close).OrderBy(w=>w.Open).ToArray();
+                    var windows=RouteScheduler.OpeningWindows(point,date,out var verified);
+                    if(point.Str("source")=="OpenStreetMap") {windows=new[]{(Open:0,Close:1440)};verified=false;}var fits=windows.Where(w=>Math.Max(begin,w.Open)+queue+duration<=w.Close).OrderBy(w=>w.Open).ToArray();
                     if(fits.Length==0)Issue("hours",a.Str("name")+"無法在營業時間內完成等待與遊覽。",id,true);
                     else if(fixedStart.HasValue&&begin<fits[0].Open)Issue("hours",a.Str("name")+"指定時段尚未開門。",id,true);else begin=Math.Max(begin,fits[0].Open);
                     a["hoursVerified"]=verified;if(rainy&&!point.Bool("indoor"))Issue("weather",a.Str("name")+"為戶外活動；目前為下雨示例情境。",id);

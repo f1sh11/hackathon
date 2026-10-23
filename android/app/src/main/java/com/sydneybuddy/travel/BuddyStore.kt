@@ -40,6 +40,9 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
         mapProvider = value
         prefs.edit().putString("mapProvider", value.name).apply()
     }
+    var poiToolbox by mutableStateOf(runCatching{JSONArray(prefs.getString("poiToolbox","[]")).objects()}.getOrDefault(emptyList()));private set
+    fun addPoi(p:JSONObject){if(poiToolbox.none{it.optString("id")==p.optString("id")}){poiToolbox=poiToolbox+p.copy();prefs.edit().putString("poiToolbox",JSONArray(poiToolbox).toString()).apply()}}
+    suspend fun searchPoi(body:JSONObject)=JSONObject(request("poi/search","POST",body))
     val base = "http://127.0.0.1:8787"
     val day: JSONObject? get() = trip?.array("days")?.objects()?.getOrNull(dayIndex)
 

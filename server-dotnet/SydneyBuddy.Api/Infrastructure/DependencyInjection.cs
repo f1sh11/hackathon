@@ -42,6 +42,8 @@ public static class DependencyInjection
         services.AddScoped<RouteScheduler>();
         services.AddScoped<Planner>();
         services.AddScoped<ScheduleEditorService>();
+        services.AddHttpClient<IPoiProvider,OsmPoiProvider>(client=>client.Timeout=TimeSpan.FromSeconds(25)).ConfigurePrimaryHttpMessageHandler(()=>new HttpClientHandler{AllowAutoRedirect=false});
+        services.AddScoped<PoiService>();
         return services;
     }
 }

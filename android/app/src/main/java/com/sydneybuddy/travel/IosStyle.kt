@@ -174,6 +174,8 @@ fun durationLabel(startMinute: Int, endMinute: Int): String {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun HomeScreen(store:BuddyStore) {
+    var poiSearch by remember{mutableStateOf(false)}
+    if(poiSearch)PoiDiscoveryDialog(store,onDismiss={poiSearch=false})
     var detail by rememberSaveable {mutableStateOf(false)}
     var journey by rememberSaveable {mutableStateOf(false)}
     var expandedMap by rememberSaveable {mutableStateOf(false)}
@@ -188,6 +190,7 @@ fun durationLabel(startMinute: Int, endMinute: Int): String {
         val compact=maxHeight<650.dp
         RouteMap(day,Modifier.fillMaxSize(),true,store.mapProvider,trip?.optString("mode")=="live",store.mapViewport,{store.mapViewport=it},overview.route)
         Column(Modifier.fillMaxSize().padding(horizontal=20.dp).padding(top=12.dp,bottom=10.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
+            TextButton(onClick={poiSearch=true},modifier=Modifier.fillMaxWidth().background(Color.White,androidx.compose.foundation.shape.RoundedCornerShape(24.dp))){Text("⌕ 搜尋景點、餐廳與設施")}
             Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
                 Surface(shape=CircleShape,color=Color.White,shadowElevation=2.dp) {
                     Row(Modifier.padding(horizontal=17.dp,vertical=12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {

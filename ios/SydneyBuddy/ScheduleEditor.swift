@@ -20,7 +20,10 @@ struct ScheduleDay:Codable,Identifiable {
     var unknownQueue:Bool;var estimatedSteps:Int;var estimatedCost:Double;var finishTime:String
     var id:String {date}
 }
-struct ScheduleCandidate:Codable,Identifiable {var id:String;var name:String;var category:String;var indoor:Bool;var visitMinutes:Int;var cost:Double;var lat:Double;var lng:Double;var reason:String}
+struct ScheduleCandidate:Codable,Identifiable {var id:String;var name:String;var category:String;var indoor:Bool;var visitMinutes:Int;var cost:Double;var lat:Double;var lng:Double;var reason:String;var description:String?;var note:String?;var openMinute:Int?;var closeMinute:Int?;var source:String?;var poiKind:String?;var openingHoursText:String?}
+extension ScheduleCandidate {
+    var activityKind:String {guard source=="OpenStreetMap" else{return "attraction"};return poiKind=="toilets" ? "restroom":poiKind=="drinking_water" ? "rest":category=="美食" ? "meal":"attraction"}
+}
 struct ScheduleIssue:Codable,Identifiable {var code:String;var message:String;var day:Int;var activityId:String?;var blocking:Bool;var id:String {code+message+(activityId ?? "")}}
 struct ScheduleRadar:Codable {var name:String;var value:Double}
 struct ScheduleState:Codable {
@@ -43,6 +46,7 @@ struct ScheduleState:Codable {
         do {
             body["trip"]=try JSONSerialization.jsonObject(with:JSONEncoder().encode(trip))
             if let state {
+                body["candidates"]=try JSONSerialization.jsonObject(with:JSONEncoder().encode(state.candidates))
                 body["settings"]=try JSONSerialization.jsonObject(with:JSONEncoder().encode(state.settings));body["version"]=state.version;body["rainy"]=state.rainy
                 if !regenerate {body["days"]=try JSONSerialization.jsonObject(with:JSONEncoder().encode(state.days))}
             }
@@ -99,9 +103,27 @@ struct ScheduleState:Codable {
         let a=ScheduleActivity(id:UUID().uuidString,kind:kind,name:(labels[kind] ?? kind)+" · 待確認",lat:day.start.lat,lng:day.start.lng,duration:kind=="meal" ? 45:10,cost:kind=="meal" ? (state?.settings.mealCost ?? 25):0,confirmed:false,openMinute:0,closeMinute:1440,arrival:"",departure:"",scheduledStart:day.startMinute,travelMinutes:0)
         edit{$0.days[dayIndex].activities.append(a)}
     }
+    func importPlaces(_ places:[ScheduleCandidate]) {
+        guard !busy,let state else{return}
+        let additions=places.filter{p in !state.candidates.contains{$0.id==p.id}}
+        guard !additions.isEmpty else{return}
+        edit{$0.candidates.append(contentsOf:additions)}
+    }
+    func place(_ candidate:ScheduleCandidate,at minute:Int) {
+        guard !busy,let state,minute>=state.days[dayIndex].startMinute,minute<state.days[dayIndex].endMinute else{return}
+        if let existing=state.days[dayIndex].activities.first(where:{$0.placeId==candidate.id}) {
+            retime(existing.id,start:minute,duration:existing.duration);return
+        }
+        guard !state.days.flatMap(\.activities).contains(where:{$0.placeId==candidate.id}) else{return}
+        let a=ScheduleActivity(id:UUID().uuidString,placeId:candidate.id,kind:candidate.activityKind,name:candidate.name,lat:candidate.lat,lng:candidate.lng,duration:candidate.visitMinutes,cost:candidate.cost,fixedStart:minute,arrival:"",departure:"",scheduledStart:minute,travelMinutes:0,indoor:candidate.indoor)
+        edit {s in
+            let index=s.days[dayIndex].activities.firstIndex{($0.fixedStart ?? $0.scheduledStart)>minute} ?? s.days[dayIndex].activities.count
+            s.days[dayIndex].activities.insert(a,at:index)
+        }
+    }
     func add(_ candidate:ScheduleCandidate) {
         guard let day=state?.days[dayIndex],!(state?.days.flatMap(\.activities).contains(where:{$0.placeId==candidate.id}) ?? true) else{return}
-        let a=ScheduleActivity(id:UUID().uuidString,placeId:candidate.id,kind:"attraction",name:candidate.name,lat:candidate.lat,lng:candidate.lng,duration:candidate.visitMinutes,cost:candidate.cost,arrival:"",departure:"",scheduledStart:day.startMinute,travelMinutes:0,indoor:candidate.indoor)
+        let a=ScheduleActivity(id:UUID().uuidString,placeId:candidate.id,kind:candidate.activityKind,name:candidate.name,lat:candidate.lat,lng:candidate.lng,duration:candidate.visitMinutes,cost:candidate.cost,arrival:"",departure:"",scheduledStart:day.startMinute,travelMinutes:0,indoor:candidate.indoor)
         edit {let i=$0.days[dayIndex].activities.firstIndex(where:{$0.kind=="stay" || $0.kind=="bag-pickup"}) ?? $0.days[dayIndex].activities.count;$0.days[dayIndex].activities.insert(a,at:i)}
     }
 }
@@ -135,14 +157,13 @@ struct ScheduleRadarView:View {
                         Text(state.source).font(.caption).foregroundStyle(Palette.muted)
                         DisclosureGroup("旅行偏好雷達圖"){ScheduleRadarView(axes:state.radar)}.padding().background(.white,in:RoundedRectangle(cornerRadius:20))
                         HStack {Button("偏好與住宿"){settingsSheet=true};Spacer();Button("景點清單"){candidateSheet=true}}.font(.subheadline.bold())
-                        ScrollView(.horizontal,showsIndicators:false){HStack {ForEach(Array(state.days.enumerated()),id:\.offset){i,d in Button("第 \(i+1) 天\n\(d.date)"){model.dayIndex=i}.buttonStyle(.bordered).tint(i==model.dayIndex ? Palette.green:.gray)}}}
                         let day=state.days[min(model.dayIndex,state.days.count-1)]
                         summary(day,state)
                         HStack {Button("還原上一步"){model.undo()};Spacer();Button("回到原建議"){model.restore()}}.font(.caption)
                         if model.busy {ProgressView("更新交通與等待時間…").font(.caption)}
                         ForEach(state.issues.filter{$0.day==model.dayIndex || $0.day == -1}) {issue in Label(issue.message,systemImage:issue.blocking ? "exclamationmark.triangle.fill":"info.circle").font(.caption).foregroundStyle(issue.blocking ? .red:.orange).padding(10).frame(maxWidth:.infinity,alignment:.leading).background(.white,in:RoundedRectangle(cornerRadius:12))}
                         Label(day.start.name+" 出發",systemImage:"location.fill").font(.subheadline.bold())
-                        ScheduleTimeCanvas(day:day,onChange:{id,start,duration in model.retime(id,start:start,duration:duration)},onEdit:{editing=$0},onAdd:{candidateSheet=true})
+                        ScheduleWorkbench(model:model,onEdit:{editing=$0},onAdd:{candidateSheet=true})
                         Label(day.end.name+" · "+day.finishTime,systemImage:"flag.checkered").font(.subheadline.bold())
                         if state.rainy {Text("下雨測試：戶外活動已標示，可從景點清單替換室內地點。").font(.caption)}
                         Button(state.rainy ? "切回晴天示例":"測試下雨影響"){model.edit{$0.rainy.toggle()}}

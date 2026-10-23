@@ -3,6 +3,33 @@ import SwiftUI
 @testable import SydneyBuddy
 
 @MainActor final class ScheduleTests:XCTestCase {
+    func testImportedMapPoiIsIncludedInSharedApiRequest() async throws {
+        let trip=try fixture();let model=ScheduleEditorModel();model.prepare(trip)
+        var candidate=trip.schedule!.candidates[0];candidate.id="osm:node:123";candidate.source="OpenStreetMap";candidate.name="Test Cafe"
+        var sent=false
+        model.loader={request in let body=try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:Any];let candidates=body["candidates"] as! [[String:Any]];sent=candidates.contains{$0["id"] as? String==candidate.id};var raw=body["trip"] as! [String:Any];var state=raw["schedule"] as! [String:Any];state["candidates"]=candidates;state["days"]=body["days"];raw["schedule"]=state;return (try JSONSerialization.data(withJSONObject:raw),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)}
+        model.importPlaces([candidate])
+        for _ in 0..<100 {if !model.busy{break};try await Task.sleep(nanoseconds:10_000_000)}
+        XCTAssertTrue(sent);XCTAssertEqual(model.state!.candidates.filter{$0.id==candidate.id}.count,1)
+        model.importPlaces([candidate]);XCTAssertFalse(model.busy);model.stop()
+    }
+    func testToolboxPlacementUsesSpecifiedTimeAndDoesNotDuplicateSelectedPlaces() async throws {
+        let trip=try fixture();let model=ScheduleEditorModel();model.prepare(trip)
+        model.loader={request in let body=try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:Any];var raw=body["trip"] as! [String:Any];var state=raw["schedule"] as! [String:Any];state["days"]=body["days"];raw["schedule"]=state;return (try JSONSerialization.data(withJSONObject:raw),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)}
+        let candidate=model.state!.candidates.first{$0.id=="museum"}!
+        XCTAssertFalse(candidate.description!.isEmpty)
+        model.place(candidate,at:660)
+        for _ in 0..<100 {if !model.busy{break};try await Task.sleep(nanoseconds:10_000_000)}
+        let added=model.state!.days[0].activities.first{$0.placeId==candidate.id}!
+        XCTAssertEqual(added.fixedStart,660)
+        model.place(candidate,at:720)
+        for _ in 0..<100 {if !model.busy{break};try await Task.sleep(nanoseconds:10_000_000)}
+        XCTAssertEqual(model.state!.days[0].activities.filter{$0.placeId==candidate.id}.count,1)
+        XCTAssertEqual(model.state!.days[0].activities.first{$0.placeId==candidate.id}?.fixedStart,720)
+        model.undo()
+        for _ in 0..<100 {if !model.busy{break};try await Task.sleep(nanoseconds:10_000_000)}
+        XCTAssertEqual(model.state!.days[0].activities.first{$0.placeId==candidate.id}?.fixedStart,660);model.stop()
+    }
     func testTimeHandlesSnapAndKeepOppositeEdge() {
         XCTAssertEqual(ScheduleTimeEdit.drag(start:600,duration:60,queue:0,delta:-2.5,edge:0),ScheduleTimeEdit(start:595,duration:60))
         XCTAssertEqual(ScheduleTimeEdit.drag(start:600,duration:60,queue:10,delta:13,edge:0),ScheduleTimeEdit(start:615,duration:60))

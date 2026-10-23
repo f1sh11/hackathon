@@ -99,3 +99,7 @@ iOS 測試涵蓋 schedule JSON 往返、舊 Android 偏好缺省欄位相容性�
 - 實作：`ScheduleTimeCanvas.swift` / `ScheduleTimeCanvas.kt`；時間座標與手勢結果由 `ScheduleTimeEdit` 計算。
 
 本次調整驗證：iOS 21 項 XCTest 通過；Android 26 項單元測試、5 項時間軸畫面測試及 Lint 通過。iOS 模擬器另手動驗證上把手保留結束時間、下把手保留開始時間、整塊平移保持停留長度。
+
+## 景點工具箱與地圖搜尋
+
+已改為左右分欄，日期移至右側時間軸上方。左側依推薦順位顯示景點與介紹入口，可拖入右欄指定時間；工具箱與時間軸各自捲動。地圖首頁與工具箱均可開啟 OSM 景點／餐飲／設施搜尋，收藏後再拖入行程。資料來源、未知費用／營業時間與 API 詳見 [POI-SEARCH.md](POI-SEARCH.md)。

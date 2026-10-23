@@ -48,8 +48,48 @@ class ScheduleEditorTest {
         File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null),"schedule-android-test.png").outputStream().use{image.compress(Bitmap.CompressFormat.PNG,100,it)};image.recycle()
         c.stop()
     }
+    @Test fun mapSearchShowsPoiDetailsAndAddsToToolbox() {
+        val inst=InstrumentationRegistry.getInstrumentation();lateinit var store:BuddyStore;var added:JSONObject?=null
+        rule.runOnIdle{store=BuddyStore(inst.targetContext.applicationContext as Application)}
+        val point=JSONObject().put("id","osm:node:123").put("name","Test Cafe").put("lat",-33.86).put("lng",151.21).put("category","美食").put("description","OSM recorded cafe description").put("note","費用未知")
+        rule.setContent{MaterialTheme{PoiDiscoveryDialog(store,onDismiss={},requester={JSONObject().put("places",org.json.JSONArray().put(point))},onAdd={added=it})}}
+        rule.onNodeWithText("搜尋").performClick()
+        rule.waitUntil(5000){rule.onAllNodesWithText("Test Cafe",substring=true).fetchSemanticsNodes().isNotEmpty()}
+        rule.onNodeWithText("詳細介紹").performClick()
+        rule.onAllNodesWithText("OSM recorded cafe description").onLast().assertIsDisplayed()
+        rule.onAllNodesWithText("完成").onLast().performClick()
+        rule.onNodeWithText("＋工具箱").performClick()
+        rule.runOnIdle{assertEquals("osm:node:123",added?.optString("id"))}
+    }
+    @Test fun toolboxIntroductionsShowDescriptionWithoutChangingSchedule() {
+        val c=setup();val before=c.state!!.array("days").toString()
+        rule.onNodeWithTag("schedule-workbench").performScrollTo()
+        rule.onNodeWithTag("toolbox-info-mca").performClick()
+        rule.onNodeWithText("景點介紹").assertIsDisplayed()
+        rule.onNodeWithText(c.state!!.array("candidates").objects().first{it.optString("id")=="mca"}.getString("description")).assertExists()
+        rule.onNodeWithText("完成").performClick()
+        assertEquals(before,c.state!!.array("days").toString());c.stop()
+    }
+    @Test fun toolboxDragDropsNewAttractionAtActualTime() {
+        val c=setup()
+        rule.onNodeWithTag("schedule-workbench").performScrollTo()
+        rule.onNodeWithTag("toolbox-drag-museum").performScrollTo()
+        val source=rule.onNodeWithTag("toolbox-drag-museum").fetchSemanticsNode().boundsInRoot
+        val canvas=rule.onNodeWithTag("timeline-canvas").fetchSemanticsNode().boundsInRoot
+        val viewport=rule.onNodeWithTag("timeline-viewport").fetchSemanticsNode().boundsInRoot
+        val target=Offset(viewport.right-30f,minOf(canvas.top+350f,viewport.bottom-50f))
+        rule.onNodeWithTag("toolbox-drag-museum").performTouchInput {
+            down(center);advanceEventTime(800);moveBy(target-source.center,delayMillis=700);up()
+        }
+        rule.waitUntil(5000){!c.busy}
+        val added=c.state!!.array("days").getJSONObject(0).array("activities").objects().filter{it.optString("placeId")=="museum"}
+        assertEquals(1,added.size);assertTrue(added.first().getInt("fixedStart")>=600)
+        val image=InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+        File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null),"schedule-toolbox-android.png").outputStream().use{image.compress(Bitmap.CompressFormat.PNG,100,it)};image.recycle();c.stop()
+    }
     @Test fun timelineHandleLongDragChangesTheActualOrder() {
         val c=setup();val first=c.state!!.array("days").getJSONObject(0).array("activities").getJSONObject(0).getString("id")
+        rule.onNodeWithTag("schedule-workbench").performScrollTo()
         rule.onNodeWithTag("schedule-move-$first").performScrollTo().performTouchInput {
             down(center);advanceEventTime(32);moveBy(Offset(0f,650f),delayMillis=700);up()
         }
@@ -58,6 +98,7 @@ class ScheduleEditorTest {
     }
     @Test fun shortActivityStillOpensDetailsAndCanBeRemovedAndUndone() {
         val c=setup();val before=c.state!!.array("days").getJSONObject(0).array("activities").objects();val id=before.first().getString("id")
+        rule.onNodeWithTag("schedule-workbench").performScrollTo()
         rule.onNodeWithTag("schedule-edit-$id").performScrollTo().performClick()
         rule.onNodeWithText("移除此活動").performClick()
         rule.waitUntil(5000){!c.busy}
@@ -68,6 +109,7 @@ class ScheduleEditorTest {
     @Test fun topHandleChangesStartAndKeepsFinish() {
         val c=setup();val activity=c.state!!.array("days").getJSONObject(0).array("activities").getJSONObject(1)
         val id=activity.getString("id");val start=activity.getInt("scheduledStart");val duration=activity.getInt("duration")
+        rule.onNodeWithTag("schedule-workbench").performScrollTo()
         rule.onNodeWithTag("schedule-start-$id").performScrollTo().performTouchInput {
             down(center);advanceEventTime(32);moveBy(Offset(0f,100f),delayMillis=500);up()
         }
@@ -83,6 +125,7 @@ class ScheduleEditorTest {
         assertNotEquals(original[0],c.state!!.array("days").getJSONObject(0).array("activities").getJSONObject(0).getString("id"))
         val duration=c.state!!.array("days").getJSONObject(0).array("activities").getJSONObject(0).getInt("duration")
         val id=c.state!!.array("days").getJSONObject(0).array("activities").getJSONObject(0).getString("id")
+        rule.onNodeWithTag("schedule-workbench").performScrollTo()
         rule.onNodeWithTag("schedule-end-$id").performScrollTo().performTouchInput {
             down(center);advanceEventTime(32);moveTo(center+Offset(0f,90f),delayMillis=500);up()
         }

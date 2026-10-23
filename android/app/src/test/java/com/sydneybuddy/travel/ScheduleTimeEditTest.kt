@@ -2,6 +2,12 @@ package com.sydneybuddy.travel
 import org.junit.Assert.*
 import org.junit.Test
 class ScheduleTimeEditTest {
+    @Test fun toolboxDropCoordinatesRespectScrollZoomAndDayWindow() {
+        assertEquals(660,toolboxMinute(180f,3f,600,600,1140))
+        assertEquals(630,toolboxMinute(180f,6f,600,600,1140))
+        assertNull(toolboxMinute(-5f,3f,600,600,1140))
+        assertNull(toolboxMinute(1620f,3f,600,600,1140))
+    }
     @Test fun handlesSnapAndKeepOppositeEdge() {
         assertEquals(ScheduleTimeEdit(595,60),ScheduleTimeEdit.drag(600,60,-2.5f,0))
         assertEquals(ScheduleTimeEdit(615,60),ScheduleTimeEdit.drag(600,60,13f,0))

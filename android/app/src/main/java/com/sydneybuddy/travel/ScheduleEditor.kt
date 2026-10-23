@@ -41,7 +41,7 @@ internal class ScheduleController(val store:BuddyStore,val scope:CoroutineScope,
         job?.cancel();val token=++generation;busy=true;dirty=true
         val value=state?.copy()
         val body=JSONObject().put("trip",trip)
-        value?.let {body.put("settings",it.getJSONObject("settings")).put("version",it.optInt("version")).put("rainy",it.optBoolean("rainy"));if(!regenerate)body.put("days",it.getJSONArray("days"))}
+        value?.let {body.put("candidates",it.array("candidates")).put("settings",it.getJSONObject("settings")).put("version",it.optInt("version")).put("rainy",it.optBoolean("rainy"));if(!regenerate)body.put("days",it.getJSONArray("days"))}
         job=scope.launch {
             try {
                 val result=requester(body)
@@ -74,7 +74,25 @@ internal class ScheduleController(val store:BuddyStore,val scope:CoroutineScope,
         trip=trip.copy().put("profile",profile.copy().put("mustVisit",JSONArray(list)))
         if(state!!.array("days").objects().flatMap{it.array("activities").objects()}.none{it.optString("placeId")==id})add(candidate)else edit{}
     }
-    fun add(candidate:JSONObject){edit{s->val day=s.array("days").getJSONObject(dayIndex);val items=day.array("activities").objects().toMutableList();val a=JSONObject().put("id",UUID.randomUUID().toString()).put("kind","attraction").put("placeId",candidate.getString("id")).put("name",candidate.getString("name")).put("duration",candidate.optInt("visitMinutes",60));val i=items.indexOfFirst{it.optString("kind") in listOf("stay","bag-pickup")};items.add(if(i<0)items.size else i,a);day.put("activities",JSONArray(items))}}
+    fun importPlaces(points:List<JSONObject>) {
+        if(busy||state==null)return
+        val existing=state!!.array("candidates").objects().map{it.optString("id")}.toSet()
+        val additions=points.filter{it.optString("id") !in existing};if(additions.isEmpty())return
+        edit{s->s.put("candidates",JSONArray(s.array("candidates").objects()+additions.map{it.copy()}))}
+    }
+    fun place(candidate:JSONObject,minute:Int) {
+        val s=state ?: return;val day=s.array("days").getJSONObject(dayIndex)
+        if(busy||minute<day.optInt("startMinute")||minute>=day.optInt("endMinute"))return
+        val id=candidate.getString("id");val existing=day.array("activities").objects().firstOrNull{it.optString("placeId")==id}
+        if(existing!=null){retime(existing.getString("id"),minute,existing.optInt("duration"));return}
+        if(s.array("days").objects().flatMap{it.array("activities").objects()}.any{it.optString("placeId")==id})return
+        edit {value->val d=value.array("days").getJSONObject(dayIndex);val items=d.array("activities").objects().toMutableList()
+            val a=JSONObject().put("id",UUID.randomUUID().toString()).put("kind",poiActivityKind(candidate)).put("placeId",id).put("name",candidate.getString("name")).put("duration",candidate.optInt("visitMinutes",60)).put("fixedStart",minute).put("scheduledStart",minute)
+            val index=items.indexOfFirst{(if(it.isNull("fixedStart"))it.optInt("scheduledStart")else it.optInt("fixedStart"))>minute}
+            items.add(if(index<0)items.size else index,a);d.put("activities",JSONArray(items))
+        }
+    }
+    fun add(candidate:JSONObject){edit{s->val day=s.array("days").getJSONObject(dayIndex);val items=day.array("activities").objects().toMutableList();val a=JSONObject().put("id",UUID.randomUUID().toString()).put("kind",poiActivityKind(candidate)).put("placeId",candidate.getString("id")).put("name",candidate.getString("name")).put("duration",candidate.optInt("visitMinutes",60));val i=items.indexOfFirst{it.optString("kind") in listOf("stay","bag-pickup")};items.add(if(i<0)items.size else i,a);day.put("activities",JSONArray(items))}}
     fun stop(){job?.cancel();generation++}
 }
 private fun scheduleTimeLabel(minute:Int)="%02d:%02d".format(minute/60,minute%60)
@@ -106,7 +124,6 @@ private fun kindLabel(kind:String)=when(kind){"meal"->"用餐";"restroom"->"廁�
         if(state!=null){
             Small(state.optString("source"));TextButton(onClick={showRadar=!showRadar}){Text(if(showRadar)"收起偏好雷達圖"else "旅行偏好雷達圖")};if(showRadar)Radar(state)
             Row {TextButton(onClick={settings=true}){Text("偏好與住宿")};Spacer(Modifier.weight(1f));TextButton(onClick={candidates=true}){Text("景點清單")}}
-            Row(Modifier.horizontalScroll(rememberScrollState())){state.array("days").objects().forEachIndexed{i,d->TextButton(onClick={controller.dayIndex=i}){Text("第 ${i+1} 天\n${d.optString("date")}",color=if(i==controller.dayIndex)Green else Color.Gray)}}}
             val day=state.array("days").getJSONObject(controller.dayIndex)
             val limits=state.getJSONObject("settings")
             Panel {
@@ -122,7 +139,7 @@ private fun kindLabel(kind:String)=when(kind){"meal"->"用餐";"restroom"->"廁�
             if(controller.busy)LinearProgressIndicator(Modifier.fillMaxWidth())
             state.array("issues").objects().filter{it.optInt("day")==controller.dayIndex||it.optInt("day")==-1}.forEach{Small((if(it.optBoolean("blocking"))"⚠ " else "· ")+it.optString("message"))}
             Text("${day.getJSONObject("start").optString("name")} 出發",fontWeight=FontWeight.Bold)
-            ScheduleTimeCanvas(day,onChange={id,start,duration->controller.retime(id,start,duration)},onEdit={editing=it.copy()},onAdd={candidates=true})
+            ScheduleWorkbench(controller,onEdit={editing=it.copy()},onAdd={candidates=true})
             Text("${day.getJSONObject("end").optString("name")} · ${day.optString("finishTime")}")
             TextButton(onClick={controller.edit{it.put("rainy",!it.optBoolean("rainy"))}}){Text(if(state.optBoolean("rainy"))"切回晴天示例" else "測試下雨影響")}
             TextButton(onClick={controller.request(true)}){Text("依目前偏好重新建議（重選活動）")}
