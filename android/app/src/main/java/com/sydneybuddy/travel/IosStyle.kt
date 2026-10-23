@@ -121,7 +121,7 @@ fun choiceIcon(text:String):ImageVector = when {
     val day=store.day
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val compact=maxHeight<650.dp
-        RouteMap(day,Modifier.fillMaxSize(),true)
+        RouteMap(day,Modifier.fillMaxSize(),true,store.mapProvider,trip?.optString("mode")=="live",store.mapViewport,{store.mapViewport=it})
         Column(Modifier.fillMaxSize().padding(horizontal=20.dp).padding(top=12.dp,bottom=10.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
             Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
                 Surface(shape=CircleShape,color=Color.White,shadowElevation=2.dp) {
@@ -133,8 +133,8 @@ fun choiceIcon(text:String):ImageVector = when {
                 Spacer(Modifier.weight(1f))
                 IconButton(onClick={store.tab=4},modifier=Modifier.size(46.dp).background(Color.White,CircleShape)) {Icon(Icons.Outlined.AccountCircle,"我的",Modifier.size(40.dp),tint=Green)}
             }
-            if(!BuildConfig.MAPS_CONFIGURED)Surface(shape=CircleShape,color=Color.White.copy(alpha=.9f),modifier=Modifier.align(Alignment.CenterHorizontally)) {
-                Text("示意地图 · Google 地图待配置",Modifier.padding(horizontal=12.dp,vertical=5.dp),fontSize=10.sp,color=Muted)
+            Surface(shape=CircleShape,color=Color.White.copy(alpha=.9f),modifier=Modifier.align(Alignment.CenterHorizontally)) {
+                Text(store.mapProvider.label + if(store.mapProvider==MapProvider.GOOGLE && !BuildConfig.MAPS_CONFIGURED) " · 未配置密钥" else "",Modifier.padding(horizontal=12.dp,vertical=5.dp),fontSize=10.sp,color=Muted)
             }
             if(trip!=null && trip.array("days").length()>1) {
                 Row(Modifier.fillMaxWidth().clip(CircleShape).background(Color.White.copy(alpha=.7f))) {
@@ -185,7 +185,7 @@ fun choiceIcon(text:String):ImageVector = when {
                 }
             }
             Surface(shape=CircleShape,color=Color.White.copy(alpha=.9f),modifier=Modifier.align(Alignment.CenterHorizontally)) {
-                Text(if(trip?.optString("mode")=="live")"Google 路线 · 费用与步数为估算" else "路线与营业时间为示例 · 非导航路径",Modifier.padding(horizontal=10.dp,vertical=5.dp),fontSize=9.sp,color=Muted)
+                Text(if(trip?.optString("mode")=="live" && store.mapProvider!=MapProvider.GOOGLE)"Google 行程图层已隐藏，请切换 Google 底图查看" else if(trip?.optString("mode")=="live")"Google 路线 · 费用与步数为估算" else "路线与营业时间为示例 · 非导航路径",Modifier.padding(horizontal=10.dp,vertical=5.dp),fontSize=9.sp,color=Muted)
             }
         }
     }

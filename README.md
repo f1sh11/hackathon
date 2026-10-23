@@ -53,7 +53,7 @@ dotnet run --project server-dotnet/SydneyBuddy.Api
 2. Android Studio 打开 **`android/`**，等待 Gradle 同步。
 3. 连接已开启 USB 调试的手机，或启动模拟器。
 4. Windows 运行 `powershell -File scripts/connect-android.ps1`；macOS 运行 `sh scripts/connect-android.sh`，将设备端口转发到电脑。
-5. 在 Android Studio 运行 `app`。不配置密钥即可测试演示流程，地图会明确标注为示意图。
+5. 在 Android Studio 运行 `app`。不配置 Google 密钥即可使用默认 OSM 底图与演示行程；连线明确标注为示意，不是导航路线。
 
 每次重启模拟器或重新连接手机后，需要重做端口转发。若 `adb` 不在 PATH，连接脚本会尝试从 `ANDROID_HOME` 或默认 SDK 路径查找。命令行构建在 `android/` 中执行：
 
@@ -71,6 +71,38 @@ Android 仍连接 `http://127.0.0.1:8787`。Debug 允许本机 HTTP，Release �
 需要 macOS、Xcode（iOS 17+ SDK/模拟器）、.NET 10 SDK 和 Node.js 24。先启动 PostgreSQL 和 .NET API，再打开 `ios/SydneyBuddy.xcodeproj`，运行 `SydneyBuddy` scheme。首次 Xcode 构建需联网下载 Google Maps SDK。
 
 同机模拟器继续连接 `127.0.0.1:8787`；iPhone 真机不能用其自身的回环地址访问电脑。iOS 地图密钥更改后需要重新构建。原 [iOS 验证记录](docs/VERIFICATION.md) 是迁移前的历史记录，不能替代新版验证。
+
+## 切换地图底图与免费开发模式
+
+在 App 的 **“我的” → “地图底图”** 选择来源。新安装默认使用 OpenStreetMap，选择会保存在各自设备，重新打开 App 仍有效。地图切换不会调用 `/plan` 或保存 / 修改行程；镜头位置在本次 App 运行期间共用，新行程或不同日期会重新定位。
+
+| 底图 | Android | iOS | 说明 |
+|---|---|---|---|
+| OpenStreetMap | MapLibre Native | MapKit + 替换底图的 `MKTileOverlay` | 无需 Google 金钥，需联网取得 OSM 图砖 |
+| Apple Maps | 不提供 | 原生 MapKit | 使用 Apple 底图，需联网 |
+| Google Maps | 原有 Maps SDK | 原有 Maps SDK | 需配置各自平台的地图金钥；缺少金钥会明确提示，不自动切换来源 |
+| 离线示意图 | 支持 | 支持 | 不加载网络底图，只绘制示例位置和连线，不提供导航 |
+
+OSM / Apple Maps 的示例景点连线不是道路导航。`live` 行程含 Google Places / Routes 内容时，其他底图会隐藏整份地图图层并提示切回 Google；行程列表与原始数据仍保留，不把 Google 路径重新绘制到其他地图。参见 [Google Routes 政策](https://developers.google.com/maps/documentation/routes/policies)。
+
+OSM 公共图砖只用于少量交互开发：请求包含 App 的 User-Agent，保留可见版权署名，遵守 HTTP 缓存，不提供预下载和离线区域下载。公共服务没有可用性保证，正式规模使用需评估其他图砖供应商或自架服务。图砖加载受网络影响时可选离线示意图。[OSM 使用政策](https://operations.osmfoundation.org/policies/tiles/)
+
+### 后端付费服务开关
+
+**底图来源和后端数据模式是两项独立设置。** 后端新增 `AllowPaidServices`，预设为 `false`：
+
+- `demo` 规划仍可运行，保存 / 读取行程和本机 H-MEM 不受影响。
+- `assisted`、`live` 规划及实时天气刷新会在调用外部服务前返回 `422`，即使已经配置服务端金钥。
+- `/health` 回传 `paidServicesAllowed`；手机据此停用在线推荐开关。
+- 这项保护针对后端 NVIDIA / Google HTTP 请求，不是地图 SDK、图砖网络或账户账单的总额度控制。
+
+确实需要测试在线服务时，由后端开发者明确开启并重启服务，例如 macOS / Linux：
+
+```sh
+AllowPaidServices=true dotnet run --project server-dotnet/SydneyBuddy.Api
+```
+
+PowerShell 先运行 `$env:AllowPaidServices='true'` 再启动后端。仅在手机切换底图不会开启这项权限；测试结束后移除环境变量或设为 `false` 并重启。日常开发建议使用 **OSM + demo**；完全不加载网络底图时使用 **离线示意图 + demo**。
 
 ## 配置
 
@@ -197,7 +229,8 @@ Google 地图底图由 Android / iOS 各自的 Maps SDK 显示；后端的 Place
 | `IosStyle.kt` | Android 的 iOS 风格首页、8 步引导、日历、导航及共用视觉元件；这是 Kotlin Android 文件，不是 iOS 代码 |
 | `BuddyStore.kt` | ViewModel 状态、HTTP 请求、草案与行程操作、天气和偏好操作、本机资料保存；也是 Android 后端地址的设置位置 |
 | `Domain.kt` | 旅行偏好与起终点模型、JSON 转换、输入检查、整数分金额与均分、保存载荷、路线 polyline 解码 |
-| `RouteMap.kt` | Google 地图、景点标记与路线展示，以及未配置地图时的示意图 |
+| `RouteMap.kt` | 统一底图入口、Google / 离线示意图，以及 Google 内容的图层隔离 |
+| `MapProvider.kt` | 底图选项、共用镜头状态、OSM / MapLibre 显示及图砖请求识别和缓存 |
 
 | 配置 / 测试文件 | 用途 |
 |---|---|
@@ -215,7 +248,7 @@ Swift 文件位于 `ios/SydneyBuddy/`。`Models.swift` 同时包含数据模型�
 |---|---|
 | `SydneyBuddyApp.swift` | App 入口、根画面、8 步引导，以及 Buddy 角色、颜色和共用按钮 |
 | `Models.swift` | API 数据模型、`AppStore` 状态管理、网络请求、草案与保存流程、本机存储；也是 iOS 后端地址的设置位置 |
-| `MapView.swift` | 首页、Google 地图与未配置时的示意地图 |
+| `MapView.swift` | 首页、底图统一入口、OSM / Apple / Google 实作、镜头状态与离线示意图 |
 | `TripViews.swift` | 行程草案、确认保存、AI 调整、行程列表、天气与出发准备画面 |
 | `SettingsViews.swift` | 记账、设置，以及需要同意的偏好保存与撤回画面 |
 | `ios/Config/Base.xcconfig`、`Secrets.example.xcconfig`、`Info.plist` | 建置设置、本机地图金钥范本与 App 配置，实际配置目录为 `ios/Config/` |
@@ -265,6 +298,7 @@ server-dotnet/
 | `Data/MemoryRepository.cs` | 授权偏好摘要的数据库存取 |
 | `Data/Migrations/` | 数据库结构变更及模型快照；修改表结构时维护迁移 |
 | `Infrastructure/DependencyInjection.cs` | 集中注册服务与生命周期；DbContext / Repository 随请求建立 |
+| `Infrastructure/PaidServicePolicy.cs` | 后端付费请求的明确启用策略，预设拒绝 |
 | `Infrastructure/ProjectPaths.cs` | 定位仓库、景点资料、密钥及 H-MEM 目录 |
 | `Infrastructure/SecretStore.cs` | 读取环境变量 / 私有配置，保存本机配置及 iOS 地图设置 |
 | `Infrastructure/JsonExtensions.cs`、`ServiceException.cs` | JSON 字段读取工具与业务错误类型 |

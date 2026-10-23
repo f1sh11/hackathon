@@ -1,0 +1,53 @@
+package com.sydneybuddy.travel
+
+import androidx.compose.ui.test.*
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.lifecycle.ViewModelProvider
+import androidx.test.platform.app.InstrumentationRegistry
+import android.graphics.Bitmap
+import java.io.File
+import org.junit.Assert.*
+import org.junit.Rule
+import org.junit.Test
+
+/** Tests provider settings without generating a trip or calling paid services. */
+class MapProviderFlowTest {
+    @get:Rule val rule=createAndroidComposeRule<MainActivity>()
+    private fun click(text:String,scroll:Boolean=false) {
+        val node=rule.onNode(hasText(text,substring=false) and hasClickAction())
+        if(scroll) node.performScrollTo()
+        node.performClick()
+    }
+    @Test fun providerSwitchPersistsAndDoesNotChangeSavedTrip() {
+        rule.waitUntil(30000) {rule.onAllNodesWithText("Buddy 正在处理",substring=true).fetchSemanticsNodes().isEmpty()}
+        var before:String?=null
+        rule.activityRule.scenario.onActivity { activity ->
+            val store=ViewModelProvider(activity)[BuddyStore::class.java]
+            store.resumeSaved();store.chooseMapProvider(MapProvider.SCHEMATIC)
+        }
+        rule.waitUntil(30000) {rule.onAllNodesWithText("Buddy 正在处理",substring=true).fetchSemanticsNodes().isEmpty()}
+        rule.activityRule.scenario.onActivity {activity -> before=ViewModelProvider(activity)[BuddyStore::class.java].trip?.toString()}
+        click("我的")
+        click("OpenStreetMap",true)
+        click("地图")
+        rule.onNodeWithText("© OpenStreetMap contributors").assertIsDisplayed()
+        rule.waitUntil(60000) {rule.onAllNodesWithText("地图已加载",substring=true).fetchSemanticsNodes().isNotEmpty()}
+        rule.waitForIdle()
+        val context=InstrumentationRegistry.getInstrumentation().targetContext
+        val screenshot=InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+        File(context.getExternalFilesDir(null),"map-provider-osm.png").outputStream().use {screenshot.compress(Bitmap.CompressFormat.PNG,100,it)}
+        screenshot.recycle()
+        click("我的")
+        click("Google Maps",true)
+        click("地图")
+        if(!BuildConfig.MAPS_CONFIGURED) rule.onNodeWithText("Google 地图未配置密钥\n请在“我的”切换到 OpenStreetMap").assertExists()
+        rule.activityRule.scenario.recreate()
+        rule.waitUntil(30000) {rule.onAllNodesWithText("Buddy 正在处理",substring=true).fetchSemanticsNodes().isEmpty()}
+        rule.activityRule.scenario.onActivity {activity ->
+            val store=ViewModelProvider(activity)[BuddyStore::class.java]
+            assertEquals(MapProvider.GOOGLE,store.mapProvider)
+            assertEquals(before,store.trip?.toString())
+            store.chooseMapProvider(MapProvider.OSM)
+        }
+    }
+}

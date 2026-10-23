@@ -41,6 +41,20 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
         Assert.False(string.IsNullOrEmpty((await response.Content.ReadFromJsonAsync<JsonObject>())!.Str("error")));
     }
 
+    [Theory]
+    [InlineData("/plan", "live")]
+    [InlineData("/plan", "assisted")]
+    [InlineData("/weather", "demo")]
+    public async Task PaidServiceRequestsAreRejectedInDefaultTestMode(string path, string mode)
+    {
+        var profile=TestSupport.Profile(); profile["mode"]=mode;
+        var response=await fixture.Client.PostAsJsonAsync(path,profile);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity,response.StatusCode);
+        Assert.Contains("禁止付费",(await response.Content.ReadFromJsonAsync<JsonObject>())!.Str("error"));
+        var health=await fixture.Client.GetFromJsonAsync<JsonObject>("/health");
+        Assert.False(health!.Bool("paidServicesAllowed"));
+    }
+
     [Fact]
     public async Task DraftDoesNotSaveUntilConfirmedAndUpdatesRequireCurrentRevision()
     {
@@ -272,6 +286,7 @@ internal sealed class BuddyApiFactory(string connection, ProjectPaths paths) : W
         builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["ConnectionStrings:SydneyBuddy"] = connection,
+            ["AllowPaidServices"] = "false",
             ["SYDNEYBUDDY_ROOT"] = paths.RepoRoot
         }));
         builder.ConfigureServices(services =>
