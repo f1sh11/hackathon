@@ -1,6 +1,12 @@
 package com.sydneybuddy.travel
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.border
+import androidx.compose.animation.core.*
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.*
+import androidx.compose.ui.unit.sp
+import android.animation.ValueAnimator
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -138,16 +144,7 @@ private fun kindLabel(kind:String)=when(kind){"meal"->"用餐";"restroom"->"廁�
             Small(state.optString("source"));TextButton(onClick={showRadar=!showRadar}){Text(if(showRadar)"收起偏好雷達圖"else "旅行偏好雷達圖")};if(showRadar)Radar(state)
             Row {TextButton(onClick={settings=true}){Text("偏好與住宿")};Spacer(Modifier.weight(1f));TextButton(onClick={candidates=true}){Text("景點清單")}}
             val day=state.array("days").getJSONObject(controller.dayIndex)
-            val limits=state.getJSONObject("settings")
-            Panel {
-                Text("完整行程額度",fontWeight=FontWeight.Bold)
-                Text("步數 ${day.optInt("estimatedSteps")} / ${limits.optInt("maxSteps")}")
-                Text("花費 A$${day.optDouble("estimatedCost")} / ${limits.optDouble("dailyBudget")}")
-                Small("全旅程 A$${state.optDouble("totalCost")} / ${limits.optDouble("totalBudget")}")
-                Text("交通 ${day.optInt("transportMinutes")}＋排隊 ${day.optInt("queueMinutes")}＝${day.optInt("timeUsed")} / ${limits.optInt("timeLimit")} 分")
-                Small(if(day.optBoolean("unknownQueue"))"含未知排隊，剩餘僅供規劃參考" else "剩餘 ${max(0,day.optInt("timeRemaining"))} 分")
-                Small("${day.optString("finishTime")} 結束")
-            }
+            ScheduleAllowanceSummary(day,state,controller.dayIndex+1)
             Row{TextButton(onClick=controller::undo){Text("還原上一步")};TextButton(onClick=controller::restore){Text("回到原建議")}}
             if(controller.busy)LinearProgressIndicator(Modifier.fillMaxWidth())
             state.array("issues").objects().filter{it.optInt("day")==controller.dayIndex||it.optInt("day")==-1}.forEach{Small((if(it.optBoolean("blocking"))"⚠ " else "· ")+it.optString("message"))}
@@ -224,4 +221,55 @@ private fun kindLabel(kind:String)=when(kind){"meal"->"用餐";"restroom"->"廁�
         else for(key in listOf("name","lat","lng","cost","openMinute","closeMinute")){val v=fields[key]!!;a.put(key,if(key=="name")v else if(key in listOf("openMinute","closeMinute"))scheduleTimeMinute(v)else v.toDouble())}
         onSave(a,target)
     }.onFailure{invalid=true}}){Text("套用")}},dismissButton={TextButton(onClick=onDismiss){Text("取消")}})
+}
+
+
+internal data class ScheduleAllowance(val limit:Double,val used:Double) {
+    val remaining:Double get()=limit-used
+    val fraction:Float get()=if(limit>0)(remaining/limit).coerceIn(0.0,1.0).toFloat()else 0f
+    val exceeded:Boolean get()=remaining<0
+}
+@Composable internal fun ScheduleAllowanceSummary(day:JSONObject,state:JSONObject,dayNumber:Int) {
+    val limits=state.getJSONObject("settings")
+    val steps=ScheduleAllowance(limits.optDouble("maxSteps"),day.optDouble("estimatedSteps"))
+    val budget=ScheduleAllowance(limits.optDouble("dailyBudget"),day.optDouble("estimatedCost"))
+    val time=ScheduleAllowance(limits.optDouble("timeLimit"),day.optDouble("timeUsed"))
+    val total=ScheduleAllowance(limits.optDouble("totalBudget"),state.optDouble("totalCost"))
+    val overdrawn=listOf(steps,budget,time,total).any{it.exceeded}
+    val pulse=if(overdrawn&&ValueAnimator.areAnimatorsEnabled()){
+        val transition=rememberInfiniteTransition(label="allowance warning")
+        val alpha by transition.animateFloat(initialValue=.55f,targetValue=1f,animationSpec=infiniteRepeatable(tween(1000),RepeatMode.Reverse),label="warning pulse");alpha
+    }else 1f
+    fun integer(n:Double)=String.format(java.util.Locale.US,"%,d",n.toInt())
+    fun money(n:Double)=String.format(java.util.Locale.US,"A$%.2f",n)
+    Column(Modifier.fillMaxWidth().background(Mint,RoundedCornerShape(20.dp)).padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+        Row(verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text("行程剩餘額度",fontWeight=FontWeight.Bold);Text("第 $dayNumber 天 · ${day.optString("date")}",fontSize=10.sp,color=Color.Gray)};if(overdrawn)Text("⚠",color=Color.Red.copy(alpha=pulse),fontSize=20.sp)}
+        AllowanceBar("步行精力","steps",steps,integer(steps.remaining)+" 步",Green,pulse)
+        AllowanceBar("當日預算","budget",budget,money(budget.remaining),Color(0xff008b8b),pulse)
+        AllowanceBar("交通＋排隊時間","time",time,integer(time.remaining)+" 分",Color(0xff287fd6),pulse)
+        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+            AllowanceTile("預估步數",integer(day.optDouble("estimatedSteps")),"上限 ${integer(steps.limit)} 步",Modifier.weight(1f))
+            AllowanceTile("當日花費",money(day.optDouble("estimatedCost")),"全旅程 ${money(state.optDouble("totalCost"))}",Modifier.weight(1f))
+            AllowanceTile("交通＋排隊","${day.optInt("timeUsed")} 分","交通 ${day.optInt("transportMinutes")}＋排隊 ${day.optInt("queueMinutes")}",Modifier.weight(1f))
+        }
+        Text((if(total.exceeded)"⚠ "else "")+"全旅程預算剩餘 ${money(total.remaining)} / ${money(total.limit)}",fontSize=10.sp,color=if(total.exceeded)Color.Red else Color.Gray)
+        if(day.optBoolean("unknownQueue"))Small("含未知排隊，剩餘僅供規劃參考")
+        Small("%02d:%02d 出發 · ${day.optString("finishTime")} 結束".format(day.optInt("startMinute")/60,day.optInt("startMinute")%60))
+    }
+}
+@Composable private fun AllowanceBar(title:String,id:String,value:ScheduleAllowance,remaining:String,color:Color,pulse:Float) {
+    val tint=if(value.exceeded)Color.Red else if(value.fraction<=.2f)Color(0xffbf750b)else color
+    Column(Modifier.testTag("allowance-$id").semantics(mergeDescendants=true){contentDescription="$title，剩餘 $remaining"+(if(value.exceeded)"，已超額"else "")},verticalArrangement=Arrangement.spacedBy(6.dp)) {
+        Row(verticalAlignment=Alignment.CenterVertically){Text(title,fontSize=12.sp,modifier=Modifier.weight(1f));Text("剩餘 $remaining",fontSize=13.sp,fontWeight=FontWeight.Bold,color=tint);if(value.exceeded)Text(" ⚠",color=Color.Red.copy(alpha=pulse),modifier=Modifier.testTag("allowance-warning-$id"))}
+        Row(Modifier.fillMaxWidth().border(1.dp,tint.copy(alpha=if(value.exceeded)pulse else .25f),RoundedCornerShape(5.dp)).padding(3.dp),horizontalArrangement=Arrangement.spacedBy(3.dp)) {
+            repeat(16){index->Box(Modifier.weight(1f).height(12.dp).background(tint.copy(alpha=.13f),RoundedCornerShape(2.dp))){Box(Modifier.fillMaxHeight().fillMaxWidth((value.fraction*16-index).coerceIn(0f,1f)).background(tint,RoundedCornerShape(2.dp)))}}
+        }
+    }
+}
+@Composable private fun AllowanceTile(title:String,value:String,detail:String,modifier:Modifier) {
+    Column(modifier.background(Color.White.copy(alpha=.85f),RoundedCornerShape(12.dp)).padding(8.dp).heightIn(min=68.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
+        Text(title,fontSize=10.sp,color=Color.Gray,maxLines=1)
+        Text(value,fontSize=14.sp,fontWeight=FontWeight.Bold,maxLines=1)
+        Text(detail,fontSize=9.sp,color=Color.Gray,maxLines=2)
+    }
 }

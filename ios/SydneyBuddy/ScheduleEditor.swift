@@ -194,7 +194,7 @@ struct ScheduleRadarView:View {
         .confirmationDialog("保存目前草案？估算與待確認資料會一併保存。",isPresented:$saveWarning,titleVisibility:.visible){Button("確認保存"){if let trip=model.trip {store.proposal=trip;Task{await store.acceptProposal()}}}}
     }
     func summary(_ day:ScheduleDay,_ state:ScheduleState)->some View {
-        VStack(alignment:.leading,spacing:7){Text("完整行程額度").font(.headline);Text("步數 \(day.estimatedSteps) / \(state.settings.maxSteps)");Text(String(format:"花費 A$%.2f / %.2f · 全旅程 A$%.2f",day.estimatedCost,state.settings.dailyBudget,state.totalCost));Text("交通 \(day.transportMinutes)＋景點排隊 \(day.queueMinutes)＝\(day.timeUsed) / \(state.settings.timeLimit) 分");Text(day.unknownQueue ? "含未知排隊，剩餘僅供規劃參考":"剩餘 \(max(0,day.timeRemaining)) 分");Text("\(day.startMinute/60):\(String(format:"%02d",day.startMinute%60)) 出發 · \(day.finishTime) 結束")}.font(.caption).padding(16).frame(maxWidth:.infinity,alignment:.leading).background(Palette.mint,in:RoundedRectangle(cornerRadius:18))
+        ScheduleAllowanceSummary(day:day,state:state,dayNumber:model.dayIndex+1)
     }
     var candidates:some View {NavigationStack{List{Section("新增生活安排（地點待確認）"){ForEach(["meal","restroom","rest","bag-drop","bag-pickup"],id:\.self){kind in Button(["meal":"＋用餐","restroom":"＋廁所","rest":"＋休息","bag-drop":"＋寄放","bag-pickup":"＋取件"][kind] ?? kind){model.addFacility(kind)}}};if let state=model.state {ForEach(state.candidates){c in let selected=state.days.flatMap(\.activities).contains{$0.placeId==c.id};Button{if selected {model.edit{$0.days=model.state!.days.map{day in var day=day;day.activities.removeAll{$0.placeId==c.id};return day}}}else{model.add(c)}}label:{HStack{Image(systemName:selected ? "checkmark.circle.fill":"circle");VStack(alignment:.leading){Text(c.name);Text(c.reason).font(.caption);Text("A$\(Int(c.cost)) · 遊覽 \(c.visitMinutes) 分 · 排隊未知").font(.caption2)}}};Button(model.trip?.profile.mustVisit.contains(c.id)==true ? "★ 必去":"☆ 設為必去"){model.toggleMust(c)}.font(.caption)}}}.navigationTitle("景點選擇").toolbar{Button("完成"){candidateSheet=false}}}}
 }
@@ -252,4 +252,59 @@ struct ScheduleActivityView:View {
         if activity.kind=="attraction" {Section("排隊假設 · 不是即時資料") {Toggle("填入估算",isOn:$assumedQueue);if assumedQueue{Stepper("排隊 \(activity.queueMinutes ?? 0) 分",value:Binding(get:{activity.queueMinutes ?? 0},set:{activity.queueMinutes=$0}),in:0...360,step:5)}}}
         else {Section("服務窗口 · 請自行確認") {Stepper("開放 \((activity.openMinute ?? 0)/60):\(String(format:"%02d",(activity.openMinute ?? 0)%60))",value:Binding(get:{activity.openMinute ?? 0},set:{activity.openMinute=$0}),in:0...1440,step:15);Stepper("結束 \((activity.closeMinute ?? 1440)/60):\(String(format:"%02d",(activity.closeMinute ?? 1440)%60))",value:Binding(get:{activity.closeMinute ?? 1440},set:{activity.closeMinute=$0}),in:0...1440,step:15)}}
     }.navigationTitle("活動時間").toolbar{ToolbarItem(placement:.topBarLeading){Button("取消"){dismiss()}};ToolbarItem(placement:.topBarTrailing){Button("套用"){if !useStart {activity.fixedStart=nil;activity.locked=false};if !assumedQueue{activity.queueMinutes=nil};if targetDay==currentDay{onReplace(activity)}else{onSave(activity,targetDay)};dismiss()}}}.onAppear{targetDay=currentDay;assumedQueue=activity.queueMinutes != nil;useStart=activity.fixedStart != nil}}}
+}
+
+
+// Remaining values may go negative; only the visual bar is clamped to its track.
+struct ScheduleAllowance {
+    var limit:Double;var used:Double
+    var remaining:Double{limit-used}
+    var fraction:Double{limit>0 ? max(0,min(1,remaining/limit)):0}
+    var exceeded:Bool{remaining<0}
+}
+struct ScheduleAllowanceSummary:View {
+    var day:ScheduleDay;var state:ScheduleState;var dayNumber:Int
+    var animateWarnings=true
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private var steps:ScheduleAllowance{.init(limit:Double(state.settings.maxSteps),used:Double(day.estimatedSteps))}
+    private var budget:ScheduleAllowance{.init(limit:state.settings.dailyBudget,used:day.estimatedCost)}
+    private var time:ScheduleAllowance{.init(limit:Double(state.settings.timeLimit),used:Double(day.timeUsed))}
+    private var total:ScheduleAllowance{.init(limit:state.settings.totalBudget,used:state.totalCost)}
+    private var overdrawn:Bool{steps.exceeded || budget.exceeded || time.exceeded || total.exceeded}
+    private func integer(_ value:Double)->String{Int(value).formatted()}
+    private func money(_ value:Double)->String{String(format:"A$%.2f",value)}
+    var body:some View {
+        TimelineView(.animation(minimumInterval:0.1,paused:!overdrawn || reduceMotion || !animateWarnings)){context in
+            let pulse=reduceMotion || !animateWarnings ? 1:0.55+0.45*(sin(context.date.timeIntervalSinceReferenceDate * .pi)+1)/2
+            VStack(alignment:.leading,spacing:12){
+                HStack{VStack(alignment:.leading,spacing:3){Text("行程剩餘額度").font(.headline);Text("第 \(dayNumber) 天 · \(day.date)").font(.caption2).foregroundStyle(Palette.muted)};Spacer();if overdrawn{Image(systemName:"exclamationmark.triangle.fill").foregroundStyle(.red).opacity(pulse).accessibilityLabel("行程額度超出上限")}}
+                bar("步行精力",id:"steps",allowance:steps,value:integer(steps.remaining)+" 步",color:Palette.green,pulse:pulse)
+                bar("當日預算",id:"budget",allowance:budget,value:money(budget.remaining),color:.teal,pulse:pulse)
+                bar("交通＋排隊時間",id:"time",allowance:time,value:integer(time.remaining)+" 分",color:.blue,pulse:pulse)
+                HStack(alignment:.top,spacing:6){
+                    tile("預估步數",value:integer(Double(day.estimatedSteps)),detail:"上限 \(integer(steps.limit)) 步",symbol:"figure.walk")
+                    tile("當日花費",value:money(day.estimatedCost),detail:"全旅程 \(money(state.totalCost))",symbol:"dollarsign.circle")
+                    tile("交通＋排隊",value:"\(day.timeUsed) 分",detail:"交通 \(day.transportMinutes)＋排隊 \(day.queueMinutes)",symbol:"clock")
+                }
+                HStack(alignment:.top,spacing:5){if total.exceeded{Image(systemName:"exclamationmark.triangle.fill").opacity(pulse)};Text("全旅程預算剩餘 "+money(total.remaining)+" / "+money(total.limit)).fixedSize(horizontal:false,vertical:true)}.font(.caption2).foregroundStyle(total.exceeded ? .red:Palette.muted)
+                if day.unknownQueue{Text("含未知排隊，剩餘僅供規劃參考").font(.caption2).foregroundStyle(Palette.muted)}
+                Text("\(String(format:"%02d:%02d",day.startMinute/60,day.startMinute%60)) 出發 · \(day.finishTime) 結束").font(.caption2).foregroundStyle(Palette.muted)
+            }.padding(16).frame(maxWidth:.infinity,alignment:.leading).background(Palette.mint,in:RoundedRectangle(cornerRadius:20))
+        }
+    }
+    private func bar(_ title:String,id:String,allowance:ScheduleAllowance,value:String,color:Color,pulse:Double)->some View {
+        let tint:Color=allowance.exceeded ? .red:allowance.fraction<=0.2 ? .orange:color
+        return VStack(alignment:.leading,spacing:6){
+            HStack{Text(title).font(.caption);Spacer();Text("剩餘 "+value).font(.system(size:13,weight:.bold,design:.rounded)).monospacedDigit().foregroundStyle(tint);if allowance.exceeded{Image(systemName:"exclamationmark.circle.fill").foregroundStyle(.red).opacity(pulse).accessibilityIdentifier("allowance-warning-"+id)}}
+            HStack(spacing:3){ForEach(0..<16){index in
+                GeometryReader{geometry in
+                    RoundedRectangle(cornerRadius:2).fill(tint.opacity(0.13))
+                    RoundedRectangle(cornerRadius:2).fill(tint.gradient).frame(width:geometry.size.width*max(0,min(1,allowance.fraction*16-Double(index))))
+                }
+            }}.frame(height:12).padding(3).overlay(RoundedRectangle(cornerRadius:5).stroke(tint.opacity(allowance.exceeded ? pulse:0.25),lineWidth:1))
+        }.accessibilityElement(children:.ignore).accessibilityLabel(title+"，剩餘 "+value+(allowance.exceeded ? "，已超額":"")).accessibilityIdentifier("allowance-"+id)
+    }
+    private func tile(_ title:String,value:String,detail:String,symbol:String)->some View {
+        VStack(alignment:.leading,spacing:6){Label(title,systemImage:symbol).font(.system(size:10)).foregroundStyle(Palette.muted).lineLimit(1).minimumScaleFactor(0.8);Text(value).font(.system(size:15,weight:.bold,design:.rounded)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.65);Text(detail).font(.system(size:9)).foregroundStyle(Palette.muted).lineLimit(2).fixedSize(horizontal:false,vertical:true)}.frame(maxWidth:.infinity,minHeight:68,alignment:.topLeading).padding(8).background(.white.opacity(0.85),in:RoundedRectangle(cornerRadius:12))
+    }
 }

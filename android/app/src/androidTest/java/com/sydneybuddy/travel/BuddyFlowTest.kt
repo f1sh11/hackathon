@@ -24,7 +24,7 @@ class BuddyFlowTest {
         repeat(7) {click("选好了，继续")}
         click("让 Buddy 规划路线")
         awaitText("我的時間軸")
-        awaitText("完整行程額度")
+        awaitText("行程剩餘額度")
         rule.waitUntil(30000){rule.onAllNodes(hasText("確認並保存") and isEnabled()).fetchSemanticsNodes().isNotEmpty()}
         click("確認並保存")
         rule.onNodeWithText("確認保存").performClick()

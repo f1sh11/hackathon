@@ -2,6 +2,7 @@ package com.sydneybuddy.travel
 
 import android.app.Application
 import android.graphics.Bitmap
+import androidx.compose.runtime.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.geometry.Offset
@@ -47,6 +48,20 @@ class ScheduleEditorTest {
         val image=InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
         File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null),"schedule-android-test.png").outputStream().use{image.compress(Bitmap.CompressFormat.PNG,100,it)};image.recycle()
         c.stop()
+    }
+    @Test fun allowanceShowsNegativeRemainingAndClearsWarningsAfterRecovery() {
+        val state=fixture().getJSONObject("schedule");val limits=state.getJSONObject("settings")
+        val original=state.array("days").getJSONObject(0);var day by mutableStateOf(original.copy().put("estimatedSteps",limits.getInt("maxSteps")+1234).put("estimatedCost",limits.getDouble("dailyBudget")+25).put("timeUsed",limits.getInt("timeLimit")+15))
+        rule.setContent{MaterialTheme{ScheduleAllowanceSummary(day,state,1)}}
+        rule.onNodeWithText("剩餘 -1,234 步").assertIsDisplayed()
+        rule.onNodeWithText("剩餘 A$-25.00").assertIsDisplayed()
+        rule.onNodeWithText("剩餘 -15 分").assertIsDisplayed()
+        for(id in listOf("steps","budget","time"))rule.onNodeWithTag("allowance-warning-$id",useUnmergedTree=true).assertExists()
+        rule.runOnIdle{day=original.copy()}
+        for(id in listOf("steps","budget","time"))rule.onNodeWithTag("allowance-warning-$id",useUnmergedTree=true).assertDoesNotExist()
+        rule.onNodeWithText("預估步數").assertIsDisplayed();rule.onNodeWithText("當日花費").assertIsDisplayed();rule.onNodeWithText("交通＋排隊").assertIsDisplayed()
+        assertEquals(-1234.0,ScheduleAllowance(10000.0,11234.0).remaining,0.0)
+        assertEquals(0f,ScheduleAllowance(0.0,10.0).fraction,0f)
     }
     @Test fun poiMapFollowsSharedProviderWithoutRepeatingSearch() {
         val inst=InstrumentationRegistry.getInstrumentation();lateinit var store:BuddyStore;lateinit var original:MapProvider;var requests=0

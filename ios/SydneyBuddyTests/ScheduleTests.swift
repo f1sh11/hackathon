@@ -4,6 +4,31 @@ import MapKit
 @testable import SydneyBuddy
 
 @MainActor final class ScheduleTests:XCTestCase {
+    func testAllowanceKeepsNegativeRemainingAndClampsOnlyBar() {
+        let over=ScheduleAllowance(limit:10000,used:11234)
+        XCTAssertEqual(over.remaining,-1234);XCTAssertEqual(over.fraction,0);XCTAssertTrue(over.exceeded)
+        XCTAssertEqual(ScheduleAllowance(limit:250,used:50).fraction,0.8)
+        XCTAssertEqual(ScheduleAllowance(limit:180,used:195).remaining,-15)
+        XCTAssertEqual(ScheduleAllowance(limit:0,used:10).fraction,0)
+        XCTAssertTrue(ScheduleAllowance(limit:0,used:10).exceeded)
+        XCTAssertFalse(ScheduleAllowance(limit:0,used:0).exceeded)
+        XCTAssertFalse(ScheduleAllowance(limit:100,used:100).exceeded)
+    }
+    func testAllowanceSummaryRendersNormalAndExceededDrafts() async throws {
+        let scene=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.first!
+        let old=scene.windows.first{$0.isKeyWindow};let window=UIWindow(windowScene:scene);window.frame=scene.screen.bounds
+        defer{window.isHidden=true;old?.makeKeyAndVisible()}
+        for exceeded in [false,true] {
+            var state=try fixture().schedule!;var day=state.days[0]
+            if exceeded{day.estimatedSteps=state.settings.maxSteps+1234;day.estimatedCost=state.settings.dailyBudget+25;day.timeUsed=state.settings.timeLimit+15;day.transportMinutes=day.timeUsed;day.queueMinutes=0;state.totalCost=state.settings.totalBudget+50}
+            window.rootViewController=UIHostingController(rootView:VStack{ScheduleAllowanceSummary(day:day,state:state,dayNumber:1,animateWarnings:false);Spacer()}.padding(18).background(Palette.cream))
+            window.makeKeyAndVisible();try await Task.sleep(nanoseconds:250_000_000)
+            let image=UIGraphicsImageRenderer(bounds:window.bounds).image{_ in window.drawHierarchy(in:window.bounds,afterScreenUpdates:true)}
+            let url=FileManager.default.temporaryDirectory.appendingPathComponent("allowance-"+(exceeded ? "exceeded":"normal")+".png")
+            try image.pngData()!.write(to:url);print("ALLOWANCE_PREVIEW: "+url.path)
+            XCTAssertGreaterThan(image.size.width,300)
+        }
+    }
     func testPoiNativeMapRemovesOsmTilesOnAppleSwitchAndKeepsPinsAndCamera() async throws {
         let store=AppStore();let original=store.mapProvider;defer{store.mapProvider=original};store.mapProvider = .osm
         let points=try fixture().schedule!.candidates
