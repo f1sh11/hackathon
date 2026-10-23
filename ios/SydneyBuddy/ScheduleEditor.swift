@@ -65,6 +65,19 @@ struct ScheduleState:Codable {
         guard var value=state else{return};if var snapshot=pendingSnapshot ?? trip {if pendingSnapshot == nil {snapshot.schedule=value};history.append(snapshot);if history.count>25{history.removeFirst()}};pendingSnapshot=nil
         change(&value);state=value;recompute()
     }
+    func retime(_ id:String,start:Int,duration:Int) {
+        guard let a=state?.days[dayIndex].activities.first(where:{$0.id==id}),a.locked != true else{return}
+        edit {state in
+            let i=state.days[dayIndex].activities.firstIndex(where:{$0.id==id})!
+            state.days[dayIndex].activities[i].fixedStart=max(0,min(1439,start))
+            state.days[dayIndex].activities[i].scheduledStart=max(0,min(1439,start))
+            state.days[dayIndex].activities[i].duration=max(5,min(240,duration))
+            state.days[dayIndex].activities=state.days[dayIndex].activities.enumerated().sorted {
+                let l=$0.element.fixedStart ?? $0.element.scheduledStart,r=$1.element.fixedStart ?? $1.element.scheduledStart
+                return l==r ? $0.offset<$1.offset:l<r
+            }.map(\.element)
+        }
+    }
     func reorder(_ id:String,before target:String) {
         guard let day=state?.days[dayIndex],let source=day.activities.firstIndex(where:{$0.id==id}),let dest=day.activities.firstIndex(where:{$0.id==target}),source != dest else{return}
         edit {let a=$0.days[dayIndex].activities.remove(at:source);$0.days[dayIndex].activities.insert(a,at:min(dest,$0.days[dayIndex].activities.count))}
@@ -107,17 +120,12 @@ struct ScheduleRadarView:View {
         }
     }
 }
-private struct ScheduleFrames:PreferenceKey {
-    static var defaultValue:[String:CGRect]=[:]
-    static func reduce(value:inout [String:CGRect],nextValue:()->[String:CGRect]){value.merge(nextValue(),uniquingKeysWith:{$1})}
-}
 @MainActor struct ScheduleEditorView:View {
     @EnvironmentObject var store:AppStore
     @StateObject private var model:ScheduleEditorModel
     init(model:ScheduleEditorModel? = nil){_model=StateObject(wrappedValue:model ?? ScheduleEditorModel())}
     @State private var candidateSheet=false;@State private var settingsSheet=false;@State private var editing:ScheduleActivity?
-    @State private var frames:[String:CGRect]=[:];@State private var dragOrigin:CGFloat=0;@State private var dragOffset:CGFloat=0
-    @State private var dragged:String?;@State private var resize:[String:Double]=[:];@State private var saveWarning=false
+    @State private var saveWarning=false
     var body:some View {
         NavigationStack {
             ScrollView {
@@ -134,14 +142,14 @@ private struct ScheduleFrames:PreferenceKey {
                         if model.busy {ProgressView("更新交通與等待時間…").font(.caption)}
                         ForEach(state.issues.filter{$0.day==model.dayIndex || $0.day == -1}) {issue in Label(issue.message,systemImage:issue.blocking ? "exclamationmark.triangle.fill":"info.circle").font(.caption).foregroundStyle(issue.blocking ? .red:.orange).padding(10).frame(maxWidth:.infinity,alignment:.leading).background(.white,in:RoundedRectangle(cornerRadius:12))}
                         Label(day.start.name+" 出發",systemImage:"location.fill").font(.subheadline.bold())
-                        ForEach(day.activities) {activity in activityCard(activity)}
+                        ScheduleTimeCanvas(day:day,onChange:{id,start,duration in model.retime(id,start:start,duration:duration)},onEdit:{editing=$0},onAdd:{candidateSheet=true})
                         Label(day.end.name+" · "+day.finishTime,systemImage:"flag.checkered").font(.subheadline.bold())
                         if state.rainy {Text("下雨測試：戶外活動已標示，可從景點清單替換室內地點。").font(.caption)}
                         Button(state.rainy ? "切回晴天示例":"測試下雨影響"){model.edit{$0.rainy.toggle()}}
                         Button("依目前偏好重新建議（會重選活動）"){model.recompute(regenerate:true)}.font(.caption)
                     }else if model.busy {ProgressView("建立多日首版行程…")}else {Text(model.error ?? "準備行程編輯器");Button("重試"){model.recompute(regenerate:true)}}
                 }.padding(20)
-            }.coordinateSpace(name:"scheduleViewport").onPreferenceChange(ScheduleFrames.self){values in for (id,frame) in values where id != dragged{frames[id]=frame}}.background(Palette.cream).navigationTitle("我的時間軸").navigationBarTitleDisplayMode(.inline)
+            }.background(Palette.cream).navigationTitle("我的時間軸").navigationBarTitleDisplayMode(.inline)
             .toolbar {ToolbarItem(placement:.topBarLeading){Button("取消"){model.stop();store.proposal=nil}}}
             .safeAreaInset(edge:.bottom){Button("確認並保存"){saveWarning=true}.buttonStyle(.borderedProminent).tint(Palette.green).disabled(model.busy || model.dirty || model.state == nil || model.state?.issues.contains(where:\.blocking)==true).padding().frame(maxWidth:.infinity).background(Palette.cream)}
         }
@@ -151,34 +159,13 @@ private struct ScheduleFrames:PreferenceKey {
         .sheet(isPresented:$settingsSheet){ScheduleSettingsView(model:model)}
         .sheet(item:$editing){activity in ScheduleActivityView(activity:activity,days:model.state?.days.count ?? 1,currentDay:model.dayIndex,onSave:{updated,target in
             model.edit{state in let source=model.dayIndex;state.days[source].activities.removeAll{$0.id==updated.id};let dest=min(target,state.days.count-1);state.days[dest].activities.append(updated)}
-        },onReplace:{updated in model.edit{state in if let index=state.days[model.dayIndex].activities.firstIndex(where:{$0.id==updated.id}){state.days[model.dayIndex].activities[index]=updated}}})}
+        },onReplace:{updated in model.edit{state in if let index=state.days[model.dayIndex].activities.firstIndex(where:{$0.id==updated.id}){state.days[model.dayIndex].activities[index]=updated}}},onDelete:{model.edit{$0.days[model.dayIndex].activities.removeAll{$0.id==activity.id}}})}
         .alert("需要留意",isPresented:Binding(get:{model.notice != nil},set:{if !$0{model.notice=nil}})){Button("繼續調整"){}}message:{Text(model.notice ?? "")}
         .alert("試算未完成",isPresented:Binding(get:{model.error != nil},set:{if !$0{model.error=nil}})){Button("重試"){model.recompute()};Button("保留草案",role:.cancel){}}message:{Text(model.error ?? "")}
         .confirmationDialog("保存目前草案？估算與待確認資料會一併保存。",isPresented:$saveWarning,titleVisibility:.visible){Button("確認保存"){if let trip=model.trip {store.proposal=trip;Task{await store.acceptProposal()}}}}
     }
     func summary(_ day:ScheduleDay,_ state:ScheduleState)->some View {
         VStack(alignment:.leading,spacing:7){Text("完整行程額度").font(.headline);Text("步數 \(day.estimatedSteps) / \(state.settings.maxSteps)");Text(String(format:"花費 A$%.2f / %.2f · 全旅程 A$%.2f",day.estimatedCost,state.settings.dailyBudget,state.totalCost));Text("交通 \(day.transportMinutes)＋景點排隊 \(day.queueMinutes)＝\(day.timeUsed) / \(state.settings.timeLimit) 分");Text(day.unknownQueue ? "含未知排隊，剩餘僅供規劃參考":"剩餘 \(max(0,day.timeRemaining)) 分");Text("\(day.startMinute/60):\(String(format:"%02d",day.startMinute%60)) 出發 · \(day.finishTime) 結束")}.font(.caption).padding(16).frame(maxWidth:.infinity,alignment:.leading).background(Palette.mint,in:RoundedRectangle(cornerRadius:18))
-    }
-    func activityCard(_ a:ScheduleActivity)->some View {
-        VStack(alignment:.leading,spacing:7){
-            if a.travelMinutes>0 {Label("步行交通約 \(a.travelMinutes) 分 · 示範估算",systemImage:"figure.walk").font(.caption2).foregroundStyle(Palette.muted)}
-            HStack(alignment:.top){Text(a.arrival).font(.caption.monospacedDigit()).frame(width:42);VStack(alignment:.leading,spacing:8){
-                HStack{Text(a.label).font(.caption).foregroundStyle(Palette.green);if a.locked==true{Image(systemName:"lock.fill")};Spacer();Image(systemName:"line.3.horizontal").padding(8).contentShape(Rectangle()).highPriorityGesture(DragGesture(minimumDistance:0).onChanged{value in
-                    guard a.locked != true else{return};if dragged == nil {dragged=a.id;dragOrigin=frames[a.id]?.midY ?? 0};dragOffset=value.translation.height
-                }.onEnded{value in
-                    guard dragged==a.id else{return};let y=dragOrigin+value.translation.height
-                    let active=Set(model.state?.days[model.dayIndex].activities.map(\.id) ?? []);let target=frames.filter{active.contains($0.key)}.min{abs($0.value.midY-y)<abs($1.value.midY-y)}?.key
-                    dragged=nil;dragOffset=0;if let target,target != a.id{model.reorder(a.id,before:target)}
-                }).accessibilityLabel("拖動活動排序")}
-                Text(a.name).font(.subheadline.bold())
-                Text("\(a.arrival)–\(a.departure) · 停留 \(a.duration) 分 · A$\(Int(a.cost))").font(.caption)
-                if a.kind=="attraction" {Text(a.queueMinutes.map{"排隊假設 \($0) 分"} ?? "排隊時間未知").font(.caption2).foregroundStyle(Palette.muted)}
-                HStack{Button("↑"){model.move(a.id,by:-1)};Button("↓"){model.move(a.id,by:1)};Button("編輯"){editing=a};Spacer();Button("移除"){model.edit{$0.days[model.dayIndex].activities.removeAll{$0.id==a.id}}}}.font(.caption)
-                if a.locked != true {
-                    HStack{Spacer();Text("拉下緣調整 · \(min(240,max(5,a.duration+Int((resize[a.id] ?? 0)/10)*5))) 分").font(.caption2);Spacer()}.frame(height:28).background(Palette.green.opacity(0.12),in:Capsule()).gesture(DragGesture(minimumDistance:5).onChanged{resize[a.id]=$0.translation.height}.onEnded{v in let duration=min(240,max(5,a.duration+Int(v.translation.height/10)*5));resize[a.id]=nil;model.edit{if let i=$0.days[model.dayIndex].activities.firstIndex(where:{$0.id==a.id}){$0.days[model.dayIndex].activities[i].duration=duration}}})
-                }
-            }.padding(13).frame(maxWidth:.infinity,minHeight:CGFloat(min(200,90+a.duration))).background(.white,in:RoundedRectangle(cornerRadius:16))}
-        }.background(GeometryReader{proxy in Color.clear.preference(key:ScheduleFrames.self,value:[a.id:proxy.frame(in:.named("scheduleViewport"))])}).offset(y:dragged==a.id ? dragOffset:0).zIndex(dragged==a.id ? 1:0)
     }
     var candidates:some View {NavigationStack{List{Section("新增生活安排（地點待確認）"){ForEach(["meal","restroom","rest","bag-drop","bag-pickup"],id:\.self){kind in Button(["meal":"＋用餐","restroom":"＋廁所","rest":"＋休息","bag-drop":"＋寄放","bag-pickup":"＋取件"][kind] ?? kind){model.addFacility(kind)}}};if let state=model.state {ForEach(state.candidates){c in let selected=state.days.flatMap(\.activities).contains{$0.placeId==c.id};Button{if selected {model.edit{$0.days=model.state!.days.map{day in var day=day;day.activities.removeAll{$0.placeId==c.id};return day}}}else{model.add(c)}}label:{HStack{Image(systemName:selected ? "checkmark.circle.fill":"circle");VStack(alignment:.leading){Text(c.name);Text(c.reason).font(.caption);Text("A$\(Int(c.cost)) · 遊覽 \(c.visitMinutes) 分 · 排隊未知").font(.caption2)}}};Button(model.trip?.profile.mustVisit.contains(c.id)==true ? "★ 必去":"☆ 設為必去"){model.toggleMust(c)}.font(.caption)}}}.navigationTitle("景點選擇").toolbar{Button("完成"){candidateSheet=false}}}}
 }
@@ -217,7 +204,7 @@ struct ScheduleSettingsView:View {
 struct ScheduleActivityView:View {
     @State var activity:ScheduleActivity
     var days:Int;var currentDay:Int=0
-    var onSave:(ScheduleActivity,Int)->Void;var onReplace:(ScheduleActivity)->Void
+    var onSave:(ScheduleActivity,Int)->Void;var onReplace:(ScheduleActivity)->Void;var onDelete:()->Void = {}
     @State private var targetDay=0
     @State private var assumedQueue=false
     @State private var useStart=false
@@ -225,6 +212,7 @@ struct ScheduleActivityView:View {
     var body:some View {NavigationStack{Form {
         Section("活動") {
             Text(activity.name)
+            Button("移除此活動",role:.destructive){onDelete();dismiss()}
             if activity.kind != "attraction" {TextField("名稱",text:$activity.name);TextField("緯度",value:$activity.lat,format:.number);TextField("經度",value:$activity.lng,format:.number);TextField("費用 A$",value:$activity.cost,format:.number)}
             Stepper("停留 \(activity.duration) 分",value:$activity.duration,in:5...240,step:5).disabled(activity.locked==true)
             Toggle("指定開始時間",isOn:$useStart)

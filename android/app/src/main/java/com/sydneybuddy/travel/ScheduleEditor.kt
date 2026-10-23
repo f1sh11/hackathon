@@ -2,8 +2,6 @@ package com.sydneybuddy.travel
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
@@ -14,15 +12,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.positionInRoot
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.font.FontWeight
 import kotlinx.coroutines.*
@@ -65,6 +57,13 @@ internal class ScheduleController(val store:BuddyStore,val scope:CoroutineScope,
         history.addLast(pendingSnapshot ?: trip.copy().put("schedule",value.copy()));pendingSnapshot=null;if(history.size>25)history.removeFirst()
         change(value);state=value;request()
     }
+    fun retime(id:String,start:Int,duration:Int) {
+        if(state!!.array("days").getJSONObject(dayIndex).array("activities").objects().firstOrNull{it.optString("id")==id}?.optBoolean("locked")!=false)return
+        edit {s->val day=s.array("days").getJSONObject(dayIndex);val items=day.array("activities").objects()
+            items.first{it.optString("id")==id}.put("fixedStart",start.coerceIn(0,1439)).put("scheduledStart",start.coerceIn(0,1439)).put("duration",duration.coerceIn(5,240))
+            day.put("activities",JSONArray(items.sortedBy{if(it.isNull("fixedStart"))it.optInt("scheduledStart")else it.optInt("fixedStart")}))
+        }
+    }
     fun reorder(id:String,target:Int) {edit {s->val day=s.array("days").getJSONObject(dayIndex);val items=day.array("activities").objects().toMutableList();val i=items.indexOfFirst{it.optString("id")==id};if(i>=0){val a=items.removeAt(i);items.add(target.coerceIn(0,items.size),a);day.put("activities",JSONArray(items))}}}
     fun undo(){if(history.isNotEmpty()){trip=history.removeLast();state=trip.getJSONObject("schedule");request()}}
     fun restore(){trip=seed.copy();state=trip.optJSONObject("schedule");request(state==null)}
@@ -98,8 +97,6 @@ private fun kindLabel(kind:String)=when(kind){"meal"->"用餐";"restroom"->"廁�
 @Composable internal fun ScheduleEditorScreen(store:BuddyStore,suppliedController:ScheduleController?=null) {
     val scope=rememberCoroutineScope();val controller=remember{suppliedController ?: ScheduleController(store,scope)}
     var candidates by remember{mutableStateOf(false)};var settings by remember{mutableStateOf(false)};var editing by remember{mutableStateOf<JSONObject?>(null)};var confirm by remember{mutableStateOf(false)};var showRadar by remember{mutableStateOf(false)}
-    val bounds=remember{mutableMapOf<String,Rect>()};var dragged by remember{mutableStateOf<String?>(null)};var offset by remember{mutableFloatStateOf(0f)}
-    val density=LocalDensity.current.density
     LaunchedEffect(Unit){if(controller.state==null)controller.request(true)}
     DisposableEffect(Unit){onDispose{controller.stop()}}
     val state=controller.state
@@ -125,22 +122,7 @@ private fun kindLabel(kind:String)=when(kind){"meal"->"用餐";"restroom"->"廁�
             if(controller.busy)LinearProgressIndicator(Modifier.fillMaxWidth())
             state.array("issues").objects().filter{it.optInt("day")==controller.dayIndex||it.optInt("day")==-1}.forEach{Small((if(it.optBoolean("blocking"))"⚠ " else "· ")+it.optString("message"))}
             Text("${day.getJSONObject("start").optString("name")} 出發",fontWeight=FontWeight.Bold)
-            val activities=day.array("activities").objects()
-            activities.forEachIndexed{index,a->key(a.getString("id")){
-                val id=a.getString("id");var resize by remember{mutableFloatStateOf(0f)}
-                if(a.optInt("travelMinutes")>0)Small("↓ 步行交通約 ${a.optInt("travelMinutes")} 分 · 示範估算")
-                Row(Modifier.fillMaxWidth().onGloballyPositioned{if(dragged!=id){val p=it.positionInRoot();bounds[id]=Rect(p.x,p.y,p.x+it.size.width,p.y+it.size.height)}}.graphicsLayer{translationY=if(dragged==id)offset else 0f},verticalAlignment=Alignment.Top){
-                    Text(a.optString("arrival"),Modifier.width(47.dp),style=MaterialTheme.typography.labelMedium)
-                    Column(Modifier.weight(1f).heightIn(min=(110+a.optInt("duration").coerceAtMost(130)).dp).background(Color.White,RoundedCornerShape(17.dp)).padding(13.dp),verticalArrangement=Arrangement.spacedBy(7.dp)){
-                        Row(verticalAlignment=Alignment.CenterVertically){Text(kindLabel(a.optString("kind")),color=Green,style=MaterialTheme.typography.labelMedium);Spacer(Modifier.weight(1f));Text(if(a.optBoolean("locked"))"已鎖定" else "☰ 拖動排序",Modifier.pointerInput(id,a.optBoolean("locked")){if(!a.optBoolean("locked"))detectDragGestures(onDragStart={dragged=id;offset=0f},onDrag={change,amount->change.consume();offset+=amount.y},onDragEnd={val original=bounds[id];if(original!=null){val y=original.center.y+offset;val target=activities.indices.minByOrNull{abs((bounds[activities[it].optString("id")]?.center?.y ?: Float.MAX_VALUE)-y)};if(target!=null&&target!=index)controller.reorder(id,target)};dragged=null;offset=0f},onDragCancel={dragged=null;offset=0f})},style=MaterialTheme.typography.labelSmall)}
-                        Text(a.optString("name"),fontWeight=FontWeight.Bold)
-                        Small("${a.optString("arrival")}–${a.optString("departure")} · 停留 ${a.optInt("duration")} 分 · A$${a.optDouble("cost")}")
-                        if(a.optString("kind")=="attraction")Small(if(a.isNull("queueMinutes"))"排隊時間未知" else "排隊假設 ${a.optInt("queueMinutes")} 分")
-                        Row{TextButton(onClick={controller.reorder(id,index-1)},enabled=index>0&&!a.optBoolean("locked"),contentPadding=PaddingValues(4.dp)){Text("↑")};TextButton(onClick={controller.reorder(id,index+1)},enabled=index<activities.lastIndex&&!a.optBoolean("locked"),contentPadding=PaddingValues(4.dp)){Text("↓")};TextButton(onClick={editing=a.copy()},contentPadding=PaddingValues(4.dp)){Text("編輯")};TextButton(onClick={controller.edit{s->val d=s.array("days").getJSONObject(controller.dayIndex);d.put("activities",JSONArray(d.array("activities").objects().filterNot{it.optString("id")==id}))}},contentPadding=PaddingValues(4.dp)){Text("移除")}}
-                        if(!a.optBoolean("locked"))Text("━ 拉下緣調整 · ${(a.optInt("duration")+(resize/density/10).toInt()*5).coerceIn(5,240)} 分",Modifier.fillMaxWidth().background(Mint,RoundedCornerShape(12.dp)).padding(8.dp).pointerInput(id,a.optInt("duration")){detectVerticalDragGestures(onDragStart={resize=0f},onVerticalDrag={change,amount->change.consume();resize+=amount},onDragEnd={val duration=(a.optInt("duration")+(resize/density/10).toInt()*5).coerceIn(5,240);resize=0f;controller.edit{s->s.array("days").getJSONObject(controller.dayIndex).array("activities").objects().first{it.optString("id")==id}.put("duration",duration)}})},style=MaterialTheme.typography.labelSmall)
-                    }
-                }
-            }}
+            ScheduleTimeCanvas(day,onChange={id,start,duration->controller.retime(id,start,duration)},onEdit={editing=it.copy()},onAdd={candidates=true})
             Text("${day.getJSONObject("end").optString("name")} · ${day.optString("finishTime")}")
             TextButton(onClick={controller.edit{it.put("rainy",!it.optBoolean("rainy"))}}){Text(if(state.optBoolean("rainy"))"切回晴天示例" else "測試下雨影響")}
             TextButton(onClick={controller.request(true)}){Text("依目前偏好重新建議（重選活動）")}
@@ -153,7 +135,7 @@ private fun kindLabel(kind:String)=when(kind){"meal"->"用餐";"restroom"->"廁�
     if(confirm)AlertDialog(onDismissRequest={confirm=false},text={Text("保存目前草案？估算及待確認資料會一併保存。")},confirmButton={TextButton(onClick={confirm=false;store.applyScheduleDraft(controller.trip);store.accept()}){Text("確認保存")}},dismissButton={TextButton(onClick={confirm=false}){Text("取消")}})
     if(candidates&&state!=null)ScheduleCandidates(controller){candidates=false}
     if(settings&&state!=null)ScheduleSettingsDialog(controller){settings=false}
-    editing?.let{a->ScheduleActivityDialog(a,state!!.array("days").length(),controller.dayIndex,onDismiss={editing=null}){updated,target->controller.edit{s->val source=s.array("days").getJSONObject(controller.dayIndex);val list=source.array("activities").objects();if(target==controller.dayIndex)source.put("activities",JSONArray(list.map{if(it.optString("id")==updated.optString("id"))updated else it}))else{source.put("activities",JSONArray(list.filterNot{it.optString("id")==updated.optString("id")}));s.array("days").getJSONObject(target).array("activities").put(updated)}};editing=null}}
+    editing?.let{a->ScheduleActivityDialog(a,state!!.array("days").length(),controller.dayIndex,onDismiss={editing=null},onDelete={controller.edit{s->val d=s.array("days").getJSONObject(controller.dayIndex);d.put("activities",JSONArray(d.array("activities").objects().filterNot{it.optString("id")==a.optString("id")}))};editing=null}){updated,target->controller.edit{s->val source=s.array("days").getJSONObject(controller.dayIndex);val list=source.array("activities").objects();if(target==controller.dayIndex)source.put("activities",JSONArray(list.map{if(it.optString("id")==updated.optString("id"))updated else it}))else{source.put("activities",JSONArray(list.filterNot{it.optString("id")==updated.optString("id")}));s.array("days").getJSONObject(target).array("activities").put(updated)}};editing=null}}
 }
 
 @Composable private fun ScheduleCandidates(c:ScheduleController,onDismiss:()->Unit) {
@@ -189,12 +171,13 @@ private fun kindLabel(kind:String)=when(kind){"meal"->"用餐";"restroom"->"廁�
         c.edit{s->s.put("settings",values);stays.forEachIndexed{i,stay->s.array("days").getJSONObject(i).put("stay",stay).put("startMinute",scheduleTimeMinute(fields["$i:startMinute"]!!)).put("endMinute",scheduleTimeMinute(fields["$i:endMinute"]!!))}};onDismiss()
     }.onFailure{invalid=true}}){Text("套用")}},dismissButton={TextButton(onClick=onDismiss){Text("取消")}})
 }
-@Composable private fun ScheduleActivityDialog(original:JSONObject,days:Int,currentDay:Int,onDismiss:()->Unit,onSave:(JSONObject,Int)->Unit) {
+@Composable private fun ScheduleActivityDialog(original:JSONObject,days:Int,currentDay:Int,onDismiss:()->Unit,onDelete:()->Unit={},onSave:(JSONObject,Int)->Unit) {
     val fields=remember{mutableStateMapOf<String,String>().apply{for(key in listOf("name","duration","lat","lng","cost","queueMinutes","openMinute","closeMinute"))put(key,if(key=="queueMinutes"&&original.isNull(key))"" else if(key in listOf("openMinute","closeMinute"))scheduleTimeLabel(original.optInt(key,if(key=="closeMinute")1440 else 0)) else original.optString(key))}}
     var target by remember{mutableIntStateOf(currentDay)};var fixed by remember{mutableStateOf(!original.isNull("fixedStart"))};var locked by remember{mutableStateOf(original.optBoolean("locked"))};var start by remember{mutableStateOf(scheduleTimeLabel(if(original.isNull("fixedStart"))original.optInt("scheduledStart")else original.optInt("fixedStart")))}
     var invalid by remember{mutableStateOf(false)}
     AlertDialog(onDismissRequest=onDismiss,title={Text("活動時間")},text={Column(Modifier.heightIn(max=490.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)){
         Text(original.optString("name"))
+        TextButton(onClick=onDelete){Text("移除此活動",color=Color.Red)}
         OutlinedTextField(fields["duration"] ?: "",{fields["duration"]=it},enabled=!locked,label={Text("停留分鐘")},singleLine=true)
         Row(verticalAlignment=Alignment.CenterVertically){Checkbox(fixed,{fixed=it});Text("指定開始時間")}
         if(fixed)OutlinedTextField(start,{start=it},label={Text("開始時間 HH:mm")},singleLine=true)

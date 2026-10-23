@@ -3,6 +3,30 @@ import SwiftUI
 @testable import SydneyBuddy
 
 @MainActor final class ScheduleTests:XCTestCase {
+    func testTimeHandlesSnapAndKeepOppositeEdge() {
+        XCTAssertEqual(ScheduleTimeEdit.drag(start:600,duration:60,queue:0,delta:-2.5,edge:0),ScheduleTimeEdit(start:595,duration:60))
+        XCTAssertEqual(ScheduleTimeEdit.drag(start:600,duration:60,queue:10,delta:13,edge:0),ScheduleTimeEdit(start:615,duration:60))
+        let top=ScheduleTimeEdit.drag(start:600,duration:60,queue:10,delta:13,edge:-1)
+        XCTAssertEqual(top,ScheduleTimeEdit(start:615,duration:45))
+        XCTAssertEqual(top.start+10+top.duration,670)
+        XCTAssertEqual(ScheduleTimeEdit.drag(start:600,duration:60,queue:10,delta:13,edge:1),ScheduleTimeEdit(start:600,duration:75))
+        XCTAssertEqual(ScheduleTimeEdit.drag(start:0,duration:5,queue:0,delta:-100,edge:-1),ScheduleTimeEdit(start:0,duration:5))
+        XCTAssertEqual(ScheduleTimeEdit.drag(start:600,duration:60,queue:0,delta:1000,edge:-1).duration,5)
+        XCTAssertEqual(ScheduleTimeEdit.drag(start:600,duration:60,queue:0,delta:1000,edge:1).duration,240)
+    }
+    func testMovingTimeSortsDraftAndUndoRestoresIt() async throws {
+        let trip=try fixture();let model=ScheduleEditorModel();model.prepare(trip)
+        model.loader={request in let body=try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:Any];var raw=body["trip"] as! [String:Any];var state=raw["schedule"] as! [String:Any];state["days"]=body["days"];raw["schedule"]=state;return (try JSONSerialization.data(withJSONObject:raw),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)}
+        let first=model.state!.days[0].activities[0]
+        model.retime(first.id,start:750,duration:first.duration)
+        for _ in 0..<100 {if !model.busy{break};try await Task.sleep(nanoseconds:10_000_000)}
+        XCTAssertNotEqual(model.state!.days[0].activities[0].id,first.id)
+        XCTAssertEqual(model.state!.days[0].activities.first{$0.id==first.id}?.fixedStart,750)
+        model.undo()
+        for _ in 0..<100 {if !model.busy{break};try await Task.sleep(nanoseconds:10_000_000)}
+        XCTAssertEqual(model.state!.days[0].activities[0].id,first.id)
+        XCTAssertNil(model.state!.days[0].activities[0].fixedStart);model.stop()
+    }
     func fixture() throws -> Trip {try JSONDecoder().decode(Trip.self,from:Data(contentsOf:Bundle(for:Self.self).url(forResource:"schedule-trip-test",withExtension:"json")!))}
     func testLegacyAndroidProfileWithoutRequestCanStillBeRead() throws {
         var raw=try JSONSerialization.jsonObject(with:JSONEncoder().encode(fixture())) as! [String:Any]

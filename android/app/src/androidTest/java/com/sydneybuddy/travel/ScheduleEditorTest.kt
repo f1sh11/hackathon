@@ -50,20 +50,40 @@ class ScheduleEditorTest {
     }
     @Test fun timelineHandleLongDragChangesTheActualOrder() {
         val c=setup();val first=c.state!!.array("days").getJSONObject(0).array("activities").getJSONObject(0).getString("id")
-        rule.onAllNodesWithText("☰ 拖動排序")[1].performScrollTo()
-        rule.onAllNodesWithText("☰ 拖動排序").onFirst().performTouchInput {
-            down(center);advanceEventTime(800);moveBy(Offset(0f,650f),delayMillis=700);up()
+        rule.onNodeWithTag("schedule-move-$first").performScrollTo().performTouchInput {
+            down(center);advanceEventTime(32);moveBy(Offset(0f,650f),delayMillis=700);up()
         }
         rule.waitUntil(5000){!c.busy}
         assertNotEquals(first,c.state!!.array("days").getJSONObject(0).array("activities").getJSONObject(0).getString("id"));c.stop()
     }
+    @Test fun shortActivityStillOpensDetailsAndCanBeRemovedAndUndone() {
+        val c=setup();val before=c.state!!.array("days").getJSONObject(0).array("activities").objects();val id=before.first().getString("id")
+        rule.onNodeWithTag("schedule-edit-$id").performScrollTo().performClick()
+        rule.onNodeWithText("移除此活動").performClick()
+        rule.waitUntil(5000){!c.busy}
+        assertEquals(before.size-1,c.state!!.array("days").getJSONObject(0).array("activities").length())
+        rule.runOnIdle{c.undo()};rule.waitUntil(5000){!c.busy}
+        assertEquals(id,c.state!!.array("days").getJSONObject(0).array("activities").getJSONObject(0).getString("id"));c.stop()
+    }
+    @Test fun topHandleChangesStartAndKeepsFinish() {
+        val c=setup();val activity=c.state!!.array("days").getJSONObject(0).array("activities").getJSONObject(1)
+        val id=activity.getString("id");val start=activity.getInt("scheduledStart");val duration=activity.getInt("duration")
+        rule.onNodeWithTag("schedule-start-$id").performScrollTo().performTouchInput {
+            down(center);advanceEventTime(32);moveBy(Offset(0f,100f),delayMillis=500);up()
+        }
+        rule.waitUntil(5000){!c.busy}
+        val after=c.state!!.array("days").getJSONObject(0).array("activities").objects().first{it.getString("id")==id}
+        assertTrue(after.getInt("fixedStart")>start)
+        assertEquals(start+duration,after.getInt("fixedStart")+after.getInt("duration"));c.stop()
+    }
     @Test fun reorderResizeAndUndoSendUpdatedActivitiesToApi() {
         val c=setup();val original=c.state!!.array("days").getJSONObject(0).array("activities").objects().map{it.getString("id")}
-        rule.onAllNodesWithText("↓").onFirst().performScrollTo().performClick()
+        rule.runOnIdle{c.retime(original[0],750,10)}
         rule.waitUntil(5000){!c.busy}
-        assertEquals(original[0],c.state!!.array("days").getJSONObject(0).array("activities").getJSONObject(1).getString("id"))
+        assertNotEquals(original[0],c.state!!.array("days").getJSONObject(0).array("activities").getJSONObject(0).getString("id"))
         val duration=c.state!!.array("days").getJSONObject(0).array("activities").getJSONObject(0).getInt("duration")
-        rule.onAllNodesWithText("拉下緣調整",substring=true).onFirst().performScrollTo().performTouchInput {
+        val id=c.state!!.array("days").getJSONObject(0).array("activities").getJSONObject(0).getString("id")
+        rule.onNodeWithTag("schedule-end-$id").performScrollTo().performTouchInput {
             down(center);advanceEventTime(32);moveTo(center+Offset(0f,90f),delayMillis=500);up()
         }
         rule.waitUntil(5000){!c.busy}
