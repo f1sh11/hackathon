@@ -1,6 +1,6 @@
 # Sydney Buddy · 悉尼旅行 Agent
 
-**原生 iOS（SwiftUI）、Android（Kotlin + Jetpack Compose）与 ASP.NET Core（C# / .NET 10）后端，通过 EF Core 和 PostgreSQL 保存行程与偏好。** 单题引导收集旅行偏好，NVIDIA Nemotron 推荐候选地点，程序独立检查路线约束，再由用户确认保存。地图、地点、路线与天气使用 Google Maps Platform，授权偏好检索使用官方 Meterless H-MEM 引擎。
+**原生 iOS（SwiftUI）、Android（Kotlin + Jetpack Compose）与 ASP.NET Core（C# / .NET 10）后端，通过 EF Core 和 PostgreSQL 保存行程与偏好。** 单题引导收集旅行偏好，NVIDIA Nemotron 推荐候选地点，程序独立检查路线约束，再由用户确认保存。底图支持 OpenStreetMap / Apple / Google，在线地点、行程路线与天气可使用 Google Maps Platform，逐段步行导航采用 Ferrostar + Valhalla；授权偏好检索使用官方 Meterless H-MEM 引擎。
 
 当前维护原生 iOS、Android 及其共用的 C# API。React 网页客户端与独立的旧版 React/.NET 原型已移除。Android 与保留的 SwiftUI iOS 客户端继续使用原接口、JSON 字段和 `8787` 端口。旧 Python 代码与 SQLite 文件保留供对照和回退；新后端不运行 Python，也不会自动导入旧 SQLite 数据。**当前仍为本机单用户原型，未部署线上服务，也未提交 HackOS。**
 
@@ -47,7 +47,7 @@ dotnet run --project server-dotnet/SydneyBuddy.Api
 
 ## Android（Windows / macOS）
 
-额外需要 Android Studio、Android SDK 35、JDK 17 或 21，以及带 Google Play 服务的 Android 8.0+ 模拟器或手机。
+额外需要 Android Studio、Android SDK 36、JDK 17 或 21，以及带 Google Play 服务的 Android 8.0+ 模拟器或手机。
 
 1. 先按上文启动 PostgreSQL 和 .NET API。
 2. Android Studio 打开 **`android/`**，等待 Gradle 同步。
@@ -68,7 +68,7 @@ Android 仍连接 `http://127.0.0.1:8787`。Debug 允许本机 HTTP，Release �
 
 ## 保留的 iOS 客户端
 
-需要 macOS、Xcode（iOS 17+ SDK/模拟器）、.NET 10 SDK 和 Node.js 24。先启动 PostgreSQL 和 .NET API，再打开 `ios/SydneyBuddy.xcodeproj`，运行 `SydneyBuddy` scheme。首次 Xcode 构建需联网下载 Google Maps SDK。
+需要 macOS、Xcode（iOS 17+ SDK/模拟器）、.NET 10 SDK 和 Node.js 24。先启动 PostgreSQL 和 .NET API，再打开 `ios/SydneyBuddy.xcodeproj`，运行 `SydneyBuddy` scheme。首次 Xcode 构建需联网下载 Google Maps SDK 与 Ferrostar 导航核心。
 
 同机模拟器继续连接 `127.0.0.1:8787`；iPhone 真机不能用其自身的回环地址访问电脑。iOS 地图密钥更改后需要重新构建。原 [iOS 验证记录](docs/VERIFICATION.md) 是迁移前的历史记录，不能替代新版验证。
 
@@ -104,6 +104,84 @@ AllowPaidServices=true dotnet run --project server-dotnet/SydneyBuddy.Api
 
 PowerShell 先运行 `$env:AllowPaidServices='true'` 再启动后端。仅在手机切换底图不会开启这项权限；测试结束后移除环境变量或设为 `false` 并重启。日常开发建议使用 **OSM + demo**；完全不加载网络底图时使用 **离线示意图 + demo**。
 
+## 多站步行导航（开发测试）
+
+地图首页点击 **“逐段步行导航”**。保持既有的行程顺序，包含起点、每个景点和最后返回点：
+
+1. **预览整天步行路线**：一次请求经过所有停靠点的道路路线，仅供总览，不启动定位。
+2. **开始本段导航**：从准确、近期的设备位置规划到下一站；显示路线、位置、转弯指示、距离与步行 ETA，支持英文系统语音及偏航重算。
+3. **到站停留**：Ferrostar 判断到站后暂停，也可在导航中点“我已到达”手动确认。不会自动跳过景点；点“前往下一站”才继续。
+4. **返回与完成**：最后一段回到当天终点，再确认完成。实际到站进度按设备、行程 ID / 版本和当天路线保存，不修改后端行程。
+5. **模拟导航**：不读取设备 GPS，以 10 倍速度回放真实路线路径；模拟进度独立，不覆盖实际进度。模拟仍需联网计算路线，不是离线导航。
+
+此版为**前台步行导航验证**：离开导航页、切到后台或锁屏会暂停定位和语音；回到页面后点开始，从当前位置重算本段。重开 App 保留已到站 / 已完成的路段，不自动恢复正在进行的导航。停留时间只显示提示，不计入步行 ETA。当前指引为英文，没有公交换乘、实时交通、景点顺序最佳化、后台持续导航或离线地图包。
+
+`demo` / `assisted` 示例行程可以测试，景点和营业资料仍为示例；步行路线由 OSM / Valhalla 实际计算。含 Google Places 数据的 `live` 行程暂不进入开源导航，避免把受限制资料送到其他服务。开始真实导航前需在设备允许精确定位；实际起点和目的地会经后端送至已配置的路线服务。预览与模拟使用行程中的示例坐标。
+
+### 配置步行路线服务
+
+默认不配置路线服务，App 会提示尚未开启；**不会自动退回 Google 付费 Routes API**。后端环境变量必须指向可接受 Valhalla POST 请求并返回 OSRM 格式的 `/route` 端点：
+
+```sh
+# 自架 Valhalla 示例；该服务需要另行部署和导入 OSM 路网。
+Navigation__ValhallaUrl=http://127.0.0.1:8002/route dotnet run --project server-dotnet/SydneyBuddy.Api
+```
+
+本次 Mac 测试遇到 .NET / 公共展示站 TLS 握手不相容，已提供可选的本机开发转接器，使用 Node 24 的正常 TLS 验证（未关闭证书检查）。若只想马上测试，另开一个终端运行：
+
+```sh
+node scripts/navigation-demo-proxy.mjs
+```
+
+接着以以上 `Navigation__ValhallaUrl=http://127.0.0.1:8002/route` 启动后端。这个脚本**不是自架 Valhalla**：仅监听 `127.0.0.1:8002`，只转接 `/route` 到固定公共展示站，最多同时 2 个请求，不保存坐标或日志；仍需联网、仍受公开服务可用性限制。只供少量手动开发测试，与自己的 Valhalla 服务二选一，不能用于营运或负载测试。一般 .NET 到自架服务能正常连接时，不需要这个脚本。
+
+Windows PowerShell 先设置 `$env:Navigation__ValhallaUrl='http://127.0.0.1:8002/route'`。本机回环可用 HTTP，其他地址必须 HTTPS；后端不跟随重定向。`/health` 的 `navigationConfigured` 仅代表地址已配置，不保证上游在线。`POST /navigation/route` 接受 `locations: [{lat, lon}, ...]`，范围为 2–30 点；后端固定步行、OSRM、polyline6 和英文指引，客户端不能指定其他上游网址。
+
+开发时可自行明确设置 `https://valhalla1.openstreetmap.de/route` 做少量交互测试；这是 [Valhalla 文档列出的公共演示服务](https://valhalla.github.io/valhalla/)，不是正式营运后端，不提供本项目的可用性或免费额度保证。上架前改为自架或有服务条款的托管服务。开源 SDK 无授权费用，但服务器、图砖与托管路线服务可能收费；`AllowPaidServices=false` 仅阻挡原有 NVIDIA / Google API，不是所有第三方账单的总开关。
+
+### 导航架构与文件用途
+
+```text
+每日行程（起点 → 景点 → 返回点）
+    └─ WalkingNavigator：当前路段、到站等待、下一站、本机进度、模拟隔离
+        ├─ Ferrostar Core 0.59.0：指引、位置进度、语音触发、偏航重算
+        │   └─ POST /navigation/route → ASP.NET Core → 配置的 Valhalla 服务
+        └─ 中立坐标 / 路线 / 位置 → OSM、Apple MapKit 或 Google 地图画面
+```
+
+| 文件 | 用途 |
+|---|---|
+| `ios/SydneyBuddy/NavigationView.swift` | iOS 多段进度、Ferrostar 接入、模拟 / 真实定位、整天预览与 OSM / Apple / Google 导航画面 |
+| `android/.../WalkingNavigation.kt` | Android 进度模型、Ferrostar 生命周期、权限、语音、预览与逐段导航操作 |
+| `android/.../WalkingMap.kt` | 接收中立坐标的 OSM / Google 导航绘图，不拥有行程进度 |
+| `server-dotnet/SydneyBuddy.Api/Services/NavigationService.cs` | 验证坐标、固定步行配置、请求 Valhalla、处理错误和取消 |
+| `ios/SydneyBuddyTests/NavigationTests.swift` | iOS 进度、模拟隔离和真实 Ferrostar 路线回放测试 |
+| `android/.../WalkingProgressTest.kt` | Android 多段顺序、返回段、无效进度与版本隔离测试 |
+| `android/.../WalkingNavigationTest.kt` | Android 真正导航引擎回放、到站、暂停、错误与进度保存测试 |
+| `android/.../WalkingNavigationUiTest.kt` | Android 预览、模拟、到站等待、下一站与行程不变的画面操作测试 |
+| `android/.../WalkingLiveSmokeTest.kt` | 从真实首页进入，经配置的路线服务预览 / 导航 / 到站 / 下一站，临时测试行程在结束时清除 |
+| `scripts/navigation-demo-proxy.mjs` | 可选的本机开发辅助，正常验证 TLS 后连接公共 Valhalla 展示站，不用于营运 |
+| `tests/fixtures/walking-sydney.json` | 已记录的悉尼 OSM 路线，供两平台测试回放，无需测试时呼叫公开服务 |
+| `server-dotnet/SydneyBuddy.Api.Tests/NavigationServiceTests.cs` | 后端输入验证、服务边界、多站顺序及上游错误测试 |
+
+导航核心只接收当前路段，整天路线与到站进度由我们自己的 App 管理。此版本能切换的是**地图显示**，Google 底图仍需地图密钥，Apple 仅 iOS 提供；未接入 Google Navigation SDK，也没有把导航交给外部 Apple Maps。未来可新增独立导航实现，共用行程进度和开始 / 停止操作。
+
+Android 为使用 Ferrostar 0.59.0，将构建工具对齐为 Kotlin 2.3.20、AGP 8.13.2、Gradle 8.13、compileSdk 36，JDK 仍为 17 / 21。iOS 只引入 `FerrostarCore`，继续复用原 MapKit / Google 绘图。SDK 为 Beta，版本固定，升级需重跑测试。
+
+运行导航测试：
+
+```sh
+# 后端：需要本机 PostgreSQL；路由服务测试使用模拟 HTTP，不需路线金钥。
+dotnet test server-dotnet/SydneyBuddy.Api.Tests
+# Android：模拟器已连接，UI 测试需要运行配置导航端点的本机后端及 adb reverse。
+cd android
+# 常规检查排除使用真实路线服务的 LargeTest；其余导航回放使用录制数据。
+sh gradlew :app:testDebugUnitTest :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.notAnnotation=androidx.test.filters.LargeTest
+# 少量真实连线验证（需配置可用路由服务；不应放进高频 CI 或压力测试）：
+sh gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.sydneybuddy.travel.WalkingLiveSmokeTest
+# iOS：在 Xcode 选择 SydneyBuddy scheme 和 iPhone 模拟器后运行 Product > Test。
+```
+
 ## 配置
 
 仓库只提供配置模板，不包含可用服务密钥。服务端读取仓库根目录 `.secrets.json` 或同名环境变量，环境变量优先；不会自动加载 `.env`。Node H-MEM 数据继续保存在 `server/.hmem/`。
@@ -116,6 +194,7 @@ PowerShell 先运行 `$env:AllowPaidServices='true'` 再启动后端。仅在手
 | `GOOGLE_SERVER_KEY` | 服务端 Places API (New)、Routes API、Weather API |
 | `GOOGLE_IOS_KEY` | 保留的 iOS 客户端地图 SDK 配置 |
 | Android `MAPS_API_KEY` | 仅写入 `android/local.properties` 的 Android 地图 SDK 密钥 |
+| `Navigation__ValhallaUrl` | 可选，步行导航路由服务地址；默认未开启，配置后重启后端 |
 | `NODE_BINARY` | 可选，Node 24 可执行文件路径；默认从 PATH 查找 |
 | `SYDNEYBUDDY_ROOT` | 可选，仓库根目录绝对路径，自动定位失败时设置 |
 

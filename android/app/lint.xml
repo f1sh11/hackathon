@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+    <!-- The optional SDK ForegroundService is neither registered in our merged manifest nor started.
+         This foreground-only prototype passes no ForegroundServiceManager and posts no notifications.
+         Suppress only this dependency's unreachable notification call, not our own permission checks.
+         Remove this exception when implementing background navigation. -->
+    <issue id="NotificationPermission">
+        <ignore regexp="usage from com\.stadiamaps\.ferrostar\.core\.service\.FerrostarForegroundService" />
+    </issue>
+</lint>

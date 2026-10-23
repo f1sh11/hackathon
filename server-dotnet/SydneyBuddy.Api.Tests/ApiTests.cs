@@ -56,6 +56,16 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     }
 
     [Fact]
+    public async Task NavigationEndpointFailsClearlyWhenRouteServiceIsNotConfigured()
+    {
+        var response = await fixture.Client.PostAsJsonAsync("/navigation/route", new { locations = new[] { new { lat = -33.86, lon = 151.21 }, new { lat = -33.85, lon = 151.22 } } });
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        Assert.Contains("Valhalla", (await response.Content.ReadFromJsonAsync<JsonObject>())!.Str("error"));
+        var health = await fixture.Client.GetFromJsonAsync<JsonObject>("/health");
+        Assert.False(health!.Bool("navigationConfigured"));
+    }
+
+    [Fact]
     public async Task DraftDoesNotSaveUntilConfirmedAndUpdatesRequireCurrentRevision()
     {
         var draft = await PlanAsync();
@@ -287,6 +297,7 @@ internal sealed class BuddyApiFactory(string connection, ProjectPaths paths) : W
         {
             ["ConnectionStrings:SydneyBuddy"] = connection,
             ["AllowPaidServices"] = "false",
+            ["Navigation:ValhallaUrl"] = "",
             ["SYDNEYBUDDY_ROOT"] = paths.RepoRoot
         }));
         builder.ConfigureServices(services =>

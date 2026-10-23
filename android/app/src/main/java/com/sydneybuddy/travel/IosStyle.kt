@@ -115,6 +115,7 @@ fun choiceIcon(text:String):ImageVector = when {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun HomeScreen(store:BuddyStore) {
     var detail by rememberSaveable {mutableStateOf(false)}
+    var navigation by rememberSaveable {mutableStateOf(false)}
     var chat by rememberSaveable {mutableStateOf(false)}
     var expanded by rememberSaveable {mutableStateOf(false)}
     val trip=store.trip
@@ -174,6 +175,7 @@ fun choiceIcon(text:String):ImageVector = when {
                             Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(5.dp)){Icon(Icons.Outlined.AccountBalanceWallet,null,Modifier.size(16.dp),tint=Green);Text("A$${day.optDouble("estimatedCost").toInt()}  ·  ${day.optString("finishTime")} 返回",fontSize=12.sp,color=Green,fontWeight=FontWeight.Bold)}
                             Text(day.array("stops").objects().joinToString(" → "){it.optString("name")},fontSize=12.sp,color=Muted,maxLines=2)
                         } else Text("让 Buddy 帮你选出刚刚好的路线",fontSize=12.sp,color=Muted)
+                        if(trip!=null) TextButton(onClick={navigation=true}){Text("逐段步行导航")}
                         Button(onClick={if(trip==null)store.newTrip() else {store.mark("route");detail=true}},enabled=!store.busy,modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(14.dp),contentPadding=PaddingValues(horizontal=13.dp,vertical=12.dp)) {
                             Text(if(trip==null)"开始规划" else "查看路线",fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f));Icon(Icons.Outlined.NorthEast,null,Modifier.size(19.dp))
                         }
@@ -188,6 +190,10 @@ fun choiceIcon(text:String):ImageVector = when {
                 Text(if(trip?.optString("mode")=="live" && store.mapProvider!=MapProvider.GOOGLE)"Google 行程图层已隐藏，请切换 Google 底图查看" else if(trip?.optString("mode")=="live")"Google 路线 · 费用与步数为估算" else "路线与营业时间为示例 · 非导航路径",Modifier.padding(horizontal=10.dp,vertical=5.dp),fontSize=9.sp,color=Muted)
             }
         }
+    }
+    if(navigation) {
+        if(trip?.optString("mode")=="live") AlertDialog(onDismissRequest={navigation=false},text={Text("此行程含 Google 地点资料。开源导航测试请先建立示例行程。")},confirmButton={TextButton(onClick={navigation=false}){Text("关闭")}})
+        else WalkingNavigationDialog(store){navigation=false}
     }
     if(detail) ModalBottomSheet(onDismissRequest={detail=false},containerColor=Cream,sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true)) {
         Column(Modifier.fillMaxWidth().fillMaxHeight(.9f).verticalScroll(rememberScrollState()).padding(22.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {

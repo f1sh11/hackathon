@@ -10,6 +10,8 @@ public static class DependencyInjection
         services.AddSingleton(provider => new ProjectPaths(provider.GetRequiredService<IConfiguration>()["SYDNEYBUDDY_ROOT"] ?? ProjectPaths.DiscoverRoot()));
         services.AddSingleton<SecretStore>();
         services.AddSingleton<PaidServicePolicy>();
+        services.AddHttpClient<NavigationService>(client => client.Timeout = Timeout.InfiniteTimeSpan)
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         // DbContext 以请求为单位，不能作为单例共享。 / DbContext is scoped, never shared across requests.
         services.AddDbContext<BuddyDbContext>((provider, options) =>
         {
