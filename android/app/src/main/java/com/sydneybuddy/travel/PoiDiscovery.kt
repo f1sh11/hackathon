@@ -34,17 +34,21 @@ internal fun poiActivityKind(p:JSONObject):String=if(p.optString("source")!="Ope
     var places by remember{mutableStateOf<List<JSONObject>>(emptyList())};var selected by remember{mutableStateOf<String?>(null)}
     var center by remember{mutableStateOf(-33.865 to 151.212)};var busy by remember{mutableStateOf(false)};var error by remember{mutableStateOf<String?>(null)};var detail by remember{mutableStateOf<JSONObject?>(null)}
     val scope=rememberCoroutineScope();val uri=LocalUriHandler.current
-    fun search(){if(busy)return;busy=true;error=null;scope.launch{try{val result=withTimeout(30000){requester(JSONObject().put("query",query).put("category",category).put("lat",center.first).put("lng",center.second).put("radius",1500))};places=result.array("places").objects();selected=null}catch(e:CancellationException){if(e is TimeoutCancellationException)error="地點服務逾時，請重試。"else throw e}catch(e:Exception){error=e.message ?: "搜尋失敗"}finally{busy=false}}}
+    var searchJob by remember{mutableStateOf<Job?>(null)}
+    var hasSearched by remember{mutableStateOf(false)}
+    fun search(){searchJob?.cancel();busy=true;error=null;hasSearched=true;places=emptyList();selected=null;searchJob=scope.launch{try{val result=withTimeout(30000){requester(JSONObject().put("query",query).put("category",category).put("lat",center.first).put("lng",center.second).put("radius",1500))};places=result.array("places").objects();selected=null}catch(e:CancellationException){if(e is TimeoutCancellationException)error="地點服務逾時，請重試。"else throw e}catch(e:Exception){error=e.message ?: "搜尋失敗"}finally{if(isActive)busy=false}}}
+    LaunchedEffect(category){search()}
     Dialog(onDismissRequest=onDismiss,properties=DialogProperties(usePlatformDefaultWidth=false)) {
         Surface(Modifier.fillMaxSize()) {Column(Modifier.fillMaxSize().systemBarsPadding().padding(12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment=Alignment.CenterVertically){Text("搜尋地圖地點",Modifier.weight(1f),style=MaterialTheme.typography.titleMedium);TextButton(onClick=onDismiss){Text("完成")}}
             Row(verticalAlignment=Alignment.CenterVertically){OutlinedTextField(query,{query=it},Modifier.weight(1f),placeholder={Text("地點名稱（可留空）")},singleLine=true);TextButton(onClick=::search,enabled=!busy){Text("搜尋")}}
             Row{listOf("sights" to "景點","food" to "餐飲","facilities" to "生活設施").forEach{(id,label)->TextButton(onClick={category=id}){Text((if(id==category)"✓ "else "")+label)}}}
             PoiOsmMap(places,onCenter={center=it},onSelect={selected=it},Modifier.fillMaxWidth().height(230.dp))
-            Small("移動地圖後按搜尋 · 中心附近 1.5 km · OSM 開源測試")
-            if(busy)LinearProgressIndicator(Modifier.fillMaxWidth());error?.let{Text(it,color=Color.Red,fontSize=12.sp)}
+            Small("切換分類自動搜尋 · 移動地圖後按搜尋 · 附近 1.5 km")
+            if(busy){LinearProgressIndicator(Modifier.fillMaxWidth());Small("正在搜尋附近地點…")}
+            error?.let{Text("地點資料暫時無法載入："+it,color=Color.Red,fontSize=12.sp);Small("地圖底圖仍可顯示；地點清單尚未取得，並非附近沒有地點。");TextButton(onClick=::search){Text("重新搜尋")}}
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)) {
-                if(places.isEmpty()&&!busy)Small("選擇分類並搜尋附近地點；點地圖標記可選擇。")
+                if(places.isEmpty()&&!busy&&error==null&&hasSearched)Small("此範圍沒有符合的地點。可清空名稱、切換分類，或移動地圖後重新搜尋。")
                 places.sortedBy{if(it.optString("id")==selected)0 else 1}.forEach{p->Column(Modifier.fillMaxWidth().background(if(p.optString("id")==selected)Mint else Color.White).padding(8.dp)) {
                     Text((if(p.optString("category")=="美食")"🍴 "else if(p.optString("category")=="設施")"🚻 "else "📍 ")+p.optString("name"),color=if(p.optString("category")=="美食")Color(0xffa65d12)else Green)
                     Text(p.optString("description"),fontSize=12.sp,maxLines=2)

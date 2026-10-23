@@ -48,6 +48,26 @@ class ScheduleEditorTest {
         File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null),"schedule-android-test.png").outputStream().use{image.compress(Bitmap.CompressFormat.PNG,100,it)};image.recycle()
         c.stop()
     }
+    @Test fun poiAutomaticallyLoadsCategoriesAndSeparatesFailureFromEmptyResults() {
+        val inst=InstrumentationRegistry.getInstrumentation();lateinit var store:BuddyStore
+        val categories=mutableListOf<String>();var fail=false
+        rule.runOnIdle{store=BuddyStore(inst.targetContext.applicationContext as Application)}
+        rule.setContent{MaterialTheme{PoiDiscoveryDialog(store,onDismiss={},requester={input->
+            categories.add(input.getString("category"));if(fail)throw IllegalStateException("測試連線中斷")
+            JSONObject().put("places",org.json.JSONArray())
+        })}}
+        rule.waitUntil(5000){categories.contains("sights")}
+        rule.onNodeWithText("此範圍沒有符合的地點。",substring=true).assertIsDisplayed()
+        rule.runOnIdle{fail=true}
+        rule.onNodeWithText("生活設施",substring=true).performClick()
+        rule.waitUntil(5000){categories.contains("facilities")}
+        rule.onNodeWithText("地點資料暫時無法載入：測試連線中斷").assertIsDisplayed()
+        rule.onNodeWithText("此範圍沒有符合的地點。",substring=true).assertDoesNotExist()
+        rule.runOnIdle{fail=false};rule.onNodeWithText("重新搜尋").performClick()
+        rule.waitUntil(5000){categories.size>=3}
+        rule.onNodeWithText("此範圍沒有符合的地點。",substring=true).assertIsDisplayed()
+        assertEquals(listOf("sights","facilities","facilities"),categories)
+    }
     @Test fun mapSearchShowsPoiDetailsAndAddsToToolbox() {
         val inst=InstrumentationRegistry.getInstrumentation();lateinit var store:BuddyStore;var added:JSONObject?=null
         rule.runOnIdle{store=BuddyStore(inst.targetContext.applicationContext as Application)}

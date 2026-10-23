@@ -3,6 +3,35 @@ import SwiftUI
 @testable import SydneyBuddy
 
 @MainActor final class ScheduleTests:XCTestCase {
+    func testPoiSearchDistinguishesFailureEmptyAndSuccessfulRetry() async throws {
+        let model=PoiSearchModel();var status=503;var body=Data("{\"error\":\"服務測試中斷\"}".utf8)
+        model.category="facilities"
+        model.loader={request in
+            let input=try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:Any]
+            XCTAssertEqual(input["category"] as? String,"facilities")
+            return(body,HTTPURLResponse(url:request.url!,statusCode:status,httpVersion:nil,headerFields:nil)!)
+        }
+        model.search()
+        for _ in 0..<100 {if !model.busy{break};try await Task.sleep(nanoseconds:10_000_000)}
+        XCTAssertTrue(model.hasSearched);XCTAssertTrue(model.error!.contains("服務測試中斷"));XCTAssertTrue(model.places.isEmpty)
+        status=200;body=Data("{\"places\":[]}".utf8);model.search()
+        for _ in 0..<100 {if !model.busy{break};try await Task.sleep(nanoseconds:10_000_000)}
+        XCTAssertNil(model.error);XCTAssertTrue(model.places.isEmpty)
+        body=try JSONSerialization.data(withJSONObject:["places":JSONSerialization.jsonObject(with:JSONEncoder().encode(fixture().schedule!.candidates))]);model.search()
+        for _ in 0..<100 {if !model.busy{break};try await Task.sleep(nanoseconds:10_000_000)}
+        XCTAssertNil(model.error);XCTAssertFalse(model.places.isEmpty);model.stop()
+    }
+    func testPoiNewCategoryCannotBeOverwrittenByCancelledSearch() async throws {
+        let model=PoiSearchModel();let points=try JSONEncoder().encode(fixture().schedule!.candidates)
+        model.loader={request in
+            let input=try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:Any]
+            if input["category"] as? String=="sights" {try? await Task.sleep(nanoseconds:150_000_000);return(try JSONSerialization.data(withJSONObject:["places":JSONSerialization.jsonObject(with:points)]),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)}
+            return(Data("{\"places\":[]}".utf8),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)
+        }
+        model.search();try await Task.sleep(nanoseconds:20_000_000)
+        model.category="food";model.search();try await Task.sleep(nanoseconds:200_000_000)
+        XCTAssertFalse(model.busy);XCTAssertNil(model.error);XCTAssertTrue(model.places.isEmpty);model.stop()
+    }
     func testHoverDateDwellSwitchesWithoutEditingAndCancellationStopsSwitch() async throws {
         let trip=try fixture();let model=ScheduleEditorModel();model.prepare(trip)
         let before=model.state!.days.flatMap(\.activities).map{($0.id)+String($0.scheduledStart)}

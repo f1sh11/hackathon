@@ -7,53 +7,67 @@ import MapKit
     private init(){places=(UserDefaults.standard.data(forKey:"poi-toolbox").flatMap{try? JSONDecoder().decode([ScheduleCandidate].self,from:$0)}) ?? []}
     func add(_ p:ScheduleCandidate){guard !places.contains(where:{$0.id==p.id}) else{return};places.append(p);if let data=try? JSONEncoder().encode(places){UserDefaults.standard.set(data,forKey:"poi-toolbox")}}
 }
-@MainActor struct PoiDiscoveryView:View {
-    var onAdd:(ScheduleCandidate)->Void = {PoiToolbox.shared.add($0)}
-    @Environment(\.dismiss) var dismiss
-    @State private var query=""
-    @State private var category="sights"
-    @State private var places:[ScheduleCandidate]=[]
-    @State private var detail:ScheduleCandidate?
-    @State private var center=CLLocationCoordinate2D(latitude:-33.865,longitude:151.212)
-    @State private var selected:String?
-    @State private var busy=false
-    @State private var error:String?
-    @State private var added=Set<String>()
-    @State private var job:Task<Void,Never>?
-    func search(){job?.cancel();busy=true;error=nil;let lat=center.latitude,lng=center.longitude,text=query,kind=category
+@MainActor final class PoiSearchModel:ObservableObject {
+    @Published var query=""
+    @Published var category="sights"
+    @Published var places:[ScheduleCandidate]=[]
+    @Published var selected:String?
+    @Published var busy=false
+    @Published var error:String?
+    @Published var hasSearched=false
+    var center=CLLocationCoordinate2D(latitude:-33.865,longitude:151.212)
+    var loader:(URLRequest) async throws -> (Data,URLResponse) = {try await URLSession.shared.data(for:$0)}
+    private var job:Task<Void,Never>?
+    func search(){
+        job?.cancel();busy=true;error=nil;hasSearched=true;places=[];selected=nil
+        let lat=center.latitude,lng=center.longitude,text=query,kind=category
         job=Task {@MainActor in
             do {
                 var request=URLRequest(url:URL(string:"http://127.0.0.1:8787/poi/search")!);request.httpMethod="POST";request.setValue("application/json",forHTTPHeaderField:"Content-Type");request.timeoutInterval=30
                 request.httpBody=try JSONSerialization.data(withJSONObject:["lat":lat,"lng":lng,"radius":1500,"category":kind,"query":text])
-                let (data,response)=try await URLSession.shared.data(for:request);try Task.checkCancellation()
+                let (data,response)=try await loader(request);try Task.checkCancellation()
                 guard (response as? HTTPURLResponse)?.statusCode==200 else {let raw=(try? JSONSerialization.jsonObject(with:data)) as? [String:Any];throw NSError(domain:"POI",code:1,userInfo:[NSLocalizedDescriptionKey:raw?["error"] as? String ?? "地點搜尋失敗，請重試。"])}
                 struct Result:Decodable{var places:[ScheduleCandidate]}
-                places=try JSONDecoder().decode(Result.self,from:data).places;selected=nil;busy=false
-            }catch is CancellationError {}catch{if !Task.isCancelled{self.error=error.localizedDescription;busy=false}}
+                places=try JSONDecoder().decode(Result.self,from:data).places;busy=false
+            }catch {if !Task.isCancelled{self.error="地點資料暫時無法載入："+error.localizedDescription;busy=false}}
         }
     }
+    func stop(){job?.cancel();job=nil;busy=false}
+}
+@MainActor struct PoiDiscoveryView:View {
+    var onAdd:(ScheduleCandidate)->Void = {PoiToolbox.shared.add($0)}
+    @Environment(\.dismiss) var dismiss
+    @StateObject private var model=PoiSearchModel()
+    @State private var detail:ScheduleCandidate?
+    @State private var added=Set<String>()
     var body:some View {
         NavigationStack {
             VStack(spacing:10) {
-                HStack {TextField("搜尋附近地點名稱（可留空）",text:$query).textFieldStyle(.roundedBorder).onSubmit{search()};Button("搜尋"){search()}.disabled(busy)}.padding(.horizontal)
-                Picker("地點分類",selection:$category){Text("景點").tag("sights");Text("餐飲").tag("food");Text("生活設施").tag("facilities")}.pickerStyle(.segmented).padding(.horizontal)
-                PoiOsmMap(places:places,onCenter:{center=$0},onSelect:{selected=$0}).frame(height:250)
-                Text("移動地圖後按搜尋 · 中心附近 1.5 km · OSM 開源測試").font(.caption2).foregroundStyle(Palette.muted)
-                if busy {ProgressView("查詢開源地點…")}
-                if let error {Text(error).font(.caption).foregroundStyle(.red).padding(.horizontal)}
+                HStack {TextField("搜尋附近地點名稱（可留空）",text:$model.query).textFieldStyle(.roundedBorder).onSubmit{model.search()};Button("搜尋"){model.search()}.disabled(model.busy)}.padding(.horizontal)
+                Picker("地點分類",selection:$model.category){Text("景點").tag("sights");Text("餐飲").tag("food");Text("生活設施").tag("facilities")}.pickerStyle(.segmented).padding(.horizontal)
+                PoiOsmMap(places:model.places,onCenter:{model.center=$0},onSelect:{model.selected=$0}).frame(height:250)
+                Text("切換分類自動搜尋 · 移動地圖後按搜尋 · 附近 1.5 km").font(.caption2).foregroundStyle(Palette.muted)
+                if model.busy {ProgressView("正在搜尋附近地點…")}
+                if let error=model.error {
+                    VStack(spacing:6){Text(error).font(.caption).foregroundStyle(.red);Text("地圖底圖仍可顯示；地點清單尚未取得，並非附近沒有地點。").font(.caption2).foregroundStyle(Palette.muted);Button("重新搜尋"){model.search()}}
+                        .padding(.horizontal).accessibilityIdentifier("poi-search-error")
+                }
                 List {
-                    if places.isEmpty && !busy {Text("選擇分類並搜尋附近地點；地圖標記可點選。").font(.caption)}
-                    ForEach(places.sorted{a,b in a.id==selected && b.id != selected}) {p in
+                    if model.places.isEmpty && !model.busy && model.error==nil && model.hasSearched {Text("此範圍沒有符合的地點。可清空名稱、切換分類，或移動地圖後重新搜尋。").font(.caption)}
+                    ForEach(model.places.sorted{a,b in a.id==model.selected && b.id != model.selected}) {p in
                         VStack(alignment:.leading,spacing:7) {
                             Label(p.name,systemImage:p.category=="美食" ? "fork.knife":p.category=="設施" ? "figure.stand":"mappin.and.ellipse").font(.subheadline.bold()).foregroundStyle(p.category=="美食" ? .orange:Palette.green)
                             Text(p.description ?? "介紹未提供").font(.caption).lineLimit(2)
                             HStack {Button("詳細介紹"){detail=p};Spacer();Button(added.contains(p.id)||PoiToolbox.shared.places.contains(where:{$0.id==p.id}) ? "已加入":"＋工具箱"){onAdd(p);added.insert(p.id)}.disabled(added.contains(p.id)||PoiToolbox.shared.places.contains(where:{$0.id==p.id}))}.font(.caption)
-                        }.listRowBackground(p.id==selected ? Palette.mint:Color.white)
+                        }.listRowBackground(p.id==model.selected ? Palette.mint:Color.white)
                     }
                 }.listStyle(.plain)
                 Link("© OpenStreetMap contributors · ODbL",destination:URL(string:"https://www.openstreetmap.org/copyright")!).font(.caption2)
             }.navigationTitle("搜尋地圖地點").navigationBarTitleDisplayMode(.inline).toolbar{Button("完成"){dismiss()}}
-        }.sheet(item:$detail){SchedulePlaceDetail(candidate:$0)}.onDisappear{job?.cancel()}
+        }.sheet(item:$detail){SchedulePlaceDetail(candidate:$0)}
+            .onAppear{if !model.hasSearched{model.search()}}
+            .onChange(of:model.category){_,_ in model.search()}
+            .onDisappear{model.stop()}
     }
 }
 private final class PoiPin:NSObject,MKAnnotation {
