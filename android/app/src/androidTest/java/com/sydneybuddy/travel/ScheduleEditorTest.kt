@@ -48,6 +48,21 @@ class ScheduleEditorTest {
         File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null),"schedule-android-test.png").outputStream().use{image.compress(Bitmap.CompressFormat.PNG,100,it)};image.recycle()
         c.stop()
     }
+    @Test fun poiMapFollowsSharedProviderWithoutRepeatingSearch() {
+        val inst=InstrumentationRegistry.getInstrumentation();lateinit var store:BuddyStore;lateinit var original:MapProvider;var requests=0
+        rule.runOnIdle{store=BuddyStore(inst.targetContext.applicationContext as Application);original=store.mapProvider;store.chooseMapProvider(MapProvider.OSM)}
+        rule.setContent{MaterialTheme{PoiDiscoveryDialog(store,onDismiss={},requester={requests++;JSONObject().put("places",org.json.JSONArray())})}}
+        try {
+            rule.waitUntil(5000){requests==1}
+            rule.onNodeWithText("离线示意图").performClick()
+            rule.onNodeWithText("離線示意圖沒有街道底圖",substring=true).assertIsDisplayed()
+            rule.runOnIdle{assertEquals(MapProvider.SCHEMATIC,store.mapProvider);assertEquals(1,requests)}
+            if(!BuildConfig.MAPS_CONFIGURED){rule.onNodeWithText("Google Maps").performClick();rule.onNodeWithText("Google 地圖尚未設定金鑰",substring=true).assertIsDisplayed()}
+            rule.onNodeWithText("OpenStreetMap",substring=false).performClick()
+            rule.onNodeWithText("離線示意圖沒有街道底圖",substring=true).assertDoesNotExist()
+            rule.runOnIdle{assertEquals(MapProvider.OSM,store.mapProvider);assertEquals(1,requests)}
+        }finally{rule.runOnIdle{store.chooseMapProvider(original)}}
+    }
     @Test fun savedTripCardEditsOnTapAndNavigationButtonsDoNotOpenEditor() {
         val trip=fixture();var edit=0;var navigation=0;var map=0;var delete=0
         rule.setContent{MaterialTheme{SavedTripCard(trip,onEdit={edit++},onNavigate={navigation++},onMap={map++},onDelete={delete++})}}

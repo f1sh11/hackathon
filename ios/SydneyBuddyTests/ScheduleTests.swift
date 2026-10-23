@@ -1,8 +1,26 @@
 import XCTest
 import SwiftUI
+import MapKit
 @testable import SydneyBuddy
 
 @MainActor final class ScheduleTests:XCTestCase {
+    func testPoiNativeMapRemovesOsmTilesOnAppleSwitchAndKeepsPinsAndCamera() async throws {
+        let store=AppStore();let original=store.mapProvider;defer{store.mapProvider=original};store.mapProvider = .osm
+        let points=try fixture().schedule!.candidates
+        let scene=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.first!
+        let old=scene.windows.first{$0.isKeyWindow};let window=UIWindow(windowScene:scene);window.frame=scene.screen.bounds
+        window.rootViewController=UIHostingController(rootView:PoiProviderTestHost(store:store,places:points).frame(height:250))
+        window.makeKeyAndVisible();defer{window.isHidden=true;old?.makeKeyAndVisible()}
+        try await Task.sleep(nanoseconds:400_000_000)
+        func findMap(_ view:UIView)->MKMapView? {if let map=view as? MKMapView{return map};return view.subviews.compactMap{findMap($0)}.first}
+        let map=try XCTUnwrap(findMap(window));XCTAssertEqual(map.overlays.filter{$0 is OsmTiles}.count,1);XCTAssertEqual(map.annotations.count,points.count)
+        let center=map.centerCoordinate
+        store.mapProvider = .apple;try await Task.sleep(nanoseconds:250_000_000)
+        XCTAssertTrue(map.overlays.isEmpty);XCTAssertEqual(map.annotations.count,points.count)
+        XCTAssertEqual(map.centerCoordinate.latitude,center.latitude,accuracy:0.0001);XCTAssertEqual(map.centerCoordinate.longitude,center.longitude,accuracy:0.0001)
+        store.mapProvider = .osm;try await Task.sleep(nanoseconds:250_000_000)
+        XCTAssertEqual(map.overlays.filter{$0 is OsmTiles}.count,1);XCTAssertEqual(map.annotations.count,points.count)
+    }
     func testSavedTripNavigationChoosesTodayOrAsksForDate() throws {
         var trip=try fixture()
         XCTAssertEqual(savedTripNavigationDay(trip,today:trip.days[1].date),1)
@@ -222,4 +240,10 @@ import SwiftUI
         try XCTUnwrap(image.pngData()).write(to:url)
         XCTAssertNil(store.trip);XCTAssertEqual(model.state!.days.count,3)
     }
+}
+
+@MainActor private struct PoiProviderTestHost:View {
+    @ObservedObject var store:AppStore
+    var places:[ScheduleCandidate]
+    var body:some View{PoiNativeMap(places:places,osm:store.mapProvider == .osm,center:CLLocationCoordinate2D(latitude:-33.87,longitude:151.20),zoom:14,onCamera:{_,_ in},onSelect:{_ in})}
 }

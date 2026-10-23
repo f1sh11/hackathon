@@ -1,5 +1,6 @@
 import SwiftUI
 import MapKit
+import GoogleMaps
 
 @MainActor final class PoiToolbox:ObservableObject {
     static let shared=PoiToolbox()
@@ -36,16 +37,29 @@ import MapKit
 }
 @MainActor struct PoiDiscoveryView:View {
     var onAdd:(ScheduleCandidate)->Void = {PoiToolbox.shared.add($0)}
+    @EnvironmentObject var store:AppStore
     @Environment(\.dismiss) var dismiss
     @StateObject private var model=PoiSearchModel()
     @State private var detail:ScheduleCandidate?
     @State private var added=Set<String>()
+    @State private var zoom:Double=14
     var body:some View {
         NavigationStack {
             VStack(spacing:10) {
                 HStack {TextField("搜尋附近地點名稱（可留空）",text:$model.query).textFieldStyle(.roundedBorder).onSubmit{model.search()};Button("搜尋"){model.search()}.disabled(model.busy)}.padding(.horizontal)
                 Picker("地點分類",selection:$model.category){Text("景點").tag("sights");Text("餐飲").tag("food");Text("生活設施").tag("facilities")}.pickerStyle(.segmented).padding(.horizontal)
-                PoiOsmMap(places:model.places,onCenter:{model.center=$0},onSelect:{model.selected=$0}).frame(height:250)
+                HStack{Picker("底圖",selection:$store.mapProvider){ForEach(MapProvider.allCases){Text($0.label).tag($0)}}.pickerStyle(.menu);Spacer();Text("地點資料：OpenStreetMap").font(.caption2).foregroundStyle(Palette.muted)}.padding(.horizontal)
+                Group {
+                    switch store.mapProvider {
+                    case .apple,.osm:
+                        PoiNativeMap(places:model.places,osm:store.mapProvider == .osm,center:model.center,zoom:zoom,onCamera:{model.center=$0;zoom=$1},onSelect:{model.selected=$0})
+                    case .google:
+                        if SydneyBuddyApp.mapReady{PoiGoogleMap(places:model.places,center:model.center,zoom:zoom,onCamera:{model.center=$0;zoom=$1},onSelect:{model.selected=$0})}
+                        else{Text("Google 地圖尚未設定金鑰，請選擇其他底圖。").font(.caption).padding()}
+                    case .schematic:
+                        Text("離線示意圖沒有街道底圖，請切換聯網底圖來移動搜尋範圍。").font(.caption).padding()
+                    }
+                }.frame(height:250).accessibilityIdentifier("poi-map-"+store.mapProvider.rawValue)
                 Text("切換分類自動搜尋 · 移動地圖後按搜尋 · 附近 1.5 km").font(.caption2).foregroundStyle(Palette.muted)
                 if model.busy {ProgressView("正在搜尋附近地點…")}
                 if let error=model.error {
@@ -62,7 +76,7 @@ import MapKit
                         }.listRowBackground(p.id==model.selected ? Palette.mint:Color.white)
                     }
                 }.listStyle(.plain)
-                Link("© OpenStreetMap contributors · ODbL",destination:URL(string:"https://www.openstreetmap.org/copyright")!).font(.caption2)
+                Link("地點資料 © OpenStreetMap contributors · ODbL",destination:URL(string:"https://www.openstreetmap.org/copyright")!).font(.caption2)
             }.navigationTitle("搜尋地圖地點").navigationBarTitleDisplayMode(.inline).toolbar{Button("完成"){dismiss()}}
         }.sheet(item:$detail){SchedulePlaceDetail(candidate:$0)}
             .onAppear{if !model.hasSearched{model.search()}}
@@ -76,20 +90,47 @@ private final class PoiPin:NSObject,MKAnnotation {
     var title:String? {point.name}
     init(_ p:ScheduleCandidate){point=p}
 }
-private struct PoiOsmMap:UIViewRepresentable {
-    var places:[ScheduleCandidate];var onCenter:(CLLocationCoordinate2D)->Void;var onSelect:(String)->Void
+struct PoiNativeMap:UIViewRepresentable {
+    var places:[ScheduleCandidate];var osm:Bool
+    var center:CLLocationCoordinate2D;var zoom:Double
+    var onCamera:(CLLocationCoordinate2D,Double)->Void;var onSelect:(String)->Void
     func makeCoordinator()->Coordinator{Coordinator(self)}
     final class Coordinator:NSObject,MKMapViewDelegate {
-        var parent:PoiOsmMap;var key=""
-        init(_ p:PoiOsmMap){parent=p}
+        var parent:PoiNativeMap;var key=""
+        init(_ p:PoiNativeMap){parent=p}
         func mapView(_ map:MKMapView,rendererFor overlay:MKOverlay)->MKOverlayRenderer{if let tiles=overlay as? MKTileOverlay{return MKTileOverlayRenderer(tileOverlay:tiles)};return MKOverlayRenderer(overlay:overlay)}
-        func mapView(_ map:MKMapView,regionDidChangeAnimated animated:Bool){parent.onCenter(map.centerCoordinate)}
+        func mapView(_ map:MKMapView,regionDidChangeAnimated animated:Bool){parent.onCamera(map.centerCoordinate,log2(360/max(0.00001,map.region.span.longitudeDelta)))}
         func mapView(_ map:MKMapView,viewFor annotation:MKAnnotation)->MKAnnotationView? {
             guard let pin=annotation as? PoiPin else{return nil}
             let view=MKMarkerAnnotationView(annotation:pin,reuseIdentifier:nil);view.markerTintColor=pin.point.category=="美食" ? .systemOrange:.systemTeal;view.glyphImage=UIImage(systemName:pin.point.category=="美食" ? "fork.knife":pin.point.category=="設施" ? "figure.stand":"mappin");view.canShowCallout=true;return view
         }
         func mapView(_ map:MKMapView,didSelect view:MKAnnotationView){if let pin=view.annotation as? PoiPin{parent.onSelect(pin.point.id)}}
     }
-    func makeUIView(context:Context)->MKMapView{let map=MKMapView();map.delegate=context.coordinator;map.addOverlay(OsmTiles(),level:.aboveLabels);map.setRegion(MKCoordinateRegion(center:CLLocationCoordinate2D(latitude:-33.865,longitude:151.212),span:MKCoordinateSpan(latitudeDelta:0.025,longitudeDelta:0.025)),animated:false);return map}
-    func updateUIView(_ map:MKMapView,context:Context){context.coordinator.parent=self;let key=places.map(\.id).joined(separator:",");guard context.coordinator.key != key else{return};context.coordinator.key=key;map.removeAnnotations(map.annotations);map.addAnnotations(places.map(PoiPin.init))}
+    func makeUIView(context:Context)->MKMapView{let map=MKMapView();map.delegate=context.coordinator;if osm{map.addOverlay(OsmTiles(),level:.aboveLabels)};let delta=360/pow(2,zoom);map.setRegion(MKCoordinateRegion(center:center,span:MKCoordinateSpan(latitudeDelta:delta,longitudeDelta:delta)),animated:false);return map}
+    func updateUIView(_ map:MKMapView,context:Context){context.coordinator.parent=self
+        let tiles=map.overlays.filter{$0 is OsmTiles}
+        if osm && tiles.isEmpty{map.addOverlay(OsmTiles(),level:.aboveLabels)}
+        if !osm{map.removeOverlays(tiles)}
+        let key=places.map(\.id).joined(separator:",");guard context.coordinator.key != key else{return};context.coordinator.key=key;map.removeAnnotations(map.annotations);map.addAnnotations(places.map(PoiPin.init))}
+}
+
+private struct PoiGoogleMap:UIViewRepresentable {
+    var places:[ScheduleCandidate];var center:CLLocationCoordinate2D;var zoom:Double
+    var onCamera:(CLLocationCoordinate2D,Double)->Void;var onSelect:(String)->Void
+    func makeCoordinator()->Coordinator{Coordinator(self)}
+    final class Coordinator:NSObject,GMSMapViewDelegate {
+        var parent:PoiGoogleMap;var key=""
+        init(_ parent:PoiGoogleMap){self.parent=parent}
+        func mapView(_ map:GMSMapView,idleAt camera:GMSCameraPosition){parent.onCamera(camera.target,Double(camera.zoom))}
+        func mapView(_ map:GMSMapView,didTap marker:GMSMarker)->Bool{if let id=marker.userData as? String{parent.onSelect(id)};return false}
+    }
+    func makeUIView(context:Context)->GMSMapView {
+        let options=GMSMapViewOptions();options.camera=GMSCameraPosition(target:center,zoom:Float(zoom))
+        let map=GMSMapView(options:options);map.delegate=context.coordinator;return map
+    }
+    func updateUIView(_ map:GMSMapView,context:Context){
+        context.coordinator.parent=self;let key=places.map(\.id).joined(separator:",")
+        guard key != context.coordinator.key else{return};context.coordinator.key=key;map.clear()
+        for point in places{let marker=GMSMarker(position:CLLocationCoordinate2D(latitude:point.lat,longitude:point.lng));marker.title=point.name;marker.userData=point.id;marker.icon=GMSMarker.markerImage(with:point.category=="美食" ? .systemOrange:.systemTeal);marker.map=map}
+    }
 }
