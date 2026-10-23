@@ -4,7 +4,7 @@ using System.Text.Json.Nodes;
 namespace SydneyBuddy.Api;
 
 /// <summary>
-/// 校验并补全手机/网页共用的行程请求；不调用外部服务、不写数据库。
+/// 校验并补全Android / iOS 共用的行程请求；不调用外部服务、不写数据库。
 /// Validates and normalizes the shared planning request before any provider calls or database writes.
 /// </summary>
 public static class PlanValidator

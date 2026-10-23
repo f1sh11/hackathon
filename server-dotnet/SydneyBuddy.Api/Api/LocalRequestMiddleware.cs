@@ -10,8 +10,7 @@ namespace SydneyBuddy.Api;
 public sealed class LocalRequestMiddleware(RequestDelegate next, ILogger<LocalRequestMiddleware> logger)
 {
     private static readonly HashSet<string> AllowedOrigins = [
-        "http://127.0.0.1:8787", "http://localhost:8787",
-        "http://127.0.0.1:5173", "http://localhost:5173"
+        "http://127.0.0.1:8787", "http://localhost:8787"
     ];
 
     public async Task InvokeAsync(HttpContext context)
