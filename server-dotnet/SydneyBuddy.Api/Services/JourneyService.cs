@@ -17,7 +17,7 @@ public sealed record JourneyPlan(DateTimeOffset DepartureTime, DateTimeOffset Ar
     double ElapsedSeconds, double Meters, IReadOnlyList<JourneyLeg> Legs, string[] Warnings, string Source);
 
 /// <summary>Transport-neutral itinerary boundary. OTP owns GTFS transit; Valhalla owns street routing.</summary>
-public sealed class JourneyService(HttpClient client, IConfiguration configuration, NavigationService roads)
+public sealed class JourneyService(HttpClient client, IConfiguration configuration, NavigationService roads, IEnumerable<IJourneyProvider>? providers = null)
 {
     private const string Query = """
         query Journey($origin: PlanLabeledLocationInput!, $destination: PlanLabeledLocationInput!, $dateTime: PlanDateTimeInput!) {
@@ -41,7 +41,13 @@ public sealed class JourneyService(HttpClient client, IConfiguration configurati
 
     public async Task<JourneyPlan> PlanAsync(JsonObject input, CancellationToken ct)
     {
-        if (input.Str("contentSource") == "google") throw new ServiceException("Google live 行程暂不发送至开源交通服务，请选择示例行程。");
+        var providerId = input.Str("routingProvider", "open");
+        if (input.Str("contentSource") == "google" && providerId != "google")
+            throw new ServiceException("Google 行程只能使用 Google 路线来源。");
+        if (providerId == "google" && input.Str("mapProvider") != "google")
+            throw new ServiceException("Google 路线只能显示在 Google 地图。");
+        var provider = providerId == "open" ? null : (providers?.SingleOrDefault(x => x.Id == providerId)
+            ?? throw new ServiceException("此路线来源不可用；Apple 路线需由 iOS 装置查询。"));
         if (input["points"] is not JsonArray raw || raw.Count is < 2 or > 12) throw new ServiceException("交通规划需要 2–12 个站点。");
         var points = raw.Select(ParsePoint).ToArray();
         if (input["modes"] is not JsonArray modes || modes.Count != points.Length - 1) throw new ServiceException("请为每段行程选择交通方式。");
@@ -53,8 +59,9 @@ public sealed class JourneyService(HttpClient client, IConfiguration configurati
             throw new ServiceException("出发时间必须包含时区，例如 +11:00。");
         if (departure.Year is < 2000 or > 2100) throw new ServiceException("出发日期超出支持范围。");
         // Fail before making any street calls if a later transit leg cannot be planned.
-        if (choices.Contains("transit") && !TransitConfigured) throw new ServiceException("大众运输服务尚未启用，暂时不能查询班次。请先选择步行／开车，或联系开发团队。");
-        if (choices.Any(x => x != "transit") && !roads.Configured) throw new ServiceException("步行／开车路线服务尚未启用，请联系开发团队。");
+        if (provider is null && choices.Contains("transit") && !TransitConfigured) throw new ServiceException("大众运输服务尚未启用，暂时不能查询班次。请先选择步行／开车，或联系开发团队。");
+        if (provider is null && choices.Any(x => x != "transit") && !roads.Configured) throw new ServiceException("步行／开车路线服务尚未启用，请联系开发团队。");
+        provider?.EnsureAvailable(choices);
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct); deadline.CancelAfter(TimeSpan.FromSeconds(90));
         var cursor = departure; var legs = new List<JourneyLeg>();
         try
@@ -62,7 +69,9 @@ public sealed class JourneyService(HttpClient client, IConfiguration configurati
             for (var i = 0; i < choices.Length; i++)
             {
                 deadline.Token.ThrowIfCancellationRequested();
-                IReadOnlyList<JourneyStep> steps = choices[i] == "transit"
+                IReadOnlyList<JourneyStep> steps = provider is not null
+                    ? await provider.RouteAsync(points[i], points[i + 1], choices[i], cursor, deadline.Token)
+                    : choices[i] == "transit"
                     ? await TransitAsync(points[i], points[i + 1], cursor, deadline.Token)
                     : await StreetAsync(points[i], points[i + 1], choices[i], cursor, deadline.Token);
                 var arrival = steps[^1].ArrivalTime;
@@ -75,10 +84,12 @@ public sealed class JourneyService(HttpClient client, IConfiguration configurati
         catch (OperationCanceledException) when (!ct.IsCancellationRequested) { throw new ServiceException("交通规划超时，请减少站点后重试。原行程未改变。"); }
         var warnings = new List<string> { "规划不修改原行程；若出发时间或交通方式变化，请重新查询。" };
         if (choices.Contains("drive")) warnings.Add("开车时间不含停车或实时路况；混合交通时请自行安排车辆。");
-        if (choices.Contains("transit")) warnings.Add("班次来自已导入的 GTFS；只有配置 GTFS-RT 且该班次有更新时才标为实时。票价未提供。");
+        if (provider is null && choices.Contains("transit")) warnings.Add("班次来自已导入的 GTFS；只有配置 GTFS-RT 且该班次有更新时才标为实时。票价未提供。");
+        if (provider is not null) warnings.Add(provider.Notice);
+        if (legs.SelectMany(x => x.Steps).Any(x => x.Geometry.Count < 2 && x.Meters > 0)) warnings.Add("部分路段未提供线形，仅显示站名；不会以直线补齐。");
         var all = legs.SelectMany(x => x.Steps).ToArray();
         return new(departure, cursor, legs.Sum(x => (x.ArrivalTime - x.DepartureTime).TotalSeconds),
-            (cursor - departure).TotalSeconds, all.Sum(x => x.Meters), legs, warnings.ToArray(), choices.All(x => x == "transit") ? "OpenTripPlanner / OSM + GTFS" : choices.Contains("transit") ? "OSM / Valhalla / OpenTripPlanner + GTFS" : "OSM / Valhalla");
+            (cursor - departure).TotalSeconds, all.Sum(x => x.Meters), legs, warnings.ToArray(), provider?.Label ?? (choices.All(x => x == "transit") ? "OpenTripPlanner / OSM + GTFS" : choices.Contains("transit") ? "OSM / Valhalla / OpenTripPlanner + GTFS" : "OSM / Valhalla"));
     }
 
     private async Task<IReadOnlyList<JourneyStep>> StreetAsync(JourneyPoint from, JourneyPoint to, string mode, DateTimeOffset departure, CancellationToken ct)

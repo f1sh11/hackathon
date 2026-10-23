@@ -17,7 +17,7 @@ public sealed class JourneyServiceTests
         Assert.Equal("TEST-01",steps[1].Line);Assert.Equal("测试目的地方向",steps[1].Headsign);
         Assert.Equal("测试上车站 A",steps[1].From);Assert.Equal("测试下车站 B",steps[1].To);
         Assert.Equal(300,steps[1].WaitSeconds);Assert.Equal(4,steps[1].StopCount);Assert.False(steps[1].Realtime);
-        Assert.Equal(1800,result.TravelSeconds);Assert.Equal(-33.8611,steps[0].Geometry[0].Lat,5);
+        Assert.Equal(1800,result.TravelSeconds);Assert.Equal(-33.86108,steps[0].Geometry[0].Lat,5);
         var variables=handler.Requests[0].Object("variables")!;
         Assert.Equal(151.2126,variables.Object("origin")!.Object("location")!.Object("coordinate")!.Number("longitude"));
         Assert.Contains("planConnection",handler.Requests[0].Str("query"));Assert.Contains("transitOnly: true",handler.Requests[0].Str("query"));

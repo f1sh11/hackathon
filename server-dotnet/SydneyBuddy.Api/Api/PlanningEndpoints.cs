@@ -14,6 +14,7 @@ public static class PlanningEndpoints
             {
                 navigationConfigured = navigation.Configured, transitConfigured = journeys.TransitConfigured, status = "ok", database = "postgresql", paidServicesAllowed = paidServices.Allowed,
                 nvidiaConfigured = config["NVIDIA_API_KEY"].Length > 0,
+                nswTransitConfigured = config["TFNSW_API_KEY"].Length > 0,
                 googleConfigured = config["GOOGLE_SERVER_KEY"].Length > 0,
                 iosMapConfigured = config["GOOGLE_IOS_KEY"].Length > 0,
                 model = config["NVIDIA_MODEL"].Length > 0 ? config["NVIDIA_MODEL"] : SecretStore.DefaultModel

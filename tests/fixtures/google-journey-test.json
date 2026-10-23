@@ -1,0 +1,66 @@
+{
+  "routes": [
+    {
+      "duration": "1800s",
+      "distanceMeters": 1450,
+      "polyline": {
+        "encodedPolyline": "vntmEqu|y[EEMGQEYAk@E@_@@EAEBa@?C??y@EeAKYCe@Ee@Gc@IWIE?C?C?E@A@A@KBMAGGGKCMIKGKGGKSEIUWOKCAQKQESE_@Go@MDe@PyAFs@Fg@W^??AH_@LICK?G?EQ_@?eASCBCCKA"
+      },
+      "legs": [
+        {
+          "steps": [
+            {
+              "travelMode": "WALK",
+              "staticDuration": "300s",
+              "distanceMeters": 150,
+              "polyline": {
+                "encodedPolyline": "vntmEqu|y[EEMGQEYAk@E@_@@EAEBa@?C"
+              }
+            },
+            {
+              "travelMode": "TRANSIT",
+              "staticDuration": "900s",
+              "distanceMeters": 1200,
+              "polyline": {
+                "encodedPolyline": "pktmE_y|y[y@EeAKYCe@Ee@Gc@IWIE?C?C?E@A@A@KBMAGGGKCMIKGKGGKSEIUWOKCAQKQESE_@Go@MDe@PyAFs@Fg@W^"
+              },
+              "transitDetails": {
+                "stopDetails": {
+                  "departureStop": {
+                    "name": "测试上车站 A"
+                  },
+                  "arrivalStop": {
+                    "name": "测试下车站 B"
+                  },
+                  "departureTime": "2026-10-23T10:10:00+11:00",
+                  "arrivalTime": "2026-10-23T10:25:00+11:00"
+                },
+                "transitLine": {
+                  "nameShort": "TEST-01",
+                  "vehicle": {
+                    "type": "BUS"
+                  },
+                  "agencies": [
+                    {
+                      "name": "Synthetic test operator"
+                    }
+                  ]
+                },
+                "headsign": "测试目的地方向",
+                "stopCount": 4
+              }
+            },
+            {
+              "travelMode": "WALK",
+              "staticDuration": "300s",
+              "distanceMeters": 100,
+              "polyline": {
+                "encodedPolyline": "zysmE_f}y[AH_@LICK?G?EQ_@?eASCBCCKA"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

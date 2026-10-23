@@ -33,7 +33,7 @@ class ItineraryOverviewUiTest {
             rule.onNodeWithText("显示步行路线").assertIsDisplayed()
             rule.onNodeWithText("展开地图").performClick()
             rule.onNodeWithText("全天行程顺序").assertIsDisplayed()
-            rule.onNodeWithText("连线为顺序示意 · 非实际步行路径").assertIsDisplayed()
+            rule.onNodeWithText("尚未查询道路路线 · 仅显示站点").assertIsDisplayed()
             rule.waitUntil(30000){rule.onAllNodes(hasText("地图已加载",substring=true) and hasAnyAncestor(hasTestTag("expanded-itinerary-map"))).fetchSemanticsNodes().isNotEmpty()}
             val screenshot=instrumentation.uiAutomation.takeScreenshot()
             File(context.getExternalFilesDir(null),"itinerary-android-overview.png").outputStream().use{screenshot.compress(Bitmap.CompressFormat.PNG,100,it)}

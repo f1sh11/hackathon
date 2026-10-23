@@ -42,10 +42,10 @@ struct GoogleRouteMap: UIViewRepresentable {
         let path=GMSMutablePath()
         if let overview { overview.coordinates.forEach { path.add($0) } }
         else if actual { paths.forEach { leg in for i in 0..<leg.count() { path.add(leg.coordinate(at:i)) } } }
-        else { path.add(day.start.location); day.stops.forEach {path.add($0.coordinate)}; path.add(day.end.location) }
+
         let casing=GMSPolyline(path:path);casing.strokeColor = .white;casing.strokeWidth=9;casing.map=map
-        let line=GMSPolyline(path:path);line.strokeColor=UIColor(Palette.green);line.strokeWidth=5
-        if !actual {line.spans=GMSStyleSpans(path,[GMSStrokeStyle.solidColor(UIColor(Palette.green)),GMSStrokeStyle.solidColor(.clear)],[25,15],.rhumb)}
+        let line=GMSPolyline(path:path);line.strokeColor = .systemBlue;line.strokeWidth=5
+        if path.count()>1 {line.spans=GMSStyleSpans(path,[GMSStrokeStyle.solidColor(.systemBlue),GMSStrokeStyle.solidColor(.clear)],[2,18],.rhumb)}
         line.map=map
         if !sections.isEmpty {
             casing.map=nil;line.map=nil
@@ -53,17 +53,17 @@ struct GoogleRouteMap: UIViewRepresentable {
                 let sectionPath=GMSMutablePath();section.coordinates.forEach{sectionPath.add($0)}
                 let border=GMSPolyline(path:sectionPath);border.strokeColor = .white;border.strokeWidth=9;border.map=map
                 let stroke=GMSPolyline(path:sectionPath);stroke.strokeColor=UIColor(transportColor(section.mode));stroke.strokeWidth=5
-                if section.mode == "walk" {stroke.spans=GMSStyleSpans(sectionPath,[GMSStrokeStyle.solidColor(.systemBlue),GMSStrokeStyle.solidColor(.clear)],[8,10],.rhumb)}
+                if section.mode == "walk" {stroke.spans=GMSStyleSpans(sectionPath,[GMSStrokeStyle.solidColor(.systemBlue),GMSStrokeStyle.solidColor(.clear)],[2,18],.rhumb)}
                 stroke.map=map
             }
         }
-        for item in overviewPins(day) {
+        for item in sections.flatMap(\.stopPins)+overviewPins(day) {
             let pin=GMSMarker(position:item.coordinate);pin.title=item.title;pin.snippet=item.subtitle
             pin.icon=overviewBadge(item.badge);pin.groundAnchor=CGPoint(x:0.5,y:0.5);pin.zIndex=2;pin.map=map
             bounds=bounds.includingCoordinate(item.coordinate)
         }
         let coordinates=(0..<path.count()).map {path.coordinate(at:$0)}
-        for item in overviewDirections(coordinates) {
+        for item in (sections.isEmpty ? overviewDirections(coordinates) : []) {
             let pin=GMSMarker(position:item.coordinate);pin.icon=overviewBadge(item.badge,direction:true)
             pin.groundAnchor=CGPoint(x:0.5,y:0.5);pin.zIndex=1;pin.map=map
         }
@@ -146,11 +146,11 @@ struct NativeRouteMap:UIViewRepresentable {
         let start=day?.start ?? .quay,end=day?.end ?? .central
         let coordinates=[start.location]+(day?.stops.map(\.coordinate) ?? [])+[end.location]
         if let day {
-            map.addAnnotations(overviewPins(day))
-            let geometry = overview?.coordinates ?? coordinates
+            map.addAnnotations(sections.flatMap(\.stopPins)+overviewPins(day))
+            let geometry = overview?.coordinates ?? []
             let casing=MKPolyline(coordinates:geometry,count:geometry.count);casing.title="casing"
-            let line=MKPolyline(coordinates:geometry,count:geometry.count);line.title=overview == nil ? "schematic" : "walking"
-            if sections.isEmpty {map.addOverlay(casing,level:.aboveLabels);map.addOverlay(line,level:.aboveLabels)}
+            let line=MKPolyline(coordinates:geometry,count:geometry.count);line.title="walk"
+            if sections.isEmpty && geometry.count>1 {map.addOverlay(casing,level:.aboveLabels);map.addOverlay(line,level:.aboveLabels)}
             else {for section in sections where section.coordinates.count>1 {
                 let border=MKPolyline(coordinates:section.coordinates,count:section.coordinates.count);border.title="casing"
                 let stroke=MKPolyline(coordinates:section.coordinates,count:section.coordinates.count);stroke.title=section.mode
@@ -201,7 +201,7 @@ struct NativeRouteMap:UIViewRepresentable {
                 renderer.lineWidth = line.title == "casing" ? 9 : 5
                 renderer.lineCap = .round;renderer.lineJoin = .round
                 if line.title == "schematic" {renderer.lineDashPattern=[9,6]}
-                if line.title == "walk" {renderer.lineDashPattern=[1,2]}
+                if line.title == "walk" {renderer.lineDashPattern=[1,12]}
                 return renderer
             }
             return MKOverlayRenderer(overlay:overlay)
@@ -300,7 +300,7 @@ struct HomeView: View {
                             HStack(spacing:8) { Label("A$\(Int(day.estimatedCost))",systemImage:"wallet.bifold"); Text("·");Text("\(day.finishTime) 返回") }.font(.caption.bold()).foregroundStyle(Palette.green)
                             HStack(spacing:12) {
                                 Button("交通路线规划"){journey=true}
-                                Button("逐段步行导航"){navigation=true}
+                                Button("逐段步行导航"){navigation=true}.disabled(store.mapProvider != .osm)
                             }.font(.caption.bold()).tint(Palette.green).lineLimit(1).minimumScaleFactor(0.8)
                             ScrollView(.horizontal,showsIndicators:false) {
                                 HStack(spacing:8) {
@@ -309,7 +309,7 @@ struct HomeView: View {
                                     Text("→ 终 · \(day.end.name)")
                                 }.font(.caption).foregroundStyle(Palette.green)
                             }.accessibilityLabel("行程站点顺序")
-                            if store.trip?.mode != "live", store.mapProvider != .schematic {
+                            if store.trip?.mode != "live", store.mapProvider == .osm {
                                 Button(overview.busy ? "正在取得步行路线…" : overview.route == nil ? "显示步行路线" : "步行约 \(Int((overview.route?.meters ?? 0).rounded())) 米 · \(Int(ceil((overview.route?.seconds ?? 0)/60))) 分钟") {overview.load(day)}
                                     .font(.caption.bold()).tint(Palette.green).disabled(overview.busy || overview.route != nil)
                                 if let route=overview.route {ScrollView(.horizontal,showsIndicators:false){Text(route.segments).font(.caption2).foregroundStyle(Palette.muted)}}
@@ -320,7 +320,7 @@ struct HomeView: View {
                     }.padding(18).frame(maxWidth:.infinity,alignment:.leading).background(.white,in:RoundedRectangle(cornerRadius:25)).shadow(color:Palette.ink.opacity(0.08),radius:12,y:4)
                     Button {chat=true} label:{ VStack(spacing:0) {Text("问 AI").font(.headline.bold()).padding(.horizontal,18).padding(.vertical,12).foregroundStyle(.white).background(Palette.green,in:Capsule());Robot(size:80)} }.buttonStyle(.plain).accessibilityLabel("问 AI")
                 }.padding(.horizontal,20)
-                Text(store.trip?.mode=="live" ? (store.mapProvider == .google ? "Google 路线 · 费用与步数为估算" : "Google 行程图层已隐藏，请切换 Google 底图查看") : (overview.route == nil || store.mapProvider == .schematic ? "虚线 / 箭头为行程顺序示意 · 非实际步行路径" : "沿道路步行路线 · 不含景点停留时间")).font(.system(size:10)).foregroundStyle(Palette.ink.opacity(0.7)).padding(7).background(.white.opacity(0.85),in:Capsule())
+                Text(store.trip?.mode=="live" ? (store.mapProvider == .google ? "Google 路线 · 费用与步数为估算" : "Google 行程图层已隐藏，请切换 Google 底图查看") : (store.mapProvider == .schematic ? "离线顺序示意 · 非道路路线" : overview.route == nil ? "尚未查询道路路线 · 仅显示站点" : "沿道路步行路线 · 不含景点停留时间")).font(.system(size:10)).foregroundStyle(Palette.ink.opacity(0.7)).padding(7).background(.white.opacity(0.85),in:Capsule())
             }.padding(.top,12).padding(.bottom,12)
         }.task(id:mapSceneKey(store.currentDay)+"|"+(store.trip?.mode ?? "")) {overview.reset(mapSceneKey(store.currentDay))}
         .sheet(isPresented:$chat){AgentView()}.sheet(isPresented:$details){TripDetailView()}
@@ -331,10 +331,10 @@ struct HomeView: View {
                     HStack {Text("全天行程顺序").font(.headline);Spacer();Button("关闭地图"){expandedMap=false}}.padding().background(.white,in:RoundedRectangle(cornerRadius:18))
                     Spacer()
                     VStack(alignment:.leading,spacing:10) {
-                        Text(overview.route == nil ? "连线为顺序示意 · 非实际步行路径" : "沿道路步行路线 · 不含景点停留时间").font(.caption.bold())
+                        Text(overview.route == nil ? "尚未查询道路路线 · 仅显示站点" : "沿道路步行路线 · 不含景点停留时间").font(.caption.bold())
                         if let day=store.currentDay {
                             ScrollView(.horizontal,showsIndicators:false) {Text("起 · \(day.start.name) → " + day.stops.enumerated().map {"\($0.offset+1) · \($0.element.name)"}.joined(separator:" → ")+" → 终 · \(day.end.name)").font(.caption)}
-                            if store.trip?.mode != "live",store.mapProvider != .schematic {
+                            if store.trip?.mode != "live",store.mapProvider == .osm {
                                 Button(overview.busy ? "正在取得步行路线…" : overview.route == nil ? "显示步行路线" : "步行约 \(Int(overview.route!.meters)) 米 · \(Int(ceil(overview.route!.seconds/60))) 分钟") {overview.load(day)}.disabled(overview.busy || overview.route != nil)
                                 if let route=overview.route {ScrollView(.horizontal,showsIndicators:false){Text(route.segments).font(.caption2)}}
                                 if let message=overview.message {Text(message).font(.caption)}
@@ -345,10 +345,11 @@ struct HomeView: View {
                 }.padding().tint(Palette.green)
             }
         }
+        .onChange(of:store.mapProvider){overview.cancel();overview.route=nil}
         .fullScreenCover(isPresented:$journey) {
             if let day=store.currentDay,let trip=store.trip {
-                if trip.mode == "live" {VStack(spacing:20){Text("Google live 行程暂不发送至开源交通服务，请选择示例行程。");Button("关闭"){journey=false}}.padding()}
-                else {JourneyPlannerView(day:day,tripID:(trip.id ?? "draft")+":\(trip.revision ?? 0)",provider:store.mapProvider)}
+                if trip.mode == "live" && store.mapProvider != .google {VStack(spacing:20){Text("此行程的交通规划需搭配 Google 底图与 Google Routes，请切换底图。");Button("关闭"){journey=false}}.padding()}
+                else {JourneyPlannerView(day:day,tripID:(trip.id ?? "draft")+":\(trip.revision ?? 0)",provider:store.mapProvider,contentSource:trip.mode == "live" ? "google" : "open")}
             }
         }
         .fullScreenCover(isPresented:$navigation) {

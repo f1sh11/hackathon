@@ -47,6 +47,27 @@ private final class JourneyStub:URLProtocol {
         model.load(day:day(),modes:["transit"],departure:Date());try await wait(model)
         XCTAssertNil(model.plan);XCTAssertTrue(model.error?.contains("GTFS") == true)
     }
+    func testSourceAndMapAreSentAndSwitchingSourceDiscardsOldResults() async throws {
+        JourneyStub.status=200;JourneyStub.responseData=try fixture()
+        let model=model();defer{model.session.invalidateAndCancel()}
+        model.load(day:day(),modes:["transit"],departure:Date(),routingProvider:"nsw",mapProvider:"apple")
+        try await wait(model)
+        // URLProtocol may expose the body as an input stream rather than httpBody.
+        let request=try XCTUnwrap(JourneyStub.lastRequest)
+        var data=request.httpBody
+        if data == nil,let stream=request.httpBodyStream {
+            stream.open();defer{stream.close()};var bytes=[UInt8](repeating:0,count:4096);var body=Data()
+            while stream.hasBytesAvailable {let count=stream.read(&bytes,maxLength:bytes.count);if count<=0{break};body.append(bytes,count:count)}
+            data=body
+        }
+        let payload=try JSONSerialization.jsonObject(with:XCTUnwrap(data)) as! [String:Any]
+        XCTAssertEqual(payload["routingProvider"] as? String,"nsw");XCTAssertEqual(payload["mapProvider"] as? String,"apple")
+        model.invalidate();XCTAssertNil(model.plan)
+    }
+    func testAppleTransitFailsWithoutQueryingOrInventingBusDetails() async {
+        do { _ = try await AppleJourneyProvider.plan(day:day(),modes:["transit"],departure:Date());XCTFail("MapKit transit directions must not be invented") }
+        catch {XCTAssertTrue(error.localizedDescription.contains("NSW"))}
+    }
     func testRenderClearlyLabeledTransitFixture() async throws {
         let plan=try JSONDecoder().decode(JourneyPlan.self,from:fixture())
         let scene=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.first!

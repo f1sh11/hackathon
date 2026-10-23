@@ -69,11 +69,16 @@ import org.json.JSONObject
                     val icon=remember {BitmapDescriptorFactory.fromBitmap(itineraryBadge(badge))}
                     Marker(state=marker,title=group.joinToString(" → "){j->"${badges[j]} · ${entries[j].optString("name")}"},snippet=entries[i].optString("arrival"),icon=icon,zIndex=2f,anchor=Offset(.5f,.5f))
                 }
+                sections.forEach {section->section.stops.forEach {(point,title)->key(point,title){
+                    val marker=remember{MarkerState(position=LatLng(point.first,point.second))}
+                    val icon=remember{BitmapDescriptorFactory.fromBitmap(itineraryBadge("●"))}
+                    Marker(state=marker,title=title,snippet=section.line ?: transportLabel(section.mode),icon=icon,zIndex=3f,anchor=Offset(.5f,.5f))
+                }}}
                 val actual=overview!=null || (routes.size==points.size-1 && routes.all{it.size>1})
-                val geometry=overview?.points?.map{LatLng(it.first,it.second)} ?: if(actual)routes.flatten() else points
+                val geometry=overview?.points?.map{LatLng(it.first,it.second)} ?: if(actual)routes.flatten() else emptyList()
                 if(sections.isEmpty() && geometry.size>1){
                     Polyline(points=geometry,color=Color.White,width=18f)
-                    Polyline(points=geometry,color=Green,width=10f,pattern=if(actual)null else listOf(com.google.android.gms.maps.model.Dash(20f),com.google.android.gms.maps.model.Gap(12f)))
+                    Polyline(points=geometry,color=Color(0xFF1976D2),width=10f,pattern=listOf(com.google.android.gms.maps.model.Dot(),com.google.android.gms.maps.model.Gap(15f)))
                 } else sections.filter{it.points.size>1}.forEach{section->
                     val path=section.points.map{LatLng(it.first,it.second)}
                     Polyline(points=path,color=Color.White,width=18f)
@@ -88,7 +93,7 @@ import org.json.JSONObject
                 }
             }
         }
-        if(!fullBleed)Small(if(routes.any{it.isNotEmpty()}) "步行路线；来源见规划记录" else "连线与箭头为行程顺序示意，不是实际步行路线")
+        if(!fullBleed)Small(if(routes.any{it.isNotEmpty()}) "步行路线；来源见规划记录" else "仅显示站点；查询后显示沿道路路线")
     } else {
         Column((if(fullBleed)modifier else modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp))).background(Mint).padding(16.dp)) {
             Text("SYDNEY · 路线示意图")

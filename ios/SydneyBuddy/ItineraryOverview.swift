@@ -79,7 +79,7 @@ struct OverviewRoute {
                 route = parsed; busy = false
             } catch {
                 guard token == generation, !Task.isCancelled else { return }
-                busy = false; message = "暂时无法取得步行路线，仍显示站点顺序示意。可重试。"
+                busy = false; message = "暂时无法取得步行路线，仅显示站点；请重试。"
             }
         }
     }
@@ -95,14 +95,22 @@ final class ItineraryPin: MKPointAnnotation {
     }
 }
 func overviewBadge(_ text: String, direction: Bool = false) -> UIImage {
-    let size = CGSize(width: direction ? 24 : 42, height: direction ? 24 : 42)
-    return UIGraphicsImageRenderer(size: size).image { _ in
-        let rect = CGRect(origin: .zero, size: size).insetBy(dx: 2, dy: 2)
-        UIColor.white.setFill(); UIBezierPath(ovalIn: CGRect(origin: .zero, size: size)).fill()
-        UIColor(Palette.green).setFill(); UIBezierPath(ovalIn: rect).fill()
-        let attrs: [NSAttributedString.Key: Any] = [.font: UIFont.boldSystemFont(ofSize: direction ? 16 : (text.count > 2 ? 10 : 15)), .foregroundColor: UIColor.white]
-        let measured = (text as NSString).size(withAttributes: attrs)
-        (text as NSString).draw(at: CGPoint(x: (size.width-measured.width)/2, y: (size.height-measured.height)/2), withAttributes: attrs)
+    let size = CGSize(width: direction ? 24 : text == "●" ? 24 : 42, height: direction ? 24 : text == "●" ? 24 : 42)
+    return UIGraphicsImageRenderer(size:size).image {_ in
+        let rect=CGRect(origin:.zero,size:size).insetBy(dx:3,dy:3)
+        let start=text.contains("起"),end=text == "终"
+        if end {
+            let image=UIImage(systemName:"mappin.circle.fill")?.withTintColor(.systemRed,renderingMode:.alwaysOriginal)
+            image?.draw(in:rect);return
+        }
+        UIColor.white.setFill();UIBezierPath(ovalIn:CGRect(origin:.zero,size:size)).fill()
+        (start ? UIColor.systemBlue : direction ? UIColor(Palette.green) : UIColor.white).setFill()
+        let circle=UIBezierPath(ovalIn:rect);circle.fill()
+        if !start && !direction {UIColor.darkGray.setStroke();circle.lineWidth=2;circle.stroke()}
+        let attrs:[NSAttributedString.Key:Any]=[.font:UIFont.boldSystemFont(ofSize:direction ? 16 : text.count>2 ? 10 : 15),.foregroundColor:start || direction ? UIColor.white : UIColor.darkGray]
+        let label=text == "●" ? "" : text
+        let measured=(label as NSString).size(withAttributes:attrs)
+        (label as NSString).draw(at:CGPoint(x:(size.width-measured.width)/2,y:(size.height-measured.height)/2),withAttributes:attrs)
     }
 }
 func overviewPins(_ day: DayPlan) -> [ItineraryPin] {

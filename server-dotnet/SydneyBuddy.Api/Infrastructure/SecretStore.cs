@@ -11,7 +11,7 @@ namespace SydneyBuddy.Api;
 public sealed partial class SecretStore(ProjectPaths paths)
 {
     public const string DefaultModel = "nvidia/nemotron-3.5-lightning-30b-a3b";
-    private static readonly string[] Keys = ["NVIDIA_API_KEY", "GOOGLE_SERVER_KEY", "GOOGLE_IOS_KEY", "NVIDIA_MODEL"];
+    private static readonly string[] Keys = ["NVIDIA_API_KEY", "GOOGLE_SERVER_KEY", "GOOGLE_IOS_KEY", "NVIDIA_MODEL", "TFNSW_API_KEY"];
     private readonly object gate = new();
     public string SetupToken { get; } = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
 

@@ -59,18 +59,22 @@ class ItineraryOverview {
                 }
                 ensureActive();route=parsed;busy=false
             } catch(e:CancellationException){throw e}
-            catch(e:Exception){busy=false;message="暂时无法取得步行路线，仍显示站点顺序示意。可重试。"}
+            catch(e:Exception){busy=false;message="暂时无法取得步行路线，仅显示站点；请重试。"}
         }
     }
 }
 fun itineraryBadge(text:String,direction:Boolean=false):Bitmap {
-    val size=if(direction)48 else 84
+    val size=if(direction || text=="●")48 else 84
     val bitmap=Bitmap.createBitmap(size,size,Bitmap.Config.ARGB_8888)
     val canvas=Canvas(bitmap);val paint=Paint(Paint.ANTI_ALIAS_FLAG)
     paint.color=android.graphics.Color.WHITE;canvas.drawCircle(size/2f,size/2f,size/2f,paint)
-    paint.color=android.graphics.Color.rgb(13,130,94);canvas.drawCircle(size/2f,size/2f,size/2f-4,paint)
-    paint.color=android.graphics.Color.WHITE;paint.textAlign=Paint.Align.CENTER;paint.isFakeBoldText=true;paint.textSize=if(direction)32f else if(text.length>2)20f else 30f
-    canvas.drawText(text,size/2f,size/2f-(paint.ascent()+paint.descent())/2,paint)
+    val start=text.contains("起")
+    val end=text=="终"
+    paint.color=when {start->android.graphics.Color.rgb(25,118,210);end->android.graphics.Color.rgb(215,48,48);direction->android.graphics.Color.rgb(13,130,94);else->android.graphics.Color.DKGRAY}
+    canvas.drawCircle(size/2f,size/2f,size/2f-4,paint)
+    if(!start && !end && !direction){paint.color=android.graphics.Color.WHITE;canvas.drawCircle(size/2f,size/2f,size/2f-8,paint)}
+    paint.color=if(start || end || direction)android.graphics.Color.WHITE else android.graphics.Color.DKGRAY;paint.textAlign=Paint.Align.CENTER;paint.isFakeBoldText=true;paint.textSize=if(direction)32f else if(text.length>2)20f else 30f
+    canvas.drawText(if(text=="●")"" else text,size/2f,size/2f-(paint.ascent()+paint.descent())/2,paint)
     return bitmap
 }
 fun itineraryBadges(points:List<Pair<Double,Double>>):List<String> = points.indices.map {i->

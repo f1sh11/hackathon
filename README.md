@@ -53,7 +53,7 @@ dotnet run --project server-dotnet/SydneyBuddy.Api
 2. Android Studio 打开 **`android/`**，等待 Gradle 同步。
 3. 连接已开启 USB 调试的手机，或启动模拟器。
 4. Windows 运行 `powershell -File scripts/connect-android.ps1`；macOS 运行 `sh scripts/connect-android.sh`，将设备端口转发到电脑。
-5. 在 Android Studio 运行 `app`。不配置 Google 密钥即可使用默认 OSM 底图与演示行程；连线明确标注为示意，不是导航路线。
+5. 在 Android Studio 运行 `app`。不配置 Google 密钥即可使用默认 OSM 底图与演示行程；尚未查询道路路线时仅显示站点，不用直线替代导航路径。
 
 每次重启模拟器或重新连接手机后，需要重做端口转发。若 `adb` 不在 PATH，连接脚本会尝试从 `ANDROID_HOME` 或默认 SDK 路径查找。命令行构建在 `android/` 中执行：
 
@@ -83,7 +83,7 @@ Android 仍连接 `http://127.0.0.1:8787`。Debug 允许本机 HTTP，Release �
 | Google Maps | 原有 Maps SDK | 原有 Maps SDK | 需配置各自平台的地图金钥；缺少金钥会明确提示，不自动切换来源 |
 | 离线示意图 | 支持 | 支持 | 不加载网络底图，只绘制示例位置和连线，不提供导航 |
 
-OSM / Apple Maps 的示例景点连线不是道路导航。`live` 行程含 Google Places / Routes 内容时，其他底图会隐藏整份地图图层并提示切回 Google；行程列表与原始数据仍保留，不把 Google 路径重新绘制到其他地图。参见 [Google Routes 政策](https://developers.google.com/maps/documentation/routes/policies)。
+OSM / Apple Maps 查询前仅显示景点标记；实际路线须由路线服务提供，缺少线形不补直线。`live` 行程含 Google Places / Routes 内容时，其他底图会隐藏整份地图图层并提示切回 Google；行程列表与原始数据仍保留，不把 Google 路径重新绘制到其他地图。参见 [Google Routes 政策](https://developers.google.com/maps/documentation/routes/policies)。
 
 OSM 公共图砖只用于少量交互开发：请求包含 App 的 User-Agent，保留可见版权署名，遵守 HTTP 缓存，不提供预下载和离线区域下载。公共服务没有可用性保证，正式规模使用需评估其他图砖供应商或自架服务。图砖加载受网络影响时可选离线示意图。[OSM 使用政策](https://operations.osmfoundation.org/policies/tiles/)
 
@@ -453,6 +453,13 @@ server-dotnet/
 
 首頁新增「交通路线规划」：參考地圖 App 的起終點摘要與可收合路線面板，支援整體／逐段選擇步行、開車或大眾運輸，以及指定悉尼當地出發時間。公車步驟包含路線號碼、方向、上下車站、候車時間、站數與站台（資料有提供時）；地圖按交通方式分色，步行顯示點線。
 
-步行／開車沿用 Valhalla；大眾運輸接入 **OpenTripPlanner 2.10＋OSM＋GTFS**。新增 `POST /journey/plan` 與 `Transit__OtpGraphqlUrl` 設定。現有 `/navigation/route` 仍固定步行，沒有新增 Google 付費呼叫。
+底圖與路線來源分離，切換底圖後預選對應服務，需手動按查詢才發送請求：
 
-**目前尚未匯入 NSW 真實時刻表／部署 OTP，真實班次尚未啟用。** 本地測試使用明確標示的 `TEST-01` 合成資料，正式畫面不會自行產生測試公車。設定方式、資料來源、API 與驗證限制見 [開放交通串接說明](docs/OPEN-TRANSIT.md)。
+- **OSM**：Valhalla 步行／開車，OpenTripPlanner 2.10 + GTFS 公交；測試不需 Google。
+- **NSW + Valhalla**：可在面板另選，公交直接接官方 Trip Planner API，服務端設定 `TFNSW_API_KEY`，不用自行部署 OTP。
+- **Google**：Google Routes 道路／公交；只可顯示在 Google 底圖，須服務端金鑰與付費開關，預設仍禁用。
+- **Apple（iOS）**：MKDirections 原生步行／開車。MapKit 不提供 App 內完整公交線形和班次明細；可另選 NSW／開源，或開啟 Apple Maps 查首個公交區間。
+
+共用 `JourneyPlan → legs → steps → geometry`，每段獨立畫線：步行藍色點線、車行實線、藍色起點、空心編號站點、紅色終點及上下車圓點。路線來自服務回傳的道路线形，未查詢或缺少線形時不畫站點直線。切換來源清空舊結果，不自動退回其他供應商。既有 Ferrostar 逐段導航目前限定 OSM / open 步行。
+
+**目前尚未設定 NSW 金鑰或部署 OTP，真實公交班次尚未啟用。** Apple 原生步行路線已實際查詢驗證；Google／NSW 轉接器已完成本地契約測試，尚未使用真實金鑰連線。 本地測試使用明確標示的 `TEST-01` 合成資料，正式畫面不會自行產生測試公車。設定方式、資料來源、API 與驗證限制見 [開放交通串接說明](docs/OPEN-TRANSIT.md)。

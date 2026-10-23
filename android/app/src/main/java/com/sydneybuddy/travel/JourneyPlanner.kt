@@ -37,7 +37,9 @@ fun transportLabel(mode:String)=when(mode){"walk"->"步行";"drive"->"开车";"t
 fun transportGlyph(mode:String)=when(mode){"walk"->"🚶";"drive"->"🚗";"bus"->"🚌";"ferry"->"⛴";else->"🚆"}
 fun transportColor(mode:String)=when(mode){"walk"->Color(0xFF1976D2);"drive"->Green;else->Color(0xFFC66A00)}
 fun journeyTime(raw:String)=runCatching{OffsetDateTime.parse(raw).atZoneSameInstant(ZoneId.of("Australia/Sydney")).format(DateTimeFormatter.ofPattern("HH:mm"))}.getOrDefault("时间未提供")
-data class JourneyMapSection(val mode:String,val points:List<Pair<Double,Double>>)
+data class JourneyMapSection(val mode:String,val points:List<Pair<Double,Double>>,val boarding:String="",val alighting:String="",val line:String?=null) {
+    val stops get()=if(mode in listOf("walk","drive") || points.size<2)emptyList()else listOf(points.first() to "上车 · $boarding",points.last() to "下车 · $alighting")
+}
 data class JourneyStep(val mode:String,val line:String?,val headsign:String?,val from:String,val to:String,val departureTime:String,val arrivalTime:String,val realtime:Boolean,val stopCount:Int?,val meters:Double,val seconds:Double,val waitSeconds:Double,val platform:String?,val agency:String?,val geometry:List<Pair<Double,Double>>) {
     val title get()="${transportGlyph(mode)} ${transportLabel(mode)}"+(if(mode in listOf("walk","drive"))"" else " · "+line?.takeIf{it.isNotBlank()}.orEmpty().ifEmpty{"路线号码未提供"})
     companion object {
@@ -51,7 +53,7 @@ data class JourneyStep(val mode:String,val line:String?,val headsign:String?,val
 }
 data class JourneyLeg(val index:Int,val mode:String,val from:String,val to:String,val departureTime:String,val arrivalTime:String,val staySeconds:Double,val steps:List<JourneyStep>)
 data class JourneyPlan(val departureTime:String,val arrivalTime:String,val travelSeconds:Double,val elapsedSeconds:Double,val meters:Double,val legs:List<JourneyLeg>,val warnings:List<String>,val source:String) {
-    val sections get()=legs.flatMap{it.steps}.map{JourneyMapSection(it.mode,it.geometry)}
+    val sections get()=legs.flatMap{it.steps}.map{JourneyMapSection(it.mode,it.geometry,it.from,it.to,it.line)}
     val overview get()=OverviewRoute(sections.flatMap{it.points},meters,travelSeconds,legs.map{it.steps.sumOf{step->step.seconds+step.waitSeconds}})
     companion object {
         fun parse(raw:String):JourneyPlan {
@@ -70,10 +72,10 @@ class JourneyModel(private val client:OkHttpClient=OkHttpClient.Builder().callTi
     private var job:Job?=null
     fun invalidate(){job?.cancel();job=null;busy=false;plan=null;error=null}
     fun close(){invalidate();scope.cancel()}
-    fun load(day:JSONObject,modes:List<String>,departure:OffsetDateTime,base:String){
+    fun load(day:JSONObject,modes:List<String>,departure:OffsetDateTime,base:String,routingProvider:String="open",mapProvider:String="osm",contentSource:String="open"){
         invalidate();busy=true
         val points=JSONArray(walkingPoints(day).mapIndexed{i,p->JSONObject().put("name",p.name).put("lat",p.lat).put("lng",p.lng).put("stayMinutes",if(i==0)0 else p.stay)})
-        val payload=JSONObject().put("points",points).put("modes",JSONArray(modes)).put("departureTime",departure.toString()).put("contentSource","open")
+        val payload=JSONObject().put("points",points).put("modes",JSONArray(modes)).put("departureTime",departure.toString()).put("contentSource",contentSource).put("routingProvider",routingProvider).put("mapProvider",mapProvider)
         job=scope.launch {
             try {
                 val result=withContext(Dispatchers.IO){
@@ -92,12 +94,14 @@ class JourneyModel(private val client:OkHttpClient=OkHttpClient.Builder().callTi
         }
     }
 }
-@Composable fun JourneyPlannerDialog(day:JSONObject,base:String,provider:MapProvider,onClose:()->Unit,onWalkNavigation:()->Unit,fixture:JourneyPlan?=null,suppliedModel:JourneyModel?=null) {
+@Composable fun JourneyPlannerDialog(day:JSONObject,base:String,provider:MapProvider,onClose:()->Unit,onWalkNavigation:()->Unit,fixture:JourneyPlan?=null,suppliedModel:JourneyModel?=null,contentSource:String="open") {
     val context=LocalContext.current
     val model=remember(day.toString(),suppliedModel){suppliedModel ?: JourneyModel()}
     DisposableEffect(model){onDispose{model.close()}}
     var modes by remember(day.toString()){mutableStateOf(fixture?.legs?.map{it.mode} ?: List(day.array("stops").length()+1){"walk"})}
     var departure by remember{mutableStateOf(ZonedDateTime.now(ZoneId.of("Australia/Sydney")))}
+    var routingProvider by remember(provider){mutableStateOf(if(provider==MapProvider.GOOGLE)"google" else "open")}
+    LaunchedEffect(provider){model.invalidate()}
     var details by remember{mutableStateOf(true)}
     val result=fixture ?: model.plan
     val points=walkingPoints(day)
@@ -113,8 +117,15 @@ class JourneyModel(private val client:OkHttpClient=OkHttpClient.Builder().callTi
                 Surface(shape=RoundedCornerShape(24.dp),color=Color.White,shadowElevation=6.dp){
                     Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
                         Row(verticalAlignment=Alignment.CenterVertically){Text(result?.let{"${ceil(it.travelSeconds/60).toInt()} 分钟 · ${it.meters.toInt()} 米"} ?: "选择每段交通方式",Modifier.weight(1f),style=MaterialTheme.typography.titleMedium);TextButton(onClick={details=!details}){Text(if(details)"收起" else "路线详情")}}
+                        result?.let{Text(it.source,fontSize=11.sp,color=Muted)}
                         if(details)Column(Modifier.fillMaxWidth().heightIn(max=350.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(10.dp)) {
                             if(result==null) {
+                            Text("路线资料来源",fontSize=12.sp)
+                            Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+                                (if(contentSource=="google")listOf("google") else listOf("open","nsw")+if(provider==MapProvider.GOOGLE)listOf("google")else emptyList()).forEach { source ->
+                                    FilterChip(selected=routingProvider==source,onClick={model.invalidate();routingProvider=source},label={Text(when(source){"open"->"开源 Valhalla / OTP";"nsw"->"NSW + Valhalla";else->"Google Routes"},fontSize=11.sp)})
+                                }
+                            }
                             TextButton(onClick={
                                 DatePickerDialog(context,{_,year,month,date->
                                     val chosen=LocalDate.of(year,month+1,date)
@@ -134,13 +145,13 @@ class JourneyModel(private val client:OkHttpClient=OkHttpClient.Builder().callTi
                                 }
                             }
                             result?.warnings?.forEach{Text(it,fontSize=11.sp,color=Muted)}
-                            Text(result?.source ?: "步行：蓝色点线 · 开车：绿色实线 · 公共交通：橙色实线。未规划时只有站点顺序示意。",fontSize=11.sp,color=Muted)
+                            Text(result?.source ?: "步行：蓝色点线 · 开车：绿色实线 · 公共交通：橙色实线。尚未查询时仅显示站点，不画直线；路线沿服务回传的道路线形。",fontSize=11.sp,color=Muted)
                         }
                         model.error?.let{Text(it,color=Color.Red,fontSize=12.sp,modifier=Modifier.testTag("journey-error"))}
                         Row(horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically){
-                            Button(onClick={model.load(day,modes,departure.toOffsetDateTime(),base)},enabled=!model.busy && fixture==null){Text(if(model.busy)"正在查询交通…" else if(result==null)"规划交通路线" else "重新查询")}
+                            Button(onClick={model.load(day,modes,departure.toOffsetDateTime(),base,routingProvider,provider.name.lowercase(),contentSource)},enabled=!model.busy && fixture==null){Text(if(model.busy)"正在查询交通…" else if(result==null)"规划交通路线" else "重新查询")}
                             if(model.busy)TextButton(onClick=model::invalidate){Text("取消")}
-                            if(fixture==null && result!=null && modes.all{it=="walk"})TextButton(onClick=onWalkNavigation){Text("开始步行导航")}
+                            if(fixture==null && routingProvider=="open" && result!=null && modes.all{it=="walk"})TextButton(onClick=onWalkNavigation){Text("开始步行导航")}
                         }
                     }
                 }

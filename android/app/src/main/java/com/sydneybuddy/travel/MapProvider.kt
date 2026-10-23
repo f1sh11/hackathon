@@ -23,7 +23,6 @@ import org.json.JSONObject
 import org.maplibre.android.MapLibre
 import org.maplibre.android.annotations.IconFactory
 import org.maplibre.android.annotations.MarkerOptions
-import org.maplibre.android.annotations.PolylineOptions
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.geometry.LatLngBounds
@@ -130,11 +129,11 @@ internal const val OSM_STYLE="""{
             val coordinates=points.map{it.latitude to it.longitude}
             val badges=itineraryBadges(coordinates)
             val icons=IconFactory.getInstance(context)
-            val geometry=overview?.points?.map{LatLng(it.first,it.second)} ?: points
             ready.style?.let{style->
                 style.layers.filter{it.id.startsWith("journey-")}.forEach{style.removeLayer(it.id)}
                 style.sources.filter{it.id.startsWith("journey-")}.forEach{style.removeSource(it.id)}
-                sections.filter{it.points.size>1}.forEachIndexed{i,section->
+                val paths=sections.ifEmpty{overview?.let{listOf(JourneyMapSection("walk",it.points))} ?: emptyList()}
+                paths.filter{it.points.size>1}.forEachIndexed{i,section->
                     val id="journey-$i"
                     val shape=org.maplibre.geojson.LineString.fromLngLats(section.points.map{org.maplibre.geojson.Point.fromLngLat(it.second,it.first)})
                     style.addSource(org.maplibre.android.style.sources.GeoJsonSource(id,org.maplibre.geojson.Feature.fromGeometry(shape)))
@@ -145,11 +144,7 @@ internal const val OSM_STYLE="""{
                     style.addLayer(stroke)
                 }
             }
-            if(sections.isEmpty() && geometry.size>1){
-                ready.addPolyline(PolylineOptions().addAll(geometry).color(android.graphics.Color.WHITE).width(9f))
-                ready.addPolyline(PolylineOptions().addAll(geometry).color(android.graphics.Color.rgb(13,130,94)).width(5f))
-            }
-            val arrowPoints=overview?.points ?: coordinates
+            val arrowPoints=overview?.points ?: emptyList()
             (if(sections.isEmpty())arrowPoints else emptyList()).zipWithNext().forEachIndexed {i,(a,b)->
                 if(arrowPoints.size>30 && i % (arrowPoints.size/8).coerceAtLeast(1)!=0)return@forEachIndexed
                 if(kotlin.math.abs(a.first-b.first)+kotlin.math.abs(a.second-b.second)<0.00001)return@forEachIndexed
@@ -157,6 +152,9 @@ internal const val OSM_STYLE="""{
                 ready.addMarker(MarkerOptions().position(LatLng(position.first,position.second)).title("行程方向")
                     .icon(icons.fromBitmap(itineraryBadge(itineraryDirection(a,b),true))))
             }
+            sections.forEach {section->section.stops.forEach {(point,title)->
+                ready.addMarker(MarkerOptions().position(LatLng(point.first,point.second)).title(title).snippet(section.line ?: transportLabel(section.mode)).icon(icons.fromBitmap(itineraryBadge("●"))))
+            }}
             itineraryPinGroups(coordinates).forEach {(index,group)->
                 val badge=group.joinToString("/"){badges[it]}
                 val title=group.joinToString(" → "){i->"${badges[i]} · ${entries[i].optString("name")}"}
@@ -177,7 +175,7 @@ internal const val OSM_STYLE="""{
         Column(Modifier.align(Alignment.CenterEnd).background(Color.White.copy(alpha=.94f)).padding(6.dp)) {
             Text("© OpenStreetMap contributors",fontSize=10.sp,color=Ink,
                 modifier=Modifier.clickable {uri.openUri("https://www.openstreetmap.org/copyright")})
-            Text(if(rendered) if(sections.isNotEmpty()) "地图已加载 · 分段交通路线" else if(overview==null) "地图已加载 · 顺序示意，非步行路径" else "地图已加载 · 沿道路步行路线" else if(error) "地图暂未加载，可选离线示意图" else "地图加载中… · 连线非导航",fontSize=10.sp,color=Muted)
+            Text(if(rendered) if(sections.isNotEmpty()) "地图已加载 · 分段交通路线" else if(overview==null) "地图已加载 · 仅显示站点，尚未查询道路路线" else "地图已加载 · 沿道路步行路线" else if(error) "地图暂未加载，可选离线示意图" else "地图加载中…",fontSize=10.sp,color=Muted)
         }
     }
 }

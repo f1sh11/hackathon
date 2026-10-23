@@ -18,10 +18,18 @@ struct JourneyLeg: Codable, Identifiable {
 struct JourneyPlan: Codable {
     let departureTime:String;let arrivalTime:String;let travelSeconds:Double;let elapsedSeconds:Double
     let meters:Double;let legs:[JourneyLeg];let warnings:[String];let source:String
-    var sections:[JourneyMapSection] {legs.flatMap(\.steps).map {JourneyMapSection(mode:$0.mode,coordinates:$0.geometry.map(\.coordinate))}}
+    var sections:[JourneyMapSection] {legs.flatMap(\.steps).map {JourneyMapSection(mode:$0.mode,coordinates:$0.geometry.map(\.coordinate),boarding:$0.from,alighting:$0.to,line:$0.line)}}
     var overview:OverviewRoute {OverviewRoute(coordinates:sections.flatMap(\.coordinates),meters:meters,seconds:travelSeconds,legSeconds:legs.map{$0.steps.reduce(0){$0+$1.seconds+$1.waitSeconds}})}
 }
-struct JourneyMapSection {let mode:String;let coordinates:[CLLocationCoordinate2D]}
+struct JourneyMapSection {
+    let mode:String;let coordinates:[CLLocationCoordinate2D]
+    var boarding:String="";var alighting:String="";var line:String?=nil
+    var stopPins:[ItineraryPin] {
+        guard mode != "walk",mode != "drive",coordinates.count>1 else{return []}
+        let title=transportLabel(mode)+(line.map{" · "+$0} ?? "")
+        return [ItineraryPin(coordinates.first!,badge:"●",title:"上车 · "+boarding,detail:title),ItineraryPin(coordinates.last!,badge:"●",title:"下车 · "+alighting,detail:title)]
+    }
+}
 func transportLabel(_ mode:String)->String {switch mode {case "walk":return "步行";case "drive":return "开车";case "transit":return "大众运输";case "bus":return "公车";case "rail":return "火车";case "metro":return "地铁";case "tram":return "轻轨";case "ferry":return "渡轮";default:return "交通"}}
 func transportSymbol(_ mode:String)->String {switch mode {case "walk":return "figure.walk";case "drive":return "car.fill";case "bus":return "bus.fill";case "ferry":return "ferry.fill";default:return "tram.fill"}}
 func transportColor(_ mode:String)->Color {switch mode {case "walk":return .blue;case "drive":return Palette.green;default:return .orange}}
@@ -42,14 +50,19 @@ func journeyTime(_ raw:String)->String {
     let endpoint:URL
     init(session:URLSession = .shared,endpoint:URL = URL(string:"http://127.0.0.1:8787/journey/plan")!){self.session=session;self.endpoint=endpoint}
     func invalidate(){generation=UUID();task?.cancel();task=nil;busy=false;plan=nil;error=nil}
-    func load(day:DayPlan,modes:[String],departure:Date){
+    func load(day:DayPlan,modes:[String],departure:Date,routingProvider:String = "open",mapProvider:String = "osm",contentSource:String = "open"){
         invalidate();busy=true;let token=generation
         let points:[[String:Any]] = [["name":day.start.name,"lat":day.start.lat,"lng":day.start.lng,"stayMinutes":0]] + day.stops.map{["name":$0.name,"lat":$0.lat,"lng":$0.lng,"stayMinutes":$0.visitMinutes]} + [["name":day.end.name,"lat":day.end.lat,"lng":day.end.lng,"stayMinutes":0]]
         task=Task {
             do {
+                if routingProvider == "apple" {
+                    let parsed=try await AppleJourneyProvider.plan(day:day,modes:modes,departure:departure)
+                    try Task.checkCancellation();guard token==generation else{return}
+                    plan=parsed;busy=false;return
+                }
                 var request=URLRequest(url:endpoint);request.httpMethod="POST";request.timeoutInterval=95
                 request.setValue("application/json",forHTTPHeaderField:"Content-Type")
-                request.httpBody=try JSONSerialization.data(withJSONObject:["points":points,"modes":modes,"departureTime":ISO8601DateFormatter().string(from:departure),"contentSource":"open"])
+                request.httpBody=try JSONSerialization.data(withJSONObject:["points":points,"modes":modes,"departureTime":ISO8601DateFormatter().string(from:departure),"contentSource":contentSource,"routingProvider":routingProvider,"mapProvider":mapProvider])
                 let (data,response)=try await session.data(for:request)
                 guard (response as? HTTPURLResponse)?.statusCode==200 else {
                     let object=try? JSONSerialization.jsonObject(with:data) as? [String:Any]
@@ -67,6 +80,8 @@ struct JourneyPlannerView:View {
     let day:DayPlan
     let tripID:String
     let provider:MapProvider
+    let contentSource:String
+    @State private var routingProvider:String
     @Environment(\.dismiss) private var dismiss
     @StateObject private var model:JourneyModel
     @State private var modes:[String]
@@ -74,8 +89,9 @@ struct JourneyPlannerView:View {
     @State private var details=true
     @State private var navigation=false
     private let fixture:JourneyPlan?
-    init(day:DayPlan,tripID:String,provider:MapProvider,departure:Date = Date(),fixture:JourneyPlan? = nil){
-        self.day=day;self.tripID=tripID;self.provider=provider;self.fixture=fixture
+    init(day:DayPlan,tripID:String,provider:MapProvider,departure:Date = Date(),fixture:JourneyPlan? = nil,contentSource:String = "open"){
+        self.day=day;self.tripID=tripID;self.provider=provider;self.fixture=fixture;self.contentSource=contentSource
+        _routingProvider=State(initialValue:provider == .google ? "google" : provider == .apple ? "apple" : "open")
         _model=StateObject(wrappedValue:JourneyModel());_modes=State(initialValue:fixture?.legs.map(\.mode) ?? Array(repeating:"walk",count:day.stops.count+1));_departure=State(initialValue:departure)
     }
     private var result:JourneyPlan? {fixture ?? model.plan}
@@ -93,7 +109,7 @@ struct JourneyPlannerView:View {
                 panel
             }.padding(.horizontal,16).padding(.top,8).padding(.bottom,12)
         }.tint(Palette.green)
-        .onChange(of:modes){model.invalidate()}.onChange(of:departure){model.invalidate()}
+        .onChange(of:provider){model.invalidate();routingProvider=provider == .google ? "google" : provider == .apple ? "apple" : "open"}.onChange(of:routingProvider){model.invalidate()}.onChange(of:modes){model.invalidate()}.onChange(of:departure){model.invalidate()}
         .onDisappear{model.invalidate()}
         .fullScreenCover(isPresented:$navigation){WalkingNavigationView(day:day,tripID:tripID)}
     }
@@ -113,10 +129,20 @@ struct JourneyPlannerView:View {
                 Text(result.map{"\(Int(ceil($0.travelSeconds/60))) 分钟 · \(Int($0.meters)) 米"} ?? "选择每段交通方式").font(.headline)
                 Spacer();Button(details ? "收起" : "路线详情"){details.toggle()}.font(.caption.bold())
             }
+            if let result {Text(result.source).font(.caption2).foregroundStyle(Palette.muted)}
             if details {
                 ScrollView {
                     VStack(alignment:.leading,spacing:12) {
                         if result == nil {
+                        Picker("路线资料",selection:$routingProvider) {
+                            if contentSource != "google" {Text("开源 · Valhalla / OTP").tag("open");Text("NSW 交通 + Valhalla").tag("nsw")}
+                            if provider == .google {Text("Google Routes").tag("google")}
+                            if provider == .apple && contentSource != "google" {Text("Apple Maps").tag("apple")}
+                        }.font(.caption)
+                        if routingProvider == "apple" && modes.contains("transit") {
+                            Text("Apple 仅提供 App 内步行／开车路线。公交请选 NSW 资料，或在 Apple Maps 查询；不会自动改用其他来源。").font(.caption).foregroundStyle(Palette.muted)
+                            Button("在 Apple Maps 查询首个公交区间") {AppleJourneyProvider.openTransit(day:day,modes:modes)}.font(.caption)
+                        }
                         DatePicker("出发时间（悉尼）",selection:$departure).environment(\.timeZone,TimeZone(identifier:"Australia/Sydney")!).font(.caption)
                         HStack {ForEach(["walk","drive","transit"],id:\.self){mode in Button {modes=Array(repeating:mode,count:modes.count)} label:{Label(transportLabel(mode),systemImage:transportSymbol(mode)).font(.caption.bold()).padding(8).background(modes.allSatisfy{$0==mode} ? Palette.mint : Color.gray.opacity(0.08),in:Capsule())}.accessibilityValue(modes.allSatisfy{$0==mode} ? "已选择" : "未选择")}}
                         } else {HStack {Text("出发 \(journeyTime(result!.departureTime)) · 悉尼").font(.caption);Spacer();if fixture == nil {Button("调整交通"){model.invalidate()}.font(.caption)}}}
@@ -131,15 +157,15 @@ struct JourneyPlannerView:View {
                             }
                         }
                         if let result {ForEach(result.warnings,id:\.self){Text($0).font(.caption2).foregroundStyle(Palette.muted)};Text("\(result.source) · 时间为悉尼当地时间").font(.caption2)}
-                        else {Text("步行：蓝色点线 · 开车：绿色实线 · 公共交通：橙色实线。未规划时只有站点顺序示意。").font(.caption2).foregroundStyle(Palette.muted)}
+                        else {Text("步行：蓝色点线 · 开车：绿色实线 · 公共交通：橙色实线。尚未查询时仅显示站点，不画直线；路线沿服务回传的道路线形。").font(.caption2).foregroundStyle(Palette.muted)}
                     }.padding(.vertical,4)
                 }.frame(maxHeight:360)
             }
             if let error=model.error {Text(error).font(.caption).foregroundStyle(.red).accessibilityIdentifier("journey-error").fixedSize(horizontal:false,vertical:true)}
             HStack {
-                Button(model.busy ? "正在查询交通…" : result == nil ? "规划交通路线" : "重新查询"){model.load(day:day,modes:modes,departure:departure)}.disabled(model.busy || fixture != nil).buttonStyle(.borderedProminent)
+                Button(model.busy ? "正在查询交通…" : result == nil ? "规划交通路线" : "重新查询"){model.load(day:day,modes:modes,departure:departure,routingProvider:routingProvider,mapProvider:provider.rawValue,contentSource:contentSource)}.disabled(model.busy || fixture != nil || (routingProvider == "apple" && modes.contains("transit"))).buttonStyle(.borderedProminent)
                 if model.busy {Button("取消"){model.invalidate()}}
-                if fixture == nil,result != nil,modes.allSatisfy({$0=="walk"}) {Button("开始步行导航"){navigation=true}}
+                if fixture == nil,routingProvider == "open",result != nil,modes.allSatisfy({$0=="walk"}) {Button("开始步行导航"){navigation=true}}
                 Spacer()
             }
             if provider == .osm {Link("© OpenStreetMap contributors",destination:URL(string:"https://www.openstreetmap.org/copyright")!).font(.caption2)}
@@ -157,5 +183,50 @@ struct JourneyPlannerView:View {
             }
             if step.geometry.count<2 {Text("此段未提供路线线形，请按站名确认。").font(.caption2).foregroundStyle(Palette.muted)}
         }.padding(10).background(transportColor(step.mode).opacity(0.08),in:RoundedRectangle(cornerRadius:12))
+    }
+}
+
+/// MapKit exposes complete walking/driving geometry. Transit directions are handed to Apple Maps.
+@MainActor enum AppleJourneyProvider {
+    static func plan(day:DayPlan,modes:[String],departure:Date) async throws -> JourneyPlan {
+        guard modes.count == day.stops.count+1, modes.allSatisfy({$0 == "walk" || $0 == "drive"}) else {
+            throw NSError(domain:"Journey",code:2,userInfo:[NSLocalizedDescriptionKey:"Apple App 内路线仅支持步行／开车；公交请选择 NSW 资料或在 Apple Maps 查询。"])
+        }
+        let coordinates=[day.start.location]+day.stops.map(\.coordinate)+[day.end.location]
+        let names=[day.start.name]+day.stops.map(\.name)+[day.end.name]
+        let formatter=ISO8601DateFormatter()
+        var cursor=departure
+        var legs:[JourneyLeg]=[]
+        for i in modes.indices {
+            try Task.checkCancellation()
+            let request=MKDirections.Request()
+            request.source=MKMapItem(placemark:MKPlacemark(coordinate:coordinates[i]))
+            request.destination=MKMapItem(placemark:MKPlacemark(coordinate:coordinates[i+1]))
+            request.transportType=modes[i] == "walk" ? .walking : .automobile
+            request.departureDate=cursor
+            let directions=MKDirections(request:request)
+            let response=try await withTaskCancellationHandler(operation:{try await directions.calculate()},onCancel:{directions.cancel()})
+            try Task.checkCancellation()
+            guard let route=response.routes.first, route.polyline.pointCount>1 else {throw URLError(.cannotParseResponse)}
+            let points=route.polyline.points()
+            let geometry=(0..<route.polyline.pointCount).map {index -> JourneyCoordinate in
+                let c=points[index].coordinate;return JourneyCoordinate(lat:c.latitude,lng:c.longitude)
+            }
+            let arrival=cursor.addingTimeInterval(route.expectedTravelTime)
+            let stay=i<day.stops.count ? Double(day.stops[i].visitMinutes*60) : 0
+            let step=JourneyStep(mode:modes[i],line:nil,headsign:nil,from:names[i],to:names[i+1],departureTime:formatter.string(from:cursor),arrivalTime:formatter.string(from:arrival),realtime:false,stopCount:nil,meters:route.distance,seconds:route.expectedTravelTime,waitSeconds:0,platform:nil,agency:nil,geometry:geometry)
+            legs.append(JourneyLeg(index:i,mode:modes[i],from:names[i],to:names[i+1],departureTime:formatter.string(from:cursor),arrivalTime:formatter.string(from:arrival),staySeconds:stay,steps:[step]))
+            cursor=arrival.addingTimeInterval(stay)
+        }
+        return JourneyPlan(departureTime:formatter.string(from:departure),arrivalTime:formatter.string(from:cursor),travelSeconds:legs.flatMap(\.steps).reduce(0){$0+$1.seconds},elapsedSeconds:cursor.timeIntervalSince(departure),meters:legs.flatMap(\.steps).reduce(0){$0+$1.meters},legs:legs,warnings:["Apple 预估路线；重新查询才会更新。不修改原行程。"],source:"Apple Maps / MapKit")
+    }
+    static func openTransit(day:DayPlan,modes:[String]) {
+        // Multi-stop transit is not exposed by MapKit; hand off the first selected itinerary leg honestly.
+        let i=modes.firstIndex(of:"transit") ?? 0
+        let points=[day.start.location]+day.stops.map(\.coordinate)+[day.end.location]
+        let names=[day.start.name]+day.stops.map(\.name)+[day.end.name]
+        let start=MKMapItem(placemark:MKPlacemark(coordinate:points[i]));start.name=names[i]
+        let end=MKMapItem(placemark:MKPlacemark(coordinate:points[i+1]));end.name=names[i+1]
+        MKMapItem.openMaps(with:[start,end],launchOptions:[MKLaunchOptionsDirectionsModeKey:MKLaunchOptionsDirectionsModeTransit])
     }
 }

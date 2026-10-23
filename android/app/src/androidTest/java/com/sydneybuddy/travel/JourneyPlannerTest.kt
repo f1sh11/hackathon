@@ -42,11 +42,11 @@ class JourneyPlannerTest {
             Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1).code(200).message("OK").body(ResponseBody.create(null,response)).build()
         }.build()
         lateinit var model:JourneyModel
-        rule.runOnIdle{model=JourneyModel(client);model.load(day,listOf("transit"),OffsetDateTime.parse("2026-10-23T10:00:00+11:00"),"http://127.0.0.1:8787")}
+        rule.runOnIdle{model=JourneyModel(client);model.load(day,listOf("transit"),OffsetDateTime.parse("2026-10-23T10:00:00+11:00"),"http://127.0.0.1:8787","nsw","osm")}
         rule.waitUntil(10000){!model.busy}
         assertNull(model.error);assertEquals("TEST-01",model.plan!!.legs[0].steps[1].line)
         assertEquals("transit",sent!!.getJSONArray("modes").getString(0));assertEquals(2,sent!!.getJSONArray("points").length())
-        assertEquals("open",sent!!.getString("contentSource"))
+        assertEquals("open",sent!!.getString("contentSource"));assertEquals("nsw",sent!!.getString("routingProvider"));assertEquals("osm",sent!!.getString("mapProvider"))
         rule.runOnIdle{model.invalidate()};assertNull(model.plan);rule.runOnIdle{model.close()}
     }
     @Test fun missingTransitServiceShowsServerMessageWithoutInventedBus() {
