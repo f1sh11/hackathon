@@ -15,6 +15,16 @@
       isa = "PBXBuildFile";
       fileRef = "2628BF4781A57411C4AF1F38";
     };
+    0A725DEA03B0357B8274CC49 = {
+      isa = "PBXFileReference";
+      lastKnownFileType = "sourcecode.swift";
+      path = "JourneyPlannerView.swift";
+      sourceTree = "<group>";
+    };
+    E371C5279BEA0DB6E70A84BA = {
+      isa = "PBXBuildFile";
+      fileRef = "0A725DEA03B0357B8274CC49";
+    };
     D22C2DEA88DA5AD5F3DEA760 = {
       isa = "PBXFileReference";
       lastKnownFileType = "sourcecode.swift";
@@ -89,7 +99,7 @@
     };
     482182478A3ECD4745BEA917 = {
       isa = "PBXGroup";
-      children = ("2628BF4781A57411C4AF1F38", "D22C2DEA88DA5AD5F3DEA760", "8BF4A28E43F6CF370D3EE1C2", "99ADA1BF18A5C280925DF39B", "D90469F66BBCF96E82C302CA", "D3B99BADD38FD7F79CA7F8C1", "F4B96E2FB567E0F7FD282DD4");
+      children = ("2628BF4781A57411C4AF1F38", "0A725DEA03B0357B8274CC49", "D22C2DEA88DA5AD5F3DEA760", "8BF4A28E43F6CF370D3EE1C2", "99ADA1BF18A5C280925DF39B", "D90469F66BBCF96E82C302CA", "D3B99BADD38FD7F79CA7F8C1", "F4B96E2FB567E0F7FD282DD4");
       path = "SydneyBuddy";
       sourceTree = "<group>";
     };
@@ -107,7 +117,7 @@
     };
     B28B7AF69320201D1CF206EB = {
       isa = "PBXGroup";
-      children = ("482182478A3ECD4745BEA917", "1405DF66CBE219B0BF6355BC", "0112DAE3F84CB4DF5179BE01", "FBDC4F23F93125BBEEAE800C", "FA6589654DCE2645BF12B69D", "E638A1C7D052181BB6B2DB6F");
+      children = ("482182478A3ECD4745BEA917", "1405DF66CBE219B0BF6355BC", "0112DAE3F84CB4DF5179BE01", "FBDC4F23F93125BBEEAE800C", "9D730A8E3D07CDA706D2C28C", "E0EFC580812FB91848B862D7", "DD52999140E790603E12932F", "4C9912FF54DDCEDCE17E8F95");
       sourceTree = "<group>";
     };
     B56FEFA5E14F842C2B6FF70D = {
@@ -147,7 +157,7 @@
     BCE16DD0260827ECF338C787 = {
       isa = "PBXSourcesBuildPhase";
       buildActionMask = 2147483647;
-      files = ("4BDEDC29B8029CB89565BFFF", "958AEEDAB1FDB695731EEDE0", "487C502A5481E87001E8CC43", "5EC7A6F7BFB7F5B8656273AD", "15C8F3262E55FB3D7DC0ED21", "658A1241C451AE78218EE389", "5CD6439BB3413D308E4941A5");
+      files = ("4BDEDC29B8029CB89565BFFF", "E371C5279BEA0DB6E70A84BA", "958AEEDAB1FDB695731EEDE0", "487C502A5481E87001E8CC43", "5EC7A6F7BFB7F5B8656273AD", "15C8F3262E55FB3D7DC0ED21", "658A1241C451AE78218EE389", "5CD6439BB3413D308E4941A5");
       runOnlyForDeploymentPostprocessing = 0;
     };
     7561BFB015D8F536760CB671 = {
@@ -248,16 +258,28 @@
       productReference = "7D1043473D55BFA90E8530D3";
       productType = "com.apple.product-type.application";
     };
-    FA6589654DCE2645BF12B69D = {
+    9D730A8E3D07CDA706D2C28C = {
+      isa = "PBXFileReference";
+      lastKnownFileType = "sourcecode.swift";
+      path = "SydneyBuddyTests/JourneyTests.swift";
+      sourceTree = "<group>";
+    };
+    E0EFC580812FB91848B862D7 = {
       isa = "PBXFileReference";
       lastKnownFileType = "sourcecode.swift";
       path = "SydneyBuddyTests/NavigationTests.swift";
       sourceTree = "<group>";
     };
-    E638A1C7D052181BB6B2DB6F = {
+    DD52999140E790603E12932F = {
       isa = "PBXFileReference";
       lastKnownFileType = "text.json";
       path = "../tests/fixtures/walking-sydney.json";
+      sourceTree = "<group>";
+    };
+    4C9912FF54DDCEDCE17E8F95 = {
+      isa = "PBXFileReference";
+      lastKnownFileType = "text.json";
+      path = "../tests/fixtures/journey-plan-test.json";
       sourceTree = "<group>";
     };
     B7480EC88B7F22D0A4757273 = {
@@ -266,24 +288,32 @@
       path = "SydneyBuddyTests.xctest";
       sourceTree = "BUILT_PRODUCTS_DIR";
     };
-    1327ACEDD35773FF3F8A2233 = {
+    AA896F3FA02AC1C959A29F53 = {
       isa = "PBXBuildFile";
-      fileRef = "FA6589654DCE2645BF12B69D";
+      fileRef = "9D730A8E3D07CDA706D2C28C";
+    };
+    B51A81DCC43D0E96F772215D = {
+      isa = "PBXBuildFile";
+      fileRef = "E0EFC580812FB91848B862D7";
     };
     9F3002A5D69B22D357A58AA9 = {
       isa = "PBXSourcesBuildPhase";
       buildActionMask = 2147483647;
-      files = ("1327ACEDD35773FF3F8A2233");
+      files = ("AA896F3FA02AC1C959A29F53", "B51A81DCC43D0E96F772215D");
       runOnlyForDeploymentPostprocessing = 0;
     };
-    231C0B8A9BB8C96CCA01C174 = {
+    6CB9407BE8175823AE245895 = {
       isa = "PBXBuildFile";
-      fileRef = "E638A1C7D052181BB6B2DB6F";
+      fileRef = "DD52999140E790603E12932F";
+    };
+    00A999BB8B58FC922F620E47 = {
+      isa = "PBXBuildFile";
+      fileRef = "4C9912FF54DDCEDCE17E8F95";
     };
     C584AE92222380FB29B6223F = {
       isa = "PBXResourcesBuildPhase";
       buildActionMask = 2147483647;
-      files = ("231C0B8A9BB8C96CCA01C174");
+      files = ("6CB9407BE8175823AE245895", "00A999BB8B58FC922F620E47");
       runOnlyForDeploymentPostprocessing = 0;
     };
     21A0AAE6068D96A7CB23A980 = {

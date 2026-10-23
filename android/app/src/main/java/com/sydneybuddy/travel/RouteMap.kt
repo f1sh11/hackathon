@@ -21,11 +21,11 @@ import org.json.JSONObject
 
 @Composable fun RouteMap(day:JSONObject?,modifier:Modifier=Modifier,fullBleed:Boolean=false,
     provider:MapProvider=MapProvider.OSM,googleContent:Boolean=false,
-    viewport:MapViewport?=null,onViewport:(MapViewport)->Unit={},overview:OverviewRoute?=null,expanded:Boolean=false) {
+    viewport:MapViewport?=null,onViewport:(MapViewport)->Unit={},overview:OverviewRoute?=null,expanded:Boolean=false,sections:List<JourneyMapSection> = emptyList()) {
     // Provider-owned live coordinates and paths must not be rendered on another provider's map.
     val visibleDay=mapDisplayDay(day,provider,googleContent)
     if(provider==MapProvider.OSM) {
-        OsmRouteMap(visibleDay,modifier,fullBleed,viewport,onViewport,if(googleContent)null else overview,expanded)
+        OsmRouteMap(visibleDay,modifier,fullBleed,viewport,onViewport,if(googleContent)null else overview,expanded,sections)
         return
     }
     if(provider==MapProvider.GOOGLE && !BuildConfig.MAPS_CONFIGURED) {
@@ -34,11 +34,11 @@ import org.json.JSONObject
         }
         return
     }
-    ProviderRouteMap(visibleDay,modifier,fullBleed,provider==MapProvider.GOOGLE,viewport,onViewport,if(googleContent)null else overview,expanded)
+    ProviderRouteMap(visibleDay,modifier,fullBleed,provider==MapProvider.GOOGLE,viewport,onViewport,if(googleContent)null else overview,expanded,sections)
 }
 
 @Composable private fun ProviderRouteMap(day:JSONObject?,modifier:Modifier,fullBleed:Boolean,
-    google:Boolean,viewport:MapViewport?,onViewport:(MapViewport)->Unit,overview:OverviewRoute?,expanded:Boolean) {
+    google:Boolean,viewport:MapViewport?,onViewport:(MapViewport)->Unit,overview:OverviewRoute?,expanded:Boolean,sections:List<JourneyMapSection>) {
     val stops=day?.array("stops")?.objects() ?: emptyList()
     val start=day?.getJSONObject("start") ?: Endpoint.quay.json();val end=day?.getJSONObject("end") ?: Endpoint.central.json()
     fun coordinate(j:JSONObject)=LatLng(j.getDouble("lat"),j.getDouble("lng"))
@@ -71,9 +71,15 @@ import org.json.JSONObject
                 }
                 val actual=overview!=null || (routes.size==points.size-1 && routes.all{it.size>1})
                 val geometry=overview?.points?.map{LatLng(it.first,it.second)} ?: if(actual)routes.flatten() else points
-                Polyline(points=geometry,color=Color.White,width=18f)
-                Polyline(points=geometry,color=Green,width=10f,pattern=if(actual)null else listOf(com.google.android.gms.maps.model.Dash(20f),com.google.android.gms.maps.model.Gap(12f)))
-                geometry.zipWithNext().forEachIndexed {i,(a,b)->
+                if(sections.isEmpty() && geometry.size>1){
+                    Polyline(points=geometry,color=Color.White,width=18f)
+                    Polyline(points=geometry,color=Green,width=10f,pattern=if(actual)null else listOf(com.google.android.gms.maps.model.Dash(20f),com.google.android.gms.maps.model.Gap(12f)))
+                } else sections.filter{it.points.size>1}.forEach{section->
+                    val path=section.points.map{LatLng(it.first,it.second)}
+                    Polyline(points=path,color=Color.White,width=18f)
+                    Polyline(points=path,color=transportColor(section.mode),width=10f,pattern=if(section.mode=="walk")listOf(com.google.android.gms.maps.model.Dot(),com.google.android.gms.maps.model.Gap(15f))else null)
+                }
+                (if(sections.isEmpty())geometry else emptyList()).zipWithNext().forEachIndexed {i,(a,b)->
                     if(geometry.size>30 && i % (geometry.size/8).coerceAtLeast(1)!=0)return@forEachIndexed
                     if(a==b)return@forEachIndexed
                     val marker=remember {MarkerState(position=if(geometry.size>30)a else LatLng((a.latitude+b.latitude)/2,(a.longitude+b.longitude)/2))}

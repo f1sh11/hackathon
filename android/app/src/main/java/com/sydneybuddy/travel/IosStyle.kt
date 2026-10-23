@@ -175,6 +175,7 @@ fun durationLabel(startMinute: Int, endMinute: Int): String {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun HomeScreen(store:BuddyStore) {
     var detail by rememberSaveable {mutableStateOf(false)}
+    var journey by rememberSaveable {mutableStateOf(false)}
     var expandedMap by rememberSaveable {mutableStateOf(false)}
     var navigation by rememberSaveable {mutableStateOf(false)}
     var chat by rememberSaveable {mutableStateOf(false)}
@@ -250,7 +251,10 @@ fun durationLabel(startMinute: Int, endMinute: Int): String {
                                 overview.message?.let{Text(it,fontSize=11.sp,color=Muted)}
                             }
                         } else Text("让 Buddy 帮你选出刚刚好的路线",fontSize=12.sp,color=Muted)
-                        if(trip!=null) TextButton(onClick={navigation=true}){Text("逐段步行导航")}
+                        if(trip!=null) Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(4.dp)) {
+                            TextButton(onClick={journey=true},modifier=Modifier.weight(1f),contentPadding=PaddingValues(0.dp)){Text("交通路线规划",fontSize=12.sp,maxLines=1)}
+                            TextButton(onClick={navigation=true},modifier=Modifier.weight(1f),contentPadding=PaddingValues(0.dp)){Text("逐段步行导航",fontSize=12.sp,maxLines=1)}
+                        }
                         Button(onClick={if(trip==null)store.newTrip() else {store.mark("route");detail=true}},enabled=!store.busy,modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(14.dp),contentPadding=PaddingValues(horizontal=13.dp,vertical=12.dp)) {
                             Text(if(trip==null)"开始规划" else "查看路线",fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f));Icon(Icons.Outlined.NorthEast,null,Modifier.size(19.dp))
                         }
@@ -288,6 +292,10 @@ fun durationLabel(startMinute: Int, endMinute: Int): String {
                 }
             }
         }
+    }
+    if(journey && day!=null) {
+        if(trip?.optString("mode")=="live") AlertDialog(onDismissRequest={journey=false},title={Text("请选择示例行程")},text={Text("Google live 行程暂不发送至开源交通服务。")},confirmButton={TextButton(onClick={journey=false}){Text("关闭")}})
+        else JourneyPlannerDialog(day,store.base,store.mapProvider,{journey=false},{journey=false;navigation=true})
     }
     if(navigation) {
         if(trip?.optString("mode")=="live") AlertDialog(onDismissRequest={navigation=false},text={Text("此行程含 Google 地点资料。开源导航测试请先建立示例行程。")},confirmButton={TextButton(onClick={navigation=false}){Text("关闭")}})

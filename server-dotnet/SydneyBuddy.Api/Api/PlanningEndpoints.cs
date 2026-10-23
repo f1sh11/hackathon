@@ -7,12 +7,12 @@ public static class PlanningEndpoints
 {
     public static void MapPlanningEndpoints(this RouteGroupBuilder routes)
     {
-        routes.MapGet("/health", (SecretStore secrets, PaidServicePolicy paidServices, NavigationService navigation) =>
+        routes.MapGet("/health", (SecretStore secrets, PaidServicePolicy paidServices, NavigationService navigation, JourneyService journeys) =>
         {
             var config = secrets.Read();
             return Results.Json(new
             {
-                navigationConfigured = navigation.Configured, status = "ok", database = "postgresql", paidServicesAllowed = paidServices.Allowed,
+                navigationConfigured = navigation.Configured, transitConfigured = journeys.TransitConfigured, status = "ok", database = "postgresql", paidServicesAllowed = paidServices.Allowed,
                 nvidiaConfigured = config["NVIDIA_API_KEY"].Length > 0,
                 googleConfigured = config["GOOGLE_SERVER_KEY"].Length > 0,
                 iosMapConfigured = config["GOOGLE_IOS_KEY"].Length > 0,
@@ -21,6 +21,8 @@ public static class PlanningEndpoints
         });
         routes.MapPost("/navigation/route", async (HttpContext context, NavigationService navigation) =>
             Results.Json(await navigation.RouteAsync(await RequestJson.ReadAsync(context), context.RequestAborted)));
+        routes.MapPost("/journey/plan", async (HttpContext context, JourneyService journeys) =>
+            Results.Json(await journeys.PlanAsync(await RequestJson.ReadAsync(context), context.RequestAborted)));
         routes.MapGet("/catalog", (Planner planner) => Results.Json(planner.Catalog));
         routes.MapPost("/plan", async (HttpContext context, Planner planner, PaidServicePolicy paidServices) =>
         {

@@ -448,3 +448,11 @@ server-dotnet/
 - 預覽不取得裝置定位、不啟動語音或導航、不修改已儲存行程或導航進度。離線示意圖持續只顯示順序示意。
 
 主要檔案：`ios/SydneyBuddy/ItineraryOverview.swift`、`android/.../ItineraryOverview.kt` 管理預覽請求、polyline6 解析與編號標記；既有 `MapView.swift`／`MapProvider.kt`／`RouteMap.kt` 負責各底圖的圖層呈現。
+
+### 開放交通資料與多模式規劃
+
+首頁新增「交通路线规划」：參考地圖 App 的起終點摘要與可收合路線面板，支援整體／逐段選擇步行、開車或大眾運輸，以及指定悉尼當地出發時間。公車步驟包含路線號碼、方向、上下車站、候車時間、站數與站台（資料有提供時）；地圖按交通方式分色，步行顯示點線。
+
+步行／開車沿用 Valhalla；大眾運輸接入 **OpenTripPlanner 2.10＋OSM＋GTFS**。新增 `POST /journey/plan` 與 `Transit__OtpGraphqlUrl` 設定。現有 `/navigation/route` 仍固定步行，沒有新增 Google 付費呼叫。
+
+**目前尚未匯入 NSW 真實時刻表／部署 OTP，真實班次尚未啟用。** 本地測試使用明確標示的 `TEST-01` 合成資料，正式畫面不會自行產生測試公車。設定方式、資料來源、API 與驗證限制見 [開放交通串接說明](docs/OPEN-TRANSIT.md)。

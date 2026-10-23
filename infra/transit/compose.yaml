@@ -1,0 +1,10 @@
+services:
+  otp:
+    image: opentripplanner/opentripplanner:2.10.0
+    ports:
+      - '127.0.0.1:8801:8080'
+    environment:
+      JAVA_TOOL_OPTIONS: '-Xmx4g'
+    volumes:
+      - ./data:/var/opentripplanner
+    command: ['--load', '--serve']

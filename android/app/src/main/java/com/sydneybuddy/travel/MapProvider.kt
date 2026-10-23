@@ -66,7 +66,7 @@ internal const val OSM_STYLE="""{
 }"""
 
 @Composable fun OsmRouteMap(day:JSONObject?,modifier:Modifier,fullBleed:Boolean,
-    viewport:MapViewport?,onViewport:(MapViewport)->Unit,overview:OverviewRoute?=null,expanded:Boolean=false) {
+    viewport:MapViewport?,onViewport:(MapViewport)->Unit,overview:OverviewRoute?=null,expanded:Boolean=false,sections:List<JourneyMapSection> = emptyList()) {
     val context=LocalContext.current
     val lifecycle=LocalLifecycleOwner.current.lifecycle
     val currentViewport by rememberUpdatedState(viewport)
@@ -113,7 +113,7 @@ internal const val OSM_STYLE="""{
         view.onStart(); view.onResume(); lifecycle.addObserver(observer)
         onDispose { lifecycle.removeObserver(observer); view.onPause();view.onStop();view.onDestroy() }
     }
-    LaunchedEffect(map,day.toString(),overview) {
+    LaunchedEffect(map,day.toString(),overview,sections) {
         val ready=map ?: return@LaunchedEffect
         val key=day.toString()+"|"+(overview?.points?.size ?: 0)
         if(sceneKey==key) return@LaunchedEffect
@@ -131,10 +131,26 @@ internal const val OSM_STYLE="""{
             val badges=itineraryBadges(coordinates)
             val icons=IconFactory.getInstance(context)
             val geometry=overview?.points?.map{LatLng(it.first,it.second)} ?: points
-            ready.addPolyline(PolylineOptions().addAll(geometry).color(android.graphics.Color.WHITE).width(9f))
-            ready.addPolyline(PolylineOptions().addAll(geometry).color(android.graphics.Color.rgb(13,130,94)).width(5f))
+            ready.style?.let{style->
+                style.layers.filter{it.id.startsWith("journey-")}.forEach{style.removeLayer(it.id)}
+                style.sources.filter{it.id.startsWith("journey-")}.forEach{style.removeSource(it.id)}
+                sections.filter{it.points.size>1}.forEachIndexed{i,section->
+                    val id="journey-$i"
+                    val shape=org.maplibre.geojson.LineString.fromLngLats(section.points.map{org.maplibre.geojson.Point.fromLngLat(it.second,it.first)})
+                    style.addSource(org.maplibre.android.style.sources.GeoJsonSource(id,org.maplibre.geojson.Feature.fromGeometry(shape)))
+                    style.addLayer(org.maplibre.android.style.layers.LineLayer("$id-border",id).withProperties(org.maplibre.android.style.layers.PropertyFactory.lineColor(android.graphics.Color.WHITE),org.maplibre.android.style.layers.PropertyFactory.lineWidth(9f)))
+                    val color=when(section.mode){"walk"->android.graphics.Color.rgb(25,118,210);"drive"->android.graphics.Color.rgb(13,130,94);else->android.graphics.Color.rgb(198,106,0)}
+                    val stroke=org.maplibre.android.style.layers.LineLayer("$id-stroke",id).withProperties(org.maplibre.android.style.layers.PropertyFactory.lineColor(color),org.maplibre.android.style.layers.PropertyFactory.lineWidth(5f),org.maplibre.android.style.layers.PropertyFactory.lineCap("round"))
+                    if(section.mode=="walk")stroke.setProperties(org.maplibre.android.style.layers.PropertyFactory.lineDasharray(arrayOf(0.2f,1.6f)))
+                    style.addLayer(stroke)
+                }
+            }
+            if(sections.isEmpty() && geometry.size>1){
+                ready.addPolyline(PolylineOptions().addAll(geometry).color(android.graphics.Color.WHITE).width(9f))
+                ready.addPolyline(PolylineOptions().addAll(geometry).color(android.graphics.Color.rgb(13,130,94)).width(5f))
+            }
             val arrowPoints=overview?.points ?: coordinates
-            arrowPoints.zipWithNext().forEachIndexed {i,(a,b)->
+            (if(sections.isEmpty())arrowPoints else emptyList()).zipWithNext().forEachIndexed {i,(a,b)->
                 if(arrowPoints.size>30 && i % (arrowPoints.size/8).coerceAtLeast(1)!=0)return@forEachIndexed
                 if(kotlin.math.abs(a.first-b.first)+kotlin.math.abs(a.second-b.second)<0.00001)return@forEachIndexed
                 val position=if(arrowPoints.size>30)a else (a.first+b.first)/2 to (a.second+b.second)/2
@@ -161,7 +177,7 @@ internal const val OSM_STYLE="""{
         Column(Modifier.align(Alignment.CenterEnd).background(Color.White.copy(alpha=.94f)).padding(6.dp)) {
             Text("© OpenStreetMap contributors",fontSize=10.sp,color=Ink,
                 modifier=Modifier.clickable {uri.openUri("https://www.openstreetmap.org/copyright")})
-            Text(if(rendered) if(overview==null) "地图已加载 · 顺序示意，非步行路径" else "地图已加载 · 沿道路步行路线" else if(error) "地图暂未加载，可选离线示意图" else "地图加载中… · 连线非导航",fontSize=10.sp,color=Muted)
+            Text(if(rendered) if(sections.isNotEmpty()) "地图已加载 · 分段交通路线" else if(overview==null) "地图已加载 · 顺序示意，非步行路径" else "地图已加载 · 沿道路步行路线" else if(error) "地图暂未加载，可选离线示意图" else "地图加载中… · 连线非导航",fontSize=10.sp,color=Muted)
         }
     }
 }

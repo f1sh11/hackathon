@@ -26,3 +26,6 @@ android/.idea/
 # Local PostgreSQL / editor state
 postgres-data/
 .vs/
+
+# Local open transit feeds / built OTP graphs (not source files)
+infra/transit/data/

@@ -1,0 +1,114 @@
+{
+  "data": {
+    "planConnection": {
+      "edges": [
+        {
+          "node": {
+            "legs": [
+              {
+                "mode": "WALK",
+                "startTime": 1792710000000,
+                "endTime": 1792710300000,
+                "distance": 150,
+                "realTime": false,
+                "headsign": null,
+                "from": {
+                  "name": "测试起点",
+                  "lat": -33.8611,
+                  "lon": 151.2126,
+                  "stop": {
+                    "platformCode": "A"
+                  }
+                },
+                "to": {
+                  "name": "测试上车站 A",
+                  "lat": -33.8615,
+                  "lon": 151.2116
+                },
+                "route": null,
+                "legGeometry": {
+                  "points": "zntmEwu|y[nAfE"
+                },
+                "intermediateStops": [],
+                "pickupType": "SCHEDULED",
+                "dropoffType": "SCHEDULED"
+              },
+              {
+                "mode": "BUS",
+                "startTime": 1792710600000,
+                "endTime": 1792711500000,
+                "distance": 1200,
+                "realTime": false,
+                "headsign": "测试目的地方向",
+                "from": {
+                  "name": "测试上车站 A",
+                  "lat": -33.8615,
+                  "lon": 151.2116,
+                  "stop": {
+                    "platformCode": "A"
+                  }
+                },
+                "to": {
+                  "name": "测试下车站 B",
+                  "lat": -33.857,
+                  "lon": 151.215
+                },
+                "route": {
+                  "shortName": "TEST-01",
+                  "longName": "测试公车路线",
+                  "agency": {
+                    "name": "Synthetic test operator"
+                  }
+                },
+                "legGeometry": {
+                  "points": "jqtmEoo|y[c[gT"
+                },
+                "intermediateStops": [
+                  {
+                    "name": "测试途经站 0"
+                  },
+                  {
+                    "name": "测试途经站 1"
+                  },
+                  {
+                    "name": "测试途经站 2"
+                  }
+                ],
+                "pickupType": "SCHEDULED",
+                "dropoffType": "SCHEDULED"
+              },
+              {
+                "mode": "WALK",
+                "startTime": 1792711500000,
+                "endTime": 1792711800000,
+                "distance": 100,
+                "realTime": false,
+                "headsign": null,
+                "from": {
+                  "name": "测试下车站 B",
+                  "lat": -33.857,
+                  "lon": 151.215,
+                  "stop": {
+                    "platformCode": "A"
+                  }
+                },
+                "to": {
+                  "name": "测试终点",
+                  "lat": -33.8568,
+                  "lon": 151.2153
+                },
+                "route": null,
+                "legGeometry": {
+                  "points": "fusmEwd}y[g@{@"
+                },
+                "intermediateStops": [],
+                "pickupType": "SCHEDULED",
+                "dropoffType": "SCHEDULED"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

@@ -11,6 +11,16 @@ public sealed class NavigationService(HttpClient client, IConfiguration configur
         && (uri.Scheme == "https" || uri.Scheme == "http" && uri.IsLoopback) ? uri : null;
 
     public async Task<JsonObject> RouteAsync(JsonObject input, CancellationToken ct)
+        => await RouteInternalAsync(input, "pedestrian", ct);
+
+    public Task<JsonObject> PreviewAsync(JsonObject input, string mode, CancellationToken ct) => mode switch
+    {
+        "walk" => RouteInternalAsync(input, "pedestrian", ct),
+        "drive" => RouteInternalAsync(input, "auto", ct),
+        _ => throw new ServiceException("道路预览模式不合法。")
+    };
+
+    private async Task<JsonObject> RouteInternalAsync(JsonObject input, string profile, CancellationToken ct)
     {
         var endpoint = Endpoint ?? throw new ServiceException("尚未配置步行导航服务，请设置 Navigation__ValhallaUrl 后重启后端。");
         if (input["locations"] is not JsonArray locations || locations.Count is < 2 or > 30)
@@ -26,7 +36,7 @@ public sealed class NavigationService(HttpClient client, IConfiguration configur
         // Only coordinates are accepted from clients. Profiles, upstream URLs and API keys are server-owned.
         var request = new JsonObject
         {
-            ["locations"] = points, ["costing"] = "pedestrian", ["format"] = "osrm",
+            ["locations"] = points, ["costing"] = profile, ["format"] = "osrm",
             ["shape_format"] = "polyline6", ["banner_instructions"] = true, ["voice_instructions"] = true, ["units"] = "kilometers",
             ["directions_options"] = new JsonObject { ["language"] = "en-US" }
         };
