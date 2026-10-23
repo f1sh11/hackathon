@@ -112,6 +112,64 @@ fun choiceIcon(text:String):ImageVector = when {
     }
 }
 
+fun timeLabel(minute: Int): String {
+    val value = minute.coerceIn(0, 1440)
+    return "%02d:%02d".format(value / 60, value % 60)
+}
+
+fun durationLabel(startMinute: Int, endMinute: Int): String {
+    val duration = (endMinute - startMinute).coerceAtLeast(0)
+    return if (duration % 60 == 0) "${duration / 60} 小时" else "${duration / 60} 小时 ${duration % 60} 分钟"
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable fun TimeDropdown(label: String, minute: Int, options: List<Int>, enabled: Boolean, onSelected: (Int) -> Unit, modifier: Modifier = Modifier) {
+    var expanded by remember { mutableStateOf(false) }
+    ExposedDropdownMenuBox(expanded=expanded, onExpandedChange={ if(enabled) expanded=!expanded }, modifier=modifier) {
+        OutlinedTextField(
+            value=timeLabel(minute), onValueChange={}, readOnly=true, enabled=enabled, singleLine=true,
+            label={Text(label)},
+            trailingIcon={ExposedDropdownMenuDefaults.TrailingIcon(expanded=expanded)},
+            modifier=Modifier.menuAnchor().fillMaxWidth(),
+            colors=OutlinedTextFieldDefaults.colors(focusedBorderColor=Green,focusedLabelColor=Green,focusedTrailingIconColor=Green)
+        )
+        ExposedDropdownMenu(expanded=expanded,onDismissRequest={expanded=false}) {
+            options.forEach { value ->
+                DropdownMenuItem(text={Text(timeLabel(value))},onClick={onSelected(value);expanded=false})
+            }
+        }
+    }
+}
+
+@Composable fun CustomTimeRange(startMinute: Int, endMinute: Int, enabled: Boolean, onRangeChange: (Int, Int) -> Unit) {
+    val earliest = 6 * 60
+    val latest = 22 * 60
+    val interval = 30
+    val start = startMinute.coerceIn(earliest, latest - interval)
+    val end = endMinute.coerceIn(start + interval, latest)
+    val slots = (earliest..latest step interval).toList()
+
+    Surface(shape=RoundedCornerShape(22.dp), color=Color.White, border=BorderStroke(1.dp, Green.copy(alpha=.16f))) {
+        Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement=Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment=Alignment.CenterVertically) {
+                Icon(Icons.Outlined.Tune, null, Modifier.size(22.dp), tint=Green)
+                Spacer(Modifier.width(9.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("自定义时间区间", fontWeight=FontWeight.Bold, fontSize=15.sp)
+                    Text("每次调整 30 分钟 · 至少保留 30 分钟", fontSize=11.sp, color=Muted)
+                }
+                Text("${durationLabel(start, end)}", fontSize=12.sp, color=Green, fontWeight=FontWeight.Bold)
+            }
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                TimeDropdown("出发时间",start,slots.filter{it<=end-interval},enabled,{newStart->onRangeChange(newStart,end)},Modifier.weight(1f))
+                Icon(Icons.Outlined.ArrowForward,null,Modifier.size(20.dp),tint=Green)
+                TimeDropdown("返回时间",end,slots.filter{it>=start+interval},enabled,{newEnd->onRangeChange(start,newEnd)},Modifier.weight(1f))
+            }
+            Text("可选择 06:00–22:00，每次间隔 30 分钟。",fontSize=11.sp,color=Muted)
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun HomeScreen(store:BuddyStore) {
     var detail by rememberSaveable {mutableStateOf(false)}
@@ -298,7 +356,14 @@ fun choiceIcon(text:String):ImageVector = when {
                 Text("自定：A$${p.budget}"); Slider(value=p.budget.toFloat(),onValueChange={store.profile=p.copy(budget=(it/10).toInt()*10)},valueRange=0f..300f,steps=29,enabled=!store.busy)
                 Small("活动费用估算，不含住宿、机票及全部餐饮。") }
             5 -> { listOf(Endpoint.quay,Endpoint.central).forEach { e -> Choice(e.name,p.start==e,!store.busy){store.profile=p.copy(start=e,end=e)} }; Small("每天返回同一起点，可在“我的”设置下一次旅行的起终点。") }
-            6 -> listOf(Triple(600,1080,"10:00–18:00 · 悠闲一天"),Triple(540,1020,"09:00–17:00 · 早一点出发"),Triple(780,1080,"13:00–18:00 · 午后小冒险")).forEach { (s,e,t) -> Choice(t,p.startMinute==s && p.endMinute==e,!store.busy){store.profile=p.copy(startMinute=s,endMinute=e)} }
+            6 -> {
+                listOf(Triple(600,1080,"10:00–18:00 · 悠闲一天"),Triple(540,1020,"09:00–17:00 · 早一点出发"),Triple(780,1080,"13:00–18:00 · 午后小冒险")).forEach { (s,e,t) ->
+                    Choice(t,p.startMinute==s && p.endMinute==e,!store.busy){store.profile=p.copy(startMinute=s,endMinute=e)}
+                }
+                CustomTimeRange(p.startMinute, p.endMinute, !store.busy) { start, end ->
+                    store.profile = p.copy(startMinute=start, endMinute=end)
+                }
+            }
             else -> { Panel { Text("悉尼 · ${p.days} 天 · ${p.maxSteps} 步以内 / 天",fontWeight=FontWeight.Bold)
                 Text("${p.date} · 每日 A$${p.budget}"); Text("${p.start.name}出发 → ${p.end.name}返回"); Text(p.interests.joinToString(" · ").ifEmpty {"随心探索"}) }
                 OnlineSwitch(store)
