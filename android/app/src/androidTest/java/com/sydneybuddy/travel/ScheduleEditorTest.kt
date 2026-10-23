@@ -74,7 +74,7 @@ class ScheduleEditorTest {
         val c=setup();val day=c.state!!.array("days").getJSONObject(0)
         val before=day.array("activities").objects().first{it.optString("placeId")=="mca"};val id=before.getString("id");val duration=before.getInt("duration")
         rule.onNodeWithTag("schedule-workbench").performScrollTo()
-        rule.onNodeWithTag("toolbox-drag-gallery").assertDoesNotExist()
+        rule.onNodeWithTag("toolbox-drag-gallery").assertExists()
         val source=rule.onNodeWithTag("toolbox-drag-mca").fetchSemanticsNode().boundsInRoot
         val canvas=rule.onNodeWithTag("timeline-canvas").fetchSemanticsNode().boundsInRoot
         val viewport=rule.onNodeWithTag("timeline-viewport").fetchSemanticsNode().boundsInRoot
@@ -90,6 +90,38 @@ class ScheduleEditorTest {
         val start=c.state!!.array("days").getJSONObject(0).array("activities").objects().first{it.optString("placeId")=="mca"}.optInt("fixedStart")
         rule.runOnIdle{c.place(c.state!!.array("candidates").objects().first{it.optString("id")=="mca"},900)}
         assertFalse(c.busy);assertEquals(start,c.state!!.array("days").getJSONObject(0).array("activities").objects().first{it.optString("placeId")=="mca"}.optInt("fixedStart"));c.stop()
+    }
+    @Test fun hoveringDateSwitchesDayAndContinuedDragMovesExistingWithoutDuplicate() {
+        val c=setup();rule.onNodeWithTag("schedule-workbench").performScrollTo()
+        val before=c.state!!.array("days").toString()
+        val original=c.state!!.array("days").getJSONObject(0).array("activities").objects().first{it.optString("placeId")=="mca"}
+        val source=rule.onNodeWithTag("toolbox-drag-mca").fetchSemanticsNode().boundsInRoot.center
+        val date=rule.onNodeWithTag("schedule-day-1").fetchSemanticsNode().boundsInRoot.center
+        rule.onRoot().performTouchInput{down(source);advanceEventTime(800);moveTo(date,delayMillis=700)}
+        rule.mainClock.advanceTimeBy(600)
+        rule.waitUntil(5000){c.dayIndex==1}
+        assertEquals(before,c.state!!.array("days").toString())
+        val canvas=rule.onNodeWithTag("timeline-canvas").fetchSemanticsNode().boundsInRoot
+        val viewport=rule.onNodeWithTag("timeline-viewport").fetchSemanticsNode().boundsInRoot
+        rule.onRoot().performTouchInput{moveTo(Offset(viewport.right-30f,minOf(canvas.top+350f,viewport.bottom-50f)),delayMillis=700);up()}
+        rule.waitUntil(5000){!c.busy}
+        val days=c.state!!.array("days").objects()
+        assertFalse(days[0].array("activities").objects().any{it.optString("placeId")=="mca"})
+        val moved=days[1].array("activities").objects().single{it.optString("placeId")=="mca"}
+        assertEquals(original.getString("id"),moved.getString("id"));assertEquals(original.getInt("duration"),moved.getInt("duration"))
+        assertEquals(1,days.flatMap{it.array("activities").objects()}.count{it.optString("placeId")=="mca"})
+        rule.runOnIdle{c.undo()};rule.waitUntil(5000){!c.busy}
+        assertEquals(before,c.state!!.array("days").toString());c.stop()
+    }
+    @Test fun releasingOnDateOnlySwitchesDayWithoutAdding() {
+        val c=setup();rule.onNodeWithTag("schedule-workbench").performScrollTo()
+        val before=c.state!!.array("days").toString()
+        val source=rule.onNodeWithTag("toolbox-drag-mca").fetchSemanticsNode().boundsInRoot.center
+        val date=rule.onNodeWithTag("schedule-day-2").fetchSemanticsNode().boundsInRoot.center
+        rule.onRoot().performTouchInput{down(source);advanceEventTime(800);moveTo(date,delayMillis=700)}
+        rule.mainClock.advanceTimeBy(600);rule.waitUntil(5000){c.dayIndex==2}
+        rule.onRoot().performTouchInput{up()}
+        assertEquals(before,c.state!!.array("days").toString());assertFalse(c.busy);c.stop()
     }
     @Test fun toolboxDragDropsNewAttractionAtActualTime() {
         val c=setup()

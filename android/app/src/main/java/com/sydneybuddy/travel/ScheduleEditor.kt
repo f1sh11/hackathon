@@ -80,12 +80,25 @@ internal class ScheduleController(val store:BuddyStore,val scope:CoroutineScope,
         val additions=points.filter{it.optString("id") !in existing};if(additions.isEmpty())return
         edit{s->s.put("candidates",JSONArray(s.array("candidates").objects()+additions.map{it.copy()}))}
     }
-    fun place(candidate:JSONObject,minute:Int) {
+    fun place(candidate:JSONObject,minute:Int,moveAcrossDays:Boolean=false) {
         val s=state ?: return;val day=s.array("days").getJSONObject(dayIndex)
         if(busy||minute<day.optInt("startMinute")||minute>=day.optInt("endMinute"))return
         val id=candidate.getString("id");val existing=day.array("activities").objects().firstOrNull{it.optString("placeId")==id}
         if(existing!=null){retime(existing.getString("id"),minute,existing.optInt("duration"));return}
-        if(s.array("days").objects().flatMap{it.array("activities").objects()}.any{it.optString("placeId")==id})return
+        val source=s.array("days").objects().firstOrNull{d->d.array("activities").objects().any{it.optString("placeId")==id}}
+        if(source!=null){
+            val original=source.array("activities").objects().first{it.optString("placeId")==id}
+            if(!moveAcrossDays||original.optBoolean("locked"))return
+            val sourceIndex=s.array("days").objects().indexOf(source)
+            edit {value->
+                val from=value.array("days").getJSONObject(sourceIndex)
+                from.put("activities",JSONArray(from.array("activities").objects().filter{it.optString("id")!=original.optString("id")}))
+                val target=value.array("days").getJSONObject(dayIndex);val items=target.array("activities").objects().toMutableList()
+                val moved=original.copy().put("fixedStart",minute).put("scheduledStart",minute)
+                val index=items.indexOfFirst{(if(it.isNull("fixedStart"))it.optInt("scheduledStart")else it.optInt("fixedStart"))>minute}
+                items.add(if(index<0)items.size else index,moved);target.put("activities",JSONArray(items))
+            };return
+        }
         edit {value->val d=value.array("days").getJSONObject(dayIndex);val items=d.array("activities").objects().toMutableList()
             val a=JSONObject().put("id",UUID.randomUUID().toString()).put("kind",poiActivityKind(candidate)).put("placeId",id).put("name",candidate.getString("name")).put("duration",candidate.optInt("visitMinutes",60)).put("fixedStart",minute).put("scheduledStart",minute)
             val index=items.indexOfFirst{(if(it.isNull("fixedStart"))it.optInt("scheduledStart")else it.optInt("fixedStart"))>minute}

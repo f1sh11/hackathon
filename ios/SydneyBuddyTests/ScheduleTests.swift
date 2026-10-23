@@ -3,6 +3,37 @@ import SwiftUI
 @testable import SydneyBuddy
 
 @MainActor final class ScheduleTests:XCTestCase {
+    func testHoverDateDwellSwitchesWithoutEditingAndCancellationStopsSwitch() async throws {
+        let trip=try fixture();let model=ScheduleEditorModel();model.prepare(trip)
+        let before=model.state!.days.flatMap(\.activities).map{($0.id)+String($0.scheduledStart)}
+        let drag=ScheduleToolboxDragSession();drag.candidate=trip.schedule!.candidates[0]
+        drag.dayFrames=[1:CGRect(x:100,y:0,width:80,height:50)]
+        drag.hover(at:CGPoint(x:120,y:20),currentDay:0){model.dayIndex=$0}
+        try await Task.sleep(nanoseconds:550_000_000)
+        XCTAssertEqual(model.dayIndex,1);XCTAssertEqual(model.state!.days.flatMap(\.activities).map{($0.id)+String($0.scheduledStart)},before)
+        model.dayIndex=0
+        drag.hover(at:CGPoint.zero,currentDay:0){model.dayIndex=$0}
+        drag.hover(at:CGPoint(x:120,y:20),currentDay:0){model.dayIndex=$0}
+        drag.finish()
+        try await Task.sleep(nanoseconds:550_000_000)
+        XCTAssertEqual(model.dayIndex,0);XCTAssertFalse(model.busy);model.stop()
+    }
+    func testCrossDayPlacementPreservesIdentityDurationAndUndo() async throws {
+        let trip=try fixture();let model=ScheduleEditorModel();model.prepare(trip)
+        model.loader={request in let body=try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:Any];var raw=body["trip"] as! [String:Any];var state=raw["schedule"] as! [String:Any];state["days"]=body["days"];raw["schedule"]=state;return (try JSONSerialization.data(withJSONObject:raw),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)}
+        let original=model.state!.days[0].activities.first{$0.placeId != nil}!
+        let candidate=model.state!.candidates.first{$0.id==original.placeId}!
+        model.dayIndex=1;model.place(candidate,at:720,moveAcrossDays:true)
+        for _ in 0..<100 {if !model.busy{break};try await Task.sleep(nanoseconds:10_000_000)}
+        XCTAssertFalse(model.state!.days[0].activities.contains{$0.id==original.id})
+        let moved=model.state!.days[1].activities.first{$0.id==original.id}!
+        XCTAssertEqual(moved.duration,original.duration);XCTAssertEqual(moved.fixedStart,720)
+        XCTAssertEqual(model.state!.days.flatMap(\.activities).filter{$0.placeId==candidate.id}.count,1)
+        model.undo()
+        for _ in 0..<100 {if !model.busy{break};try await Task.sleep(nanoseconds:10_000_000)}
+        XCTAssertTrue(model.state!.days[0].activities.contains{$0.id==original.id})
+        XCTAssertFalse(model.state!.days[1].activities.contains{$0.id==original.id});model.stop()
+    }
     func testCanvasReportsActualGeometryForCrossColumnDrag() async throws {
         let day=try fixture().schedule!.days[0]
         var layout=ScheduleCanvasGeometry()

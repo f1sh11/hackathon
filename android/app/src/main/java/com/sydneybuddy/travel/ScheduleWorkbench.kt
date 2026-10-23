@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import kotlinx.coroutines.delay
 import org.json.JSONObject
 import kotlin.math.*
 
@@ -45,18 +46,30 @@ internal fun toolboxMinute(y:Float,scale:Float,first:Int,start:Int,end:Int):Int?
     var canvasOrigin by remember{mutableStateOf(Offset.Zero)}
     var first by remember{mutableIntStateOf(0)}
     var scale by remember{mutableFloatStateOf(3f)}
+    val dateFrames=remember{mutableStateMapOf<Int,Rect>()}
+    val timelineScroll=rememberScrollState()
+    val hoverDay=if(dragging!=null)dateFrames.entries.firstOrNull{it.value.contains(pointer)}?.key?.takeIf{it!=c.dayIndex}else null
+    LaunchedEffect(hoverDay,dragging?.optString("id")) {
+        if(hoverDay!=null){delay(450);c.dayIndex=hoverDay}
+    }
+    LaunchedEffect(c.dayIndex){timelineScroll.scrollTo(0)}
     val density=LocalDensity.current.density
     val selected=state.array("days").objects().flatMapIndexed{i,d->d.array("activities").objects().filter{it.optString("placeId").isNotBlank()}.map{it.optString("placeId") to i}}.toMap()
     val minute=if(viewport.contains(pointer))toolboxMinute((pointer.y-canvasOrigin.y)/density,scale,first,day.optInt("startMinute"),day.optInt("endMinute"))else null
+    // Keep the pointer handler alive across day switches; resolve the drop with current layout.
+    val dropCurrent by rememberUpdatedState<(JSONObject)->Unit>({p->
+        val time=if(viewport.contains(pointer))toolboxMinute((pointer.y-canvasOrigin.y)/density,scale,first,day.optInt("startMinute"),day.optInt("endMinute"))else null
+        if(time!=null)c.place(p,time,moveAcrossDays=true)
+    })
     Box(Modifier.fillMaxWidth().height(600.dp).testTag("schedule-workbench").onGloballyPositioned{origin=it.positionInRoot()}) {
         Row(Modifier.fillMaxSize(),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
             Column(Modifier.fillMaxWidth(.34f),verticalArrangement=Arrangement.spacedBy(6.dp)) {
                 Text("景點工具箱",fontSize=13.sp,fontWeight=FontWeight.Bold)
                 TextButton(onClick={discover=true},contentPadding=PaddingValues(0.dp)){Text("地圖找地點",fontSize=11.sp)}
-                Text("依推薦排序\n按住 ☰ 拖到右側",fontSize=10.sp,color=Color.Gray)
+                Text("依推薦排序\n按住 ☰ 拖到日期切換\n再拖入右側時段",fontSize=10.sp,color=Color.Gray)
                 Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(10.dp)) {
                     state.array("candidates").objects().forEachIndexed{i,p->key(p.getString("id")) {
-                        val id=p.getString("id");val locked=day.array("activities").objects().any{it.optString("placeId")==id&&it.optBoolean("locked")};var grip by remember{mutableStateOf(Offset.Zero)}
+                        val id=p.getString("id");val locked=state.array("days").objects().flatMap{it.array("activities").objects()}.any{it.optString("placeId")==id&&it.optBoolean("locked")};var grip by remember{mutableStateOf(Offset.Zero)}
                         Column(Modifier.fillMaxWidth().background(Color.White,RoundedCornerShape(13.dp)).border(1.dp,Green.copy(alpha=.12f),RoundedCornerShape(13.dp)).padding(8.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
                             Text("%02d".format(i+1),fontSize=10.sp,color=Green,fontWeight=FontWeight.Bold)
                             Text(p.optString("name"),fontSize=12.sp,fontWeight=FontWeight.SemiBold)
@@ -65,9 +78,8 @@ internal fun toolboxMinute(y:Float,scale:Float,first:Int,start:Int,end:Int):Int?
                             if(locked)Text("已鎖定",fontSize=10.sp,color=Color.Gray)
                             Row(verticalAlignment=Alignment.CenterVertically){
                                 TextButton(onClick={detail=p},modifier=Modifier.width(42.dp).testTag("toolbox-info-$id"),contentPadding=PaddingValues(0.dp)){Text("介紹",fontSize=11.sp)}
-                                if(!c.busy&&!locked&&(selected[id]==null||selected[id]==c.dayIndex))Text("☰",Modifier.size(32.dp,36.dp).onGloballyPositioned{grip=it.positionInRoot()}.testTag("toolbox-drag-$id").pointerInput(id,day.toString(),viewport,canvasOrigin,scale,density){detectDragGesturesAfterLongPress(onDragStart={dragging=p;pointer=grip+it},onDrag={change,amount->change.consume();pointer+=amount},onDragCancel={dragging=null},onDragEnd={
-                                    val time=if(viewport.contains(pointer))toolboxMinute((pointer.y-canvasOrigin.y)/density,scale,first,day.optInt("startMinute"),day.optInt("endMinute"))else null
-                                    dragging=null;if(time!=null)c.place(p,time)
+                                if(!c.busy&&!locked)Text("☰",Modifier.size(32.dp,36.dp).onGloballyPositioned{grip=it.positionInRoot()}.testTag("toolbox-drag-$id").pointerInput(id){detectDragGesturesAfterLongPress(onDragStart={dragging=p;pointer=grip+it},onDrag={change,amount->change.consume();pointer+=amount},onDragCancel={dragging=null},onDragEnd={
+                                    dropCurrent(p);dragging=null
                                 })},fontSize=18.sp,color=Green)
                             }
                         }
@@ -77,9 +89,9 @@ internal fun toolboxMinute(y:Float,scale:Float,first:Int,start:Int,end:Int):Int?
             }
             Box(Modifier.width(1.dp).fillMaxHeight().background(Green.copy(alpha=.12f)))
             Column(Modifier.weight(1f).fillMaxHeight().border(if(dragging!=null)1.dp else 0.dp,if(dragging!=null)Green else Color.Transparent,RoundedCornerShape(10.dp))) {
-                Row(Modifier.fillMaxWidth()){state.array("days").objects().forEachIndexed{i,d->TextButton(onClick={c.dayIndex=i},modifier=Modifier.weight(1f).background(if(i==c.dayIndex)Mint else Color.Transparent,RoundedCornerShape(10.dp)),contentPadding=PaddingValues(1.dp)){Text("第 ${i+1} 天\n${d.optString("date")}",fontSize=9.sp,color=if(i==c.dayIndex)Green else Color.Gray)}}}
-                Column(Modifier.weight(1f).testTag("timeline-viewport").onGloballyPositioned{val pos=it.positionInRoot();viewport=Rect(pos,pos+Offset(it.size.width.toFloat(),it.size.height.toFloat()))}.verticalScroll(rememberScrollState())) {
-                ScheduleTimeCanvas(day,onChange={id,start,duration->c.retime(id,start,duration)},onEdit=onEdit,onAdd=onAdd,onCanvasPosition={point,start,zoom->canvasOrigin=point;first=start;scale=zoom})
+                Row(Modifier.fillMaxWidth()){state.array("days").objects().forEachIndexed{i,d->TextButton(onClick={c.dayIndex=i},modifier=Modifier.weight(1f).testTag("schedule-day-$i").onGloballyPositioned{val pos=it.positionInRoot();dateFrames[i]=Rect(pos,pos+Offset(it.size.width.toFloat(),it.size.height.toFloat()))}.border(if(hoverDay==i)2.dp else 0.dp,if(hoverDay==i)Green else Color.Transparent,RoundedCornerShape(10.dp)).background(if(i==c.dayIndex)Mint else Color.Transparent,RoundedCornerShape(10.dp)),contentPadding=PaddingValues(1.dp)){Text("第 ${i+1} 天\n${d.optString("date")}",fontSize=9.sp,color=if(i==c.dayIndex)Green else Color.Gray)}}}
+                Column(Modifier.weight(1f).testTag("timeline-viewport").onGloballyPositioned{val pos=it.positionInRoot();viewport=Rect(pos,pos+Offset(it.size.width.toFloat(),it.size.height.toFloat()))}.verticalScroll(timelineScroll)) {
+                key(c.dayIndex){ScheduleTimeCanvas(day,onChange={id,start,duration->c.retime(id,start,duration)},onEdit=onEdit,onAdd=onAdd,onCanvasPosition={point,start,zoom->canvasOrigin=point;first=start;scale=zoom})}
                 }
             }
         }

@@ -5,6 +5,22 @@ import SwiftUI
     @Published var candidate:ScheduleCandidate?
     @Published var point=CGPoint.zero
     var day:Int?
+    var dayFrames:[Int:CGRect]=[:]
+    @Published var hoverDay:Int?
+    private var hoverTask:Task<Void,Never>?
+    func hover(at point:CGPoint,currentDay:Int,onSwitch:@escaping(Int)->Void) {
+        let target=dayFrames.first{$0.value.contains(point)}?.key
+        let next=target == currentDay ? nil:target
+        guard next != hoverDay else{return}
+        hoverTask?.cancel();hoverDay=next
+        guard let next else{return}
+        hoverTask=Task { [weak self] in
+            do {try await Task.sleep(nanoseconds:450_000_000)} catch{return}
+            guard let self,self.candidate != nil,self.hoverDay==next else{return}
+            onSwitch(next)
+        }
+    }
+    func finish(){hoverTask?.cancel();hoverTask=nil;hoverDay=nil;candidate=nil;day=nil}
     var canvas=ScheduleCanvasGeometry()
     var viewport=CGRect.zero
 }
@@ -26,15 +42,18 @@ import SwiftUI
         return ScheduleDropTime.minute(at:pointer,viewport:viewport,canvas:canvas,start:day.startMinute,end:day.endMinute)
     }
     private func toolboxDrag(_ candidate:ScheduleCandidate)->some Gesture {
-        let sourceDay=model.dayIndex
         return DragGesture(minimumDistance:3,coordinateSpace:.named("scheduleWorkbench"))
-            .onChanged {value in if dragging==nil{dragging=candidate;dragDay=model.dayIndex};pointer=value.location}
+            .onChanged {value in
+                if dragging==nil{dragging=candidate;dragDay=model.dayIndex}
+                pointer=value.location
+                dragSession.hover(at:value.location,currentDay:model.dayIndex){index in model.dayIndex=index;dragDay=index}
+            }
             .onEnded {value in
                 pointer=value.location
                 let day=model.state!.days[model.dayIndex]
-                let minute=sourceDay==model.dayIndex ? ScheduleDropTime.minute(at:value.location,viewport:dragSession.viewport,canvas:dragSession.canvas,start:day.startMinute,end:day.endMinute):nil
-                dragging=nil;dragDay=nil
-                if let minute{model.place(candidate,at:minute)}
+                let minute=ScheduleDropTime.minute(at:value.location,viewport:dragSession.viewport,canvas:dragSession.canvas,start:day.startMinute,end:day.endMinute)
+                dragSession.finish()
+                if let minute{model.place(candidate,at:minute,moveAcrossDays:true)}
             }
     }
     @ObservedObject private var toolbox=PoiToolbox.shared
@@ -47,7 +66,7 @@ import SwiftUI
                     VStack(alignment:.leading,spacing:8) {
                         Text("景點工具箱").font(.subheadline.bold())
                         Button("地圖找地點"){discover=true}.font(.caption.bold())
-                        Text("依推薦排序\n按住 ☰ 拖到右側").font(.caption2).foregroundStyle(Palette.muted)
+                        Text("依推薦排序\n按住 ☰ 拖到日期切換\n再拖入右側時段").font(.caption2).foregroundStyle(Palette.muted)
                         ScrollView {
                             VStack(spacing:10) {
                                 ForEach(Array(state.candidates.enumerated()),id:\.element.id){index,c in
@@ -56,12 +75,12 @@ import SwiftUI
                                         Text(c.name).font(.system(size:12,weight:.semibold)).fixedSize(horizontal:false,vertical:true)
                                         Text(c.source=="OpenStreetMap" ? "\(c.visitMinutes) 分 · 費用未知":"\(c.visitMinutes) 分 · A$\(Int(c.cost))").font(.system(size:10)).foregroundStyle(Palette.muted)
                                         if let d=selected[c.id] {Text("第 \(d+1) 天已排").font(.system(size:10)).foregroundStyle(Palette.green)}
-                                        let locked=state.days[model.dayIndex].activities.contains{$0.placeId==c.id && $0.locked==true}
+                                        let locked=state.days.flatMap(\.activities).contains{$0.placeId==c.id && $0.locked==true}
                                         if locked{Text("已鎖定").font(.system(size:10)).foregroundStyle(Palette.muted)}
                                         HStack(spacing:0) {
                                             Button{detail=c}label:{Image(systemName:"info.circle").frame(width:38,height:36)}.accessibilityLabel("介紹：\(c.name)")
                                             Spacer(minLength:0)
-                                            if !model.busy && !locked && (selected[c.id]==nil || selected[c.id]==model.dayIndex) {
+                                            if !model.busy && !locked {
                                                 Image(systemName:"line.3.horizontal").frame(width:32,height:36).contentShape(Rectangle()).highPriorityGesture(toolboxDrag(c)).accessibilityIdentifier("toolbox-drag-\(c.id)").accessibilityLabel("拖入時間軸：\(c.name)")
                                             }
                                         }
@@ -72,10 +91,15 @@ import SwiftUI
                     }.frame(width:min(150,geometry.size.width*0.34))
                     Divider()
                     VStack(alignment:.leading,spacing:8) {
-                        HStack(spacing:4){ForEach(Array(state.days.enumerated()),id:\.offset){i,d in Button{model.dayIndex=i}label:{VStack(spacing:3){Text("第 \(i+1) 天");Text(d.date).font(.system(size:9)).lineLimit(1).minimumScaleFactor(0.75)}.frame(maxWidth:.infinity).padding(.vertical,7).background(i==model.dayIndex ? Palette.mint:Color.white,in:RoundedRectangle(cornerRadius:12))}.font(.system(size:10))}}
+                        HStack(spacing:4){ForEach(Array(state.days.enumerated()),id:\.offset){i,d in Button{model.dayIndex=i}label:{VStack(spacing:3){Text("第 \(i+1) 天");Text(d.date).font(.system(size:9)).lineLimit(1).minimumScaleFactor(0.75)}.frame(maxWidth:.infinity).padding(.vertical,7).background(i==model.dayIndex ? Palette.mint:Color.white,in:RoundedRectangle(cornerRadius:12))}.font(.system(size:10)).accessibilityIdentifier("schedule-day-\(i)")
+                            .overlay(RoundedRectangle(cornerRadius:12).stroke(dragSession.hoverDay==i ? Palette.green:Color.clear,lineWidth:2))
+                            .background(GeometryReader{proxy in
+                                let frame=proxy.frame(in:.named("scheduleWorkbench"))
+                                Color.clear.onAppear{dragSession.dayFrames[i]=frame}.onChange(of:frame){_,value in dragSession.dayFrames[i]=value}
+                            })}}
                         ScrollView {
                         ScheduleTimeCanvas(day:state.days[model.dayIndex],onChange:{id,start,duration in model.retime(id,start:start,duration:duration)},onEdit:onEdit,onAdd:onAdd,onPlace:{id,minute in if let c=model.state?.candidates.first(where:{$0.id==id}){model.place(c,at:minute)}},onGeometry:{canvas=$0},dropHint:dragging==nil ? nil:dropMinute().map{"放到 \(String(format:"%02d:%02d",$0/60,$0%60))"} ?? "拖至右側時段").padding(.top,4).padding(.bottom,20)
-                    }.frame(maxWidth:.infinity).background(GeometryReader{proxy in
+                    }.id(model.dayIndex).frame(maxWidth:.infinity).background(GeometryReader{proxy in
                         let frame=proxy.frame(in:.named("scheduleWorkbench"))
                         Color.clear.onAppear{viewport=frame}.onChange(of:frame){_,value in viewport=value}
                     })
@@ -88,7 +112,8 @@ import SwiftUI
                 }
             }
         }.frame(height:600).coordinateSpace(name:"scheduleWorkbench")
-        .onChange(of:model.dayIndex){_,_ in dragging=nil;dragDay=nil}
+        .onChange(of:model.dayIndex){_,index in dragDay=index}
+        .onDisappear{dragSession.finish()}
         .onReceive(toolbox.$places){model.importPlaces($0)}
         .onChange(of:model.busy){_,busy in if !busy{model.importPlaces(toolbox.places)}}
         .sheet(isPresented:$discover){PoiDiscoveryView{p in toolbox.add(p);model.importPlaces([p])}}

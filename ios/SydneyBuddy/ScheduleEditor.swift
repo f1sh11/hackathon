@@ -109,12 +109,20 @@ struct ScheduleState:Codable {
         guard !additions.isEmpty else{return}
         edit{$0.candidates.append(contentsOf:additions)}
     }
-    func place(_ candidate:ScheduleCandidate,at minute:Int) {
+    func place(_ candidate:ScheduleCandidate,at minute:Int,moveAcrossDays:Bool=false) {
         guard !busy,let state,minute>=state.days[dayIndex].startMinute,minute<state.days[dayIndex].endMinute else{return}
         if let existing=state.days[dayIndex].activities.first(where:{$0.placeId==candidate.id}) {
             retime(existing.id,start:minute,duration:existing.duration);return
         }
-        guard !state.days.flatMap(\.activities).contains(where:{$0.placeId==candidate.id}) else{return}
+        if let source=state.days.firstIndex(where:{$0.activities.contains{$0.placeId==candidate.id}}) {
+            guard moveAcrossDays,let existing=state.days[source].activities.first(where:{$0.placeId==candidate.id}),existing.locked != true else{return}
+            edit {s in
+                s.days[source].activities.removeAll{$0.id==existing.id}
+                var moved=existing;moved.fixedStart=minute;moved.scheduledStart=minute
+                let index=s.days[dayIndex].activities.firstIndex{($0.fixedStart ?? $0.scheduledStart)>minute} ?? s.days[dayIndex].activities.count
+                s.days[dayIndex].activities.insert(moved,at:index)
+            };return
+        }
         let a=ScheduleActivity(id:UUID().uuidString,placeId:candidate.id,kind:candidate.activityKind,name:candidate.name,lat:candidate.lat,lng:candidate.lng,duration:candidate.visitMinutes,cost:candidate.cost,fixedStart:minute,arrival:"",departure:"",scheduledStart:minute,travelMinutes:0,indoor:candidate.indoor)
         edit {s in
             let index=s.days[dayIndex].activities.firstIndex{($0.fixedStart ?? $0.scheduledStart)>minute} ?? s.days[dayIndex].activities.count
