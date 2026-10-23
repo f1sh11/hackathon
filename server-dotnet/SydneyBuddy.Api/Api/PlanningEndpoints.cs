@@ -7,12 +7,12 @@ public static class PlanningEndpoints
 {
     public static void MapPlanningEndpoints(this RouteGroupBuilder routes)
     {
-        routes.MapGet("/health", (SecretStore secrets) =>
+        routes.MapGet("/health", (SecretStore secrets, PaidServicePolicy paidServices) =>
         {
             var config = secrets.Read();
             return Results.Json(new
             {
-                status = "ok", database = "postgresql",
+                status = "ok", database = "postgresql", paidServicesAllowed = paidServices.Allowed,
                 nvidiaConfigured = config["NVIDIA_API_KEY"].Length > 0,
                 googleConfigured = config["GOOGLE_SERVER_KEY"].Length > 0,
                 iosMapConfigured = config["GOOGLE_IOS_KEY"].Length > 0,
@@ -20,7 +20,7 @@ public static class PlanningEndpoints
             });
         });
         routes.MapGet("/catalog", (Planner planner) => Results.Json(planner.Catalog));
-        routes.MapPost("/plan", async (HttpContext context, Planner planner) =>
+        routes.MapPost("/plan", async (HttpContext context, Planner planner, PaidServicePolicy paidServices) =>
         {
             var input = await RequestJson.ReadAsync(context);
             if (input.ContainsKey("mode") &&
@@ -28,10 +28,14 @@ public static class PlanningEndpoints
                 throw new ServiceException("模式不合法");
             var mode = input.Str("mode", "demo");
             if (mode is not ("demo" or "assisted" or "live")) throw new ServiceException("模式不合法");
+            if (mode != "demo") paidServices.RequireAllowed();
             input.Remove("mode");
             return Results.Json(await planner.PlanAsync(input, mode, context.RequestAborted));
         });
-        routes.MapPost("/weather", async (HttpContext context, Planner planner) =>
-            Results.Json(await planner.WeatherAsync(await RequestJson.ReadAsync(context), context.RequestAborted)));
+        routes.MapPost("/weather", async (HttpContext context, Planner planner, PaidServicePolicy paidServices) =>
+        {
+            paidServices.RequireAllowed();
+            return Results.Json(await planner.WeatherAsync(await RequestJson.ReadAsync(context), context.RequestAborted));
+        });
     }
 }

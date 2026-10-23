@@ -19,17 +19,44 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.maps.android.compose.*
 import org.json.JSONObject
 
-@Composable fun RouteMap(day:JSONObject?,modifier:Modifier=Modifier,fullBleed:Boolean=false) {
+@Composable fun RouteMap(day:JSONObject?,modifier:Modifier=Modifier,fullBleed:Boolean=false,
+    provider:MapProvider=MapProvider.OSM,googleContent:Boolean=false,
+    viewport:MapViewport?=null,onViewport:(MapViewport)->Unit={}) {
+    // Provider-owned live coordinates and paths must not be rendered on another provider's map.
+    val visibleDay=mapDisplayDay(day,provider,googleContent)
+    if(provider==MapProvider.OSM) {
+        OsmRouteMap(visibleDay,modifier,fullBleed,viewport,onViewport)
+        return
+    }
+    if(provider==MapProvider.GOOGLE && !BuildConfig.MAPS_CONFIGURED) {
+        Box(modifier.background(Mint),contentAlignment=androidx.compose.ui.Alignment.Center) {
+            Text("Google 地图未配置密钥\n请在“我的”切换到 OpenStreetMap",modifier=Modifier.padding(30.dp))
+        }
+        return
+    }
+    ProviderRouteMap(visibleDay,modifier,fullBleed,provider==MapProvider.GOOGLE,viewport,onViewport)
+}
+
+@Composable private fun ProviderRouteMap(day:JSONObject?,modifier:Modifier,fullBleed:Boolean,
+    google:Boolean,viewport:MapViewport?,onViewport:(MapViewport)->Unit) {
     val stops=day?.array("stops")?.objects() ?: emptyList()
     val start=day?.getJSONObject("start") ?: Endpoint.quay.json();val end=day?.getJSONObject("end") ?: Endpoint.central.json()
     fun coordinate(j:JSONObject)=LatLng(j.getDouble("lat"),j.getDouble("lng"))
     val points=listOf(coordinate(start))+stops.map(::coordinate)+coordinate(end)
     val routes=day?.array("legs")?.objects()?.map {runCatching {decodePolyline(it.optString("polyline")).map{p->LatLng(p.first,p.second)}}.getOrDefault(emptyList())} ?: emptyList()
     val bounds=LatLngBounds.builder().apply{points.forEach{include(it)}}.build()
-    if(BuildConfig.MAPS_CONFIGURED) {
+    if(google) {
         val camera=rememberCameraPositionState()
         var loaded by remember {mutableStateOf(false)}
-        LaunchedEffect(day.toString(),loaded){if(loaded) camera.move(CameraUpdateFactory.newLatLngBounds(bounds,70))}
+        LaunchedEffect(day.toString(),loaded){if(loaded) {
+            val saved=viewport?.takeIf{it.sceneKey==day.toString()}
+            camera.move(if(saved!=null) CameraUpdateFactory.newLatLngZoom(LatLng(saved.lat,saved.lng),saved.zoom.toFloat()) else CameraUpdateFactory.newLatLngBounds(bounds,70))
+        }}
+        LaunchedEffect(camera,loaded) {
+            snapshotFlow { camera.isMoving }.collect { moving ->
+                if(loaded && !moving) onViewport(MapViewport(day.toString(),camera.position.target.latitude,camera.position.target.longitude,camera.position.zoom.toDouble()))
+            }
+        }
         GoogleMap(modifier=if(fullBleed)modifier else modifier.fillMaxWidth().height(310.dp).clip(RoundedCornerShape(22.dp)),cameraPositionState=camera,
             contentPadding=if(fullBleed)PaddingValues(top=180.dp,bottom=290.dp,start=12.dp,end=12.dp) else PaddingValues(0.dp),
             onMapLoaded={loaded=true},uiSettings=MapUiSettings(zoomControlsEnabled=false,myLocationButtonEnabled=false,mapToolbarEnabled=false)) {
@@ -66,7 +93,7 @@ import org.json.JSONObject
                 points.zipWithNext().forEach{(a,b)->drawLine(Green,pos(a),pos(b),4f,pathEffect=PathEffect.dashPathEffect(floatArrayOf(12f,10f)))}
                 points.forEach{drawCircle(Color.White,14f,pos(it));drawCircle(Green,9f,pos(it))}
             }
-            Small("未配置 Android 地图密钥。连线仅示意，不是可导航路线；地点顺序见下方。")
+            Small("离线示意图 · 不加载网络图砖。连线不是可导航路线。")
         }
     }
 }

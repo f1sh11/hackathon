@@ -1,4 +1,5 @@
 using System.Net;
+using Microsoft.Extensions.Configuration;
 using System.Text;
 using System.Text.Json.Nodes;
 
@@ -48,6 +49,26 @@ public sealed class ExternalJsonClientTests
         Assert.Equal("POST", method);
         Assert.Equal("Bearer fixture-token", authorization);
         Assert.Equal(42, JsonNode.Parse(content!)!.Int("value"));
+    }
+
+    [Theory]
+    [InlineData(null, false)]
+    [InlineData("false", false)]
+    [InlineData("true", true)]
+    public async Task PaidServicePolicyGuardsTransportBeforeAnyRequest(string? setting,bool allowed)
+    {
+        var called=false;
+        using var client=new HttpClient(new StubHandler(_ => {
+            called=true;
+            return new HttpResponseMessage(HttpStatusCode.OK) {Content=new StringContent("{}")};
+        }));
+        var config=new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?> {
+            ["AllowPaidServices"]=setting
+        }).Build();
+        var transport=new ExternalJsonClient(client,new PaidServicePolicy(config));
+        if(allowed) await transport.FetchAsync("https://provider.example/resource");
+        else await Assert.ThrowsAsync<ServiceException>(()=>transport.FetchAsync("https://provider.example/resource"));
+        Assert.Equal(allowed,called);
     }
 
     /// <summary>以本机处理器模拟 HTTP；a handler removes network variability from transport tests.</summary>

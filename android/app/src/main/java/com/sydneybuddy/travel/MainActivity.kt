@@ -96,7 +96,8 @@ class MainActivity : ComponentActivity() {
 @Composable fun Small(text: String) { Text(text, style = MaterialTheme.typography.bodySmall, color = Ink.copy(alpha = .75f)) }
 @Composable fun OnlineSwitch(store: BuddyStore) {
     Row(verticalAlignment=Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text("使用在线推荐",fontWeight=FontWeight.Bold); Small(if(store.online) "NVIDIA 推荐；有 Google 服务配置时查询在线数据" else "演示模式 · 示例数据，无 AI 调用") }
-        Switch(checked=store.online,onCheckedChange={store.online=it},enabled=!store.busy) }
+        Switch(checked=store.online,onCheckedChange={store.online=it},enabled=!store.busy && store.health?.optBoolean("paidServicesAllowed")==true) }
+    if(store.health?.optBoolean("paidServicesAllowed")!=true) Small("后端已禁止付费服务，当前可使用演示模式。")
     if(store.online) Small("在线请求会将本次旅行的偏好、日期和起终点发送给 NVIDIA / Google。")
 }
 
@@ -227,11 +228,19 @@ fun modeLabel(mode:String) = when(mode) {"live"->"在线规划 · 以各项来�
     Page {
         Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(18.dp)){Buddy(65);Column(verticalArrangement=Arrangement.spacedBy(6.dp)){Text("你好，旅行家",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Bold);Small("按自己的节奏，发现悉尼")}}
         Panel {
+            Text("地图底图",fontWeight=FontWeight.Bold)
+            MapProvider.entries.forEach { provider ->
+                Choice(provider.label,store.mapProvider==provider) {store.chooseMapProvider(provider)}
+            }
+            Small("底图切换不会重新规划或调用后端。OSM 需联网加载图砖；离线示意图不请求图砖。")
+            if(store.mapProvider==MapProvider.GOOGLE && !BuildConfig.MAPS_CONFIGURED) Small("Google 地图尚未配置密钥，可选择 OpenStreetMap。")
+        }
+        Panel {
             OnlineSwitch(store)
             Text("电脑规划服务：${if(store.health?.optString("status")=="ok") "已连接" else "未连接"}")
             Text("NVIDIA：${if(store.health?.optBoolean("nvidiaConfigured")==true) "密钥已配置" else "待配置"}")
             Text("Google 服务端：${if(store.health?.optBoolean("googleConfigured")==true) "密钥已配置" else "待配置"}")
-            Text("Android 地图：${if(BuildConfig.MAPS_CONFIGURED) "密钥已配置" else "未配置，显示示意图"}")
+            Text("Android 地图：${if(BuildConfig.MAPS_CONFIGURED) "密钥已配置" else "未配置，选择后将提示配置"}")
             Small("已配置不代表在线调用成功；实际结果以来源和错误提示为准。")
             Action("刷新连接状态",!store.busy,store::reload)
         }

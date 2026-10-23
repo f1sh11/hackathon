@@ -14,12 +14,13 @@ public interface IExternalJsonClient
 }
 
 /// <summary>调用外部 JSON 服务并遮蔽错误详情；calls providers without exposing private request/response data.</summary>
-public sealed class ExternalJsonClient(HttpClient client) : IExternalJsonClient
+public sealed class ExternalJsonClient(HttpClient client, PaidServicePolicy? paidServices = null) : IExternalJsonClient
 {
     public async Task<JsonObject> FetchAsync(string url, JsonNode? payload = null,
         IReadOnlyDictionary<string, string>? headers = null, int timeoutSeconds = 25,
         CancellationToken cancellationToken = default)
     {
+        paidServices?.RequireAllowed();
         // 分开处理用户取消与服务超时；preserve caller cancellation while translating provider deadlines.
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadline.Token);

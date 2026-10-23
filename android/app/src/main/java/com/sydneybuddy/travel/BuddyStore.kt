@@ -33,6 +33,13 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
     var onboarding by mutableStateOf(!prefs.getBoolean("onboarded", false))
     var preparations by mutableStateOf(prefs.getStringSet("preparations", emptySet())!!.toSet()); private set
     var expenses by mutableStateOf(runCatching { JSONArray(prefs.getString("expenses", "[]")).objects() }.getOrDefault(emptyList())); private set
+    var mapProvider by mutableStateOf(MapProvider.fromStored(prefs.getString("mapProvider", null)))
+        private set
+    var mapViewport: MapViewport? = null
+    fun chooseMapProvider(value: MapProvider) {
+        mapProvider = value
+        prefs.edit().putString("mapProvider", value.name).apply()
+    }
     val base = "http://127.0.0.1:8787"
     val day: JSONObject? get() = trip?.array("days")?.objects()?.getOrNull(dayIndex)
 

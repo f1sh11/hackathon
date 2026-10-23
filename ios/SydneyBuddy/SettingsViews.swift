@@ -37,12 +37,22 @@ struct SettingsView:View {
         NavigationStack {
             Form {
                 Section { HStack(spacing:18){Robot(size:65);VStack(alignment:.leading,spacing:6){Text("你好，旅行家").font(.title2.bold());Text("按自己的节奏，发现悉尼").font(.caption).foregroundStyle(Palette.muted)}}.padding(.vertical,10) }
+                Section("地图底图") {
+                    Picker("地图来源",selection:$store.mapProvider) {
+                        ForEach(MapProvider.allCases) { source in Text(source.label).tag(source) }
+                    }
+                    Text("切换只改变底图，不重新规划。OSM 需联网加载图砖；离线示意图不请求图砖。").font(.caption).foregroundStyle(Palette.muted)
+                    if store.mapProvider == .google && !SydneyBuddyApp.mapConfigured {
+                        Text("Google 地图未配置密钥，请选择 OpenStreetMap 或 Apple Maps。").font(.caption)
+                    }
+                }
                 Section("服务连接") {
-                    Toggle("使用在线服务",isOn:$store.live).tint(Palette.green)
+                    Toggle("使用在线服务",isOn:$store.live).tint(Palette.green).disabled(store.health?.paidServicesAllowed != true)
+                    if store.health?.paidServicesAllowed != true { Text("后端已禁止付费服务，当前可使用演示模式。").font(.caption) }
                     status("本机规划服务",ready:store.health?.status=="ok")
                     status("NVIDIA Nemotron",ready:store.health?.nvidiaConfigured==true)
                     status("Google 地点与路线",ready:store.health?.googleConfigured==true)
-                    status("Google iOS 地图",ready:SydneyBuddyApp.mapReady)
+                    status("Google iOS 地图",ready:SydneyBuddyApp.mapConfigured)
                     Text("在线模式会将本次旅行的偏好、起终点和日期发送给 Google、NVIDIA 及天气服务。不要输入私人住址或敏感信息。密钥在电脑本地设置页配置。").font(.caption).foregroundStyle(Palette.muted)
                     Button("刷新连接状态"){Task{await store.reload()}}
                 }

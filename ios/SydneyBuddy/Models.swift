@@ -62,7 +62,7 @@ struct Memory: Codable, Identifiable {
     var id: String; var summary: String; var profile: MemoryProfile
     struct MemoryProfile: Codable { var interests: [String]; var maxSteps: Int }
 }
-struct Health: Codable { var status: String; var nvidiaConfigured: Bool; var googleConfigured: Bool; var iosMapConfigured: Bool; var model: String }
+struct Health: Codable { var paidServicesAllowed: Bool?; var status: String; var nvidiaConfigured: Bool; var googleConfigured: Bool; var iosMapConfigured: Bool; var model: String }
 struct Expense: Codable, Identifiable {
     var id = UUID(); var title: String; var cents: Int; var participants: Int
     var shares: [Int] { (0..<participants).map { cents/participants + ($0 < cents%participants ? 1 : 0) } }
@@ -80,6 +80,10 @@ struct Expense: Codable, Identifiable {
     @Published var busy = false
     @Published var errorMessage: String?
     @Published var health: Health?
+    @Published var mapProvider = MapProvider(rawValue: UserDefaults.standard.string(forKey:"mapProvider") ?? "") ?? .osm {
+        didSet { UserDefaults.standard.set(mapProvider.rawValue,forKey:"mapProvider") }
+    }
+    var mapViewport: MapViewport?
     @Published var live = false
     @Published var tab = 0
     @Published var dayIndex = 0
@@ -115,6 +119,7 @@ struct Expense: Codable, Identifiable {
         UserDefaults.standard.set(preparations,forKey:"preparations")
     }
     func refreshWeather() async {
+        guard health?.paidServicesAllowed == true else { errorMessage="后端已禁止付费服务，无法刷新实时天气。"; return }
         guard !weatherBusy else { return }; weatherBusy = true; defer { weatherBusy = false }
         do {
             refreshedWeather = try await api("weather",method:"POST",body:JSONEncoder().encode(trip?.profile ?? profile))

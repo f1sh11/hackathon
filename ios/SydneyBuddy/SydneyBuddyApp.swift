@@ -3,13 +3,18 @@ import GoogleMaps
 
 @main struct SydneyBuddyApp: App {
     @StateObject private var store = AppStore()
+    static var mapConfigured: Bool {
+        guard let key=Bundle.main.object(forInfoDictionaryKey:"GoogleMapsAPIKey") as? String else {return false}
+        return !key.isEmpty && !key.contains("$(") && !key.contains("YOUR_")
+    }
+    // Initialize Google only when that provider is actually selected.
     static let mapReady: Bool = {
         guard let key = Bundle.main.object(forInfoDictionaryKey: "GoogleMapsAPIKey") as? String,
               !key.isEmpty, !key.contains("$("), !key.contains("YOUR_") else { return false }
         return GMSServices.provideAPIKey(key)
     }()
     var body: some Scene {
-        WindowGroup { RootView().environmentObject(store).preferredColorScheme(.light).task { _ = Self.mapReady; await store.reload() } }
+        WindowGroup { RootView().environmentObject(store).preferredColorScheme(.light).task { await store.reload() } }
     }
 }
 
@@ -146,7 +151,7 @@ struct OnboardingView: View {
                                 Text("\(store.profile.start.name)出发并返回 · 每日 A$\(Int(store.profile.budget)) 活动预算").font(.subheadline)
                                 Text(store.profile.interests.isEmpty ? "随心探索" : store.profile.interests.joined(separator:" · ")).font(.subheadline).foregroundStyle(Palette.muted)
                             }.padding(24).frame(maxWidth:.infinity,alignment:.leading).background(Palette.mint,in:RoundedRectangle(cornerRadius:24))
-                            Toggle("使用 Nemotron 智能推荐",isOn:$store.live).font(.headline).tint(Palette.green)
+                            Toggle("使用 Nemotron 智能推荐",isOn:$store.live).font(.headline).tint(Palette.green).disabled(store.health?.paidServicesAllowed != true)
                             Text(store.live ? "在线查询地点、路线和天气，AI 提供候选建议。你确认后才保存。" : "演示模式使用示例数据；你也可以打开在线推荐。").font(.caption).foregroundStyle(Palette.muted)
                         }
                     }.id(step).transition(.opacity)
