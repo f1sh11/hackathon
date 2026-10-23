@@ -1,0 +1,214 @@
+package com.sydneybuddy.travel
+
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontWeight
+import kotlinx.coroutines.*
+import org.json.JSONArray
+import org.json.JSONObject
+import java.util.UUID
+import kotlin.math.*
+
+internal class ScheduleController(val store:BuddyStore,val scope:CoroutineScope,val requester:suspend (JSONObject)->JSONObject = {store.scheduleRequest(it)}) {
+    var trip by mutableStateOf(store.proposal!!.trip.copy())
+    var state by mutableStateOf(trip.optJSONObject("schedule")?.copy())
+    var dayIndex by mutableStateOf(0)
+    var busy by mutableStateOf(false)
+    var dirty by mutableStateOf(false)
+    var error by mutableStateOf<String?>(null)
+    var notice by mutableStateOf<String?>(null)
+    val seed=trip.copy()
+    private val history=ArrayDeque<JSONObject>()
+    private var job:Job?=null
+    private var generation=0
+    private var pendingSnapshot:JSONObject?=null
+    private var lastNotice:String?=null
+    fun request(regenerate:Boolean=false) {
+        job?.cancel();val token=++generation;busy=true;dirty=true
+        val value=state?.copy()
+        val body=JSONObject().put("trip",trip)
+        value?.let {body.put("settings",it.getJSONObject("settings")).put("version",it.optInt("version")).put("rainy",it.optBoolean("rainy"));if(!regenerate)body.put("days",it.getJSONArray("days"))}
+        job=scope.launch {
+            try {
+                val result=requester(body)
+                if(token!=generation)return@launch
+                trip=result;state=result.getJSONObject("schedule");busy=false;dirty=false
+                val warnings=state!!.array("issues").objects().filter{it.optString("code") in listOf("steps","budget","total-budget","time-budget")}
+                if(warnings.isNotEmpty()){val text=warnings.joinToString("\n"){it.optString("message")};if(text!=lastNotice)notice=text;lastNotice=text}else lastNotice=null
+            }catch(e:CancellationException){throw e}catch(e:Exception){if(token==generation){busy=false;error=e.message ?: "試算失敗，草案已保留。"}}
+        }
+    }
+    fun edit(change:(JSONObject)->Unit) {
+        val value=state?.copy() ?: return
+        history.addLast(pendingSnapshot ?: trip.copy().put("schedule",value.copy()));pendingSnapshot=null;if(history.size>25)history.removeFirst()
+        change(value);state=value;request()
+    }
+    fun reorder(id:String,target:Int) {edit {s->val day=s.array("days").getJSONObject(dayIndex);val items=day.array("activities").objects().toMutableList();val i=items.indexOfFirst{it.optString("id")==id};if(i>=0){val a=items.removeAt(i);items.add(target.coerceIn(0,items.size),a);day.put("activities",JSONArray(items))}}}
+    fun undo(){if(history.isNotEmpty()){trip=history.removeLast();state=trip.getJSONObject("schedule");request()}}
+    fun restore(){trip=seed.copy();state=trip.optJSONObject("schedule");request(state==null)}
+    fun toggleMust(candidate:JSONObject){
+        pendingSnapshot=trip.copy().put("schedule",state!!.copy())
+        val profile=trip.getJSONObject("profile");val id=candidate.getString("id");val list=profile.array("mustVisit").strings().toMutableList()
+        if(id in list)list.remove(id)else list.add(id)
+        trip=trip.copy().put("profile",profile.copy().put("mustVisit",JSONArray(list)))
+        if(state!!.array("days").objects().flatMap{it.array("activities").objects()}.none{it.optString("placeId")==id})add(candidate)else edit{}
+    }
+    fun add(candidate:JSONObject){edit{s->val day=s.array("days").getJSONObject(dayIndex);val items=day.array("activities").objects().toMutableList();val a=JSONObject().put("id",UUID.randomUUID().toString()).put("kind","attraction").put("placeId",candidate.getString("id")).put("name",candidate.getString("name")).put("duration",candidate.optInt("visitMinutes",60));val i=items.indexOfFirst{it.optString("kind") in listOf("stay","bag-pickup")};items.add(if(i<0)items.size else i,a);day.put("activities",JSONArray(items))}}
+    fun stop(){job?.cancel();generation++}
+}
+private fun scheduleTimeLabel(minute:Int)="%02d:%02d".format(minute/60,minute%60)
+private fun scheduleTimeMinute(value:String):Int {val parts=value.trim().split(":");require(parts.size==2);val hour=parts[0].toInt();val minute=parts[1].toInt();require(hour in 0..24 && minute in 0..59 && (hour<24 || minute==0));return hour*60+minute}
+private fun kindLabel(kind:String)=when(kind){"meal"->"用餐";"restroom"->"廁所";"rest"->"休息";"stay"->"入住";"checkout"->"退房";"bag-drop"->"寄放";"bag-pickup"->"取件";else->"景點"}
+@Composable private fun Radar(state:JSONObject) {
+    val axes=state.array("radar").objects()
+    Panel {
+        Text("旅行偏好",fontWeight=FontWeight.Bold)
+        Canvas(Modifier.fillMaxWidth().height(155.dp)) {
+            val center=Offset(size.width/2,size.height/2);val radius=min(size.width,size.height)*.43f
+            fun point(i:Int,v:Float):Offset {val a=i*2*PI/axes.size-PI/2;return center+Offset(cos(a).toFloat()*radius*v,sin(a).toFloat()*radius*v)}
+            fun polygon(values:List<Float>)=Path().apply{values.forEachIndexed{i,v->val p=point(i,v);if(i==0)moveTo(p.x,p.y)else lineTo(p.x,p.y)};close()}
+            for(v in listOf(.25f,.5f,.75f,1f))drawPath(polygon(List(axes.size){v}),Green.copy(alpha=.2f),style=Stroke(1f))
+            val shape=polygon(axes.map{it.optDouble("value").toFloat()});drawPath(shape,Green.copy(alpha=.25f));drawPath(shape,Green,style=Stroke(3f))
+        }
+        Small(axes.joinToString(" · "){it.optString("name")+" "+(it.optDouble("value")*100).roundToInt()})
+    }
+}
+@Composable internal fun ScheduleEditorScreen(store:BuddyStore,suppliedController:ScheduleController?=null) {
+    val scope=rememberCoroutineScope();val controller=remember{suppliedController ?: ScheduleController(store,scope)}
+    var candidates by remember{mutableStateOf(false)};var settings by remember{mutableStateOf(false)};var editing by remember{mutableStateOf<JSONObject?>(null)};var confirm by remember{mutableStateOf(false)};var showRadar by remember{mutableStateOf(false)}
+    val bounds=remember{mutableMapOf<String,Rect>()};var dragged by remember{mutableStateOf<String?>(null)};var offset by remember{mutableFloatStateOf(0f)}
+    val density=LocalDensity.current.density
+    LaunchedEffect(Unit){if(controller.state==null)controller.request(true)}
+    DisposableEffect(Unit){onDispose{controller.stop()}}
+    val state=controller.state
+    Page {
+        Heading("我的時間軸")
+        Small("先建議，再按你的節奏調整。確認後才儲存。")
+        if(state!=null){
+            Small(state.optString("source"));TextButton(onClick={showRadar=!showRadar}){Text(if(showRadar)"收起偏好雷達圖"else "旅行偏好雷達圖")};if(showRadar)Radar(state)
+            Row {TextButton(onClick={settings=true}){Text("偏好與住宿")};Spacer(Modifier.weight(1f));TextButton(onClick={candidates=true}){Text("景點清單")}}
+            Row(Modifier.horizontalScroll(rememberScrollState())){state.array("days").objects().forEachIndexed{i,d->TextButton(onClick={controller.dayIndex=i}){Text("第 ${i+1} 天\n${d.optString("date")}",color=if(i==controller.dayIndex)Green else Color.Gray)}}}
+            val day=state.array("days").getJSONObject(controller.dayIndex)
+            val limits=state.getJSONObject("settings")
+            Panel {
+                Text("完整行程額度",fontWeight=FontWeight.Bold)
+                Text("步數 ${day.optInt("estimatedSteps")} / ${limits.optInt("maxSteps")}")
+                Text("花費 A$${day.optDouble("estimatedCost")} / ${limits.optDouble("dailyBudget")}")
+                Small("全旅程 A$${state.optDouble("totalCost")} / ${limits.optDouble("totalBudget")}")
+                Text("交通 ${day.optInt("transportMinutes")}＋排隊 ${day.optInt("queueMinutes")}＝${day.optInt("timeUsed")} / ${limits.optInt("timeLimit")} 分")
+                Small(if(day.optBoolean("unknownQueue"))"含未知排隊，剩餘僅供規劃參考" else "剩餘 ${max(0,day.optInt("timeRemaining"))} 分")
+                Small("${day.optString("finishTime")} 結束")
+            }
+            Row{TextButton(onClick=controller::undo){Text("還原上一步")};TextButton(onClick=controller::restore){Text("回到原建議")}}
+            if(controller.busy)LinearProgressIndicator(Modifier.fillMaxWidth())
+            state.array("issues").objects().filter{it.optInt("day")==controller.dayIndex||it.optInt("day")==-1}.forEach{Small((if(it.optBoolean("blocking"))"⚠ " else "· ")+it.optString("message"))}
+            Text("${day.getJSONObject("start").optString("name")} 出發",fontWeight=FontWeight.Bold)
+            val activities=day.array("activities").objects()
+            activities.forEachIndexed{index,a->key(a.getString("id")){
+                val id=a.getString("id");var resize by remember{mutableFloatStateOf(0f)}
+                if(a.optInt("travelMinutes")>0)Small("↓ 步行交通約 ${a.optInt("travelMinutes")} 分 · 示範估算")
+                Row(Modifier.fillMaxWidth().onGloballyPositioned{if(dragged!=id){val p=it.positionInRoot();bounds[id]=Rect(p.x,p.y,p.x+it.size.width,p.y+it.size.height)}}.graphicsLayer{translationY=if(dragged==id)offset else 0f},verticalAlignment=Alignment.Top){
+                    Text(a.optString("arrival"),Modifier.width(47.dp),style=MaterialTheme.typography.labelMedium)
+                    Column(Modifier.weight(1f).heightIn(min=(110+a.optInt("duration").coerceAtMost(130)).dp).background(Color.White,RoundedCornerShape(17.dp)).padding(13.dp),verticalArrangement=Arrangement.spacedBy(7.dp)){
+                        Row(verticalAlignment=Alignment.CenterVertically){Text(kindLabel(a.optString("kind")),color=Green,style=MaterialTheme.typography.labelMedium);Spacer(Modifier.weight(1f));Text(if(a.optBoolean("locked"))"已鎖定" else "☰ 拖動排序",Modifier.pointerInput(id,a.optBoolean("locked")){if(!a.optBoolean("locked"))detectDragGestures(onDragStart={dragged=id;offset=0f},onDrag={change,amount->change.consume();offset+=amount.y},onDragEnd={val original=bounds[id];if(original!=null){val y=original.center.y+offset;val target=activities.indices.minByOrNull{abs((bounds[activities[it].optString("id")]?.center?.y ?: Float.MAX_VALUE)-y)};if(target!=null&&target!=index)controller.reorder(id,target)};dragged=null;offset=0f},onDragCancel={dragged=null;offset=0f})},style=MaterialTheme.typography.labelSmall)}
+                        Text(a.optString("name"),fontWeight=FontWeight.Bold)
+                        Small("${a.optString("arrival")}–${a.optString("departure")} · 停留 ${a.optInt("duration")} 分 · A$${a.optDouble("cost")}")
+                        if(a.optString("kind")=="attraction")Small(if(a.isNull("queueMinutes"))"排隊時間未知" else "排隊假設 ${a.optInt("queueMinutes")} 分")
+                        Row{TextButton(onClick={controller.reorder(id,index-1)},enabled=index>0&&!a.optBoolean("locked"),contentPadding=PaddingValues(4.dp)){Text("↑")};TextButton(onClick={controller.reorder(id,index+1)},enabled=index<activities.lastIndex&&!a.optBoolean("locked"),contentPadding=PaddingValues(4.dp)){Text("↓")};TextButton(onClick={editing=a.copy()},contentPadding=PaddingValues(4.dp)){Text("編輯")};TextButton(onClick={controller.edit{s->val d=s.array("days").getJSONObject(controller.dayIndex);d.put("activities",JSONArray(d.array("activities").objects().filterNot{it.optString("id")==id}))}},contentPadding=PaddingValues(4.dp)){Text("移除")}}
+                        if(!a.optBoolean("locked"))Text("━ 拉下緣調整 · ${(a.optInt("duration")+(resize/density/10).toInt()*5).coerceIn(5,240)} 分",Modifier.fillMaxWidth().background(Mint,RoundedCornerShape(12.dp)).padding(8.dp).pointerInput(id,a.optInt("duration")){detectVerticalDragGestures(onDragStart={resize=0f},onVerticalDrag={change,amount->change.consume();resize+=amount},onDragEnd={val duration=(a.optInt("duration")+(resize/density/10).toInt()*5).coerceIn(5,240);resize=0f;controller.edit{s->s.array("days").getJSONObject(controller.dayIndex).array("activities").objects().first{it.optString("id")==id}.put("duration",duration)}})},style=MaterialTheme.typography.labelSmall)
+                    }
+                }
+            }}
+            Text("${day.getJSONObject("end").optString("name")} · ${day.optString("finishTime")}")
+            TextButton(onClick={controller.edit{it.put("rainy",!it.optBoolean("rainy"))}}){Text(if(state.optBoolean("rainy"))"切回晴天示例" else "測試下雨影響")}
+            TextButton(onClick={controller.request(true)}){Text("依目前偏好重新建議（重選活動）")}
+            Action("確認並保存",!controller.busy&&!controller.dirty&&!state.array("issues").objects().any{it.optBoolean("blocking")}){confirm=true}
+        }else {if(controller.busy)Text("建立首版多日行程…")else TextButton(onClick={controller.request(true)}){Text("重試")}}
+        TextButton(onClick={controller.stop();store.cancelProposal()}){Text("取消草案")}
+    }
+    controller.notice?.let{text->AlertDialog(onDismissRequest={controller.notice=null},title={Text("需要留意")},text={Text(text)},confirmButton={TextButton(onClick={controller.notice=null}){Text("繼續調整")}})}
+    controller.error?.let{text->AlertDialog(onDismissRequest={controller.error=null},title={Text("試算未完成")},text={Text(text)},confirmButton={TextButton(onClick={controller.error=null;controller.request()}){Text("重試")}},dismissButton={TextButton(onClick={controller.error=null}){Text("保留草案")}})}
+    if(confirm)AlertDialog(onDismissRequest={confirm=false},text={Text("保存目前草案？估算及待確認資料會一併保存。")},confirmButton={TextButton(onClick={confirm=false;store.applyScheduleDraft(controller.trip);store.accept()}){Text("確認保存")}},dismissButton={TextButton(onClick={confirm=false}){Text("取消")}})
+    if(candidates&&state!=null)ScheduleCandidates(controller){candidates=false}
+    if(settings&&state!=null)ScheduleSettingsDialog(controller){settings=false}
+    editing?.let{a->ScheduleActivityDialog(a,state!!.array("days").length(),controller.dayIndex,onDismiss={editing=null}){updated,target->controller.edit{s->val source=s.array("days").getJSONObject(controller.dayIndex);val list=source.array("activities").objects();if(target==controller.dayIndex)source.put("activities",JSONArray(list.map{if(it.optString("id")==updated.optString("id"))updated else it}))else{source.put("activities",JSONArray(list.filterNot{it.optString("id")==updated.optString("id")}));s.array("days").getJSONObject(target).array("activities").put(updated)}};editing=null}}
+}
+
+@Composable private fun ScheduleCandidates(c:ScheduleController,onDismiss:()->Unit) {
+    val state=c.state ?: return
+    val selected=state.array("days").objects().flatMap{it.array("activities").objects()}.map{it.optString("placeId")}.toSet()
+    AlertDialog(onDismissRequest=onDismiss,title={Text("景點與生活安排")},text={Column(Modifier.heightIn(max=480.dp).verticalScroll(rememberScrollState())){
+        Small("景點依興趣、天氣與區域排序；新增後重算全程交通＋排隊。")
+        state.array("candidates").objects().forEach{p->Row(verticalAlignment=Alignment.CenterVertically){Checkbox(checked=p.optString("id") in selected,onCheckedChange={checked->if(checked)c.add(p)else c.edit{s->s.array("days").objects().forEach{d->d.put("activities",JSONArray(d.array("activities").objects().filterNot{it.optString("placeId")==p.optString("id")}))}}});Column{Text(p.optString("name"));Small(p.optString("reason"));Small("A$${p.optDouble("cost")} · 遊覽 ${p.optInt("visitMinutes")} 分 · 排隊未知");TextButton(onClick={c.toggleMust(p)}){Text(if(p.optString("id") in c.trip.getJSONObject("profile").array("mustVisit").strings())"★ 必去"else "☆ 設為必去")}}}}
+        HorizontalDivider();Text("新增生活站點（地點待確認）")
+        listOf("meal","restroom","rest","bag-drop","bag-pickup").forEach{kind->TextButton(onClick={c.edit{s->val day=s.array("days").getJSONObject(c.dayIndex);val point=day.getJSONObject("start");day.array("activities").put(JSONObject().put("id",UUID.randomUUID().toString()).put("kind",kind).put("name",kindLabel(kind)+" · 待確認").put("lat",point.getDouble("lat")).put("lng",point.getDouble("lng")).put("duration",if(kind=="meal")45 else 10).put("cost",if(kind=="meal")s.getJSONObject("settings").optDouble("mealCost")else 0))}}){Text("＋${kindLabel(kind)}")}}
+    }},confirmButton={TextButton(onClick=onDismiss){Text("完成")}})
+}
+@Composable private fun ScheduleSettingsDialog(c:ScheduleController,onDismiss:()->Unit) {
+    val original=c.state!!
+    val values=remember{original.getJSONObject("settings").copy()}
+    val stays=remember{original.array("days").objects().map{it.getJSONObject("stay").copy()}}
+    var pace by remember{mutableStateOf(values.optString("pace"))};var luggage by remember{mutableStateOf(values.optBoolean("luggage"))}
+    val fields=remember{mutableStateMapOf<String,String>().apply{for(k in listOf("maxSteps","timeLimit","restroomInterval","mealCost","dailyBudget","totalBudget"))put(k,values.get(k).toString());stays.forEachIndexed{i,s->for(k in listOf("name","lat","lng","cost","checkIn","checkOut"))put("$i:$k",if(k in listOf("checkIn","checkOut"))scheduleTimeLabel(s.optInt(k))else s.optString(k));put("$i:startMinute",scheduleTimeLabel(original.array("days").getJSONObject(i).optInt("startMinute")));put("$i:endMinute",scheduleTimeLabel(original.array("days").getJSONObject(i).optInt("endMinute")))}}}
+    var invalid by remember{mutableStateOf(false)}
+    AlertDialog(onDismissRequest=onDismiss,title={Text("偏好與住宿")},text={Column(Modifier.heightIn(max=500.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)){
+        Small("保留問答頁面；在行程內微調偏好。")
+        Row{listOf("relaxed" to "悠閒","balanced" to "適中","packed" to "緊湊").forEach{(value,label)->TextButton(onClick={pace=value}){Text((if(pace==value)"✓ "else "")+label)}}}
+        listOf("maxSteps" to "每日步數上限","timeLimit" to "每日交通＋排隊分鐘","restroomInterval" to "廁所間隔分鐘","mealCost" to "每餐預留 A$","dailyBudget" to "每日預算 A$","totalBudget" to "全旅程預算 A$").forEach{(key,label)->OutlinedTextField(value=fields[key] ?: "",onValueChange={fields[key]=it},label={Text(label)},singleLine=true)}
+        Row(verticalAlignment=Alignment.CenterVertically){Checkbox(luggage,{luggage=it});Text("重新建議時加入寄放與取件")}
+        stays.forEachIndexed{i,_->Text("第 ${i+1} 晚住宿（最後一日不收房費）",fontWeight=FontWeight.Bold);listOf("startMinute" to "當日開始 HH:mm","endMinute" to "當日結束 HH:mm","name" to "住宿名稱／暫定區域","lat" to "緯度","lng" to "經度","cost" to "每晚房費 A$（單人試算）","checkIn" to "最早入住 HH:mm","checkOut" to "最晚退房 HH:mm").forEach{(key,label)->OutlinedTextField(value=fields["$i:$key"] ?: "",onValueChange={fields["$i:$key"]=it},label={Text(label)},singleLine=true)}}
+        Small("節奏與行李偏好改變後，可按重新建議。住宿與設施需自行確認，不代表已訂房。")
+        if(invalid)Text("請填入有效數字。",color=Color.Red)
+    }},confirmButton={TextButton(onClick={runCatching{
+        for(key in listOf("maxSteps","timeLimit","restroomInterval"))values.put(key,fields[key]!!.toInt())
+        for(key in listOf("mealCost","dailyBudget","totalBudget"))values.put(key,fields[key]!!.toDouble())
+        values.put("pace",pace).put("luggage",luggage)
+        stays.forEachIndexed{i,stay->for(key in listOf("name","lat","lng","cost","checkIn","checkOut")){val v=fields["$i:$key"]!!;stay.put(key,if(key=="name")v else if(key in listOf("checkIn","checkOut"))scheduleTimeMinute(v)else v.toDouble())}}
+        c.edit{s->s.put("settings",values);stays.forEachIndexed{i,stay->s.array("days").getJSONObject(i).put("stay",stay).put("startMinute",scheduleTimeMinute(fields["$i:startMinute"]!!)).put("endMinute",scheduleTimeMinute(fields["$i:endMinute"]!!))}};onDismiss()
+    }.onFailure{invalid=true}}){Text("套用")}},dismissButton={TextButton(onClick=onDismiss){Text("取消")}})
+}
+@Composable private fun ScheduleActivityDialog(original:JSONObject,days:Int,currentDay:Int,onDismiss:()->Unit,onSave:(JSONObject,Int)->Unit) {
+    val fields=remember{mutableStateMapOf<String,String>().apply{for(key in listOf("name","duration","lat","lng","cost","queueMinutes","openMinute","closeMinute"))put(key,if(key=="queueMinutes"&&original.isNull(key))"" else if(key in listOf("openMinute","closeMinute"))scheduleTimeLabel(original.optInt(key,if(key=="closeMinute")1440 else 0)) else original.optString(key))}}
+    var target by remember{mutableIntStateOf(currentDay)};var fixed by remember{mutableStateOf(!original.isNull("fixedStart"))};var locked by remember{mutableStateOf(original.optBoolean("locked"))};var start by remember{mutableStateOf(scheduleTimeLabel(if(original.isNull("fixedStart"))original.optInt("scheduledStart")else original.optInt("fixedStart")))}
+    var invalid by remember{mutableStateOf(false)}
+    AlertDialog(onDismissRequest=onDismiss,title={Text("活動時間")},text={Column(Modifier.heightIn(max=490.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)){
+        Text(original.optString("name"))
+        OutlinedTextField(fields["duration"] ?: "",{fields["duration"]=it},enabled=!locked,label={Text("停留分鐘")},singleLine=true)
+        Row(verticalAlignment=Alignment.CenterVertically){Checkbox(fixed,{fixed=it});Text("指定開始時間")}
+        if(fixed)OutlinedTextField(start,{start=it},label={Text("開始時間 HH:mm")},singleLine=true)
+        Row(verticalAlignment=Alignment.CenterVertically){Checkbox(locked,{locked=it;if(it)fixed=true});Text("鎖定時段與停留")}
+        Row{Text("移到日期：");(0 until days).forEach{i->TextButton(onClick={target=i}){Text((if(i==target)"✓ "else "")+"${i+1}")}}}
+        if(original.optString("kind")=="attraction")OutlinedTextField(fields["queueMinutes"] ?: "",{fields["queueMinutes"]=it},label={Text("排隊假設分鐘（空白＝未知）")},singleLine=true)
+        else {listOf("name" to "名稱","lat" to "緯度","lng" to "經度","cost" to "費用 A$","openMinute" to "服務開始 HH:mm","closeMinute" to "服務結束 HH:mm").forEach{(key,label)->OutlinedTextField(fields[key] ?: "",{fields[key]=it},label={Text(label)},singleLine=true)}}
+        if(invalid)Text("請填入有效數字。",color=Color.Red)
+    }},confirmButton={TextButton(onClick={runCatching{
+        val a=original.copy().put("duration",fields["duration"]!!.toInt()).put("locked",locked)
+        if(fixed)a.put("fixedStart",scheduleTimeMinute(start))else a.remove("fixedStart")
+        if(locked)a.put("fixedDuration",a.getInt("duration"))else a.remove("fixedDuration")
+        if(original.optString("kind")=="attraction"){if(fields["queueMinutes"].isNullOrBlank())a.remove("queueMinutes")else a.put("queueMinutes",fields["queueMinutes"]!!.toInt())}
+        else for(key in listOf("name","lat","lng","cost","openMinute","closeMinute")){val v=fields[key]!!;a.put(key,if(key=="name")v else if(key in listOf("openMinute","closeMinute"))scheduleTimeMinute(v)else v.toDouble())}
+        onSave(a,target)
+    }.onFailure{invalid=true}}){Text("套用")}},dismissButton={TextButton(onClick=onDismiss){Text("取消")}})
+}

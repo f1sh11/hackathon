@@ -1,0 +1,1511 @@
+{
+  "title": "悉尼小冒险",
+  "mode": "demo",
+  "profile": {
+    "date": "2026-10-24",
+    "days": 3,
+    "budget": 250,
+    "maxSteps": 10000,
+    "startMinute": 600,
+    "endMinute": 1140,
+    "interests": [
+      "艺术",
+      "自然"
+    ],
+    "start": {
+      "name": "环形码头",
+      "lat": -33.8611,
+      "lng": 151.2126
+    },
+    "end": {
+      "name": "环形码头",
+      "lat": -33.8611,
+      "lng": 151.2126
+    },
+    "mustVisit": [],
+    "request": ""
+  },
+  "days": [
+    {
+      "date": "2026-10-24",
+      "stops": [
+        {
+          "id": "e075fe78e02e4a70a3fdfce784438c80",
+          "name": "寄放行李 · 待確認",
+          "lat": -33.8611,
+          "lng": 151.2126,
+          "category": "寄放",
+          "indoor": true,
+          "visitMinutes": 10,
+          "cost": 0,
+          "note": "待確認設施／規劃佔位，非預約",
+          "arrival": "10:00",
+          "departure": "10:10",
+          "hoursVerified": false,
+          "mapsURL": "",
+          "steps": 0
+        },
+        {
+          "id": "7299938dfe534cfd85ba403c0bbc6c3d",
+          "name": "澳大利亚当代艺术博物馆",
+          "lat": -33.8599,
+          "lng": 151.2091,
+          "category": "艺术",
+          "indoor": true,
+          "visitMinutes": 75,
+          "cost": 25,
+          "note": "门票预算为演示估算，非实际报价",
+          "arrival": "10:17",
+          "departure": "11:32",
+          "hoursVerified": false,
+          "mapsURL": "",
+          "steps": 607
+        },
+        {
+          "id": "99d3d3878b814ba99381f7e878fe6fc4",
+          "name": "廁所停靠 · 設施待確認",
+          "lat": -33.8599,
+          "lng": 151.2091,
+          "category": "廁所",
+          "indoor": true,
+          "visitMinutes": 10,
+          "cost": 0,
+          "note": "待確認設施／規劃佔位，非預約",
+          "arrival": "11:32",
+          "departure": "11:42",
+          "hoursVerified": false,
+          "mapsURL": "",
+          "steps": 0
+        },
+        {
+          "id": "8432c90c1cab48b4901fe90aebc955a5",
+          "name": "午餐 · 餐廳待選",
+          "lat": -33.8599,
+          "lng": 151.2091,
+          "category": "用餐",
+          "indoor": true,
+          "visitMinutes": 45,
+          "cost": 25,
+          "note": "待確認設施／規劃佔位，非預約",
+          "arrival": "12:00",
+          "departure": "12:45",
+          "hoursVerified": false,
+          "mapsURL": "",
+          "steps": 0
+        },
+        {
+          "id": "9591b7009d084ef3908c1e3bc1cf3c94",
+          "name": "皇家植物园",
+          "lat": -33.8642,
+          "lng": 151.2166,
+          "category": "自然",
+          "indoor": false,
+          "visitMinutes": 60,
+          "cost": 0,
+          "note": "开放时段为演示假设，需核实当日信息",
+          "arrival": "13:02",
+          "departure": "14:02",
+          "hoursVerified": false,
+          "mapsURL": "",
+          "steps": 1459
+        },
+        {
+          "id": "7a2b85ea70ff4da7b137749fa244fce4",
+          "name": "晚餐 · 餐廳待選",
+          "lat": -33.8642,
+          "lng": 151.2166,
+          "category": "用餐",
+          "indoor": true,
+          "visitMinutes": 45,
+          "cost": 25,
+          "note": "待確認設施／規劃佔位，非預約",
+          "arrival": "17:00",
+          "departure": "17:45",
+          "hoursVerified": false,
+          "mapsURL": "",
+          "steps": 0
+        },
+        {
+          "id": "bcafd4f8d4a54715b95cba4a19a13cbf",
+          "name": "領取行李 · 待確認",
+          "lat": -33.8611,
+          "lng": 151.2126,
+          "category": "取件",
+          "indoor": true,
+          "visitMinutes": 10,
+          "cost": 0,
+          "note": "待確認設施／規劃佔位，非預約",
+          "arrival": "17:56",
+          "departure": "18:06",
+          "hoursVerified": false,
+          "mapsURL": "",
+          "steps": 876
+        },
+        {
+          "id": "26f0c4709ef54dbfb9f228070fba24f7",
+          "name": "入住 · 住宿待確認",
+          "lat": -33.8611,
+          "lng": 151.2126,
+          "category": "入住",
+          "indoor": true,
+          "visitMinutes": 15,
+          "cost": 0,
+          "note": "待確認設施／規劃佔位，非預約",
+          "arrival": "18:06",
+          "departure": "18:21",
+          "hoursVerified": false,
+          "mapsURL": "",
+          "steps": 0
+        }
+      ],
+      "legs": [
+        {
+          "meters": 0,
+          "minutes": 0,
+          "polyline": "",
+          "source": "示例距離估算，非道路導航"
+        },
+        {
+          "meters": 455,
+          "minutes": 7,
+          "polyline": "",
+          "source": "示例距離估算，非道路導航"
+        },
+        {
+          "meters": 0,
+          "minutes": 0,
+          "polyline": "",
+          "source": "示例距離估算，非道路導航"
+        },
+        {
+          "meters": 0,
+          "minutes": 0,
+          "polyline": "",
+          "source": "示例距離估算，非道路導航"
+        },
+        {
+          "meters": 1094,
+          "minutes": 17,
+          "polyline": "",
+          "source": "示例距離估算，非道路導航"
+        },
+        {
+          "meters": 0,
+          "minutes": 0,
+          "polyline": "",
+          "source": "示例距離估算，非道路導航"
+        },
+        {
+          "meters": 657,
+          "minutes": 11,
+          "polyline": "",
+          "source": "示例距離估算，非道路導航"
+        },
+        {
+          "meters": 0,
+          "minutes": 0,
+          "polyline": "",
+          "source": "示例距離估算，非道路導航"
+        },
+        {
+          "meters": 0,
+          "minutes": 0,
+          "polyline": "",
+          "source": "示例距離估算，非道路導航"
+        }
+      ],
+      "estimatedCost": 75,
+      "estimatedSteps": 4562,
+      "finishTime": "18:21",
+      "warnings": [
+        "時間軸示例：設施待確認，交通為估算，不是導航路線。"
+      ],
+      "start": {
+        "name": "环形码头",
+        "lat": -33.8611,
+        "lng": 151.2126
+      },
+      "end": {
+        "name": "住宿待確認",
+        "lat": -33.8611,
+        "lng": 151.2126
+      }
+    },
+    {
+      "date": "2026-10-25",
+      "stops": [
+        {
+          "id": "160b00b1750f4730b80f40bb9499babd",
+          "name": "寄放行李 · 待確認",
+          "lat": -33.8611,
+          "lng": 151.2126,
+          "category": "寄放",
+          "indoor": true,
+          "visitMinutes": 10,
+          "cost": 0,
+          "note": "待確認設施／規劃佔位，非預約",
+          "arrival": "10:00",
+          "departure": "10:10",
+          "hoursVerified": false,
+          "mapsURL": "",
+          "steps": 0
+        },
+        {
+          "id": "8b6df3c0bce04f41ab62fa59dcd686e4",
+          "name": "新南威尔士州美术馆",
+          "lat": -33.8688,
+          "lng": 151.2173,
+          "category": "艺术",
+          "indoor": true,
+          "visitMinutes": 80,
+          "cost": 0,
+          "note": "免费常设展的演示预算，特别展另计",
+          "arrival": "10:30",
+          "departure": "11:50",
+          "hoursVerified": false,
+          "mapsURL": "",
+          "steps": 1664
+        },
+        {
+          "id": "00b54850c8aa4e13bf71fc8957bf238c",
+          "name": "廁所停靠 · 設施待確認",
+          "lat": -33.8688,
+          "lng": 151.2173,
+          "category": "廁所",
+          "indoor": true,
+          "visitMinutes": 10,
+          "cost": 0,
+          "note": "待確認設施／規劃佔位，非預約",
+          "arrival": "11:50",
+          "departure": "12:00",
+          "hoursVerified": false,
+          "mapsURL": "",
+          "steps": 0
+        },
+        {
+          "id": "52c76d2e9fd14b87998fcebf0a43bcdf",
+          "name": "午餐 · 餐廳待選",
+          "lat": -33.8688,
+          "lng": 151.2173,
+          "category": "用餐",
+          "indoor": true,
+          "visitMinutes": 45,
+          "cost": 25,
+          "note": "待確認設施／規劃佔位，非預約",
+          "arrival": "12:00",
+          "departure": "12:45",
+          "hoursVerified": false,
+          "mapsURL": "",
+          "steps": 0
+        },
+        {
+          "id": "dd858b3d6828463a8ceb3daf3a29d45f",
+          "name": "岩石区",
+          "lat": -33.8599,
+          "lng": 151.209,
+          "category": "美食",
+          "indoor": false,
+          "visitMinutes": 70,
+          "cost": 30,
+          "note": "餐饮预算为估算，店铺营业时间各异",
+          "arrival": "13:11",
+          "departure": "14:21",
+          "hoursVerified": false,
+          "mapsURL": "",
+          "steps": 2171
+        },
+        {
+          "id": "294a55c2eed94d169290ede8f69e149d",
+          "name": "晚餐 · 餐廳待選",
+          "lat": -33.8599,
+          "lng": 151.209,
+          "category": "用餐",
+          "indoor": true,
+          "visitMinutes": 45,
+          "cost": 25,
+          "note": "待確認設施／規劃佔位，非預約",
+          "arrival": "17:00",
+          "departure": "17:45",
+          "hoursVerified": false,
+          "mapsURL": "",
+          "steps": 0
+        },
+        {
+          "id": "7ce98830a87d4a7a8c283de548bbdce8",
+          "name": "領取行李 · 待確認",
+          "lat": -33.8611,
+          "lng": 151.2126,
+          "category": "取件",
+          "indoor": true,
+          "visitMinutes": 10,
+          "cost": 0,
+          "note": "待確認設施／規劃佔位，非預約",
+          "arrival": "17:53",
+          "departure": "18:03",
+          "hoursVerified": false,
+          "mapsURL": "",
+          "steps": 622
+        },
+        {
+          "id": "dcb0d6c3df844cb2a17a37243799f7f3",
+          "name": "入住 · 住宿待確認",
+          "lat": -33.8611,
+          "lng": 151.2126,
+          "category": "入住",
+          "indoor": true,
+          "visitMinutes": 15,
+          "cost": 0,
+          "note": "待確認設施／規劃佔位，非預約",
+          "arrival": "18:03",
+          "departure": "18:18",
+          "hoursVerified": false,
+          "mapsURL": "",
+          "steps": 0
+        }
+      ],
+      "legs": [
+        {
+          "meters": 0,
+          "minutes": 0,
+          "polyline": "",
+          "source": "示例距離估算，非道路導航"
+        },
+        {
+          "meters": 1248,
+          "minutes": 20,
+          "polyline": "",
+          "source": "示例距離估算，非道路導航"
+        },
+        {
+          "meters": 0,
+          "minutes": 0,
+          "polyline": "",
+          "source": "示例距離估算，非道路導航"
+        },
+        {
+          "meters": 0,
+          "minutes": 0,
+          "polyline": "",
+          "source": "示例距離估算，非道路導航"
+        },
+        {
+          "meters": 1628,
+          "minutes": 26,
+          "polyline": "",
+          "source": "示例距離估算，非道路導航"
+        },
+        {
+          "meters": 0,
+          "minutes": 0,
+          "polyline": "",
+          "source": "示例距離估算，非道路導航"
+        },
+        {
+          "meters": 466,
+          "minutes": 8,
+          "polyline": "",
+          "source": "示例距離估算，非道路導航"
+        },
+        {
+          "meters": 0,
+          "minutes": 0,
+          "polyline": "",
+          "source": "示例距離估算，非道路導航"
+        },
+        {
+          "meters": 0,
+          "minutes": 0,
+          "polyline": "",
+          "source": "示例距離估算，非道路導航"
+        }
+      ],
+      "estimatedCost": 80,
+      "estimatedSteps": 6257,
+      "finishTime": "18:18",
+      "warnings": [
+        "時間軸示例：設施待確認，交通為估算，不是導航路線。"
+      ],
+      "start": {
+        "name": "住宿待確認",
+        "lat": -33.8611,
+        "lng": 151.2126
+      },
+      "end": {
+        "name": "住宿待確認",
+        "lat": -33.8611,
+        "lng": 151.2126
+      }
+    },
+    {
+      "date": "2026-10-26",
+      "stops": [
+        {
+          "id": "ae303ab4e89346fc8004c23766c3d506",
+          "name": "退房 · 住宿待確認",
+          "lat": -33.8611,
+          "lng": 151.2126,
+          "category": "退房",
+          "indoor": true,
+          "visitMinutes": 10,
+          "cost": 0,
+          "note": "待確認設施／規劃佔位，非預約",
+          "arrival": "10:00",
+          "departure": "10:10",
+          "hoursVerified": false,
+          "mapsURL": "",
+          "steps": 0
+        },
+        {
+          "id": "d92e0dbd4703444394ac0b71ae371c0f",
+          "name": "寄放行李 · 待確認",
+          "lat": -33.8611,
+          "lng": 151.2126,
+          "category": "寄放",
+          "indoor": true,
+          "visitMinutes": 10,
+          "cost": 0,
+          "note": "待確認設施／規劃佔位，非預約",
+          "arrival": "10:10",
+          "departure": "10:20",
+          "hoursVerified": false,
+          "mapsURL": "",
+          "steps": 0
+        },
+        {
+          "id": "2e5db48a18b644558bfba9e79a6fe758",
+          "name": "廁所停靠 · 設施待確認",
+          "lat": -33.8568,
+          "lng": 151.2153,
+          "category": "廁所",
+          "indoor": true,
+          "visitMinutes": 10,
+          "cost": 0,
+          "note": "待確認設施／規劃佔位，非預約",
+          "arrival": "10:31",
+          "departure": "10:41",
+          "hoursVerified": false,
+          "mapsURL": "",
+          "steps": 936
+        },
+        {
+          "id": "afb2cb01a32d4f8189e7ac1a0899a6e7",
+          "name": "悉尼歌剧院",
+          "lat": -33.8568,
+          "lng": 151.2153,
+          "category": "风景",
+          "indoor": false,
+          "visitMinutes": 60,
+          "cost": 0,
+          "note": "外部游览示例；内部参观费用与预约另计",
+          "arrival": "10:41",
+          "departure": "11:41",
+          "hoursVerified": false,
+          "mapsURL": "",
+          "steps": 0
+        },
+        {
+          "id": "a7b1878ed21b47bea64a32dab85925cc",
+          "name": "午餐 · 餐廳待選",
+          "lat": -33.8568,
+          "lng": 151.2153,
+          "category": "用餐",
+          "indoor": true,
+          "visitMinutes": 45,
+          "cost": 25,
+          "note": "待確認設施／規劃佔位，非預約",
+          "arrival": "12:00",
+          "departure": "12:45",
+          "hoursVerified": false,
+          "mapsURL": "",
+          "steps": 0
+        },
+        {
+          "id": "9ad47a30b4a444cea3db6956d11df6ba",
+          "name": "维多利亚女王大厦",
+          "lat": -33.8719,
+          "lng": 151.2067,
+          "category": "城市",
+          "indoor": true,
+          "visitMinutes": 50,
+          "cost": 0,
+          "note": "不含购物消费，开放时间待核实",
+          "arrival": "13:23",
+          "departure": "14:13",
+          "hoursVerified": false,
+          "mapsURL": "",
+          "steps": 3220
+        },
+        {
+          "id": "8a6f4f8fb9f94fb3b1cceec2127c67f5",
+          "name": "晚餐 · 餐廳待選",
+          "lat": -33.8719,
+          "lng": 151.2067,
+          "category": "用餐",
+          "indoor": true,
+          "visitMinutes": 45,
+          "cost": 25,
+          "note": "待確認設施／規劃佔位，非預約",
+          "arrival": "17:00",
+          "departure": "17:45",
+          "hoursVerified": false,
+          "mapsURL": "",
+          "steps": 0
+        },
+        {
+          "id": "b207d7d5eb8044ea9f9eb675bccdcb41",
+          "name": "領取行李 · 待確認",
+          "lat": -33.8611,
+          "lng": 151.2126,
+          "category": "取件",
+          "indoor": true,
+          "visitMinutes": 10,
+          "cost": 0,
+          "note": "待確認設施／規劃佔位，非預約",
+          "arrival": "18:12",
+          "departure": "18:22",
+          "hoursVerified": false,
+          "mapsURL": "",
+          "steps": 2287
+        }
+      ],
+      "legs": [
+        {
+          "meters": 0,
+          "minutes": 0,
+          "polyline": "",
+          "source": "示例距離估算，非道路導航"
+        },
+        {
+          "meters": 0,
+          "minutes": 0,
+          "polyline": "",
+          "source": "示例距離估算，非道路導航"
+        },
+        {
+          "meters": 702,
+          "minutes": 11,
+          "polyline": "",
+          "source": "示例距離估算，非道路導航"
+        },
+        {
+          "meters": 0,
+          "minutes": 0,
+          "polyline": "",
+          "source": "示例距離估算，非道路導航"
+        },
+        {
+          "meters": 0,
+          "minutes": 0,
+          "polyline": "",
+          "source": "示例距離估算，非道路導航"
+        },
+        {
+          "meters": 2415,
+          "minutes": 38,
+          "polyline": "",
+          "source": "示例距離估算，非道路導航"
+        },
+        {
+          "meters": 0,
+          "minutes": 0,
+          "polyline": "",
+          "source": "示例距離估算，非道路導航"
+        },
+        {
+          "meters": 1715,
+          "minutes": 27,
+          "polyline": "",
+          "source": "示例距離估算，非道路導航"
+        },
+        {
+          "meters": 0,
+          "minutes": 0,
+          "polyline": "",
+          "source": "示例距離估算，非道路導航"
+        }
+      ],
+      "estimatedCost": 50,
+      "estimatedSteps": 7763,
+      "finishTime": "18:22",
+      "warnings": [
+        "時間軸示例：設施待確認，交通為估算，不是導航路線。"
+      ],
+      "start": {
+        "name": "住宿待確認",
+        "lat": -33.8611,
+        "lng": 151.2126
+      },
+      "end": {
+        "name": "环形码头",
+        "lat": -33.8611,
+        "lng": 151.2126
+      }
+    }
+  ],
+  "weather": {
+    "summary": "晴天（演示）",
+    "rainy": false,
+    "source": "演示假设"
+  },
+  "explanation": "依偏好產生多日時間軸草案，可拖動、拉伸及勾選景點；確認後才儲存。",
+  "warnings": [
+    "本機時間軸示例；設施、住宿與排隊需確認。交通估算，不提供道路導航。所有金額為單人估算。住宿計入前 N−1 晚，未處理多房／多人或跨午夜活動。"
+  ],
+  "trace": [
+    {
+      "title": "读取候选地点",
+      "detail": "8 个悉尼示例地点；价格、营业时段与停留时间为演示假设。",
+      "source": "本地示例数据",
+      "fetchedAt": "2026-10-23T08:47:46.6803490+00:00"
+    },
+    {
+      "title": "检查天气",
+      "detail": "晴天（演示）",
+      "source": "演示假设",
+      "fetchedAt": "2026-10-23T08:47:46.6803490+00:00"
+    },
+    {
+      "title": "生成候选排序",
+      "detail": "本地规则演示；没有调用 Nemotron。",
+      "source": "本地规则",
+      "fetchedAt": "2026-10-23T08:47:46.6803490+00:00"
+    },
+    {
+      "title": "独立验证整条路线",
+      "detail": "逐段检查步行、参观、10分钟衔接、15分钟休息、返程、估算花费和营业时间；无法验证的项目明确列出。",
+      "source": "确定性规则引擎",
+      "fetchedAt": "2026-10-23T08:47:46.6803490+00:00"
+    }
+  ],
+  "createdAt": "2026-10-23T08:47:46.6803490+00:00",
+  "schedule": {
+    "version": 1,
+    "settings": {
+      "luggage": true,
+      "dailyBudget": 250,
+      "totalBudget": 750,
+      "pace": "balanced",
+      "timeLimit": 180,
+      "restroomInterval": 120,
+      "mealCost": 25,
+      "maxSteps": 10000
+    },
+    "days": [
+      {
+        "date": "2026-10-24",
+        "startMinute": 600,
+        "endMinute": 1140,
+        "start": {
+          "name": "环形码头",
+          "lat": -33.8611,
+          "lng": 151.2126
+        },
+        "end": {
+          "name": "住宿待確認",
+          "lat": -33.8611,
+          "lng": 151.2126
+        },
+        "stay": {
+          "name": "住宿待確認",
+          "lat": -33.8611,
+          "lng": 151.2126,
+          "cost": 0,
+          "confirmed": false,
+          "checkIn": 900,
+          "checkOut": 660
+        },
+        "activities": [
+          {
+            "id": "e075fe78e02e4a70a3fdfce784438c80",
+            "kind": "bag-drop",
+            "name": "寄放行李 · 待確認",
+            "lat": -33.8611,
+            "lng": 151.2126,
+            "duration": 10,
+            "cost": 0,
+            "confirmed": false,
+            "openMinute": 0,
+            "closeMinute": 1440,
+            "locked": false,
+            "arrival": "10:00",
+            "departure": "10:10",
+            "scheduledStart": 600,
+            "travelMinutes": 0,
+            "queueSource": "不適用"
+          },
+          {
+            "id": "7299938dfe534cfd85ba403c0bbc6c3d",
+            "placeId": "mca",
+            "kind": "attraction",
+            "name": "澳大利亚当代艺术博物馆",
+            "duration": 75,
+            "queueMinutes": null,
+            "locked": false,
+            "lat": -33.8599,
+            "lng": 151.2091,
+            "cost": 25,
+            "indoor": true,
+            "hoursVerified": false,
+            "arrival": "10:17",
+            "departure": "11:32",
+            "scheduledStart": 617,
+            "travelMinutes": 7,
+            "queueSource": "未知"
+          },
+          {
+            "id": "99d3d3878b814ba99381f7e878fe6fc4",
+            "kind": "restroom",
+            "name": "廁所停靠 · 設施待確認",
+            "lat": -33.8599,
+            "lng": 151.2091,
+            "duration": 10,
+            "cost": 0,
+            "confirmed": false,
+            "openMinute": 0,
+            "closeMinute": 1440,
+            "locked": false,
+            "arrival": "11:32",
+            "departure": "11:42",
+            "scheduledStart": 692,
+            "travelMinutes": 0,
+            "queueSource": "不適用"
+          },
+          {
+            "id": "8432c90c1cab48b4901fe90aebc955a5",
+            "kind": "meal",
+            "name": "午餐 · 餐廳待選",
+            "lat": -33.8599,
+            "lng": 151.2091,
+            "duration": 45,
+            "cost": 25,
+            "confirmed": false,
+            "openMinute": 720,
+            "closeMinute": 840,
+            "locked": false,
+            "arrival": "12:00",
+            "departure": "12:45",
+            "scheduledStart": 720,
+            "travelMinutes": 0,
+            "queueSource": "不適用"
+          },
+          {
+            "id": "9591b7009d084ef3908c1e3bc1cf3c94",
+            "placeId": "garden",
+            "kind": "attraction",
+            "name": "皇家植物园",
+            "duration": 60,
+            "queueMinutes": null,
+            "locked": false,
+            "lat": -33.8642,
+            "lng": 151.2166,
+            "cost": 0,
+            "indoor": false,
+            "hoursVerified": false,
+            "arrival": "13:02",
+            "departure": "14:02",
+            "scheduledStart": 782,
+            "travelMinutes": 17,
+            "queueSource": "未知"
+          },
+          {
+            "id": "7a2b85ea70ff4da7b137749fa244fce4",
+            "kind": "meal",
+            "name": "晚餐 · 餐廳待選",
+            "lat": -33.8642,
+            "lng": 151.2166,
+            "duration": 45,
+            "cost": 25,
+            "confirmed": false,
+            "openMinute": 1020,
+            "closeMinute": 1200,
+            "locked": false,
+            "arrival": "17:00",
+            "departure": "17:45",
+            "scheduledStart": 1020,
+            "travelMinutes": 0,
+            "queueSource": "不適用"
+          },
+          {
+            "id": "bcafd4f8d4a54715b95cba4a19a13cbf",
+            "kind": "bag-pickup",
+            "name": "領取行李 · 待確認",
+            "lat": -33.8611,
+            "lng": 151.2126,
+            "duration": 10,
+            "cost": 0,
+            "confirmed": false,
+            "openMinute": 0,
+            "closeMinute": 1440,
+            "locked": false,
+            "arrival": "17:56",
+            "departure": "18:06",
+            "scheduledStart": 1076,
+            "travelMinutes": 11,
+            "queueSource": "不適用"
+          },
+          {
+            "id": "26f0c4709ef54dbfb9f228070fba24f7",
+            "kind": "stay",
+            "name": "入住 · 住宿待確認",
+            "lat": -33.8611,
+            "lng": 151.2126,
+            "duration": 15,
+            "cost": 0,
+            "confirmed": false,
+            "openMinute": 900,
+            "closeMinute": 1380,
+            "locked": false,
+            "arrival": "18:06",
+            "departure": "18:21",
+            "scheduledStart": 1086,
+            "travelMinutes": 0,
+            "queueSource": "不適用"
+          }
+        ],
+        "transportMinutes": 35,
+        "queueMinutes": 0,
+        "timeUsed": 35,
+        "timeRemaining": 145,
+        "unknownQueue": true,
+        "estimatedSteps": 4562,
+        "estimatedCost": 75,
+        "finishTime": "18:21"
+      },
+      {
+        "date": "2026-10-25",
+        "startMinute": 600,
+        "endMinute": 1140,
+        "start": {
+          "name": "住宿待確認",
+          "lat": -33.8611,
+          "lng": 151.2126
+        },
+        "end": {
+          "name": "住宿待確認",
+          "lat": -33.8611,
+          "lng": 151.2126
+        },
+        "stay": {
+          "name": "住宿待確認",
+          "lat": -33.8611,
+          "lng": 151.2126,
+          "cost": 0,
+          "confirmed": false,
+          "checkIn": 900,
+          "checkOut": 660
+        },
+        "activities": [
+          {
+            "id": "160b00b1750f4730b80f40bb9499babd",
+            "kind": "bag-drop",
+            "name": "寄放行李 · 待確認",
+            "lat": -33.8611,
+            "lng": 151.2126,
+            "duration": 10,
+            "cost": 0,
+            "confirmed": false,
+            "openMinute": 0,
+            "closeMinute": 1440,
+            "locked": false,
+            "arrival": "10:00",
+            "departure": "10:10",
+            "scheduledStart": 600,
+            "travelMinutes": 0,
+            "queueSource": "不適用"
+          },
+          {
+            "id": "8b6df3c0bce04f41ab62fa59dcd686e4",
+            "placeId": "gallery",
+            "kind": "attraction",
+            "name": "新南威尔士州美术馆",
+            "duration": 80,
+            "queueMinutes": null,
+            "locked": false,
+            "lat": -33.8688,
+            "lng": 151.2173,
+            "cost": 0,
+            "indoor": true,
+            "hoursVerified": false,
+            "arrival": "10:30",
+            "departure": "11:50",
+            "scheduledStart": 630,
+            "travelMinutes": 20,
+            "queueSource": "未知"
+          },
+          {
+            "id": "00b54850c8aa4e13bf71fc8957bf238c",
+            "kind": "restroom",
+            "name": "廁所停靠 · 設施待確認",
+            "lat": -33.8688,
+            "lng": 151.2173,
+            "duration": 10,
+            "cost": 0,
+            "confirmed": false,
+            "openMinute": 0,
+            "closeMinute": 1440,
+            "locked": false,
+            "arrival": "11:50",
+            "departure": "12:00",
+            "scheduledStart": 710,
+            "travelMinutes": 0,
+            "queueSource": "不適用"
+          },
+          {
+            "id": "52c76d2e9fd14b87998fcebf0a43bcdf",
+            "kind": "meal",
+            "name": "午餐 · 餐廳待選",
+            "lat": -33.8688,
+            "lng": 151.2173,
+            "duration": 45,
+            "cost": 25,
+            "confirmed": false,
+            "openMinute": 720,
+            "closeMinute": 840,
+            "locked": false,
+            "arrival": "12:00",
+            "departure": "12:45",
+            "scheduledStart": 720,
+            "travelMinutes": 0,
+            "queueSource": "不適用"
+          },
+          {
+            "id": "dd858b3d6828463a8ceb3daf3a29d45f",
+            "placeId": "rocks",
+            "kind": "attraction",
+            "name": "岩石区",
+            "duration": 70,
+            "queueMinutes": null,
+            "locked": false,
+            "lat": -33.8599,
+            "lng": 151.209,
+            "cost": 30,
+            "indoor": false,
+            "hoursVerified": false,
+            "arrival": "13:11",
+            "departure": "14:21",
+            "scheduledStart": 791,
+            "travelMinutes": 26,
+            "queueSource": "未知"
+          },
+          {
+            "id": "294a55c2eed94d169290ede8f69e149d",
+            "kind": "meal",
+            "name": "晚餐 · 餐廳待選",
+            "lat": -33.8599,
+            "lng": 151.209,
+            "duration": 45,
+            "cost": 25,
+            "confirmed": false,
+            "openMinute": 1020,
+            "closeMinute": 1200,
+            "locked": false,
+            "arrival": "17:00",
+            "departure": "17:45",
+            "scheduledStart": 1020,
+            "travelMinutes": 0,
+            "queueSource": "不適用"
+          },
+          {
+            "id": "7ce98830a87d4a7a8c283de548bbdce8",
+            "kind": "bag-pickup",
+            "name": "領取行李 · 待確認",
+            "lat": -33.8611,
+            "lng": 151.2126,
+            "duration": 10,
+            "cost": 0,
+            "confirmed": false,
+            "openMinute": 0,
+            "closeMinute": 1440,
+            "locked": false,
+            "arrival": "17:53",
+            "departure": "18:03",
+            "scheduledStart": 1073,
+            "travelMinutes": 8,
+            "queueSource": "不適用"
+          },
+          {
+            "id": "dcb0d6c3df844cb2a17a37243799f7f3",
+            "kind": "stay",
+            "name": "入住 · 住宿待確認",
+            "lat": -33.8611,
+            "lng": 151.2126,
+            "duration": 15,
+            "cost": 0,
+            "confirmed": false,
+            "openMinute": 900,
+            "closeMinute": 1380,
+            "locked": false,
+            "arrival": "18:03",
+            "departure": "18:18",
+            "scheduledStart": 1083,
+            "travelMinutes": 0,
+            "queueSource": "不適用"
+          }
+        ],
+        "transportMinutes": 54,
+        "queueMinutes": 0,
+        "timeUsed": 54,
+        "timeRemaining": 126,
+        "unknownQueue": true,
+        "estimatedSteps": 6257,
+        "estimatedCost": 80,
+        "finishTime": "18:18"
+      },
+      {
+        "date": "2026-10-26",
+        "startMinute": 600,
+        "endMinute": 1140,
+        "start": {
+          "name": "住宿待確認",
+          "lat": -33.8611,
+          "lng": 151.2126
+        },
+        "end": {
+          "name": "环形码头",
+          "lat": -33.8611,
+          "lng": 151.2126
+        },
+        "stay": {
+          "name": "住宿待確認",
+          "lat": -33.8611,
+          "lng": 151.2126,
+          "cost": 0,
+          "confirmed": false,
+          "checkIn": 900,
+          "checkOut": 660
+        },
+        "activities": [
+          {
+            "id": "ae303ab4e89346fc8004c23766c3d506",
+            "kind": "checkout",
+            "name": "退房 · 住宿待確認",
+            "lat": -33.8611,
+            "lng": 151.2126,
+            "duration": 10,
+            "cost": 0,
+            "confirmed": false,
+            "openMinute": 0,
+            "closeMinute": 660,
+            "locked": false,
+            "arrival": "10:00",
+            "departure": "10:10",
+            "scheduledStart": 600,
+            "travelMinutes": 0,
+            "queueSource": "不適用"
+          },
+          {
+            "id": "d92e0dbd4703444394ac0b71ae371c0f",
+            "kind": "bag-drop",
+            "name": "寄放行李 · 待確認",
+            "lat": -33.8611,
+            "lng": 151.2126,
+            "duration": 10,
+            "cost": 0,
+            "confirmed": false,
+            "openMinute": 0,
+            "closeMinute": 1440,
+            "locked": false,
+            "arrival": "10:10",
+            "departure": "10:20",
+            "scheduledStart": 610,
+            "travelMinutes": 0,
+            "queueSource": "不適用"
+          },
+          {
+            "id": "2e5db48a18b644558bfba9e79a6fe758",
+            "kind": "restroom",
+            "name": "廁所停靠 · 設施待確認",
+            "lat": -33.8568,
+            "lng": 151.2153,
+            "duration": 10,
+            "cost": 0,
+            "confirmed": false,
+            "openMinute": 0,
+            "closeMinute": 1440,
+            "locked": false,
+            "arrival": "10:31",
+            "departure": "10:41",
+            "scheduledStart": 631,
+            "travelMinutes": 11,
+            "queueSource": "不適用"
+          },
+          {
+            "id": "afb2cb01a32d4f8189e7ac1a0899a6e7",
+            "placeId": "opera",
+            "kind": "attraction",
+            "name": "悉尼歌剧院",
+            "duration": 60,
+            "queueMinutes": null,
+            "locked": false,
+            "lat": -33.8568,
+            "lng": 151.2153,
+            "cost": 0,
+            "indoor": false,
+            "hoursVerified": false,
+            "arrival": "10:41",
+            "departure": "11:41",
+            "scheduledStart": 641,
+            "travelMinutes": 0,
+            "queueSource": "未知"
+          },
+          {
+            "id": "a7b1878ed21b47bea64a32dab85925cc",
+            "kind": "meal",
+            "name": "午餐 · 餐廳待選",
+            "lat": -33.8568,
+            "lng": 151.2153,
+            "duration": 45,
+            "cost": 25,
+            "confirmed": false,
+            "openMinute": 720,
+            "closeMinute": 840,
+            "locked": false,
+            "arrival": "12:00",
+            "departure": "12:45",
+            "scheduledStart": 720,
+            "travelMinutes": 0,
+            "queueSource": "不適用"
+          },
+          {
+            "id": "9ad47a30b4a444cea3db6956d11df6ba",
+            "placeId": "qvb",
+            "kind": "attraction",
+            "name": "维多利亚女王大厦",
+            "duration": 50,
+            "queueMinutes": null,
+            "locked": false,
+            "lat": -33.8719,
+            "lng": 151.2067,
+            "cost": 0,
+            "indoor": true,
+            "hoursVerified": false,
+            "arrival": "13:23",
+            "departure": "14:13",
+            "scheduledStart": 803,
+            "travelMinutes": 38,
+            "queueSource": "未知"
+          },
+          {
+            "id": "8a6f4f8fb9f94fb3b1cceec2127c67f5",
+            "kind": "meal",
+            "name": "晚餐 · 餐廳待選",
+            "lat": -33.8719,
+            "lng": 151.2067,
+            "duration": 45,
+            "cost": 25,
+            "confirmed": false,
+            "openMinute": 1020,
+            "closeMinute": 1200,
+            "locked": false,
+            "arrival": "17:00",
+            "departure": "17:45",
+            "scheduledStart": 1020,
+            "travelMinutes": 0,
+            "queueSource": "不適用"
+          },
+          {
+            "id": "b207d7d5eb8044ea9f9eb675bccdcb41",
+            "kind": "bag-pickup",
+            "name": "領取行李 · 待確認",
+            "lat": -33.8611,
+            "lng": 151.2126,
+            "duration": 10,
+            "cost": 0,
+            "confirmed": false,
+            "openMinute": 0,
+            "closeMinute": 1440,
+            "locked": false,
+            "arrival": "18:12",
+            "departure": "18:22",
+            "scheduledStart": 1092,
+            "travelMinutes": 27,
+            "queueSource": "不適用"
+          }
+        ],
+        "transportMinutes": 76,
+        "queueMinutes": 0,
+        "timeUsed": 76,
+        "timeRemaining": 104,
+        "unknownQueue": true,
+        "estimatedSteps": 7763,
+        "estimatedCost": 50,
+        "finishTime": "18:22"
+      }
+    ],
+    "candidates": [
+      {
+        "id": "mca",
+        "name": "澳大利亚当代艺术博物馆",
+        "query": "Museum of Contemporary Art Australia",
+        "lat": -33.8599,
+        "lng": 151.2091,
+        "category": "艺术",
+        "indoor": true,
+        "visitMinutes": 75,
+        "cost": 25,
+        "openMinute": 600,
+        "closeMinute": 1020,
+        "note": "门票预算为演示估算，非实际报价",
+        "reason": "符合你的興趣；室內活動"
+      },
+      {
+        "id": "garden",
+        "name": "皇家植物园",
+        "query": "Royal Botanic Garden Sydney",
+        "lat": -33.8642,
+        "lng": 151.2166,
+        "category": "自然",
+        "indoor": false,
+        "visitMinutes": 60,
+        "cost": 0,
+        "openMinute": 600,
+        "closeMinute": 1020,
+        "note": "开放时段为演示假设，需核实当日信息",
+        "reason": "符合你的興趣；戶外活動"
+      },
+      {
+        "id": "gallery",
+        "name": "新南威尔士州美术馆",
+        "query": "Art Gallery of New South Wales",
+        "lat": -33.8688,
+        "lng": 151.2173,
+        "category": "艺术",
+        "indoor": true,
+        "visitMinutes": 80,
+        "cost": 0,
+        "openMinute": 600,
+        "closeMinute": 1020,
+        "note": "免费常设展的演示预算，特别展另计",
+        "reason": "符合你的興趣；室內活動"
+      },
+      {
+        "id": "rocks",
+        "name": "岩石区",
+        "query": "The Rocks Sydney",
+        "lat": -33.8599,
+        "lng": 151.209,
+        "category": "美食",
+        "indoor": false,
+        "visitMinutes": 70,
+        "cost": 30,
+        "openMinute": 600,
+        "closeMinute": 1140,
+        "note": "餐饮预算为估算，店铺营业时间各异",
+        "reason": "區域順路候選；戶外活動"
+      },
+      {
+        "id": "opera",
+        "name": "悉尼歌剧院",
+        "query": "Sydney Opera House",
+        "lat": -33.8568,
+        "lng": 151.2153,
+        "category": "风景",
+        "indoor": false,
+        "visitMinutes": 60,
+        "cost": 0,
+        "openMinute": 540,
+        "closeMinute": 1080,
+        "note": "外部游览示例；内部参观费用与预约另计",
+        "reason": "區域順路候選；戶外活動"
+      },
+      {
+        "id": "qvb",
+        "name": "维多利亚女王大厦",
+        "query": "Queen Victoria Building Sydney",
+        "lat": -33.8719,
+        "lng": 151.2067,
+        "category": "城市",
+        "indoor": true,
+        "visitMinutes": 50,
+        "cost": 0,
+        "openMinute": 600,
+        "closeMinute": 1020,
+        "note": "不含购物消费，开放时间待核实",
+        "reason": "區域順路候選；室內活動"
+      },
+      {
+        "id": "museum",
+        "name": "澳大利亚博物馆",
+        "query": "Australian Museum Sydney",
+        "lat": -33.8749,
+        "lng": 151.2133,
+        "category": "文化",
+        "indoor": true,
+        "visitMinutes": 90,
+        "cost": 0,
+        "openMinute": 600,
+        "closeMinute": 1020,
+        "note": "费用和开放时间须核实，特别展另计",
+        "reason": "區域順路候選；室內活動"
+      },
+      {
+        "id": "darling",
+        "name": "达令港",
+        "query": "Darling Harbour Sydney",
+        "lat": -33.873,
+        "lng": 151.2009,
+        "category": "风景",
+        "indoor": false,
+        "visitMinutes": 60,
+        "cost": 0,
+        "openMinute": 540,
+        "closeMinute": 1200,
+        "note": "公共区域示例，不含收费活动",
+        "reason": "區域順路候選；戶外活動"
+      }
+    ],
+    "issues": [
+      {
+        "code": "restroom-gap",
+        "message": "第 1 天：廁所間隔超出偏好，請移動或增加停靠。",
+        "day": 0,
+        "activityId": "7a2b85ea70ff4da7b137749fa244fce4",
+        "blocking": false
+      },
+      {
+        "code": "restroom-gap",
+        "message": "第 1 天：廁所間隔超出偏好，請移動或增加停靠。",
+        "day": 0,
+        "activityId": "bcafd4f8d4a54715b95cba4a19a13cbf",
+        "blocking": false
+      },
+      {
+        "code": "restroom-gap",
+        "message": "第 1 天：廁所間隔超出偏好，請移動或增加停靠。",
+        "day": 0,
+        "activityId": "26f0c4709ef54dbfb9f228070fba24f7",
+        "blocking": false
+      },
+      {
+        "code": "restroom-gap",
+        "message": "第 1 天：返程前廁所安排有缺口。",
+        "day": 0,
+        "activityId": null,
+        "blocking": false
+      },
+      {
+        "code": "unknown-queue",
+        "message": "第 1 天：排隊未知；時間額度為已知小計，不能保證未超限。",
+        "day": 0,
+        "activityId": null,
+        "blocking": false
+      },
+      {
+        "code": "unconfirmed",
+        "message": "第 1 天：住宿／生活設施是佔位，位置、價格與服務時間需確認。",
+        "day": 0,
+        "activityId": null,
+        "blocking": false
+      },
+      {
+        "code": "restroom-gap",
+        "message": "第 2 天：廁所間隔超出偏好，請移動或增加停靠。",
+        "day": 1,
+        "activityId": "294a55c2eed94d169290ede8f69e149d",
+        "blocking": false
+      },
+      {
+        "code": "restroom-gap",
+        "message": "第 2 天：廁所間隔超出偏好，請移動或增加停靠。",
+        "day": 1,
+        "activityId": "7ce98830a87d4a7a8c283de548bbdce8",
+        "blocking": false
+      },
+      {
+        "code": "restroom-gap",
+        "message": "第 2 天：廁所間隔超出偏好，請移動或增加停靠。",
+        "day": 1,
+        "activityId": "dcb0d6c3df844cb2a17a37243799f7f3",
+        "blocking": false
+      },
+      {
+        "code": "restroom-gap",
+        "message": "第 2 天：返程前廁所安排有缺口。",
+        "day": 1,
+        "activityId": null,
+        "blocking": false
+      },
+      {
+        "code": "unknown-queue",
+        "message": "第 2 天：排隊未知；時間額度為已知小計，不能保證未超限。",
+        "day": 1,
+        "activityId": null,
+        "blocking": false
+      },
+      {
+        "code": "unconfirmed",
+        "message": "第 2 天：住宿／生活設施是佔位，位置、價格與服務時間需確認。",
+        "day": 1,
+        "activityId": null,
+        "blocking": false
+      },
+      {
+        "code": "restroom-gap",
+        "message": "第 3 天：廁所間隔超出偏好，請移動或增加停靠。",
+        "day": 2,
+        "activityId": "9ad47a30b4a444cea3db6956d11df6ba",
+        "blocking": false
+      },
+      {
+        "code": "restroom-gap",
+        "message": "第 3 天：廁所間隔超出偏好，請移動或增加停靠。",
+        "day": 2,
+        "activityId": "8a6f4f8fb9f94fb3b1cceec2127c67f5",
+        "blocking": false
+      },
+      {
+        "code": "restroom-gap",
+        "message": "第 3 天：廁所間隔超出偏好，請移動或增加停靠。",
+        "day": 2,
+        "activityId": "b207d7d5eb8044ea9f9eb675bccdcb41",
+        "blocking": false
+      },
+      {
+        "code": "restroom-gap",
+        "message": "第 3 天：返程前廁所安排有缺口。",
+        "day": 2,
+        "activityId": null,
+        "blocking": false
+      },
+      {
+        "code": "unknown-queue",
+        "message": "第 3 天：排隊未知；時間額度為已知小計，不能保證未超限。",
+        "day": 2,
+        "activityId": null,
+        "blocking": false
+      },
+      {
+        "code": "unconfirmed",
+        "message": "第 3 天：住宿／生活設施是佔位，位置、價格與服務時間需確認。",
+        "day": 2,
+        "activityId": null,
+        "blocking": false
+      }
+    ],
+    "totalCost": 205,
+    "rainy": false,
+    "source": "本機示例：排隊未知、設施待確認；交通估算，不是道路導航。",
+    "radar": [
+      {
+        "name": "消費彈性",
+        "value": 1
+      },
+      {
+        "name": "步行接受度",
+        "value": 0.6666666666666666
+      },
+      {
+        "name": "交通與等待",
+        "value": 0.6
+      },
+      {
+        "name": "行程緊湊度",
+        "value": 0.55
+      },
+      {
+        "name": "戶外偏好",
+        "value": 0.8
+      }
+    ]
+  }
+}

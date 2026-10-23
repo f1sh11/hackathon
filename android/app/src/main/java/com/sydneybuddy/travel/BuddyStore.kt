@@ -113,6 +113,14 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
             proposal = Proposal(result, target, revision)
         }
     }
+    suspend fun scheduleRequest(body:JSONObject)=JSONObject(request("schedule/editor","POST",body))
+    fun previewSchedule(value:JSONObject) {proposal=Proposal(value.copy(),null,0)}
+    fun applyScheduleDraft(value:JSONObject) {proposal=proposal?.copy(trip=value)}
+    fun editSchedule(value:JSONObject) {select(value);proposal=Proposal(value.copy(),value.optString("id"),value.optInt("revision",0))}
+    fun tryScheduleDemo()=operation {
+        val source=Profile(days=3,budget=250,endMinute=1140).json().put("mode","demo")
+        proposal=Proposal(JSONObject(request("plan","POST",source)),null,0)
+    }
     fun cancelProposal() { if (!busy) proposal = null }
     fun accept() {
         val pending = proposal ?: return

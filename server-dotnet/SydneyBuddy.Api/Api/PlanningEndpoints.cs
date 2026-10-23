@@ -24,6 +24,7 @@ public static class PlanningEndpoints
             Results.Json(await navigation.RouteAsync(await RequestJson.ReadAsync(context), context.RequestAborted)));
         routes.MapPost("/journey/plan", async (HttpContext context, JourneyService journeys) =>
             Results.Json(await journeys.PlanAsync(await RequestJson.ReadAsync(context), context.RequestAborted)));
+        routes.MapPost("/schedule/editor", async (HttpContext context, ScheduleEditorService editor) => Results.Json(editor.Build(await RequestJson.ReadAsync(context))));
         routes.MapGet("/catalog", (Planner planner) => Results.Json(planner.Catalog));
         routes.MapPost("/plan", async (HttpContext context, Planner planner, PaidServicePolicy paidServices) =>
         {

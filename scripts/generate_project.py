@@ -37,7 +37,7 @@ targetconfig=configs('target',configfile,{'PRODUCT_BUNDLE_IDENTIFIER':'com.sydne
 target=obj('target',{'isa':'PBXNativeTarget','buildConfigurationList':targetconfig,'buildPhases':[sources,frameworks,resources],'buildRules':[],'dependencies':[],'name':'SydneyBuddy','packageProductDependencies':[prod,navprod],'productName':'SydneyBuddy','productReference':product,'productType':'com.apple.product-type.application'})
 # XCTest host verifies itinerary progress and the real Ferrostar parser/simulator without network calls.
 testrefs=[obj('test'+p.name,{'isa':'PBXFileReference','lastKnownFileType':'sourcecode.swift','path':'SydneyBuddyTests/'+p.name,'sourceTree':'<group>'}) for p in sorted((root/'SydneyBuddyTests').glob('*.swift'))]
-fixtures=[obj('fixture'+name,{'isa':'PBXFileReference','lastKnownFileType':'text.json','path':'../tests/fixtures/'+name,'sourceTree':'<group>'}) for name in ['walking-sydney.json','journey-plan-test.json']]
+fixtures=[obj('fixture'+name,{'isa':'PBXFileReference','lastKnownFileType':'text.json','path':'../tests/fixtures/'+name,'sourceTree':'<group>'}) for name in ['walking-sydney.json','journey-plan-test.json','schedule-trip-test.json']]
 objects[main]['children'] += testrefs+fixtures
 testproduct=obj('testproduct',{'isa':'PBXFileReference','explicitFileType':'wrapper.cfbundle','path':'SydneyBuddyTests.xctest','sourceTree':'BUILT_PRODUCTS_DIR'})
 objects[products]['children'].append(testproduct)

@@ -41,6 +41,7 @@ public static class DependencyInjection
         services.AddScoped<RouteService>();
         services.AddScoped<RouteScheduler>();
         services.AddScoped<Planner>();
+        services.AddScoped<ScheduleEditorService>();
         return services;
     }
 }

@@ -143,6 +143,7 @@ fun modeLabel(mode:String) = when(mode) {"live"->"在线规划 · 以各项来�
 
 @Composable fun ProposalScreen(store:BuddyStore) {
     val pending=store.proposal ?: return
+    if(pending.trip.optString("mode")=="demo") {ScheduleEditorScreen(store);return}
     Page {
         Heading(if(pending.targetId==null) "你的路线准备好了" else "看看这次怎么调整")
         Small("确认之后，才会保存到你的行程。")
@@ -165,11 +166,13 @@ fun modeLabel(mode:String) = when(mode) {"live"->"在线规划 · 以各项来�
     Page {
         Small("下一站，去发现。每次冒险都值得收藏。")
         TextButton(onClick=store::reload,enabled=!store.busy){Text("刷新行程")}
+        Action("試用 3 天時間軸",!store.busy,store::tryScheduleDemo)
         if(store.saved.isEmpty()) Small("还没有保存的行程。")
         store.saved.forEach { t -> Panel {
             TripArtwork()
             Text(t.optString("title"),fontWeight=FontWeight.Bold);Text("${t.getJSONObject("profile").optString("date")} · ${t.array("days").length()} 天")
             Small(modeLabel(t.optString("mode")))
+            TextButton(onClick={store.editSchedule(t)},enabled=!store.busy){Text("編輯時間軸")}
             TextButton(onClick={store.select(t);store.tab=0},enabled=!store.busy){Text("查看地图",fontWeight=FontWeight.Bold);Spacer(Modifier.width(6.dp));Icon(Icons.Outlined.NorthEast,null,Modifier.size(18.dp))}
             TextButton(onClick={onDelete(t)},enabled=!store.busy){Text("删除行程")}
         } }

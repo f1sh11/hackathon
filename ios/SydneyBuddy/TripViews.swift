@@ -3,6 +3,9 @@ import SwiftUI
 struct ProposalView:View {
     @EnvironmentObject var store:AppStore
     var body:some View {
+        if store.proposal?.mode == "demo" {ScheduleEditorView()} else { legacy }
+    }
+    var legacy:some View {
         NavigationStack {
             ScrollView {
                 if let plan=store.proposal {
@@ -79,12 +82,13 @@ struct TripsView:View {
             ScrollView {
                 VStack(alignment:.leading,spacing:22){
                     HStack {VStack(alignment:.leading,spacing:5){Text("下一站，去发现").font(.subheadline).foregroundStyle(Palette.muted);Text("每次冒险都值得收藏").font(.caption).foregroundStyle(Palette.muted)};Spacer();Button{store.newTrip()}label:{Label("新建",systemImage:"plus").font(.subheadline.bold()).padding(13).foregroundStyle(.white).background(Palette.green,in:Capsule())}}
+                    Button("試用 3 天時間軸"){Task{await store.tryScheduleDemo()}}.buttonStyle(.borderedProminent).tint(Palette.green)
                     if store.saved.isEmpty {ContentUnavailableView("还没有行程",systemImage:"suitcase",description:Text("创建你的第一份悉尼旅行计划"))}
                     ForEach(store.saved,id:\.id){t in
                         VStack(alignment:.leading,spacing:16){
                             ZStack(alignment:.bottomLeading){LinearGradient(colors:[Palette.mint,Color(red:0.68,green:0.85,blue:0.90)],startPoint:.bottomLeading,endPoint:.topTrailing);Image(systemName:"sailboat.fill").font(.system(size:80)).foregroundStyle(.white).frame(maxWidth:.infinity,alignment:.trailing).padding(22);Text("SYDNEY").font(.system(size:25,weight:.black,design:.rounded)).tracking(4).foregroundStyle(Palette.green).padding(22)}.frame(height:145).clipShape(RoundedRectangle(cornerRadius:20))
                             HStack {VStack(alignment:.leading,spacing:7){Text(t.title).font(.headline);Text("\(t.profile.date) · \(t.days.count) 天 · \(t.days.flatMap(\.stops).count) 个地点").font(.caption).foregroundStyle(Palette.muted)};Spacer();Image(systemName:"arrow.up.right").foregroundStyle(Palette.green)}
-                            HStack {Button("查看地图"){store.trip=t;store.dayIndex=0;store.tab=0}.font(.subheadline.bold()).tint(Palette.green);Spacer();Text(t.mode=="live" ? "在线数据规划" : (t.mode=="assisted" ? "Nemotron · 示例地点" : "演示行程")).font(.caption2).foregroundStyle(Palette.muted);Menu{Button("删除行程",role:.destructive){Task{await store.deleteTrip(t)}}}label:{Image(systemName:"ellipsis").padding(8)}}
+                            HStack {Button("編輯時間軸"){store.trip=t;store.proposal=t}.font(.subheadline.bold()).tint(Palette.green);Button("查看地图"){store.trip=t;store.dayIndex=0;store.tab=0}.font(.subheadline.bold()).tint(Palette.green);Spacer();Text(t.mode=="live" ? "在线数据规划" : (t.mode=="assisted" ? "Nemotron · 示例地点" : "演示行程")).font(.caption2).foregroundStyle(Palette.muted);Menu{Button("删除行程",role:.destructive){Task{await store.deleteTrip(t)}}}label:{Image(systemName:"ellipsis").padding(8)}}
                         }.padding(18).background(.white,in:RoundedRectangle(cornerRadius:26))
                     }
                     HStack{Robot(size:70);Text("不必赶路，\n按自己的节奏出发。").font(.headline).foregroundStyle(Palette.ink)}.padding(.vertical,10)

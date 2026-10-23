@@ -16,6 +16,28 @@ namespace SydneyBuddy.Api.Tests;
 public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
 {
     [Fact]
+    public async Task ScheduleEditorSavesAndReloadsRecomputedSnapshotAndRejectsConflicts()
+    {
+        var profile=TestSupport.Profile(3);profile["mode"]="demo";profile["budget"]=500;
+        var planned=await (await fixture.Client.PostAsJsonAsync("/plan",profile)).Content.ReadFromJsonAsync<JsonObject>();
+        var response=await fixture.Client.PostAsJsonAsync("/schedule/editor",new JsonObject{["trip"]=planned!.DeepClone()});
+        Assert.Equal(HttpStatusCode.OK,response.StatusCode);
+        var trip=(await response.Content.ReadFromJsonAsync<JsonObject>())!;
+        var schedule=trip.Object("schedule")!;
+        Assert.Equal(3,schedule.Array("days")!.Count);
+        var savedResponse=await fixture.Client.PostAsJsonAsync("/trips",new JsonObject{["trip"]=trip.DeepClone(),["expectedRevision"]=0});
+        Assert.Equal(HttpStatusCode.OK,savedResponse.StatusCode);
+        var saved=(await savedResponse.Content.ReadFromJsonAsync<JsonObject>())!;
+        Assert.NotNull(saved.Object("schedule"));
+        var reloaded=(await fixture.Client.GetFromJsonAsync<JsonArray>("/trips"))!.OfType<JsonObject>().First(x=>x.Str("id")==saved.Str("id"));
+        Assert.Equal(saved.Object("schedule")!.Number("totalCost"),reloaded.Object("schedule")!.Number("totalCost"));
+        var activity=trip.Object("schedule")!.Array("days")![0]!.Array("activities")!.OfType<JsonObject>().First(a=>a.Str("kind")=="attraction");
+        activity["fixedStart"]=1430;
+        var rejected=await fixture.Client.PostAsJsonAsync("/trips",new JsonObject{["trip"]=trip,["expectedRevision"]=0});
+        Assert.Equal(HttpStatusCode.UnprocessableEntity,rejected.StatusCode);
+    }
+
+    [Fact]
     public async Task JourneyEndpointIsAvailableAndUnconfiguredTransitIsExplicit()
     {
         var response=await fixture.Client.PostAsJsonAsync("/journey/plan",JsonNode.Parse("""{"departureTime":"2026-10-23T10:00:00+11:00","modes":["transit"],"points":[{"name":"Start","lat":-33.86,"lng":151.21},{"name":"End","lat":-33.85,"lng":151.22}]}"""));

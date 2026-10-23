@@ -21,7 +21,7 @@ struct TripProfile: Codable {
     var mustVisit: [String] = []
     var start = Coordinate.quay
     var end = Coordinate.quay
-    var request = ""
+    var request:String? = ""
     var weatherOverride: String? = nil
     static func dateString(_ date: Date) -> String {
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; f.timeZone = TimeZone(identifier: "Australia/Sydney"); return f.string(from: date)
@@ -54,6 +54,7 @@ struct Trace: Codable, Identifiable {
     var id: String { title }
 }
 struct Trip: Codable, Identifiable {
+    var schedule:ScheduleState? = nil
     var id: String?; var revision: Int?; var title: String; var mode: String
     var profile: TripProfile; var days: [DayPlan]; var weather: WeatherInfo
     var explanation: String; var warnings: [String]; var trace: [Trace]; var createdAt: String
@@ -153,6 +154,14 @@ struct Expense: Codable, Identifiable {
             showOnboarding = false; UserDefaults.standard.set(true,forKey:"onboarded"); tab = 0
             await reload()
         } catch { errorMessage = error.localizedDescription }
+    }
+    func tryScheduleDemo() async {
+        guard !busy else{return};busy=true;defer{busy=false}
+        do {var p=TripProfile();p.days=3;p.budget=250;p.endMinute=1140
+            var raw=try JSONSerialization.jsonObject(with:JSONEncoder().encode(p)) as! [String:Any];raw["mode"]="demo"
+            let result:Trip=try await api("plan",method:"POST",body:JSONSerialization.data(withJSONObject:raw))
+            trip=nil;proposal=result
+        }catch{errorMessage=error.localizedDescription}
     }
     func newTrip() { let prefs = profile; trip = nil; proposal = nil; profile = TripProfile(); profile.interests = prefs.interests; profile.maxSteps = prefs.maxSteps; showOnboarding = true }
     func saveMemory() async {
