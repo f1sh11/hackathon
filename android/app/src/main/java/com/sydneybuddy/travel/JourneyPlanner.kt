@@ -94,7 +94,7 @@ class JourneyModel(private val client:OkHttpClient=OkHttpClient.Builder().callTi
         }
     }
 }
-@Composable fun JourneyPlannerDialog(day:JSONObject,base:String,provider:MapProvider,onClose:()->Unit,onWalkNavigation:()->Unit,fixture:JourneyPlan?=null,suppliedModel:JourneyModel?=null,contentSource:String="open") {
+@Composable fun JourneyPlannerDialog(day:JSONObject,base:String,provider:MapProvider,onClose:()->Unit,onWalkNavigation:()->Unit,fixture:JourneyPlan?=null,suppliedModel:JourneyModel?=null,contentSource:String="open",onPlan:(JourneyPlan)->Unit={}) {
     val context=LocalContext.current
     val model=remember(day.toString(),suppliedModel){suppliedModel ?: JourneyModel()}
     DisposableEffect(model){onDispose{model.close()}}
@@ -104,6 +104,8 @@ class JourneyModel(private val client:OkHttpClient=OkHttpClient.Builder().callTi
     LaunchedEffect(provider){model.invalidate()}
     var details by remember{mutableStateOf(true)}
     val result=fixture ?: model.plan
+    val currentOnPlan by rememberUpdatedState(onPlan)
+    LaunchedEffect(model.plan){if(fixture==null)model.plan?.let{currentOnPlan(it)}}
     val points=walkingPoints(day)
     fun setModes(value:List<String>){model.invalidate();modes=value}
     Dialog(onDismissRequest=onClose,properties=DialogProperties(usePlatformDefaultWidth=false)) {

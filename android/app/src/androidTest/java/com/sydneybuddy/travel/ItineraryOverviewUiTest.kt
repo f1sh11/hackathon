@@ -29,17 +29,20 @@ class ItineraryOverviewUiTest {
                 store=ViewModelProvider(activity)[BuddyStore::class.java]
                 store.onboarding=false;store.tab=0;store.chooseMapProvider(MapProvider.OSM);store.select(trip)
             }
+            rule.waitUntil(30000){rule.onAllNodesWithTag("home-transport-legs").fetchSemanticsNodes().isNotEmpty() || rule.onAllNodesWithTag("home-route-error").fetchSemanticsNodes().isNotEmpty()}
+            rule.onNodeWithTag("home-transport-legs").assertIsDisplayed()
+            rule.onNodeWithText("交通方式").assertIsDisplayed()
+            val home=instrumentation.uiAutomation.takeScreenshot()
+            File(context.getExternalFilesDir(null),"itinerary-android-home-route.png").outputStream().use{home.compress(Bitmap.CompressFormat.PNG,100,it)}
+            home.recycle()
             rule.onNodeWithTag("home-info-toggle").performClick()
             rule.onNodeWithContentDescription("行程站点顺序").assertExists()
-            rule.onNodeWithText("显示步行路线").performScrollTo().assertIsDisplayed()
             rule.onNodeWithContentDescription("展开地图").performClick()
             rule.onNodeWithText("全天行程顺序").assertIsDisplayed()
-            rule.onNodeWithText("尚未查询道路路线 · 仅显示站点").assertIsDisplayed()
             rule.waitUntil(30000){rule.onAllNodes(hasText("地图已加载",substring=true) and hasAnyAncestor(hasTestTag("expanded-itinerary-map"))).fetchSemanticsNodes().isNotEmpty()}
             val screenshot=instrumentation.uiAutomation.takeScreenshot()
             File(context.getExternalFilesDir(null),"itinerary-android-overview.png").outputStream().use{screenshot.compress(Bitmap.CompressFormat.PNG,100,it)}
             screenshot.recycle()
-            rule.onNode(hasText("显示步行路线") and hasAnyAncestor(hasTestTag("expanded-itinerary-map"))).performClick()
             rule.waitUntil(30000){rule.onAllNodesWithText("步行约",substring=true).fetchSemanticsNodes().isNotEmpty() || rule.onAllNodesWithText("暂时无法取得",substring=true).fetchSemanticsNodes().isNotEmpty()}
             rule.onNode(hasText("沿道路步行路线 · 不含景点停留时间") and hasAnyAncestor(hasTestTag("expanded-itinerary-map"))).assertIsDisplayed()
             rule.waitUntil(30000){rule.onAllNodes(hasText("地图已加载 · 沿道路步行路线") and hasAnyAncestor(hasTestTag("expanded-itinerary-map"))).fetchSemanticsNodes().isNotEmpty()}

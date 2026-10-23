@@ -12,6 +12,8 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.*
 import org.json.JSONObject
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
@@ -48,6 +50,36 @@ class ScheduleEditorTest {
         val image=InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
         File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null),"schedule-android-test.png").outputStream().use{image.compress(Bitmap.CompressFormat.PNG,100,it)};image.recycle()
         c.stop()
+    }
+    @Test fun mapHomeAutomaticallyLoadsRouteAndExposesActualModes() {
+        val inst=InstrumentationRegistry.getInstrumentation();lateinit var store:BuddyStore;var calls=0
+        rule.runOnIdle{store=BuddyStore(inst.targetContext.applicationContext as Application)}
+        rule.waitUntil(15000){!store.busy}
+        val trip=fixture().put("id","local-home-route-test")
+        val day=trip.array("days").getJSONObject(0)
+        day.array("stops").getJSONObject(0).put("lat",day.getJSONObject("start").getDouble("lat")).put("lng",day.getJSONObject("start").getDouble("lng"))
+        val original=store.mapProvider
+        val recorded=inst.context.assets.open("walking-sydney.json").bufferedReader().use{it.readText()}
+        val client=okhttp3.OkHttpClient.Builder().addInterceptor{chain->calls++;val buffer=okio.Buffer();chain.request().body!!.writeTo(buffer)
+            val locations=JSONObject(buffer.readUtf8()).getJSONArray("locations")
+            for(i in 1 until locations.length())assertNotEquals(locations.getJSONObject(i-1).toString(),locations.getJSONObject(i).toString())
+            val response=JSONObject(recorded);val legs=org.json.JSONArray();repeat(locations.length()-1){legs.put(JSONObject().put("duration",60.0))};response.getJSONArray("routes").getJSONObject(0).put("legs",legs)
+            okhttp3.Response.Builder().request(chain.request()).protocol(okhttp3.Protocol.HTTP_1_1).code(200).message("OK").body(response.toString().toResponseBody("application/json".toMediaType())).build()}.build()
+        lateinit var overview:ItineraryOverview
+        rule.runOnIdle{store.select(trip);store.chooseMapProvider(MapProvider.OSM);overview=ItineraryOverview(client)}
+        rule.setContent{MaterialTheme{HomeScreen(store,overview)}}
+        try {
+            rule.waitUntil(5000){overview.route!=null}
+            rule.onNodeWithText("交通方式").assertIsDisplayed()
+            rule.onNodeWithTag("home-transport-legs").assertIsDisplayed()
+            assertEquals(1,calls)
+            assertEquals(day.array("stops").length()+1,overview.route!!.legSeconds.size)
+            assertEquals(0.0,overview.route!!.legSeconds.first(),0.0)
+            val plan=JourneyPlan.parse(inst.context.assets.open("journey-plan-test.json").bufferedReader().use{it.readText()})
+            rule.runOnIdle{overview.accept(plan)}
+            assertTrue(overviewTransportLegs(trip.array("days").getJSONObject(0),overview.route,overview.plan).any{it.transport.contains("TEST")&&it.transport.contains("公车")})
+            assertEquals(1,calls)
+        }finally{rule.runOnIdle{store.chooseMapProvider(original);overview.close()}}
     }
     @Test fun mapHomeKeepsSecondaryDetailsCollapsedAndCanExpandWithoutEditingTrip() {
         val inst=InstrumentationRegistry.getInstrumentation();lateinit var store:BuddyStore

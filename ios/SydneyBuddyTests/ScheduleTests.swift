@@ -4,6 +4,51 @@ import MapKit
 @testable import SydneyBuddy
 
 @MainActor final class ScheduleTests:XCTestCase {
+    func testHomeAutoLoadsWalkingRouteOnceAndDoesNotAutoCallGoogle() async throws {
+        let day=try fixture().days[0];let routeData=try Data(contentsOf:Bundle(for:Self.self).url(forResource:"walking-sydney",withExtension:"json")!)
+        let overview=ItineraryOverview();var calls=0
+        overview.loader={request in
+            calls+=1
+            let requestJSON=try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:Any]
+            let count=(requestJSON["locations"] as! [[String:Double]]).count-1
+            var json=try JSONSerialization.jsonObject(with:routeData) as! [String:Any]
+            var routes=json["routes"] as! [[String:Any]]
+            routes[0]["legs"]=Array(repeating:["duration":60.0],count:count);json["routes"]=routes
+            return(try JSONSerialization.data(withJSONObject:json),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)}
+        overview.loadHome(day,provider:.osm,contentSource:"open")
+        for _ in 0..<100{if !overview.busy{break};try await Task.sleep(nanoseconds:10_000_000)}
+        XCTAssertEqual(calls,1);XCTAssertNotNil(overview.route)
+        overview.loadHome(day,provider:.osm,contentSource:"open");XCTAssertEqual(calls,1)
+        overview.loadHome(day,provider:.google,contentSource:"google");XCTAssertEqual(calls,1);XCTAssertNil(overview.route)
+    }
+    func testHomeCoLocatedStopsKeepOriginalLegOrderWithoutDuplicateQueryPoints() async throws {
+        var day=try fixture().days[0]
+        day.stops[0].lat=day.start.lat;day.stops[0].lng=day.start.lng
+        let originalCount=day.stops.count+1
+        let data=try Data(contentsOf:Bundle(for:Self.self).url(forResource:"walking-sydney",withExtension:"json")!)
+        let overview=ItineraryOverview()
+        overview.loader={request in
+            let json=try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:Any]
+            let locations=json["locations"] as! [[String:Double]]
+            XCTAssertLessThan(locations.count,originalCount+1)
+            for pair in zip(locations,locations.dropFirst()){XCTAssertNotEqual(pair.0,pair.1)}
+            var response=try JSONSerialization.jsonObject(with:data) as! [String:Any]
+            var routes=response["routes"] as! [[String:Any]]
+            routes[0]["legs"]=Array(repeating:["duration":60.0],count:locations.count-1);response["routes"]=routes
+            return(try JSONSerialization.data(withJSONObject:response),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)
+        }
+        overview.load(day)
+        for _ in 0..<100{if !overview.busy{break};try await Task.sleep(nanoseconds:10_000_000)}
+        XCTAssertNil(overview.message);XCTAssertEqual(overview.route?.legSeconds.count,originalCount)
+        XCTAssertEqual(overview.route?.legSeconds.first,0)
+        XCTAssertEqual(overviewTransportLegs(day,route:overview.route,plan:nil).first?.transport,"同一位置")
+    }
+    func testHomeTransportLegsUseActualBusNumberInsteadOfCallingItWalking() throws {
+        let plan=try JSONDecoder().decode(JourneyPlan.self,from:Data(contentsOf:Bundle(for:Self.self).url(forResource:"journey-plan-test",withExtension:"json")!))
+        let rows=overviewTransportLegs(try fixture().days[0],route:plan.overview,plan:plan)
+        XCTAssertTrue(rows.contains{$0.transport.contains("TEST") && $0.transport.contains("公车")})
+        XCTAssertEqual(rows.count,plan.legs.count)
+    }
     func testCompactHomeRendersSavedTripWithoutChangingIt() async throws {
         let store=AppStore();let original=store.mapProvider;defer{store.mapProvider=original};store.mapProvider = .schematic;store.trip=try fixture()
         let before=store.trip!.days.flatMap(\.stops).map(\.id)

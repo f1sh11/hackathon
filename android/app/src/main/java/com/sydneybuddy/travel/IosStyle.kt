@@ -173,7 +173,7 @@ fun durationLabel(startMinute: Int, endMinute: Int): String {
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Composable fun HomeScreen(store:BuddyStore) {
+@Composable fun HomeScreen(store:BuddyStore,suppliedOverview:ItineraryOverview?=null) {
     val uri=androidx.compose.ui.platform.LocalUriHandler.current
     var poiSearch by remember{mutableStateOf(false)}
     if(poiSearch)PoiDiscoveryDialog(store,onDismiss={poiSearch=false})
@@ -185,11 +185,12 @@ fun durationLabel(startMinute: Int, endMinute: Int): String {
     var expanded by rememberSaveable {mutableStateOf(false)}
     val trip=store.trip
     val day=store.day
-    val overview=remember(day.toString(),trip?.optString("mode"),store.mapProvider){ItineraryOverview()}
+    val overview=remember(day.toString(),trip?.optString("mode"),store.mapProvider,suppliedOverview){suppliedOverview ?: ItineraryOverview()}
     DisposableEffect(overview){onDispose{overview.close()}}
+    LaunchedEffect(overview){if(day!=null&&trip?.optString("mode")!="live"&&store.mapProvider==MapProvider.OSM)overview.load(day,store.base)}
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val compact=maxHeight<650.dp
-        RouteMap(day,Modifier.fillMaxSize(),true,store.mapProvider,trip?.optString("mode")=="live",store.mapViewport,{store.mapViewport=it},overview.route)
+        RouteMap(day,Modifier.fillMaxSize(),true,store.mapProvider,trip?.optString("mode")=="live",store.mapViewport,{store.mapViewport=it},overview.route,sections=overview.plan?.sections ?: emptyList())
         Column(Modifier.fillMaxSize().padding(horizontal=18.dp).padding(top=10.dp,bottom=10.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically){
                 TextButton(onClick={poiSearch=true},modifier=Modifier.weight(1f).background(Color.White,CircleShape),contentPadding=PaddingValues(horizontal=16.dp,vertical=12.dp)){Icon(Icons.Outlined.Search,null,Modifier.size(20.dp));Spacer(Modifier.width(8.dp));Text("搜尋景點、餐廳與設施",fontSize=13.sp);Spacer(Modifier.weight(1f))}
@@ -211,6 +212,7 @@ fun durationLabel(startMinute: Int, endMinute: Int): String {
                         Text(trip?.optString("title") ?: "開始你的悉尼旅行",fontSize=17.sp,fontWeight=FontWeight.Bold)
                         if(day!=null)Text("${day.array("stops").length()} 站 · ${"%,d".format(day.optInt("estimatedSteps"))} 步 · A$${day.optDouble("estimatedCost").toInt()} · ${day.optString("finishTime")} 返回",fontSize=11.sp,color=Muted)
                     };if(trip!=null)IconButton(onClick={expanded=!expanded},modifier=Modifier.size(28.dp).testTag("home-info-toggle")){Icon(if(expanded)Icons.Outlined.ExpandMore else Icons.Outlined.MoreHoriz,if(expanded)"收起行程資訊"else "展開行程資訊",tint=Green)}}
+                    if(day!=null)HomeTransportStrip(day,overview,onPlan={journey=true},onRetry={overview.load(day,store.base)})
                     if(expanded&&trip!=null)Column(Modifier.fillMaxWidth().heightIn(max=220.dp).verticalScroll(rememberScrollState()).testTag("home-extra-info"),verticalArrangement=Arrangement.spacedBy(10.dp)) {
                         CompactWeather(store)
                         val count=listOf("route","weather","bag").count(store::prepared)
@@ -237,7 +239,7 @@ fun durationLabel(startMinute: Int, endMinute: Int): String {
     }
     if(expandedMap) Dialog(onDismissRequest={expandedMap=false},properties=androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth=false)) {
         Box(Modifier.fillMaxSize().background(Color.White).testTag("expanded-itinerary-map")) {
-            RouteMap(day,Modifier.fillMaxSize(),true,store.mapProvider,trip?.optString("mode")=="live",overview=overview.route,expanded=true)
+            RouteMap(day,Modifier.fillMaxSize(),true,store.mapProvider,trip?.optString("mode")=="live",overview=overview.route,expanded=true,sections=overview.plan?.sections ?: emptyList())
             Column(Modifier.fillMaxSize().padding(18.dp),verticalArrangement=Arrangement.SpaceBetween) {
                 Surface(shape=RoundedCornerShape(18.dp),color=Color.White) {
                     Row(Modifier.fillMaxWidth().padding(12.dp),verticalAlignment=Alignment.CenterVertically) {Text("全天行程顺序",modifier=Modifier.weight(1f),fontWeight=FontWeight.Bold);TextButton(onClick={expandedMap=false}){Text("关闭地图")}}
@@ -260,7 +262,7 @@ fun durationLabel(startMinute: Int, endMinute: Int): String {
     }
     if(journey && day!=null) {
         if(trip?.optString("mode")=="live" && store.mapProvider!=MapProvider.GOOGLE) AlertDialog(onDismissRequest={journey=false},title={Text("请切换 Google 地图")},text={Text("此行程的交通规划需搭配 Google 底图与 Google Routes。")},confirmButton={TextButton(onClick={journey=false}){Text("关闭")}})
-        else JourneyPlannerDialog(day,store.base,store.mapProvider,{journey=false},{journey=false;navigation=true},contentSource=if(trip?.optString("mode")=="live")"google" else "open")
+        else JourneyPlannerDialog(day,store.base,store.mapProvider,{journey=false},{journey=false;navigation=true},contentSource=if(trip?.optString("mode")=="live")"google" else "open",onPlan=overview::accept)
     }
     if(navigation) {
         if(trip?.optString("mode")=="live") AlertDialog(onDismissRequest={navigation=false},text={Text("此行程含 Google 地点资料。开源导航测试请先建立示例行程。")},confirmButton={TextButton(onClick={navigation=false}){Text("关闭")}})
@@ -397,4 +399,18 @@ fun durationLabel(startMinute: Int, endMinute: Int): String {
         }
     }
     BackHandler(enabled=step>0 && !store.busy){step--}
+}
+
+@Composable internal fun HomeTransportStrip(day:org.json.JSONObject,overview:ItineraryOverview,onPlan:()->Unit,onRetry:()->Unit) {
+    Column(verticalArrangement=Arrangement.spacedBy(6.dp)) {
+        Row(verticalAlignment=Alignment.CenterVertically){TextButton(onClick=onPlan,contentPadding=PaddingValues(0.dp),modifier=Modifier.heightIn(min=28.dp)){Text("交通方式",fontSize=12.sp,fontWeight=FontWeight.Bold)};Spacer(Modifier.weight(1f));overview.route?.let{Text("${kotlin.math.ceil(it.seconds/60).toInt()} 分 · 交通預估",fontSize=10.sp,color=Muted)}}
+        when {
+            overview.busy->Text("正在載入道路路線…",fontSize=11.sp,color=Muted)
+            overview.route!=null->Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).testTag("home-transport-legs"),horizontalArrangement=Arrangement.spacedBy(6.dp)){
+                overviewTransportLegs(day,overview.route,overview.plan).forEach{leg->Column(Modifier.widthIn(max=220.dp).background(Mint.copy(alpha=.65f),RoundedCornerShape(10.dp)).padding(8.dp),verticalArrangement=Arrangement.spacedBy(4.dp)){Text("${leg.label} · ${leg.transport} ${leg.minutes} 分",fontSize=11.sp,fontWeight=FontWeight.Bold,color=Green,maxLines=1);Text("${leg.from} → ${leg.to}",fontSize=10.sp,color=Muted,maxLines=1)}}
+            }
+            overview.message!=null->Row(Modifier.fillMaxWidth().testTag("home-route-error"),verticalAlignment=Alignment.Top){Text(overview.message!!,Modifier.weight(1f),fontSize=11.sp,color=MaterialTheme.colorScheme.error);TextButton(onClick=onRetry,contentPadding=PaddingValues(4.dp)){Text("重試",fontSize=11.sp)}}
+            else->Text("選擇交通方式以規劃路線",fontSize=11.sp,color=Muted)
+        }
+    }
 }

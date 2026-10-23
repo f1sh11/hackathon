@@ -391,6 +391,7 @@ struct HomeView: View {
                         Spacer(minLength:4)
                         if store.trip != nil{Button{withAnimation{homeInfo.toggle()}}label:{Image(systemName:homeInfo ? "chevron.down.circle.fill":"ellipsis.circle").font(.title2)}.accessibilityLabel(homeInfo ? "收起行程資訊":"展開行程資訊").accessibilityIdentifier("home-info-toggle")}
                     }
+                    if let day=store.currentDay{HomeTransportStrip(day:day,overview:overview,onPlan:{journey=true},onRetry:{overview.load(day,provider:store.mapProvider)})}
                     if homeInfo,let trip=store.trip {
                         ScrollView{VStack(alignment:.leading,spacing:12){
                             WeatherCard(weather:store.refreshedWeather ?? trip.weather,compact:true)
@@ -409,7 +410,7 @@ struct HomeView: View {
                     HStack(spacing:4){Text(store.mapProvider.label).fontWeight(.medium);if store.mapProvider == .osm{Link("© OpenStreetMap contributors",destination:URL(string:"https://www.openstreetmap.org/copyright")!)};Spacer(minLength:0);Text(store.trip?.mode=="live" ? (store.mapProvider == .google ? "Google 路線":"需 Google 底圖"):store.mapProvider == .schematic ? "離線示意":overview.route==nil ? "僅顯示站點":"已規劃路線")}.font(.system(size:9)).foregroundStyle(Palette.muted).lineLimit(1).minimumScaleFactor(0.8)
                 }.padding(16).background(.white,in:RoundedRectangle(cornerRadius:24)).shadow(color:Palette.ink.opacity(0.08),radius:12,y:4)
             }.padding(.horizontal,18).padding(.top,10).padding(.bottom,10).tint(Palette.green)
-        }.task(id:mapSceneKey(store.currentDay)+"|"+(store.trip?.mode ?? "")) {overview.reset(mapSceneKey(store.currentDay))}
+        }.task(id:mapSceneKey(store.currentDay)+"|"+store.mapProvider.rawValue+"|"+(store.trip?.mode ?? "")) {if let day=store.currentDay{overview.loadHome(day,provider:store.mapProvider,contentSource:store.trip?.mode == "live" ? "google":"open")}}
         .sheet(isPresented:$poiSearch){PoiDiscoveryView()}
         .sheet(isPresented:$chat){AgentView()}.sheet(isPresented:$details){TripDetailView()}
         .fullScreenCover(isPresented:$expandedMap) {
@@ -437,7 +438,7 @@ struct HomeView: View {
                 }
             }
         }
-        .onChange(of:store.mapProvider){overview.clear()}
+
         .fullScreenCover(isPresented:$journey) {
             if let day=store.currentDay,let trip=store.trip {
                 if trip.mode == "live" && store.mapProvider != .google {VStack(spacing:20){Text("此行程的交通规划需搭配 Google 底图与 Google Routes，请切换底图。");Button("关闭"){journey=false}}.padding()}

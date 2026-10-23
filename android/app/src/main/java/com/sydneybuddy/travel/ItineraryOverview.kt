@@ -32,19 +32,30 @@ data class OverviewRoute(val points:List<Pair<Double,Double>>,val meters:Double,
     }
 }
 /** Preview has no location, speech, trip mutation or navigation-progress side effects. */
-class ItineraryOverview {
+class ItineraryOverview(private val client:OkHttpClient=OkHttpClient.Builder().callTimeout(25,TimeUnit.SECONDS).followRedirects(false).build()) {
     var route by mutableStateOf<OverviewRoute?>(null);private set
+    var plan by mutableStateOf<JourneyPlan?>(null);private set
     var busy by mutableStateOf(false);private set
     var message by mutableStateOf<String?>(null);private set
     private val scope=CoroutineScope(SupervisorJob()+Dispatchers.Main.immediate)
-    private val client=OkHttpClient.Builder().callTimeout(25,TimeUnit.SECONDS).followRedirects(false).build()
+    private var job:Job?=null
+    fun accept(result:JourneyPlan){job?.cancel();plan=result;route=result.overview;busy=false;message=null}
     fun close(){scope.cancel()}
     fun load(day:JSONObject,base:String) {
         if(busy || route!=null)return
         busy=true;message=null
-        scope.launch {
+        job=scope.launch {
             try {
-                val locations=JSONArray(walkingPoints(day).map{JSONObject().put("lat",it.lat).put("lon",it.lng)})
+                val points=walkingPoints(day)
+                val compact=mutableListOf(points.first())
+                val edgeMap=mutableListOf<Int?>()
+                points.drop(1).forEach{point->
+                    val previous=compact.last()
+                    if(point.lat==previous.lat && point.lng==previous.lng)edgeMap.add(null)
+                    else {edgeMap.add(compact.lastIndex);compact.add(point)}
+                }
+                if(compact.size==1){route=OverviewRoute(listOf(points.first().lat to points.first().lng,points.first().lat to points.first().lng),0.0,0.0,edgeMap.map{0.0});busy=false;return@launch}
+                val locations=JSONArray(compact.map{JSONObject().put("lat",it.lat).put("lon",it.lng)})
                 val request=Request.Builder().url("$base/navigation/route").post(JSONObject().put("locations",locations).toString().toRequestBody("application/json".toMediaType())).build()
                 val parsed=withContext(Dispatchers.IO) {
                     val call=client.newCall(request)
@@ -55,11 +66,12 @@ class ItineraryOverview {
                             override fun onResponse(call:Call,response:Response){continuation.resume(response){_,value,_->value.close()}}
                         })
                     }
-                    response.use {require(it.isSuccessful);OverviewRoute.parse(it.body.string())}
+                    response.use {val body=it.body.string();if(!it.isSuccessful)error(runCatching{JSONObject(body).optString("error")}.getOrDefault("").ifBlank{"道路路線服務暫時無法使用"});OverviewRoute.parse(body)}
                 }
-                ensureActive();route=parsed;busy=false
+                require(parsed.legSeconds.size==compact.size-1){"道路路線分段不完整"}
+                ensureActive();route=parsed.copy(legSeconds=edgeMap.map{index->index?.let{parsed.legSeconds[it]} ?: 0.0});busy=false
             } catch(e:CancellationException){throw e}
-            catch(e:Exception){busy=false;message="暂时无法取得步行路线，仅显示站点；请重试。"}
+            catch(e:Exception){busy=false;message="道路路線無法載入："+(e.message ?: "服務連線失敗").trimEnd('。','.','!')+"。目前僅顯示站點。"}
         }
     }
 }
@@ -102,4 +114,14 @@ fun itineraryPinGroups(points:List<Pair<Double,Double>>):Map<Int,List<Int>> {
     }
     if(points.size>1 && points.first()!=points.last())groups[points.lastIndex]=listOf(points.lastIndex)
     return groups
+}
+
+internal data class OverviewTransportLeg(val label:String,val from:String,val to:String,val mode:String,val transport:String,val minutes:Int)
+internal fun overviewTransportLegs(day:JSONObject,route:OverviewRoute?,plan:JourneyPlan?):List<OverviewTransportLeg> {
+    val stops=day.array("stops").length()
+    fun label(i:Int)="${if(i==0)"起"else "$i"}→${if(i==stops)"終"else "${i+1}"}"
+    if(plan!=null)return plan.legs.map{leg->OverviewTransportLeg(label(leg.index),leg.from,leg.to,leg.steps.firstOrNull()?.mode ?: leg.mode,leg.steps.joinToString(" · "){it.title},ceil(leg.steps.sumOf{it.seconds+it.waitSeconds}/60).toInt())}
+    if(route==null||route.legSeconds.size!=stops+1)return emptyList()
+    val points=walkingPoints(day)
+    return route.legSeconds.mapIndexed{i,seconds->OverviewTransportLeg(label(i),points[i].name,points[i+1].name,"walk",if(seconds==0.0)"同一位置"else "步行",ceil(seconds/60).toInt())}
 }
