@@ -51,22 +51,39 @@ struct OverviewRoute {
 @MainActor final class ItineraryOverview: ObservableObject {
     @Published var key = ""
     @Published var route: OverviewRoute?
+    @Published var plan: JourneyPlan?
     @Published var busy = false
     @Published var message: String?
     private var task: Task<Void, Never>?
     private var generation = UUID()
+    private let applePlan:(DayPlan,Date) async throws -> JourneyPlan
+    init(applePlan:@escaping (DayPlan,Date) async throws -> JourneyPlan = {day,departure in
+        try await AppleJourneyProvider.plan(day:day,modes:Array(repeating:"walk",count:day.stops.count+1),departure:departure)
+    }) {self.applePlan=applePlan}
+    var summary:String {route.map{"路线约 \(Int($0.meters.rounded())) 米 · \(Int(ceil($0.seconds/60))) 分钟"} ?? "显示步行路线"}
+    func clear(){cancel();route=nil;plan=nil;message=nil}
+    func accept(_ result:JourneyPlan,day:DayPlan) {
+        cancel();key=mapSceneKey(day);plan=result;route=result.overview;message="路线来源："+result.source
+    }
     func cancel() { generation = UUID(); task?.cancel(); task = nil; busy = false }
     func reset(_ newKey: String) {
         guard key != newKey else { return }
-        cancel(); key = newKey; route = nil; message = nil
+        clear(); key = newKey
     }
-    func load(_ day: DayPlan) {
+    func load(_ day: DayPlan,provider:MapProvider = .osm) {
         reset(mapSceneKey(day)); guard !busy, route == nil else { return }
+        guard provider == .osm || provider == .apple else {message="请从交通路线规划选择对应的路线服务。";return}
         busy = true; message = nil
         let token = generation
         let points = [day.start.location] + day.stops.map(\.coordinate) + [day.end.location]
         task = Task {
             do {
+                if provider == .apple {
+                    let result=try await applePlan(day,Date())
+                    try Task.checkCancellation();guard token==generation else{return}
+                    plan=result;route=result.overview;busy=false;message="路线来源："+result.source
+                    return
+                }
                 var request = URLRequest(url: URL(string: "http://127.0.0.1:8787/navigation/route")!)
                 request.httpMethod = "POST"; request.timeoutInterval = 25
                 request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -76,7 +93,7 @@ struct OverviewRoute {
                 let parsed = try OverviewRoute.parse(data)
                 try Task.checkCancellation()
                 guard token == generation else { return }
-                route = parsed; busy = false
+                plan=nil;route = parsed; busy = false
             } catch {
                 guard token == generation, !Task.isCancelled else { return }
                 busy = false; message = "暂时无法取得步行路线，仅显示站点；请重试。"

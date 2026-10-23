@@ -68,6 +68,31 @@ private final class JourneyStub:URLProtocol {
         do { _ = try await AppleJourneyProvider.plan(day:day(),modes:["transit"],departure:Date());XCTFail("MapKit transit directions must not be invented") }
         catch {XCTAssertTrue(error.localizedDescription.contains("NSW"))}
     }
+    func testAppleOverviewRequestsNativeProviderAndKeepsRoadGeometry() async throws {
+        let data=try Data(contentsOf:Bundle(for:Self.self).url(forResource:"walking-sydney",withExtension:"json")!)
+        let route=try OverviewRoute.parse(data)
+        let step=JourneyStep(mode:"walk",line:nil,headsign:nil,from:"起点",to:"终点",departureTime:"2026-10-23T10:00:00+11:00",arrivalTime:"2026-10-23T10:10:00+11:00",realtime:false,stopCount:nil,meters:route.meters,seconds:route.seconds,waitSeconds:0,platform:nil,agency:nil,geometry:route.coordinates.map{JourneyCoordinate(lat:$0.latitude,lng:$0.longitude)})
+        let leg=JourneyLeg(index:0,mode:"walk",from:step.from,to:step.to,departureTime:step.departureTime,arrivalTime:step.arrivalTime,staySeconds:0,steps:[step])
+        let plan=JourneyPlan(departureTime:step.departureTime,arrivalTime:step.arrivalTime,travelSeconds:route.seconds,elapsedSeconds:route.seconds,meters:route.meters,legs:[leg],warnings:[],source:"Apple Maps / MapKit")
+        var nativeCalls=0
+        let overview=ItineraryOverview(applePlan:{_,_ in nativeCalls+=1;return plan})
+        overview.load(day(),provider:.apple)
+        for _ in 0..<100 {if !overview.busy{break};try await Task.sleep(nanoseconds:20_000_000)}
+        XCTAssertFalse(overview.busy);XCTAssertEqual(nativeCalls,1)
+        XCTAssertEqual(overview.route?.coordinates.count,route.coordinates.count)
+        XCTAssertEqual(overview.plan?.source,"Apple Maps / MapKit")
+        overview.load(day(),provider:.apple);XCTAssertEqual(nativeCalls,1)
+    }
+    func testPlannerResultIsSharedWithOverviewAndClearedOnProviderChange() throws {
+        let result=try JSONDecoder().decode(JourneyPlan.self,from:fixture())
+        let overview=ItineraryOverview()
+        overview.accept(result,day:day())
+        XCTAssertEqual(overview.key,mapSceneKey(day()))
+        XCTAssertEqual(overview.plan?.sections.map(\.mode),["walk","bus","walk"])
+        XCTAssertEqual(overview.route?.meters,result.meters)
+        overview.clear()
+        XCTAssertNil(overview.route);XCTAssertNil(overview.plan);XCTAssertNil(overview.message)
+    }
     func testRenderClearlyLabeledTransitFixture() async throws {
         let plan=try JSONDecoder().decode(JourneyPlan.self,from:fixture())
         let scene=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.first!

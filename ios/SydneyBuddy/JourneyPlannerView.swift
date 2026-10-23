@@ -32,7 +32,7 @@ struct JourneyMapSection {
 }
 func transportLabel(_ mode:String)->String {switch mode {case "walk":return "步行";case "drive":return "开车";case "transit":return "大众运输";case "bus":return "公车";case "rail":return "火车";case "metro":return "地铁";case "tram":return "轻轨";case "ferry":return "渡轮";default:return "交通"}}
 func transportSymbol(_ mode:String)->String {switch mode {case "walk":return "figure.walk";case "drive":return "car.fill";case "bus":return "bus.fill";case "ferry":return "ferry.fill";default:return "tram.fill"}}
-func transportColor(_ mode:String)->Color {switch mode {case "walk":return Color(uiColor:.darkGray);case "drive":return Palette.green;default:return .blue}}
+func transportColor(_ mode:String)->Color {switch mode {case "walk":return Color(red:25.0/255,green:118.0/255,blue:210.0/255);case "drive":return Palette.green;default:return .blue}}
 func journeyTime(_ raw:String)->String {
     let parser=ISO8601DateFormatter();parser.formatOptions=[.withInternetDateTime,.withFractionalSeconds]
     let date=parser.date(from:raw) ?? ISO8601DateFormatter().date(from:raw)
@@ -81,6 +81,7 @@ struct JourneyPlannerView:View {
     let tripID:String
     let provider:MapProvider
     let contentSource:String
+    private let onPlan:((JourneyPlan)->Void)?
     @State private var routingProvider:String
     @Environment(\.dismiss) private var dismiss
     @StateObject private var model:JourneyModel
@@ -89,8 +90,8 @@ struct JourneyPlannerView:View {
     @State private var details=true
     @State private var navigation=false
     private let fixture:JourneyPlan?
-    init(day:DayPlan,tripID:String,provider:MapProvider,departure:Date = Date(),fixture:JourneyPlan? = nil,contentSource:String = "open"){
-        self.day=day;self.tripID=tripID;self.provider=provider;self.fixture=fixture;self.contentSource=contentSource
+    init(day:DayPlan,tripID:String,provider:MapProvider,departure:Date = Date(),fixture:JourneyPlan? = nil,contentSource:String = "open",onPlan:((JourneyPlan)->Void)? = nil){
+        self.day=day;self.tripID=tripID;self.provider=provider;self.fixture=fixture;self.contentSource=contentSource;self.onPlan=onPlan
         _routingProvider=State(initialValue:provider == .google ? "google" : provider == .apple ? "apple" : "open")
         _model=StateObject(wrappedValue:JourneyModel());_modes=State(initialValue:fixture?.legs.map(\.mode) ?? Array(repeating:"walk",count:day.stops.count+1));_departure=State(initialValue:departure)
     }
@@ -110,6 +111,7 @@ struct JourneyPlannerView:View {
             }.padding(.horizontal,16).padding(.top,8).padding(.bottom,12)
         }.tint(Palette.green)
         .onChange(of:provider){model.invalidate();routingProvider=provider == .google ? "google" : provider == .apple ? "apple" : "open"}.onChange(of:routingProvider){model.invalidate()}.onChange(of:modes){model.invalidate()}.onChange(of:departure){model.invalidate()}
+        .onReceive(model.$plan){newPlan in if let newPlan {onPlan?(newPlan)}}
         .onDisappear{model.invalidate()}
         .fullScreenCover(isPresented:$navigation){WalkingNavigationView(day:day,tripID:tripID)}
     }
@@ -157,7 +159,7 @@ struct JourneyPlannerView:View {
                             }
                         }
                         if let result {ForEach(result.warnings,id:\.self){Text($0).font(.caption2).foregroundStyle(Palette.muted)};Text("\(result.source) · 时间为悉尼当地时间").font(.caption2)}
-                        else {Text("步行：灰色小圆点 · 开车：绿色细实线 · 公共交通：蓝色细实线。尚未查询时仅显示站点，不画直线；路线沿服务回传的道路线形。").font(.caption2).foregroundStyle(Palette.muted)}
+                        else {Text("步行：蓝色密集小圆点 · 开车：绿色细实线 · 公共交通：蓝色细实线。尚未查询时仅显示站点，不画直线；路线沿服务回传的道路线形。").font(.caption2).foregroundStyle(Palette.muted)}
                     }.padding(.vertical,4)
                 }.frame(maxHeight:360)
             }

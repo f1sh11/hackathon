@@ -1,0 +1,72 @@
+{
+  "date": "2026-10-23",
+  "start": {
+    "name": "环形码头",
+    "lat": -33.8611,
+    "lng": 151.2126
+  },
+  "end": {
+    "name": "环形码头",
+    "lat": -33.8611,
+    "lng": 151.2126
+  },
+  "stops": [
+    {
+      "id": "garden",
+      "name": "皇家植物园",
+      "query": "Royal Botanic Garden Sydney",
+      "lat": -33.8642,
+      "lng": 151.2166,
+      "category": "自然",
+      "indoor": false,
+      "visitMinutes": 60,
+      "cost": 0,
+      "openMinute": 600,
+      "closeMinute": 1020,
+      "note": "开放时段为演示假设，需核实当日信息"
+    },
+    {
+      "id": "opera",
+      "name": "悉尼歌剧院",
+      "query": "Sydney Opera House",
+      "lat": -33.8568,
+      "lng": 151.2153,
+      "category": "风景",
+      "indoor": false,
+      "visitMinutes": 60,
+      "cost": 0,
+      "openMinute": 540,
+      "closeMinute": 1080,
+      "note": "外部游览示例；内部参观费用与预约另计"
+    },
+    {
+      "id": "rocks",
+      "name": "岩石区",
+      "query": "The Rocks Sydney",
+      "lat": -33.8599,
+      "lng": 151.209,
+      "category": "美食",
+      "indoor": false,
+      "visitMinutes": 70,
+      "cost": 30,
+      "openMinute": 600,
+      "closeMinute": 1140,
+      "note": "餐饮预算为估算，店铺营业时间各异"
+    },
+    {
+      "id": "mca",
+      "name": "澳大利亚当代艺术博物馆",
+      "query": "Museum of Contemporary Art Australia",
+      "lat": -33.8599,
+      "lng": 151.2091,
+      "category": "艺术",
+      "indoor": true,
+      "visitMinutes": 75,
+      "cost": 25,
+      "openMinute": 600,
+      "closeMinute": 1020,
+      "note": "门票预算为演示估算，非实际报价"
+    }
+  ],
+  "legs": []
+}

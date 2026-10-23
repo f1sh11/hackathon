@@ -309,6 +309,7 @@ Google 地图底图由 Android / iOS 各自的 Maps SDK 显示；后端的 Place
 | `BuddyStore.kt` | ViewModel 状态、HTTP 请求、草案与行程操作、天气和偏好操作、本机资料保存；也是 Android 后端地址的设置位置 |
 | `Domain.kt` | 旅行偏好与起终点模型、JSON 转换、输入检查、整数分金额与均分、保存载荷、路线 polyline 解码 |
 | `RouteMap.kt` | 统一底图入口、Google / 离线示意图，以及 Google 内容的图层隔离 |
+| `WalkingRouteDots.kt` | 沿實際道路幾何產生步行小圓點，依縮放調整間距，避免和底圖步道混淆 |
 | `MapProvider.kt` | 底图选项、共用镜头状态、OSM / MapLibre 显示及图砖请求识别和缓存 |
 
 | 配置 / 测试文件 | 用途 |
@@ -460,6 +461,8 @@ server-dotnet/
 - **Google**：Google Routes 道路／公交；只可顯示在 Google 底圖，須服務端金鑰與付費開關，預設仍禁用。
 - **Apple（iOS）**：MKDirections 原生步行／開車。MapKit 不提供 App 內完整公交線形和班次明細；可另選 NSW／開源，或開啟 Apple Maps 查首個公交區間。
 
-共用 `JourneyPlan → legs → steps → geometry`，每段獨立畫線：步行灰色小圓點虛線、大眾運輸藍色細實線（含 Metro / Train）、開車綠色細實線、藍色起點、空心編號站點、紅色終點及上下車圓點。路線來自服務回傳的道路线形，未查詢或缺少線形時不畫站點直線。切換來源清空舊結果，不自動退回其他供應商。既有 Ferrostar 逐段導航目前限定 OSM / open 步行。
+iOS 的首頁與全天地圖共用交通面板的成功規劃結果；Apple / OSM 示例行程展開全天地圖時，若尚無路徑，會查詢對應步行服務，並提供查詢／重試入口。
+
+共用 `JourneyPlan → legs → steps → geometry`，每段獨立畫線：步行藍色密集小圓點虛線、大眾運輸藍色細實線（含 Metro / Train）、開車綠色細實線、藍色起點、空心編號站點、紅色終點及上下車圓點。路線來自服務回傳的道路线形，未查詢或缺少線形時不畫站點直線。切換來源清空舊結果，不自動退回其他供應商。既有 Ferrostar 逐段導航目前限定 OSM / open 步行。
 
 **目前尚未設定 NSW 金鑰或部署 OTP，真實公交班次尚未啟用。** Apple 原生步行路線已實際查詢驗證；Google／NSW 轉接器已完成本地契約測試，尚未使用真實金鑰連線。 本地測試使用明確標示的 `TEST-01` 合成資料，正式畫面不會自行產生測試公車。設定方式、資料來源、API 與驗證限制見 [開放交通串接說明](docs/OPEN-TRANSIT.md)。

@@ -47,7 +47,7 @@ Apple 的 `.transit` 在 MapKit 只支援 ETA 計算，不是完整導航路徑�
 
 - 路線面板參考「上方起終點摘要、下方可收合行程清單」的操作方式，保留 App 綠色配色。
 - 可選全部步行／全部開車／全部大眾運輸，也可逐段選擇。例如去程搭公車、下一站步行。
-- 步行用灰色小圓點虛線（不鋪連續白色底線），開車用綠色細實線，大眾運輸用藍色細實線，包含公車、Metro、Train、輕軌與渡輪。不同交通段分別繪製，缺失的路線形狀不補成可導航直線。
+- 步行用藍色密集小圓點虛線（Android OSM 改用圓點圖層加細白邊，不鋪連續白色底線；點距隨縮放調整，避免與底圖步道混淆），開車用綠色細實線，大眾運輸用藍色細實線，包含公車、Metro、Train、輕軌與渡輪。不同交通段分別繪製，缺失的路線形狀不補成可導航直線。
 - 公車顯示資料來源提供的路線號碼／名稱、方向、上下車站、出發抵達時間、候車／銜接時間、站數與站台（資料有提供時）。缺少路線號碼明確標示未提供。
 - 公共交通預設是時刻表班次；僅 OTP / NSW 明確回傳即時更新時顯示即時。Google 轉接器不推定 GTFS-RT 狀態。
 - 每兩個景點之間各查一次；下一段從前段實際抵達時間加上該景點停留分鐘開始查。候車與轉乘算入交通總時間，景點停留另列，API 另回傳含停留的總經過時間。
@@ -119,6 +119,7 @@ dotnet run --project server-dotnet/SydneyBuddy.Api
 | `server-dotnet/SydneyBuddy.Api/Services/JourneyProviders.cs` | `IJourneyProvider`、Google / NSW 查詢及交通中立正規化，固定端點與無秘密錯誤訊息 |
 | `server-dotnet/SydneyBuddy.Api/Services/NavigationService.cs` | 既有導航保持步行；道路預覽另提供 walk／drive 受限模式 |
 | `ios/SydneyBuddy/JourneyPlannerView.swift` | iOS 交通面板、模式與時間選擇、班次資訊及請求取消 |
+| `android/.../WalkingRouteDots.kt` | 沿道路幾何按距離取樣；地圖縮放時更新圓點間距，維持小圓點白邊與可見性 |
 | `android/.../JourneyPlanner.kt` | Android 對應 UI、交通資料模型與 API 請求 |
 | `MapView.swift`／`MapProvider.kt`／`RouteMap.kt` | 各底圖共用座標並分段繪製交通線型 |
 | `infra/transit/compose.yaml` | 固定版本的本機 OTP 建圖／啟動設定 |
@@ -130,7 +131,7 @@ dotnet run --project server-dotnet/SydneyBuddy.Api
 
 - 後端 104 個測試通過，包含 OTP 請求／正規化、公車資訊、逐段停留時間、drive／walk 隔離、無班次、預約服務、錯誤與取消，以及既有資料庫 API 回歸。
 - iOS 12 個 XCTest 通過，包含交通請求、班次解析、未設定服務時的錯誤與測試畫面；Google SDK 有編譯但未配置有效金鑰實測。
-- Android 19 個單元測試、3 個新交通操作測試、Lint 與編譯通過；另有 7 個既有非 LargeTest 回歸測試通過；首頁新增入口造成的按鈕位置問題已修正，規劃流程與底圖切換重新通過。
+- Android 24 個單元測試、4 個交通操作測試、Lint 與編譯通過；另有 7 個既有非 LargeTest 回歸測試通過；首頁新增入口造成的按鈕位置問題已修正，規劃流程與底圖切換重新通過。
 - Google / NSW 轉接器以合成原始回應驗證：來源與底圖限制、付費開關、座標順序、公車資訊、時間、缺少線形、預約服務與錯誤。尚無金鑰，不聲稱已對兩家完成真實網路驗證。
 - Apple 實際步行路線於模擬器手動查詢成功：環形碼頭 → 植物園 → 歌劇院 → 岩石區 → 當代藝術館 → 返回，約 3,139 公尺 / 42 分鐘；路徑由 MapKit 回傳，沒有用站點直線補畫。
 - 測試資料 `TEST-01` 不是 TfNSW 班次。尚未設定 NSW API key，沒有實際下載／匯入 NSW GTFS、啟動 OTP graph 或驗證真實轉乘；需部署上面的服務後才能查實際班次。
@@ -139,3 +140,16 @@ dotnet run --project server-dotnet/SydneyBuddy.Api
 - 不含票價、即時車流、開車語音導航、戶外 GPS 或付費 Google 服務驗證。
 
 依據：[NSW Trip Planner APIs](https://opendata.transport.nsw.gov.au/data/dataset/trip-planner-apis)、[Google Routes 公交](https://developers.google.com/maps/documentation/routes/transit-route)、[Google 地圖顯示政策](https://developers.google.com/maps/documentation/routes/policies)、[Apple transit 支援範圍](https://developer.apple.com/documentation/mapkit/mkdirectionstransporttype/transit)、[OTP GTFS GraphQL](https://docs.opentripplanner.org/api/dev-2.x/graphql-gtfs/queries/planConnection)、[OTP 資料來源](https://docs.opentripplanner.org/en/v2.10.0/Data-Sources/)、[官方容器建圖方式](https://docs.opentripplanner.org/en/v2.10.0/Container-Image/)。
+
+2026-10-23 路線可見性修正：以錄製的五段步行行程重現先載入地圖再規劃，確認小圓點與 OSM 原有步道混淆；Android OSM 改用獨立圓點圖層、藍色細點及小白邊，依鏡頭縮放重新取樣。新增畫面像素斷言，驗證規劃、放大／縮小及重新查詢後均有路徑，路線保持在站點標記下方。
+
+iOS 全天地圖的補正：Apple 底圖同樣提供步行路線入口；展開全天地圖時，Apple / OSM 示例行程會在尚無路徑時查詢對應道路服務。交通面板的成功規劃結果會同步到首頁和全天地圖，保留各段交通方式與線型。Google 路線仍限 Google 底圖，切換底圖清除舊結果。新增的 2 個 iOS 回歸測試已通過；新版完成 Xcode 編譯及全部 14 個 XCTest，並已重新安裝到 iPhone 17 Pro 模擬器。手動以 OSM / Valhalla 實際規劃五段步行行程成功，約 3,692 公尺／52 分鐘；交通面板、首頁與全天地圖均確認顯示藍色密集圓點，規劃結果可同步。此輪未驗證 Google 真實底圖。
+
+步行樣式統一：OSM / Apple / Google 均改藍色小圓點並縮短間距（iOS 原生點距約縮短 38%、Android OSM 螢幕間距約縮短 31%、Google 點距同步縮短）。保留細點與白邊以區別底圖，大眾運輸維持藍色細實線。
+
+藍色密集點線調整後，iOS App Swift 型別檢查通過。Android 已重新完成 Debug 編譯、24 個單元測試、11 個模擬器操作測試及 Lint，全部通過；包含錄製道路幾何在規劃、放大／縮小和重新查詢後的藍色圓點畫面斷言，並已安裝及開啟新版 App。此輪道路畫面測試使用錄製的 Valhalla 路徑，沒有重複呼叫外部路由服務；Google 尚無有效金鑰，未完成 Google 底圖的真實畫面驗證。
+
+
+2026-10-23 步行路線螢幕尺寸適配：以 390 pt／dp 為參考，藍點直徑 4.4、白邊 0.65、中心間距 10，依地圖短邊限幅縮放至 90%–115%。iOS OSM / Apple 使用透明的螢幕座標繪圖層，沿道路幾何重新取樣，縮放與拖移時更新；合併鄰近的來回路段圓點，並避開站點標記。Android OSM 依實際地圖容器尺寸設定圓點，在鏡頭停止後按比例尺更新地理間距。Google iOS 的間距也改為依鏡頭比例尺換算，Android Google 使用 dp 轉像素，尚無有效 Google 金鑰實測。Android 此版 25 個單元、11 個操作測試及編譯／Lint 通過。
+
+此版 iOS 已完成編譯及 14 個 XCTest，重新安裝後實測 OSM 全天道路規劃，並確認雙擊放大後仍維持相同的螢幕圓點大小與間距；兩台模擬器均已更新。iOS Apple 共用同一繪圖層，此輪手動畫面驗證使用 OSM。

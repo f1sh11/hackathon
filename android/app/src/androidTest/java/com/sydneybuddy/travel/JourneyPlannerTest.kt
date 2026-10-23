@@ -49,6 +49,74 @@ class JourneyPlannerTest {
         assertEquals("open",sent!!.getString("contentSource"));assertEquals("nsw",sent!!.getString("routingProvider"));assertEquals("osm",sent!!.getString("mapProvider"))
         rule.runOnIdle{model.invalidate()};assertNull(model.plan);rule.runOnIdle{model.close()}
     }
+    @androidx.test.filters.SdkSuppress(minSdkVersion=29)
+    @Test fun walkingLoopIsVisibleAfterPlanningOnAnAlreadyLoadedMap() {
+        val inst=InstrumentationRegistry.getInstrumentation()
+        fun asset(name:String)=inst.context.assets.open(name).bufferedReader().use{it.readText()}
+        val loop=JSONObject(asset("walking-itinerary-day.json"))
+        val response=asset("walking-itinerary-plan.json")
+        val client=OkHttpClient.Builder().addInterceptor{chain->Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1).code(200).message("OK").body(ResponseBody.create(null,response)).build()}.build()
+        lateinit var model:JourneyModel
+        rule.runOnIdle{model=JourneyModel(client)}
+        rule.setContent{MaterialTheme(colorScheme=lightColorScheme(primary=Green,onPrimary=Color.White,secondaryContainer=Mint)){JourneyPlannerDialog(loop,"http://127.0.0.1:8787",MapProvider.OSM,{},{},suppliedModel=model)}}
+        rule.waitUntil(30000){rule.onAllNodesWithText("地图已加载",substring=true).fetchSemanticsNodes().isNotEmpty()}
+        rule.onNodeWithText("规划交通路线").performClick()
+        rule.waitUntil(10000){!model.busy && model.plan!=null}
+        assertNull(model.error);assertEquals(5,model.plan!!.sections.size)
+        rule.onNodeWithText("收起").performClick()
+        rule.onNodeWithText("路线详情").assertIsDisplayed()
+        rule.waitUntil(30000){rule.onAllNodesWithText("分段交通路线",substring=true).fetchSemanticsNodes().isNotEmpty()}
+        fun visibleDotPixels():Int {
+            val bitmap=inst.uiAutomation.takeScreenshot()
+            var count=0
+            for(y in (bitmap.height*.28).toInt() until (bitmap.height*.76).toInt() step 2)for(x in 0 until bitmap.width step 2) {
+                val color=bitmap.getPixel(x,y)
+                if(kotlin.math.abs(android.graphics.Color.red(color)-25)<=8 && kotlin.math.abs(android.graphics.Color.green(color)-118)<=8 && kotlin.math.abs(android.graphics.Color.blue(color)-210)<=8)count++
+            }
+            bitmap.recycle();return count
+        }
+        fun save(name:String) {
+            val image=inst.uiAutomation.takeScreenshot()
+            File(inst.targetContext.getExternalFilesDir(null),name).outputStream().use{image.compress(Bitmap.CompressFormat.PNG,100,it)};image.recycle()
+        }
+        // Check pixels on the rendered map, rather than trusting the "map loaded" label.
+        rule.waitUntil(15000){visibleDotPixels()>100}
+        save("journey-android-walking-loop.png")
+        var nativeMap:org.maplibre.android.maps.MapLibreMap?=null
+        val renderedFrames=java.util.concurrent.atomic.AtomicInteger()
+        fun findMap(view:android.view.View):org.maplibre.android.maps.MapView? {
+            if(view is org.maplibre.android.maps.MapView)return view
+            if(view is android.view.ViewGroup)for(i in 0 until view.childCount)findMap(view.getChildAt(i))?.let{return it}
+            return null
+        }
+        rule.runOnIdle {
+            val mapView=android.view.inspector.WindowInspector.getGlobalWindowViews().asReversed().firstNotNullOf{if(it.hasWindowFocus())findMap(it)else null}
+            mapView.getMapAsync{nativeMap=it}
+            mapView.addOnDidFinishRenderingFrameListener{_,_,_->renderedFrames.incrementAndGet()}
+        }
+        rule.waitUntil(10000){nativeMap!=null}
+        var initialZoom=0.0
+        var beforeZoom=0
+        rule.runOnIdle {
+            initialZoom=nativeMap!!.cameraPosition.zoom;beforeZoom=renderedFrames.get()
+            nativeMap!!.moveCamera(org.maplibre.android.camera.CameraUpdateFactory.zoomBy(1.0))
+            assertEquals(initialZoom+1,nativeMap!!.cameraPosition.zoom,0.05)
+        }
+        rule.waitUntil(30000){renderedFrames.get()>beforeZoom}
+        rule.waitUntil(15000){visibleDotPixels()>100}
+        save("journey-android-walking-zoom.png")
+        rule.runOnIdle {
+            beforeZoom=renderedFrames.get()
+            nativeMap!!.moveCamera(org.maplibre.android.camera.CameraUpdateFactory.zoomTo(initialZoom))
+            assertEquals(initialZoom,nativeMap!!.cameraPosition.zoom,0.05)
+        }
+        rule.waitUntil(30000){renderedFrames.get()>beforeZoom}
+        rule.waitUntil(15000){visibleDotPixels()>100}
+        rule.onNodeWithText("重新查询").performClick()
+        rule.waitUntil(10000){!model.busy && model.plan!=null}
+        rule.waitUntil(15000){visibleDotPixels()>100}
+        rule.runOnIdle{model.close()}
+    }
     @Test fun missingTransitServiceShowsServerMessageWithoutInventedBus() {
         val client=OkHttpClient.Builder().addInterceptor{chain->Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1).code(422).message("Not configured").body(ResponseBody.create(null,"""{"error":"大众运输服务尚未启用。"}""")).build()}.build()
         lateinit var model:JourneyModel
