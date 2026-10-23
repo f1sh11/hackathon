@@ -62,7 +62,7 @@ struct Memory: Codable, Identifiable {
     var id: String; var summary: String; var profile: MemoryProfile
     struct MemoryProfile: Codable { var interests: [String]; var maxSteps: Int }
 }
-struct Health: Codable { var paidServicesAllowed: Bool?; var status: String; var nvidiaConfigured: Bool; var googleConfigured: Bool; var iosMapConfigured: Bool; var model: String }
+struct Health: Codable { var navigationConfigured: Bool?; var paidServicesAllowed: Bool?; var status: String; var nvidiaConfigured: Bool; var googleConfigured: Bool; var iosMapConfigured: Bool; var model: String }
 struct Expense: Codable, Identifiable {
     var id = UUID(); var title: String; var cents: Int; var participants: Int
     var shares: [Int] { (0..<participants).map { cents/participants + ($0 < cents%participants ? 1 : 0) } }

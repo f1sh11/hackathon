@@ -1,6 +1,15 @@
 {
-  "originHash" : "fe5dd08882d08507f16493adf883e323b1dd5a821ac629f6777702bda6b2ba4e",
+  "originHash" : "bb5ba9f3259a499bc428bbf0b03b72cee54b9ce3923080a77726bf7d71fde578",
   "pins" : [
+    {
+      "identity" : "ferrostar",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/stadiamaps/ferrostar",
+      "state" : {
+        "revision" : "a499f24389554f2420c927f2aa29623221474087",
+        "version" : "0.59.0"
+      }
+    },
     {
       "identity" : "ios-maps-sdk",
       "kind" : "remoteSourceControl",
@@ -8,6 +17,33 @@
       "state" : {
         "revision" : "e096f5c46d84c01c0a0a55df7263d5c6631535d6",
         "version" : "11.2.0"
+      }
+    },
+    {
+      "identity" : "maplibre-gl-native-distribution",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/maplibre/maplibre-gl-native-distribution.git",
+      "state" : {
+        "revision" : "13e41ab3d77ff5113e7e5d4ee87803b1f81f5683",
+        "version" : "6.31.0"
+      }
+    },
+    {
+      "identity" : "swift-syntax",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swiftlang/swift-syntax.git",
+      "state" : {
+        "revision" : "4799286537280063c85a32f09884cfbca301b1a1",
+        "version" : "602.0.0"
+      }
+    },
+    {
+      "identity" : "swiftui-dsl",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/maplibre/swiftui-dsl",
+      "state" : {
+        "revision" : "91181ecfd9dbd494dcb04b7095fd86e6ee1063ea",
+        "version" : "0.26.1"
       }
     }
   ],

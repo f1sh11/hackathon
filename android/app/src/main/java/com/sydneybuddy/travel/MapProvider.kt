@@ -43,7 +43,7 @@ fun mapDisplayDay(day:JSONObject?,provider:MapProvider,googleContent:Boolean):JS
     if(googleContent && provider!=MapProvider.GOOGLE) null else day
 data class MapViewport(val sceneKey:String,val lat:Double,val lng:Double,val zoom:Double)
 
-private object OsmNetwork {
+internal object OsmNetwork {
     private var ready=false
     @Synchronized fun initialize(context:Context) {
         if(ready) return
@@ -59,7 +59,7 @@ private object OsmNetwork {
 }
 
 // No glyphs, sprites or cloud styles: only the visible OSM raster tiles are requested.
-private const val OSM_STYLE="""{
+internal const val OSM_STYLE="""{
  "version":8,"sources":{"osm":{"type":"raster","tiles":["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],"tileSize":256,"maxzoom":19,"attribution":"© OpenStreetMap contributors"}},
  "layers":[{"id":"osm","type":"raster","source":"osm"}]
 }"""

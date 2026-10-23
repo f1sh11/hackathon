@@ -25,6 +25,16 @@
       isa = "PBXBuildFile";
       fileRef = "8BF4A28E43F6CF370D3EE1C2";
     };
+    99ADA1BF18A5C280925DF39B = {
+      isa = "PBXFileReference";
+      lastKnownFileType = "sourcecode.swift";
+      path = "NavigationView.swift";
+      sourceTree = "<group>";
+    };
+    5EC7A6F7BFB7F5B8656273AD = {
+      isa = "PBXBuildFile";
+      fileRef = "99ADA1BF18A5C280925DF39B";
+    };
     D90469F66BBCF96E82C302CA = {
       isa = "PBXFileReference";
       lastKnownFileType = "sourcecode.swift";
@@ -69,7 +79,7 @@
     };
     482182478A3ECD4745BEA917 = {
       isa = "PBXGroup";
-      children = ("D22C2DEA88DA5AD5F3DEA760", "8BF4A28E43F6CF370D3EE1C2", "D90469F66BBCF96E82C302CA", "D3B99BADD38FD7F79CA7F8C1", "F4B96E2FB567E0F7FD282DD4");
+      children = ("D22C2DEA88DA5AD5F3DEA760", "8BF4A28E43F6CF370D3EE1C2", "99ADA1BF18A5C280925DF39B", "D90469F66BBCF96E82C302CA", "D3B99BADD38FD7F79CA7F8C1", "F4B96E2FB567E0F7FD282DD4");
       path = "SydneyBuddy";
       sourceTree = "<group>";
     };
@@ -81,13 +91,13 @@
     };
     FBDC4F23F93125BBEEAE800C = {
       isa = "PBXGroup";
-      children = ("7D1043473D55BFA90E8530D3");
+      children = ("7D1043473D55BFA90E8530D3", "B7480EC88B7F22D0A4757273");
       name = "Products";
       sourceTree = "<group>";
     };
     B28B7AF69320201D1CF206EB = {
       isa = "PBXGroup";
-      children = ("482182478A3ECD4745BEA917", "1405DF66CBE219B0BF6355BC", "0112DAE3F84CB4DF5179BE01", "FBDC4F23F93125BBEEAE800C");
+      children = ("482182478A3ECD4745BEA917", "1405DF66CBE219B0BF6355BC", "0112DAE3F84CB4DF5179BE01", "FBDC4F23F93125BBEEAE800C", "FA6589654DCE2645BF12B69D", "E638A1C7D052181BB6B2DB6F");
       sourceTree = "<group>";
     };
     B56FEFA5E14F842C2B6FF70D = {
@@ -107,16 +117,33 @@
       isa = "PBXBuildFile";
       productRef = "36CDE4CBCC694109FAA30F36";
     };
+    1FA9E1DFFCB145085010BED3 = {
+      isa = "XCRemoteSwiftPackageReference";
+      repositoryURL = "https://github.com/stadiamaps/ferrostar";
+      requirement = {
+        kind = "exactVersion";
+        version = "0.59.0";
+      };
+    };
+    89435B4DBBF93AD10DD9098A = {
+      isa = "XCSwiftPackageProductDependency";
+      package = "1FA9E1DFFCB145085010BED3";
+      productName = "FerrostarCore";
+    };
+    12E9C25F08DB956B91A83B53 = {
+      isa = "PBXBuildFile";
+      productRef = "89435B4DBBF93AD10DD9098A";
+    };
     BCE16DD0260827ECF338C787 = {
       isa = "PBXSourcesBuildPhase";
       buildActionMask = 2147483647;
-      files = ("958AEEDAB1FDB695731EEDE0", "487C502A5481E87001E8CC43", "15C8F3262E55FB3D7DC0ED21", "658A1241C451AE78218EE389", "5CD6439BB3413D308E4941A5");
+      files = ("958AEEDAB1FDB695731EEDE0", "487C502A5481E87001E8CC43", "5EC7A6F7BFB7F5B8656273AD", "15C8F3262E55FB3D7DC0ED21", "658A1241C451AE78218EE389", "5CD6439BB3413D308E4941A5");
       runOnlyForDeploymentPostprocessing = 0;
     };
     7561BFB015D8F536760CB671 = {
       isa = "PBXFrameworksBuildPhase";
       buildActionMask = 2147483647;
-      files = ("D5F74F95B1AEB73E97848A3D");
+      files = ("D5F74F95B1AEB73E97848A3D", "12E9C25F08DB956B91A83B53");
       runOnlyForDeploymentPostprocessing = 0;
     };
     0189424A5A60FED329FA868E = {
@@ -133,6 +160,7 @@
         CLANG_ENABLE_MODULES = "YES";
         SWIFT_VERSION = "5.0";
         SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+        ONLY_ACTIVE_ARCH = "YES";
       };
       name = "Debug";
     };
@@ -168,6 +196,7 @@
         LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks");
         SWIFT_EMIT_LOC_STRINGS = "YES";
         SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+        ENABLE_TESTABILITY = "YES";
       };
       name = "Debug";
       baseConfigurationReference = "1405DF66CBE219B0BF6355BC";
@@ -204,10 +233,122 @@
       buildRules = ();
       dependencies = ();
       name = "SydneyBuddy";
-      packageProductDependencies = ("36CDE4CBCC694109FAA30F36");
+      packageProductDependencies = ("36CDE4CBCC694109FAA30F36", "89435B4DBBF93AD10DD9098A");
       productName = "SydneyBuddy";
       productReference = "7D1043473D55BFA90E8530D3";
       productType = "com.apple.product-type.application";
+    };
+    FA6589654DCE2645BF12B69D = {
+      isa = "PBXFileReference";
+      lastKnownFileType = "sourcecode.swift";
+      path = "SydneyBuddyTests/NavigationTests.swift";
+      sourceTree = "<group>";
+    };
+    E638A1C7D052181BB6B2DB6F = {
+      isa = "PBXFileReference";
+      lastKnownFileType = "text.json";
+      path = "../tests/fixtures/walking-sydney.json";
+      sourceTree = "<group>";
+    };
+    B7480EC88B7F22D0A4757273 = {
+      isa = "PBXFileReference";
+      explicitFileType = "wrapper.cfbundle";
+      path = "SydneyBuddyTests.xctest";
+      sourceTree = "BUILT_PRODUCTS_DIR";
+    };
+    1327ACEDD35773FF3F8A2233 = {
+      isa = "PBXBuildFile";
+      fileRef = "FA6589654DCE2645BF12B69D";
+    };
+    9F3002A5D69B22D357A58AA9 = {
+      isa = "PBXSourcesBuildPhase";
+      buildActionMask = 2147483647;
+      files = ("1327ACEDD35773FF3F8A2233");
+      runOnlyForDeploymentPostprocessing = 0;
+    };
+    231C0B8A9BB8C96CCA01C174 = {
+      isa = "PBXBuildFile";
+      fileRef = "E638A1C7D052181BB6B2DB6F";
+    };
+    C584AE92222380FB29B6223F = {
+      isa = "PBXResourcesBuildPhase";
+      buildActionMask = 2147483647;
+      files = ("231C0B8A9BB8C96CCA01C174");
+      runOnlyForDeploymentPostprocessing = 0;
+    };
+    21A0AAE6068D96A7CB23A980 = {
+      isa = "PBXBuildFile";
+      productRef = "89435B4DBBF93AD10DD9098A";
+    };
+    99C7943D90D870A50ADE9160 = {
+      isa = "PBXFrameworksBuildPhase";
+      buildActionMask = 2147483647;
+      files = ("21A0AAE6068D96A7CB23A980");
+      runOnlyForDeploymentPostprocessing = 0;
+    };
+    0F3D67935A4F199E058A017A = {
+      isa = "XCBuildConfiguration";
+      buildSettings = {
+        PRODUCT_NAME = "$(TARGET_NAME)";
+        PRODUCT_BUNDLE_IDENTIFIER = "com.sydneybuddy.travel.tests";
+        GENERATE_INFOPLIST_FILE = "YES";
+        SDKROOT = "iphonesimulator";
+        IPHONEOS_DEPLOYMENT_TARGET = "17.0";
+        SWIFT_VERSION = "5.0";
+        TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SydneyBuddy.app/SydneyBuddy";
+        BUNDLE_LOADER = "$(TEST_HOST)";
+        TARGETED_DEVICE_FAMILY = "1";
+        CODE_SIGN_STYLE = "Automatic";
+        SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+      };
+      name = "Debug";
+    };
+    20B70E15FDC36C625E57F658 = {
+      isa = "XCBuildConfiguration";
+      buildSettings = {
+        PRODUCT_NAME = "$(TARGET_NAME)";
+        PRODUCT_BUNDLE_IDENTIFIER = "com.sydneybuddy.travel.tests";
+        GENERATE_INFOPLIST_FILE = "YES";
+        SDKROOT = "iphonesimulator";
+        IPHONEOS_DEPLOYMENT_TARGET = "17.0";
+        SWIFT_VERSION = "5.0";
+        TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SydneyBuddy.app/SydneyBuddy";
+        BUNDLE_LOADER = "$(TEST_HOST)";
+        TARGETED_DEVICE_FAMILY = "1";
+        CODE_SIGN_STYLE = "Automatic";
+        SWIFT_OPTIMIZATION_LEVEL = "-O";
+      };
+      name = "Release";
+    };
+    C004641D3561F4514A5A607B = {
+      isa = "XCConfigurationList";
+      buildConfigurations = ("0F3D67935A4F199E058A017A", "20B70E15FDC36C625E57F658");
+      defaultConfigurationIsVisible = 0;
+      defaultConfigurationName = "Release";
+    };
+    3B07A601889A5C98A1E12C74 = {
+      isa = "PBXContainerItemProxy";
+      containerPortal = "98F54143AB4E86B28C3AFEE0";
+      proxyType = 1;
+      remoteGlobalIDString = "0E8A3AD980EC179856012B7E";
+      remoteInfo = "SydneyBuddy";
+    };
+    2A21D9E9044D0B11FAFCCFE3 = {
+      isa = "PBXTargetDependency";
+      target = "0E8A3AD980EC179856012B7E";
+      targetProxy = "3B07A601889A5C98A1E12C74";
+    };
+    0A06C5E2DA34E686D888A695 = {
+      isa = "PBXNativeTarget";
+      name = "SydneyBuddyTests";
+      productName = "SydneyBuddyTests";
+      productType = "com.apple.product-type.bundle.unit-test";
+      productReference = "B7480EC88B7F22D0A4757273";
+      buildConfigurationList = "C004641D3561F4514A5A607B";
+      buildPhases = ("9F3002A5D69B22D357A58AA9", "99C7943D90D870A50ADE9160", "C584AE92222380FB29B6223F");
+      buildRules = ();
+      dependencies = ("2A21D9E9044D0B11FAFCCFE3");
+      packageProductDependencies = ("89435B4DBBF93AD10DD9098A");
     };
     98F54143AB4E86B28C3AFEE0 = {
       isa = "PBXProject";
@@ -220,11 +361,11 @@
       hasScannedForEncodings = 0;
       knownRegions = ("en", "zh-Hans", "Base");
       mainGroup = "B28B7AF69320201D1CF206EB";
-      packageReferences = ("B56FEFA5E14F842C2B6FF70D");
+      packageReferences = ("B56FEFA5E14F842C2B6FF70D", "1FA9E1DFFCB145085010BED3");
       productRefGroup = "FBDC4F23F93125BBEEAE800C";
       projectDirPath = "";
       projectRoot = "";
-      targets = ("0E8A3AD980EC179856012B7E");
+      targets = ("0E8A3AD980EC179856012B7E", "0A06C5E2DA34E686D888A695");
     };
   };
   rootObject = "98F54143AB4E86B28C3AFEE0";

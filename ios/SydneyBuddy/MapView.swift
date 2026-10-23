@@ -219,6 +219,7 @@ struct HomeView: View {
     @EnvironmentObject var store:AppStore
     @State var chat=false
     @State var details=false
+    @State var navigation=false
     var body:some View {
         ZStack(alignment:.top) {
             ProviderRouteMap().ignoresSafeArea(edges:.top)
@@ -235,6 +236,7 @@ struct HomeView: View {
                         if let day=store.currentDay {
                             Text("\(day.stops.count) 个地点 · 约 \(day.estimatedSteps) 步").font(.caption).foregroundStyle(Palette.muted)
                             HStack(spacing:8) { Label("A$\(Int(day.estimatedCost))",systemImage:"wallet.bifold"); Text("·");Text("\(day.finishTime) 返回") }.font(.caption.bold()).foregroundStyle(Palette.green)
+                            Button("逐段步行导航") { navigation=true }.font(.subheadline.bold()).tint(Palette.green)
                             Text(day.stops.map(\.name).joined(separator:" → ")).font(.caption).lineLimit(2).foregroundStyle(Palette.muted)
                         } else { Text("让 Buddy 帮你选出刚刚好的路线").font(.caption).foregroundStyle(Palette.muted) }
                         Button { if store.trip==nil {store.newTrip()} else {details=true} } label:{ HStack {Text(store.trip==nil ? "开始规划" : "查看路线").fontWeight(.bold);Spacer();Image(systemName:"arrow.up.right")}.padding(13).foregroundStyle(.white).background(Palette.green,in:RoundedRectangle(cornerRadius:14)) }
@@ -244,5 +246,11 @@ struct HomeView: View {
                 Text(store.trip?.mode=="live" ? (store.mapProvider == .google ? "Google 路线 · 费用与步数为估算" : "Google 行程图层已隐藏，请切换 Google 底图查看") : "路线与营业时间为示例 · 非导航路径").font(.system(size:10)).foregroundStyle(Palette.ink.opacity(0.7)).padding(7).background(.white.opacity(0.85),in:Capsule())
             }.padding(.top,12).padding(.bottom,12)
         }.sheet(isPresented:$chat){AgentView()}.sheet(isPresented:$details){TripDetailView()}
+        .fullScreenCover(isPresented:$navigation) {
+            if let day=store.currentDay, let trip=store.trip {
+                if trip.mode == "live" { NavigationStack { VStack(spacing:20) { Text("此行程含 Google 地点资料，请使用原地图查看。开源导航测试请先建立示例行程。");Button("关闭"){navigation=false} }.padding() } }
+                else {WalkingNavigationView(day:day,tripID:(trip.id ?? "draft")+":\(trip.revision ?? 0)")}
+            }
+        }
     }
 }
