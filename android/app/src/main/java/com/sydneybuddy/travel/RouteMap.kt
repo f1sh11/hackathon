@@ -21,11 +21,11 @@ import org.json.JSONObject
 
 @Composable fun RouteMap(day:JSONObject?,modifier:Modifier=Modifier,fullBleed:Boolean=false,
     provider:MapProvider=MapProvider.OSM,googleContent:Boolean=false,
-    viewport:MapViewport?=null,onViewport:(MapViewport)->Unit={}) {
+    viewport:MapViewport?=null,onViewport:(MapViewport)->Unit={},overview:OverviewRoute?=null,expanded:Boolean=false) {
     // Provider-owned live coordinates and paths must not be rendered on another provider's map.
     val visibleDay=mapDisplayDay(day,provider,googleContent)
     if(provider==MapProvider.OSM) {
-        OsmRouteMap(visibleDay,modifier,fullBleed,viewport,onViewport)
+        OsmRouteMap(visibleDay,modifier,fullBleed,viewport,onViewport,if(googleContent)null else overview,expanded)
         return
     }
     if(provider==MapProvider.GOOGLE && !BuildConfig.MAPS_CONFIGURED) {
@@ -34,22 +34,22 @@ import org.json.JSONObject
         }
         return
     }
-    ProviderRouteMap(visibleDay,modifier,fullBleed,provider==MapProvider.GOOGLE,viewport,onViewport)
+    ProviderRouteMap(visibleDay,modifier,fullBleed,provider==MapProvider.GOOGLE,viewport,onViewport,if(googleContent)null else overview,expanded)
 }
 
 @Composable private fun ProviderRouteMap(day:JSONObject?,modifier:Modifier,fullBleed:Boolean,
-    google:Boolean,viewport:MapViewport?,onViewport:(MapViewport)->Unit) {
+    google:Boolean,viewport:MapViewport?,onViewport:(MapViewport)->Unit,overview:OverviewRoute?,expanded:Boolean) {
     val stops=day?.array("stops")?.objects() ?: emptyList()
     val start=day?.getJSONObject("start") ?: Endpoint.quay.json();val end=day?.getJSONObject("end") ?: Endpoint.central.json()
     fun coordinate(j:JSONObject)=LatLng(j.getDouble("lat"),j.getDouble("lng"))
     val points=listOf(coordinate(start))+stops.map(::coordinate)+coordinate(end)
     val routes=day?.array("legs")?.objects()?.map {runCatching {decodePolyline(it.optString("polyline")).map{p->LatLng(p.first,p.second)}}.getOrDefault(emptyList())} ?: emptyList()
-    val bounds=LatLngBounds.builder().apply{points.forEach{include(it)}}.build()
+    val bounds=LatLngBounds.builder().apply{(points+(overview?.points?.map{LatLng(it.first,it.second)} ?: routes.flatten())).forEach{include(it)}}.build()
     if(google) {
         val camera=rememberCameraPositionState()
         var loaded by remember {mutableStateOf(false)}
-        LaunchedEffect(day.toString(),loaded){if(loaded) {
-            val saved=viewport?.takeIf{it.sceneKey==day.toString()}
+        LaunchedEffect(day.toString(),loaded,overview){if(loaded) {
+            val saved=viewport?.takeIf{it.sceneKey==day.toString() && overview==null}
             camera.move(if(saved!=null) CameraUpdateFactory.newLatLngZoom(LatLng(saved.lat,saved.lng),saved.zoom.toFloat()) else CameraUpdateFactory.newLatLngBounds(bounds,70))
         }}
         LaunchedEffect(camera,loaded) {
@@ -58,24 +58,31 @@ import org.json.JSONObject
             }
         }
         GoogleMap(modifier=if(fullBleed)modifier else modifier.fillMaxWidth().height(310.dp).clip(RoundedCornerShape(22.dp)),cameraPositionState=camera,
-            contentPadding=if(fullBleed)PaddingValues(top=180.dp,bottom=290.dp,start=12.dp,end=12.dp) else PaddingValues(0.dp),
-            onMapLoaded={loaded=true},uiSettings=MapUiSettings(zoomControlsEnabled=false,myLocationButtonEnabled=false,mapToolbarEnabled=false)) {
-            stops.forEachIndexed {i,s->
-                key(day.toString(),s.optString("id")) {
-                    val marker=remember {MarkerState(position=coordinate(s))}
-                    Marker(state=marker,title="${i+1}. ${s.optString("name")}",snippet="${s.optString("arrival")}–${s.optString("departure")}",icon=BitmapDescriptorFactory.defaultMarker(155f))
+            contentPadding=if(fullBleed)PaddingValues(top=if(expanded)100.dp else 280.dp,bottom=if(expanded)180.dp else 400.dp,start=12.dp,end=12.dp) else PaddingValues(0.dp),
+            onMapLoaded={loaded=true},uiSettings=MapUiSettings(rotationGesturesEnabled=false,zoomControlsEnabled=false,myLocationButtonEnabled=false,mapToolbarEnabled=false)) {
+            if(day!=null)key(day.toString(),overview) {
+                val entries=listOf(start)+stops+listOf(end)
+                val badges=itineraryBadges(points.map{it.latitude to it.longitude})
+                itineraryPinGroups(points.map{it.latitude to it.longitude}).forEach {(i,group)->
+                    val marker=remember {MarkerState(position=points[i])}
+                    val badge=group.joinToString("/"){badges[it]}
+                    val icon=remember {BitmapDescriptorFactory.fromBitmap(itineraryBadge(badge))}
+                    Marker(state=marker,title=group.joinToString(" → "){j->"${badges[j]} · ${entries[j].optString("name")}"},snippet=entries[i].optString("arrival"),icon=icon,zIndex=2f,anchor=Offset(.5f,.5f))
+                }
+                val actual=overview!=null || (routes.size==points.size-1 && routes.all{it.size>1})
+                val geometry=overview?.points?.map{LatLng(it.first,it.second)} ?: if(actual)routes.flatten() else points
+                Polyline(points=geometry,color=Color.White,width=18f)
+                Polyline(points=geometry,color=Green,width=10f,pattern=if(actual)null else listOf(com.google.android.gms.maps.model.Dash(20f),com.google.android.gms.maps.model.Gap(12f)))
+                geometry.zipWithNext().forEachIndexed {i,(a,b)->
+                    if(geometry.size>30 && i % (geometry.size/8).coerceAtLeast(1)!=0)return@forEachIndexed
+                    if(a==b)return@forEachIndexed
+                    val marker=remember {MarkerState(position=if(geometry.size>30)a else LatLng((a.latitude+b.latitude)/2,(a.longitude+b.longitude)/2))}
+                    val icon=remember {BitmapDescriptorFactory.fromBitmap(itineraryBadge(itineraryDirection(a.latitude to a.longitude,b.latitude to b.longitude),true))}
+                    Marker(state=marker,icon=icon,zIndex=1f,anchor=Offset(.5f,.5f))
                 }
             }
-            if(day!=null)key(day.toString()) {
-                val marker=remember {MarkerState(position=coordinate(start))}
-                Marker(state=marker,title="${start.optString("name")} · 起点",icon=BitmapDescriptorFactory.defaultMarker(155f))
-                val endMarker=remember {MarkerState(position=coordinate(end))}
-                if(coordinate(end)!=coordinate(start))Marker(state=endMarker,title="${end.optString("name")} · 返回点",icon=BitmapDescriptorFactory.defaultMarker(155f))
-            }
-            routes.filter{it.isNotEmpty()}.forEach{Polyline(points=it,color=Green,width=10f)}
-            if(day!=null && routes.all{it.isEmpty()}) Polyline(points=points,color=Color.Gray,width=4f)
         }
-        if(!fullBleed)Small(if(routes.any{it.isNotEmpty()}) "步行路线；来源见规划记录" else "灰色连线为示意，不是导航路线")
+        if(!fullBleed)Small(if(routes.any{it.isNotEmpty()}) "步行路线；来源见规划记录" else "连线与箭头为行程顺序示意，不是实际步行路线")
     } else {
         Column((if(fullBleed)modifier else modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp))).background(Mint).padding(16.dp)) {
             Text("SYDNEY · 路线示意图")

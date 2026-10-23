@@ -437,3 +437,14 @@ server-dotnet/
 [Google Maps iOS](https://developers.google.com/maps/documentation/ios-sdk/config) · [Places](https://developers.google.com/maps/documentation/places/web-service/text-search) · [Routes](https://developers.google.com/maps/documentation/routes/compute_route_directions) · [Weather](https://developers.google.com/maps/documentation/weather/overview) · [NVIDIA NIM](https://docs.api.nvidia.com/nim/reference/llm-apis) · [Meterless](https://github.com/Meterless/Meterless/tree/main/engines/hmem)
 
 交互借鉴 Duolingo 的小步学习、即时反馈与完成奖励，使用原创 Buddy 角色；本项目与 Duolingo 无关联。
+
+### 首頁行程地圖（本地開發分支）
+
+首頁的站點標記固定顯示「起、1、2…終」，綠色順序連線與箭頭串起全天行程；20 公尺內的景點共用 `3/4` 這類標記，點按可查看各站名稱與時間，避免圖釘互相遮住。環狀行程的起點與返回點共用「起/終」標記。底部站點列可水平捲動。
+
+- **展開地圖**：全螢幕查看整天順序，關閉後保留首頁視角。
+- **顯示步行路線**：按下後才呼叫既有 `/navigation/route`；成功後以沿道路的路線取代順序示意，顯示總距離、步行時間與各段時間（不含景點停留）。失敗時保留順序示意並可重試。
+- 切換底圖不會自動呼叫規劃服務。示例／assisted 行程可使用 OSM 步行預覽；Google live 行程保留原本的來源限制，不送入開源路線服務。OSM／Apple 的首頁不使用 Google 路線資料。
+- 預覽不取得裝置定位、不啟動語音或導航、不修改已儲存行程或導航進度。離線示意圖持續只顯示順序示意。
+
+主要檔案：`ios/SydneyBuddy/ItineraryOverview.swift`、`android/.../ItineraryOverview.kt` 管理預覽請求、polyline6 解析與編號標記；既有 `MapView.swift`／`MapProvider.kt`／`RouteMap.kt` 負責各底圖的圖層呈現。

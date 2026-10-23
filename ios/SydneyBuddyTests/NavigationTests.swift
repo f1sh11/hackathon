@@ -1,6 +1,7 @@
 import XCTest
 import Combine
 import CoreLocation
+import MapKit
 import FerrostarCore
 import FerrostarCoreFFI
 @testable import SydneyBuddy
@@ -8,6 +9,23 @@ import FerrostarCoreFFI
 @MainActor final class NavigationTests: XCTestCase {
     func day() -> DayPlan {
         DayPlan(date: "2026-10-23", stops: [], legs: [], estimatedCost: 0, estimatedSteps: 0, finishTime: "18:00", warnings: [], start: .quay, end: Coordinate(name: "Opera House", lat: -33.8568, lng: 151.2153))
+    }
+    func testOverviewIdentityIsStableAndPinsIncludeReturn() {
+        let plan=day();let identity=mapSceneKey(plan)
+        for _ in 0..<100 {XCTAssertEqual(mapSceneKey(plan),identity)}
+        var loop=plan;loop.end=loop.start
+        XCTAssertEqual(overviewPins(loop).map(\.badge),["起/终"])
+        XCTAssertEqual(overviewPins(plan).map(\.badge),["起","终"])
+    }
+    func testOverviewParsesPolyline6AndRejectsBrokenGeometry() throws {
+        let url=Bundle(for:Self.self).url(forResource:"walking-sydney",withExtension:"json")!
+        let route=try OverviewRoute.parse(Data(contentsOf:url))
+        XCTAssertGreaterThan(route.coordinates.count,10)
+        XCTAssertEqual(route.coordinates[0].latitude,-33.861,accuracy:0.003)
+        XCTAssertEqual(route.coordinates[0].longitude,151.213,accuracy:0.003)
+        XCTAssertGreaterThan(route.seconds,0)
+        XCTAssertThrowsError(try OverviewRoute.decode("~"))
+        XCTAssertThrowsError(try OverviewRoute.parse(Data("{\"code\":\"Error\"}".utf8)))
     }
     func testStopsCannotAdvanceUntilArrivalAndReturnLegCompletesOnce() {
         var p = WalkingProgress()

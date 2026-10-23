@@ -21,6 +21,7 @@ import okhttp3.Cache
 import okhttp3.OkHttpClient
 import org.json.JSONObject
 import org.maplibre.android.MapLibre
+import org.maplibre.android.annotations.IconFactory
 import org.maplibre.android.annotations.MarkerOptions
 import org.maplibre.android.annotations.PolylineOptions
 import org.maplibre.android.camera.CameraUpdateFactory
@@ -65,7 +66,7 @@ internal const val OSM_STYLE="""{
 }"""
 
 @Composable fun OsmRouteMap(day:JSONObject?,modifier:Modifier,fullBleed:Boolean,
-    viewport:MapViewport?,onViewport:(MapViewport)->Unit) {
+    viewport:MapViewport?,onViewport:(MapViewport)->Unit,overview:OverviewRoute?=null,expanded:Boolean=false) {
     val context=LocalContext.current
     val lifecycle=LocalLifecycleOwner.current.lifecycle
     val currentViewport by rememberUpdatedState(viewport)
@@ -86,6 +87,7 @@ internal const val OSM_STYLE="""{
                 ready.uiSettings.isLogoEnabled=false
                 ready.uiSettings.isAttributionEnabled=false // Always-visible attribution is supplied below.
                 ready.uiSettings.isCompassEnabled=true
+                ready.uiSettings.isRotateGesturesEnabled=false
                 ready.setPrefetchZoomDelta(0)
                 ready.addOnCameraIdleListener {
                     if(sceneKey==null || applyingCamera) return@addOnCameraIdleListener
@@ -111,12 +113,12 @@ internal const val OSM_STYLE="""{
         view.onStart(); view.onResume(); lifecycle.addObserver(observer)
         onDispose { lifecycle.removeObserver(observer); view.onPause();view.onStop();view.onDestroy() }
     }
-    LaunchedEffect(map,day.toString()) {
+    LaunchedEffect(map,day.toString(),overview) {
         val ready=map ?: return@LaunchedEffect
-        val key=day.toString()
+        val key=day.toString()+"|"+(overview?.points?.size ?: 0)
         if(sceneKey==key) return@LaunchedEffect
         applyingCamera=true
-        rendered=false
+        if(sceneKey?.substringBeforeLast("|")!=day.toString()) rendered=false
         sceneKey=key
         ready.clear()
         val start=day?.optJSONObject("start") ?: Endpoint.quay.json()
@@ -125,17 +127,32 @@ internal const val OSM_STYLE="""{
         val entries=listOf(start)+stops+listOf(end)
         val points=entries.map {LatLng(it.getDouble("lat"),it.getDouble("lng"))}
         if(day!=null) {
-            entries.forEachIndexed {index,item ->
-                ready.addMarker(MarkerOptions().position(points[index]).title(item.optString("name")))
+            val coordinates=points.map{it.latitude to it.longitude}
+            val badges=itineraryBadges(coordinates)
+            val icons=IconFactory.getInstance(context)
+            val geometry=overview?.points?.map{LatLng(it.first,it.second)} ?: points
+            ready.addPolyline(PolylineOptions().addAll(geometry).color(android.graphics.Color.WHITE).width(9f))
+            ready.addPolyline(PolylineOptions().addAll(geometry).color(android.graphics.Color.rgb(13,130,94)).width(5f))
+            val arrowPoints=overview?.points ?: coordinates
+            arrowPoints.zipWithNext().forEachIndexed {i,(a,b)->
+                if(arrowPoints.size>30 && i % (arrowPoints.size/8).coerceAtLeast(1)!=0)return@forEachIndexed
+                if(kotlin.math.abs(a.first-b.first)+kotlin.math.abs(a.second-b.second)<0.00001)return@forEachIndexed
+                val position=if(arrowPoints.size>30)a else (a.first+b.first)/2 to (a.second+b.second)/2
+                ready.addMarker(MarkerOptions().position(LatLng(position.first,position.second)).title("行程方向")
+                    .icon(icons.fromBitmap(itineraryBadge(itineraryDirection(a,b),true))))
             }
-            ready.addPolyline(PolylineOptions().addAll(points).color(android.graphics.Color.GRAY).width(2f))
+            itineraryPinGroups(coordinates).forEach {(index,group)->
+                val badge=group.joinToString("/"){badges[it]}
+                val title=group.joinToString(" → "){i->"${badges[i]} · ${entries[i].optString("name")}"}
+                ready.addMarker(MarkerOptions().position(points[index]).title(title).icon(icons.fromBitmap(itineraryBadge(badge))))
+            }
         }
-        val saved=currentViewport?.takeIf {it.sceneKey==key}
+        val saved=currentViewport?.takeIf {it.sceneKey==day.toString() && overview==null}
         view.post {
             ready.moveCamera(if(saved!=null) CameraUpdateFactory.newLatLngZoom(LatLng(saved.lat,saved.lng),saved.zoom)
-                else CameraUpdateFactory.newLatLngBounds(LatLngBounds.Builder().includes(points).build(),70,if(fullBleed)180 else 30,70,if(fullBleed)300 else 30))
+                else CameraUpdateFactory.newLatLngBounds(LatLngBounds.Builder().includes(points+(overview?.points?.map{LatLng(it.first,it.second)} ?: emptyList())).build(),70,if(expanded)100 else if(fullBleed)280 else 30,70,if(expanded)180 else if(fullBleed)400 else 30))
             applyingCamera=false
-            ready.cameraPosition.target?.let {target -> currentOnViewport(MapViewport(key,target.latitude,target.longitude,ready.cameraPosition.zoom))}
+            ready.cameraPosition.target?.let {target -> currentOnViewport(MapViewport(day.toString(),target.latitude,target.longitude,ready.cameraPosition.zoom))}
         }
     }
     Box(if(fullBleed) modifier else modifier.fillMaxWidth().height(310.dp)) {
@@ -144,7 +161,7 @@ internal const val OSM_STYLE="""{
         Column(Modifier.align(Alignment.CenterEnd).background(Color.White.copy(alpha=.94f)).padding(6.dp)) {
             Text("© OpenStreetMap contributors",fontSize=10.sp,color=Ink,
                 modifier=Modifier.clickable {uri.openUri("https://www.openstreetmap.org/copyright")})
-            Text(if(rendered) "地图已加载 · 连线非导航" else if(error) "地图暂未加载，可选离线示意图" else "地图加载中… · 连线非导航",fontSize=10.sp,color=Muted)
+            Text(if(rendered) if(overview==null) "地图已加载 · 顺序示意，非步行路径" else "地图已加载 · 沿道路步行路线" else if(error) "地图暂未加载，可选离线示意图" else "地图加载中… · 连线非导航",fontSize=10.sp,color=Muted)
         }
     }
 }
