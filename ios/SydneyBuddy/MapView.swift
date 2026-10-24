@@ -384,7 +384,7 @@ struct HomeView: View {
                     else{Spacer()}
                 }
                 Spacer(minLength:20)
-                HStack{Spacer();if store.trip != nil{Button{expandedMap=true}label:{Image(systemName:"arrow.up.left.and.arrow.down.right").frame(width:42,height:42).background(.white,in:Circle())}.accessibilityLabel("展开地图")};Button{chat=true}label:{Label("问 AI",systemImage:"sparkles").font(.caption.bold()).padding(12).background(.white,in:Capsule())}.accessibilityLabel("问 AI")}
+                HStack{Spacer();if store.trip != nil{Button{expandedMap=true}label:{Image(systemName:"arrow.up.left.and.arrow.down.right").frame(width:42,height:42).background(.white,in:Circle())}.accessibilityLabel("展开地图")};Button{chat=true}label:{Text("🐨 聊一聊").font(.caption.bold()).padding(12).background(.white,in:Capsule())}.accessibilityLabel("问 AI")}
                 VStack(alignment:.leading,spacing:10){
                     HStack(alignment:.top){
                         VStack(alignment:.leading,spacing:5){Text(store.trip?.title ?? "開始你的悉尼旅行").font(.headline).foregroundStyle(Palette.ink);if let day=store.currentDay{Text(store.language.text("{0} 站 · {1} 步 · A${2} · {3} 返回",String(day.stops.count),day.estimatedSteps.formatted(),String(Int(day.estimatedCost)),day.finishTime)).font(.caption).foregroundStyle(Palette.muted)}}

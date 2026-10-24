@@ -34,3 +34,6 @@ infra/transit/data/
 infra/poi/data/
 
 .venv-open-poi/
+
+# Private pet conversations and journey drafts
+server/.pet-sessions/

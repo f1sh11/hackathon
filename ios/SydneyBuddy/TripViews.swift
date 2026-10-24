@@ -50,25 +50,7 @@ struct DaySummary:View {
     }
 }
 struct AgentView:View {
-    @EnvironmentObject var store:AppStore
-    @Environment(\.dismiss) var dismiss
-    @State var message=""
-    var body:some View {
-        NavigationStack {
-            VStack(alignment:.leading,spacing:20) {
-                HStack {Robot(size:70);VStack(alignment:.leading,spacing:5){Text("一起调整行程").font(.title2.bold());Text(store.live ? "由 NVIDIA Nemotron 提供候选建议" : "演示模式 · 本地规则，无 AI 调用").font(.caption).foregroundStyle(Palette.muted)}}
-                Text(store.agentText).font(.subheadline).lineSpacing(6).padding(20).frame(maxWidth:.infinity,alignment:.leading).background(.white,in:RoundedRectangle(cornerRadius:24))
-                HStack { chip("少走一点","figure.walk",rain:false);chip("下雨了","cloud.rain",rain:true) }
-                Text("每次调整会先生成草案，你确认后才替换原行程。").font(.caption).foregroundStyle(Palette.muted)
-                Spacer()
-                TextField("例如：想多看艺术展，少走一点路",text:$message,axis:.vertical).lineLimit(2...4).padding(18).background(.white,in:RoundedRectangle(cornerRadius:20))
-                PrimaryButton(title:"帮我调整",symbol:"sparkles"){let text=message;dismiss();Task{await store.generate(text)}}.disabled(message.trimmingCharacters(in:.whitespaces).isEmpty || store.trip==nil)
-            }.padding(24).background(Palette.cream).navigationTitle("Buddy").navigationBarTitleDisplayMode(.inline).toolbar{ToolbarItem(placement:.topBarTrailing){Button("完成"){dismiss()}}}
-        }
-    }
-    func chip(_ text:String,_ symbol:String,rain:Bool)->some View {
-        Button{dismiss();Task{await store.generate(text,rain:rain)}} label:{Label(text,systemImage:symbol).font(.subheadline.bold()).padding(14).frame(maxWidth:.infinity).foregroundStyle(Palette.green).background(Palette.mint,in:RoundedRectangle(cornerRadius:16))}.disabled(store.trip==nil)
-    }
+    var body:some View { PetChatView() }
 }
 struct TripDetailView:View {
     @EnvironmentObject var store:AppStore
@@ -78,26 +60,38 @@ struct TripsView:View {
     @EnvironmentObject var store:AppStore
     @State var detail=false
     @State private var navigationTrip:Trip?
+    @State private var routeTrip:Trip?
     var body:some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment:.leading,spacing:22){
                     HStack {VStack(alignment:.leading,spacing:5){Text("下一站，去发现").font(.subheadline).foregroundStyle(Palette.muted);Text("每次冒险都值得收藏").font(.caption).foregroundStyle(Palette.muted)};Spacer();Button{store.newTrip()}label:{Label("新建",systemImage:"plus").font(.subheadline.bold()).padding(13).foregroundStyle(.white).background(Palette.green,in:Capsule())}}
+                    if !store.pendingTripFields.isEmpty {
+                        VStack(alignment:.leading,spacing:16) {
+                            Label("旅行偏好已准备好",systemImage:"backpack.fill").font(.headline).foregroundStyle(Palette.green)
+                            Text("\(store.pendingTripFields["destination"] ?? "悉尼") · \(store.pendingTripFields["days"] ?? "1") 天 · \(store.pendingTripFields["companions"] ?? "")").font(.title3.bold())
+                            Text("\(store.pendingTripFields["date"] ?? "") · \(store.pendingTripFields["interests"] ?? "")").font(.subheadline).foregroundStyle(Palette.muted)
+                            Text("\(store.pendingTripFields["pace"] ?? "") · 每日 A$\(store.pendingTripFields["budget"] ?? "100")").font(.caption).foregroundStyle(Palette.muted)
+                            PrimaryButton(title:"生成这次旅行路线",symbol:"point.topleft.down.curvedto.point.bottomright.up") {Task{await store.generatePendingTrip()}}.disabled(store.busy)
+                            Text(store.live ? "生成后保存在我的行程，可查看路线与导航。" : "当前生成示例路线，完成后保存在我的行程。").font(.caption).foregroundStyle(Palette.muted)
+                        }.padding(22).background(Palette.mint.opacity(0.6),in:RoundedRectangle(cornerRadius:26))
+                    }
                     Button("試用 3 天時間軸"){Task{await store.tryScheduleDemo()}}.buttonStyle(.borderedProminent).tint(Palette.green)
-                    if store.saved.isEmpty {ContentUnavailableView("还没有行程",systemImage:"suitcase",description:Text("创建你的第一份悉尼旅行计划"))}
+                    if store.saved.isEmpty && store.pendingTripFields.isEmpty {ContentUnavailableView("还没有行程",systemImage:"suitcase",description:Text("创建你的第一份悉尼旅行计划"))}
                     ForEach(store.saved,id:\.id){t in
                         VStack(alignment:.leading,spacing:16){
                             Button{store.trip=t;store.proposal=t} label:{VStack(alignment:.leading,spacing:16){
                             ZStack(alignment:.bottomLeading){LinearGradient(colors:[Palette.mint,Color(red:0.68,green:0.85,blue:0.90)],startPoint:.bottomLeading,endPoint:.topTrailing);Image(systemName:"sailboat.fill").font(.system(size:80)).foregroundStyle(.white).frame(maxWidth:.infinity,alignment:.trailing).padding(22);Text("SYDNEY").font(.system(size:25,weight:.black,design:.rounded)).tracking(4).foregroundStyle(Palette.green).padding(22)}.frame(height:145).clipShape(RoundedRectangle(cornerRadius:20))
                             HStack {VStack(alignment:.leading,spacing:7){Text(t.title).font(.headline);Text("\(t.profile.date) · \(t.days.count) 天 · \(t.days.flatMap(\.stops).count) 个地点").font(.caption).foregroundStyle(Palette.muted)};Spacer();Image(systemName:"arrow.up.right").foregroundStyle(Palette.green)}
                             }}.buttonStyle(.plain).accessibilityLabel("編輯行程："+t.title).accessibilityIdentifier("edit-trip-"+(t.id ?? "draft"))
-                            HStack {Button{navigationTrip=t}label:{Label("開始導航",systemImage:"location.fill")}.font(.subheadline.bold()).tint(Palette.green).accessibilityIdentifier("navigate-trip-"+(t.id ?? "draft"));Button("查看地图"){store.trip=t;store.dayIndex=0;store.tab=0}.font(.subheadline.bold()).tint(Palette.green);Spacer();Text(LocalizedStringKey(t.mode=="live" ? "在线数据规划" : (t.mode=="assisted" ? "Nemotron · 示例地点" : "演示行程"))).font(.caption2).foregroundStyle(Palette.muted);Menu{Button("删除行程",role:.destructive){Task{await store.deleteTrip(t)}}}label:{Image(systemName:"ellipsis").padding(8)}}
+                            HStack {Button{navigationTrip=t}label:{Label("開始導航",systemImage:"location.fill")}.font(.subheadline.bold()).tint(Palette.green).accessibilityIdentifier("navigate-trip-"+(t.id ?? "draft"));Button("查看路线地图"){store.trip=t;store.dayIndex=0;routeTrip=t}.font(.subheadline.bold()).tint(Palette.green);Spacer();Text(LocalizedStringKey(t.mode=="live" ? "在线数据规划" : (t.mode=="assisted" ? "Nemotron · 示例地点" : "演示行程"))).font(.caption2).foregroundStyle(Palette.muted);Menu{Button("删除行程",role:.destructive){Task{await store.deleteTrip(t)}}}label:{Image(systemName:"ellipsis").padding(8)}}
                         }.padding(18).background(.white,in:RoundedRectangle(cornerRadius:26))
                     }
                     HStack{Robot(size:70);Text("不必赶路，\n按自己的节奏出发。").font(.headline).foregroundStyle(Palette.ink)}.padding(.vertical,10)
                 }.padding(24)
             }.background(Palette.cream).navigationTitle(store.language.text("我的行程")).refreshable{await store.reload()}
         }.fullScreenCover(item:$navigationTrip){trip in SavedTripNavigationView(trip:trip)}
+        .fullScreenCover(item:$routeTrip){_ in NavigationStack{HomeView().toolbar{ToolbarItem(placement:.topBarLeading){Button("返回我的行程"){routeTrip=nil}}}}}
     }
 }
 
