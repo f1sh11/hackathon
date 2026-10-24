@@ -119,9 +119,7 @@ import CryptoKit
     @FocusState private var searching:Bool
     private var visiblePlaces:[ScheduleCandidate] {model.provider==store.mapProvider ? model.places:[]}
     private var orderedPlaces:[ScheduleCandidate] {visiblePlaces.sorted{a,b in a.id==model.selected && b.id != model.selected}}
-    var body:some View {
-        NavigationStack {
-var body: some View {
+    var body: some View {
     NavigationStack {
         GeometryReader { geo in
             ZStack(alignment: .top) {
@@ -232,7 +230,6 @@ var body: some View {
         }
     }
     .onDisappear { model.stop() }
-}
     }
     private func panelHeight(_ height:CGFloat)->CGFloat {max(180,height*(expanded ? 0.65:0.36))}
     @ViewBuilder private var map:some View {
@@ -258,16 +255,30 @@ var body: some View {
     private func placeRow(_ p:ScheduleCandidate)->some View {
         HStack(alignment:.top,spacing:12){
             Image(systemName:p.category=="美食" ? "fork.knife":p.category=="設施" ? "figure.stand":"mappin.and.ellipse").font(.title3).foregroundStyle(Palette.green).frame(width:38,height:44).background(Palette.mint,in:RoundedRectangle(cornerRadius:12))
-            Button{model.selected=p.id;detail=p}label:{VStack(alignment:.leading,spacing:5){Text(p.name).font(.subheadline.bold()).multilineTextAlignment(.leading);Text(p.description ?? "点击查看地点详情").font(.caption).foregroundStyle(Palette.muted).lineLimit(2)}.frame(maxWidth:.infinity,alignment:.leading)}.buttonStyle(.plain).accessibilityLabel("查看地点："+p.name)
-            if p.source != "Google Places"{Button{onAdd(p);added.insert(p.id)}label:{Image(systemName:isAdded(p) ? "checkmark":"plus").font(.headline).frame(width:44,height:44).background(.white,in:Circle())}.disabled(isAdded(p)).accessibilityLabel(isAdded(p) ? "已加入工具箱":"加入工具箱："+p.name)}
+            Button{model.selected=p.id;detail=p}label:{VStack(alignment:.leading,spacing:5){Text(p.name).font(.subheadline.bold()).multilineTextAlignment(.leading);Text(p.description ?? "点击查看地点详情").font(.caption).foregroundStyle(Palette.muted).lineLimit(2)}.frame(maxWidth:.infinity,alignment:.leading)}.buttonStyle(.plain).accessibilityLabel("查看地点："+p.name).accessibilityIdentifier("poi-detail-"+p.id)
+            if p.source == "Google Places" {
+                Text("Google 地點暫不匯入本機示例時間軸").font(.caption2).foregroundStyle(Palette.muted)
+            } else {
+                Button {
+                    if isAdded(p) { toolbox.remove(p.id) }
+                    else { toolbox.add(p); onAdd(p) }
+                } label: {
+                    Image(systemName:isAdded(p) ? "checkmark":"plus").font(.headline).frame(width:44,height:44).background(.white,in:Circle())
+                }
+                .accessibilityLabel(store.language.text(isAdded(p) ? "移出工具箱":"＋工具箱") + "：" + p.name)
+                .accessibilityIdentifier("poi-toggle-"+p.id)
+            }
         }.padding(.horizontal,16).padding(.vertical,12).background(model.selected==p.id ? Palette.mint.opacity(0.5):.clear)
     }
     @ViewBuilder private var attribution:some View {
         if store.mapProvider == .osm {
-            HStack{Link("© OpenStreetMap contributors",destination:URL(string:"https://www.openstreetmap.org/copyright")!);Spacer();Link(model.attribution,destination:URL(string:model.attribution.contains("OpenStreetMap") ? "https://www.openstreetmap.org/copyright":"https://docs.overturemaps.org/attribution/")!).lineLimit(1)}.font(.caption2).foregroundStyle(Palette.muted)
+            VStack(spacing:3) {
+                HStack{Link("地圖 © OpenStreetMap contributors · ODbL",destination:URL(string:"https://www.openstreetmap.org/copyright")!);Spacer();Link(model.attribution,destination:URL(string:model.attribution.contains("OpenStreetMap") ? "https://www.openstreetmap.org/copyright":"https://docs.overturemaps.org/attribution/")!).lineLimit(1)}
+                if let version=model.dataVersion { Text(store.language.text("本機地點資料快照：{0}",version)) }
+            }.font(.caption2).foregroundStyle(Palette.muted)
         } else{Text(model.attribution).font(.caption2).foregroundStyle(Palette.muted)}
     }
-    private func isAdded(_ p:ScheduleCandidate)->Bool {added.contains(p.id)||PoiToolbox.shared.places.contains{$0.id==p.id}}
+    private func isAdded(_ p:ScheduleCandidate)->Bool {toolbox.places.contains{$0.id==p.id}}
     private func search(){searching=false;areaChanged=false;model.search()}
     private func togglePanel(){withAnimation(reduceMotion ? nil:.easeInOut(duration:0.2)){expanded.toggle()}}
 }
