@@ -241,12 +241,10 @@ struct PetChatView:View {
     private var conversationContent:some View {
         GeometryReader { viewport in
             let tightComposer=writing && viewport.size.height<500
-            let characterSize=tightComposer ? max(70,min(96,viewport.size.height*0.24)):KokoCompanionSizing.characterSize(viewport:viewport.size)
+            let characterSize=tightComposer ? max(90,min(140,viewport.size.height*0.34)):KokoCompanionSizing.characterSize(viewport:viewport.size)
             VStack(spacing:tightComposer ? 4:8) {
                 if !tightComposer {
                 companionHeader
-                Text(personalSetup ? "咱们先认识一下":onboarding || draftScope ? "咱们的下一趟旅行":"和 Koko 准备旅行")
-                    .font(.system(.title2,design:.rounded,weight:.bold)).frame(maxWidth:.infinity,alignment:.leading).padding(.horizontal,24)
                 }
                 ScrollView {VStack(spacing:10){
                     KokoCurrentSpeech(text:currentUtterance,busy:chat.busy,compact:viewport.size.height<700)
@@ -254,11 +252,11 @@ struct PetChatView:View {
                     if let warning=chat.session?.memoryWarning,!warning.isEmpty{Text(warning).font(.caption).foregroundStyle(Palette.muted)}
                     if pendingCardCount>0{Button{companionDetails=true}label:{Label("有 \(pendingCardCount) 条线索，可以稍后确认",systemImage:"person.crop.circle.badge.checkmark").font(.caption)}}
                 }.padding(.horizontal,24).padding(.top,7)}
-                .frame(height:tightComposer ? min(72,viewport.size.height*0.20):min(140,viewport.size.height*(viewport.size.height<700 ? 0.14:0.18))).scrollDismissesKeyboard(.interactively)
+                .frame(height:tightComposer ? min(72,viewport.size.height*0.20):min(110,viewport.size.height*(viewport.size.height<700 ? 0.12:0.16))).scrollDismissesKeyboard(.interactively)
                 KokoCompanionStage(cue:chat.koalaCue,size:characterSize,mood:chat.busy ? .thinking:.listening)
                     .frame(maxHeight:.infinity).accessibilityIdentifier("koko-face-to-face")
             }
-            .safeAreaInset(edge:.bottom,spacing:0){companionControls(compact:viewport.size.height<700)}
+            .safeAreaInset(edge:.bottom,spacing:0){companionControls(compact:viewport.size.height<800)}
         }
         .background(Palette.cream).foregroundStyle(Palette.ink)
         .toolbar(.hidden,for:.navigationBar)

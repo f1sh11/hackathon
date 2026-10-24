@@ -1,8 +1,11 @@
 import SwiftUI
 
 enum KokoCompanionSizing {
+    // The approved Idle body spans y=50...233 inside its transparent 256px canvas.
+    static let visibleHeightRatio:CGFloat = 183.0/256.0
     static func characterSize(viewport:CGSize)->CGFloat {
-        max(110,min(viewport.width*0.60,viewport.height*(viewport.height<700 ? 0.22:0.25)))
+        let bodyHeight=viewport.height*(viewport.height<700 ? 0.22:0.28)
+        return max(110,min(viewport.width*0.80,bodyHeight/visibleHeightRatio))
     }
 }
 
@@ -17,9 +20,11 @@ struct KokoCompanionStage:View {
                     .frame(width:space.size.width,height:space.size.height).clipped()
                     .mask(LinearGradient(stops:[.init(color:.clear,location:0),.init(color:.white,location:0.16),.init(color:.white,location:0.86),.init(color:.clear,location:1)],startPoint:.top,endPoint:.bottom))
                     .accessibilityHidden(true)
-                PetAvatar(mood:mood,cue:cue,size:size).padding(.bottom,8)
+                // Anchor the character's feet, rather than the transparent canvas edge.
+                PetAvatar(mood:mood,cue:cue,size:size)
+                    .offset(y:size*(23.0/256.0+4.0/108.0)).padding(.bottom,8)
             }.frame(width:space.size.width,height:space.size.height)
-        }.frame(minHeight:size*1.10)
+        }.frame(minHeight:size*233.0/256.0+16)
     }
 }
 
