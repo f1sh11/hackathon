@@ -1,0 +1,19 @@
+<!doctype html><html lang="zh"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sydney Buddy — Koala Actions</title><style>
+body{font:15px system-ui,Arial;background:#f6f8fa;color:#26323c;margin:0;padding:24px}
+header{max-width:1080px;margin:0 auto 25px} h1{margin:0} .grid{max-width:1080px;margin:auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+article{background:white;border:1px solid #e2e6eb;border-radius:16px;padding:12px;text-align:center}
+article img{height:190px;width:190px;object-fit:contain;background:#f5f6f8;border-radius:12px}
+article h3{font-size:16px;margin:10px 0 4px}p{color:#6d7886;font-size:12px;line-height:1.5}
+button{border:1px solid #bbc4cf;background:white;border-radius:8px;padding:7px 16px;cursor:pointer}
+</style><header><h1>Koala Animation Review</h1><p>Ten original actions · 12 FPS PNG frames for native mobile playback · animated WebP here is a preview.<br>Some actions HOLD their final pose; use the state-machine recovery design rather than looping every animation.</p></header>
+<div class="grid"><article><img src="animations/wave/preview.webp" alt="欢迎挥手" loading="lazy"><h3>欢迎挥手 / wave</h3><p>12 frames · 1000ms · ends: idle</p><button onclick="this.parentNode.querySelector('img').src='animations/wave/preview.webp?run='+Date.now()">Replay</button></article>
+<article><img src="animations/clap/preview.webp" alt="开心鼓掌" loading="lazy"><h3>开心鼓掌 / clap</h3><p>12 frames · 1000ms · ends: idle</p><button onclick="this.parentNode.querySelector('img').src='animations/clap/preview.webp?run='+Date.now()">Replay</button></article>
+<article><img src="animations/weather/preview.webp" alt="撑伞挡风" loading="lazy"><h3>撑伞挡风 / weather</h3><p>30 frames · 2500ms · ends: hold</p><button onclick="this.parentNode.querySelector('img').src='animations/weather/preview.webp?run='+Date.now()">Replay</button></article>
+<article><img src="animations/budget/preview.webp" alt="预算不足" loading="lazy"><h3>预算不足 / budget</h3><p>36 frames · 3000ms · ends: hold</p><button onclick="this.parentNode.querySelector('img').src='animations/budget/preview.webp?run='+Date.now()">Replay</button></article>
+<article><img src="animations/tired/preview.webp" alt="走累躺平" loading="lazy"><h3>走累躺平 / tired</h3><p>36 frames · 3000ms · ends: hold</p><button onclick="this.parentNode.querySelector('img').src='animations/tired/preview.webp?run='+Date.now()">Replay</button></article>
+<article><img src="animations/map/preview.webp" alt="展开地图研究" loading="lazy"><h3>展开地图研究 / map</h3><p>36 frames · 3000ms · ends: hold</p><button onclick="this.parentNode.querySelector('img').src='animations/map/preview.webp?run='+Date.now()">Replay</button></article>
+<article><img src="animations/celebrate/preview.webp" alt="跳起庆祝" loading="lazy"><h3>跳起庆祝 / celebrate</h3><p>24 frames · 2000ms · ends: idle</p><button onclick="this.parentNode.querySelector('img').src='animations/celebrate/preview.webp?run='+Date.now()">Replay</button></article>
+<article><img src="animations/departure/preview.webp" alt="拖箱出发" loading="lazy"><h3>拖箱出发 / departure</h3><p>36 frames · 3000ms · ends: hold</p><button onclick="this.parentNode.querySelector('img').src='animations/departure/preview.webp?run='+Date.now()">Replay</button></article>
+<article><img src="animations/thumbs-up/preview.webp" alt="点赞" loading="lazy"><h3>点赞 / thumbs-up</h3><p>18 frames · 1500ms · ends: idle</p><button onclick="this.parentNode.querySelector('img').src='animations/thumbs-up/preview.webp?run='+Date.now()">Replay</button></article>
+<article><img src="animations/idle/preview.webp" alt="安静待机" loading="lazy"><h3>安静待机 / idle</h3><p>36 frames · 3000ms · ends: loop</p><button onclick="this.parentNode.querySelector('img').src='animations/idle/preview.webp?run='+Date.now()">Replay</button></article></div></html>

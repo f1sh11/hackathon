@@ -65,7 +65,13 @@ import org.json.JSONObject
         GoogleMap(modifier=if(fullBleed)modifier else modifier.fillMaxWidth().height(310.dp).clip(RoundedCornerShape(22.dp)),cameraPositionState=camera,
             contentPadding=if(fullBleed)PaddingValues(top=if(expanded)100.dp else 280.dp,bottom=if(expanded)180.dp else 400.dp,start=12.dp,end=12.dp) else PaddingValues(0.dp),
             onMapLoaded={loaded=true},uiSettings=MapUiSettings(rotationGesturesEnabled=false,zoomControlsEnabled=false,myLocationButtonEnabled=false,mapToolbarEnabled=false)) {
-            insightMarkers.forEach{item->key(item.optString("id")){Marker(state=MarkerState(position=LatLng(item.getDouble("lat"),item.getDouble("lng"))),title=(if(item.optString("kind")=="price")"💰 "else "⚠️ ")+item.optString("title"),snippet=item.optString("summary"),icon=BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE))}}
+            insightMarkers.forEach { item ->
+                val position=LatLng(item.getDouble("lat"),item.getDouble("lng"))
+                key(item.optString("id"),position) {
+                    val marker=remember { MarkerState(position=position) }
+                    Marker(state=marker,title=(if(item.optString("kind")=="price")"💰 "else "⚠️ ")+item.optString("title"),snippet=item.optString("summary"),icon=BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE))
+                }
+            }
             if(day!=null)key(day.toString(),overview) {
                 val entries=listOf(start)+stops+listOf(end)
                 val badges=itineraryBadges(points.map{it.latitude to it.longitude})

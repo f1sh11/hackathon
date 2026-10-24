@@ -54,6 +54,12 @@ internal sealed class FakeMemory : IMemoryService
                     _records[id] = arguments.Str("content");
                     result = new JsonObject { ["id"] = id };
                     break;
+                case "stage":
+                    result = new JsonObject { ["candidates"] = new JsonArray() };
+                    break;
+                case "discard_session":
+                    result = new JsonObject { ["deleted"] = true };
+                    break;
                 case "delete":
                     _records.Remove(arguments.Str("id"));
                     result = new JsonObject { ["deleted"] = true };

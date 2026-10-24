@@ -20,7 +20,7 @@ public sealed class MemoryService(ProjectPaths paths) : IMemoryService
 
     public async Task<JsonObject> RunAsync(string action, JsonObject arguments, CancellationToken ct = default)
     {
-        if (action is not ("add" or "query" or "delete" or "list")) throw new ServiceException(Failure);
+        if (action is not ("add" or "query" or "delete" or "list" or "stage" or "discard_session")) throw new ServiceException(Failure);
         await Gate.WaitAsync(ct);
         try
         {

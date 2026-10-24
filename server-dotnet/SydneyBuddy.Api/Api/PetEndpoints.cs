@@ -6,30 +6,37 @@ public static class PetEndpoints
 {
     public static void MapPetEndpoints(this RouteGroupBuilder routes)
     {
-        routes.MapPost("/pet/sessions",async (HttpContext ctx,PetSessionStore store)=>
+        routes.MapPost("/pet/sessions",async (HttpContext ctx,PetSessionStore store,MemoryRepository records)=>
         {
             var input=await RequestJson.ReadAsync(ctx);var s=new PetSession();
+            TravelProfiling.Refresh(s,await records.ListAsync(ctx.RequestAborted));
             if(input.Object("personalProfile") is JsonObject personal)s.PersonalProfile=(JsonObject)personal.DeepClone();
             PetQuestions.Apply(s,input.Object("fields")??new());
-            s.Messages.Add(new(Guid.NewGuid().ToString("N"),"assistant","嗨，我是 Buddy 🐨！这次想去哪儿，过一段什么样的小假期？随便说说就好，我帮你慢慢整理。"));
+            KokoDialogue.Enable(s,input);
+            if(s.Dialogue is null)s.Messages.Add(new(Guid.NewGuid().ToString("N"),"assistant","嗨，我叫 Koko，是你的旅行向导。这次想过一段什么样的假期？随便说说就好。"));
             await store.Gate.WaitAsync(ctx.RequestAborted);try{store.Save(s);}finally{store.Gate.Release();}
             return Results.Json(PetQuestions.View(s));
         });
-        routes.MapGet("/pet/sessions/{id}",async(string id,PetSessionStore store,CancellationToken ct)=>
-        {await store.Gate.WaitAsync(ct);try{return Results.Json(PetQuestions.View(store.Load(id)));}finally{store.Gate.Release();}});
-        routes.MapDelete("/pet/sessions/{id}",async(string id,PetSessionStore store,CancellationToken ct)=>
-        {await store.Gate.WaitAsync(ct);try{store.Delete(id);return Results.Json(new{deleted=true});}finally{store.Gate.Release();}});
+        routes.MapGet("/pet/sessions/{id}",async(string id,PetSessionStore store,MemoryRepository records,CancellationToken ct)=>
+        {await store.Gate.WaitAsync(ct);try{var s=store.Load(id);TravelProfiling.Refresh(s,await records.ListAsync(ct));store.Save(s);return Results.Json(PetQuestions.View(s));}finally{store.Gate.Release();}});
+        routes.MapDelete("/pet/sessions/{id}",async(string id,PetSessionStore store,IMemoryService memory,CancellationToken ct)=>
+        {await store.Gate.WaitAsync(ct);try{await memory.RunAsync("discard_session",new JsonObject{["sessionId"]=id},ct);store.Delete(id);return Results.Json(new{deleted=true});}finally{store.Gate.Release();}});
         routes.MapPatch("/pet/sessions/{id}",async(string id,HttpContext ctx,PetSessionStore store)=>
         {
             var input=await RequestJson.ReadAsync(ctx);await store.Gate.WaitAsync(ctx.RequestAborted);
-            try{var s=store.Load(id);PetQuestions.Apply(s,input.Object("fields")??new());store.Save(s);return Results.Json(PetQuestions.View(s));}finally{store.Gate.Release();}
+            try{var s=store.Load(id);PetQuestions.Apply(s,input.Object("fields")??new());KokoDialogue.Enable(s,input);store.Save(s);return Results.Json(PetQuestions.View(s));}finally{store.Gate.Release();}
         });
-        routes.MapPost("/pet/sessions/{id}/memory",async(string id,HttpContext ctx,PetSessionStore store,PreferenceService preferences)=>
+        routes.MapPost("/pet/sessions/{id}/memory",async(string id,HttpContext ctx,PetSessionStore store,PreferenceService preferences,MemoryRepository records,IMemoryService memory)=>
         {
             var input=await RequestJson.ReadAsync(ctx);await store.Gate.WaitAsync(ctx.RequestAborted);
             try
             {
-                var s=store.Load(id);var suggestion=s.PendingMemory;
+                var s=store.Load(id);
+                if(input.Str("candidateId").Length>0) {
+                    await DecidePreference(s,input,preferences,records,ctx.RequestAborted);
+                    await SyncPending(s,memory,ctx.RequestAborted);store.Save(s);return Results.Json(PetQuestions.View(s));
+                }
+                var suggestion=s.PendingMemory;
                 if(suggestion.Length==0) return Results.Json(PetQuestions.View(s));
                 if(input.Bool("consent"))
                 {
@@ -45,8 +52,18 @@ public static class PetEndpoints
             }finally{store.Gate.Release();}
         });
         routes.MapPost("/pet/sessions/{id}/turn",Turn);
+        routes.MapPost("/pet/sessions/{id}/profile/complete",async(string id,HttpContext ctx,PetSessionStore store,MemoryRepository records)=>
+        {
+            await store.Gate.WaitAsync(ctx.RequestAborted);
+            try {
+                var session=store.Load(id);TravelProfiling.Refresh(session,await records.ListAsync(ctx.RequestAborted));
+                if(session.ConfirmedDna.Count==0)throw new ServiceException("先确认至少一项旅行偏好，再完成 Travel DNA。");
+                if(session.Preferences.Any(x=>x.Status=="awaiting_confirmation"))throw new ServiceException("还有待确认的信息，可以记住、仅限这次或忽略后再完成。");
+                session.DnaCompleted=true;store.Save(session);return Results.Json(PetQuestions.View(session));
+            }finally{store.Gate.Release();}
+        });
     }
-    private static async Task Turn(string id,HttpContext ctx,PetSessionStore store,IPetModel model,MemoryRepository memories)
+    private static async Task Turn(string id,HttpContext ctx,PetSessionStore store,IPetModel model,MemoryRepository memories,IMemoryService memory)
     {
         var input=await RequestJson.ReadAsync(ctx);var message=input.Str("message").Trim();var requestId=input.Str("requestId");
         if(message.Length is 0 or >2000||!Guid.TryParse(requestId,out _))throw new ServiceException("请输入 1–2000 字，并使用有效的请求编号。");
@@ -60,7 +77,8 @@ public static class PetEndpoints
             if(s.CompletedRequests.Contains(requestId)){await Emit(new{type="done",session=PetQuestions.View(s)});return;}
             try
             {
-                var field=input.Str("field");string reply;var mood="curious";
+                var choice=KokoDialogue.ResolveChoice(s,input);
+                var field=input.Str("field");string reply;var mood="curious";JsonObject dialogueResult=new();
                 if(field.Length>0)
                 {
                     if(!PetQuestions.Keys.Contains(field))throw new ServiceException("未知的旅行字段。");
@@ -75,45 +93,50 @@ public static class PetEndpoints
                         reply=repeated ? "没关系，我们慢慢来。我会留好背包，准备好再告诉我～\n"+PetQuestions.Question(field):PetQuestions.UncertainReply(field);mood=repeated ? "curious":"pouting";
                     } else reply=PetQuestions.UnsupportedDestination(s) ? "小爪爪先停一下～目前还不能生成这个城市的路线。可以改选悉尼，或者保留这份需求，之后再继续。": "收到啦～"+PetQuestions.Question(PetQuestions.Next(s));
 
-                    await Emit(new{type="reply",text=reply});
-                }
-                else if(PetQuestions.Required.Contains(PetQuestions.Next(s)) && !PetQuestions.Known(message))
-                {
-                    reply=PetQuestions.UncertainReply(PetQuestions.Next(s));mood="pouting";
-                    await Emit(new{type="reply",text=reply});
+                    if(s.Dialogue is not null)reply="这次的旅行资料已更新，可以继续调整草案。";
                 }
                 else
                 {
-                    var unanswered=PetQuestions.Next(s);
+                    var direct=KokoDialogue.DirectResponse(s,message,choice);
                     var records=await memories.ListAsync(ctx.RequestAborted);
-                    var confirmed=new JsonArray(records.Select(x=>(JsonNode?)JsonValue.Create(x.Str("summary"))).ToArray());
-                    var result=await model.RespondAsync(s,message,confirmed,_=>Task.CompletedTask,ctx.RequestAborted);
+                    TravelProfiling.Refresh(s,records);
+                    var confirmed=s.Dialogue is null ? (JsonArray)records.DeepClone():new JsonArray();
+                    if(records.Count>0 && direct is null) {
+                        try {
+                            var recalled=await memory.RunAsync("query",new JsonObject{["query"]="travel preference "+(s.CurrentChoice?.QuestionText ?? "")+" "+message},ctx.RequestAborted);
+                            var ids=(recalled.Array("memories") ?? new JsonArray()).Select(x=>x?.Object("memory").Str("id")).ToArray();
+                            var relevant=s.Dialogue is null ? records.AsEnumerable():records.Where(x=>ids.Contains(x.Str("id")));
+                            confirmed=new JsonArray(relevant.OrderBy(x=>{var i=Array.IndexOf(ids,x.Str("id"));return i<0 ? int.MaxValue:i;}).Take(s.Dialogue is null ? 40:8).Select(x=>x?.DeepClone()).ToArray());
+                        } catch(ServiceException){s.MemoryWarning=s.Dialogue is null ? "长期偏好检索暂时不可用，本轮参考已确认的本机记录。":"长期偏好检索暂时不可用，先按这次对话继续准备。";}
+                    }
+                    var result=direct ?? await model.RespondAsync(s,message,confirmed,_=>Task.CompletedTask,ctx.RequestAborted);
+                    dialogueResult=result;
                     mood=PetEmotion.Normalize(result.Str("mood"));
                     var changes=result.Object("fields")??new();
+                    // A reaction to a proposal cannot silently fill unrelated trip facts or global habits.
+                    if(s.CurrentChoice is not null)changes=new();
                     // Do not let model-filled unknown placeholders skip unanswered questions.
                     foreach(var key in PetQuestions.Keys)
                         if(changes.Str(key) is "未确定" or "未知" or "未提供" or "unknown") changes.Remove(key);
                     var explicitFacts=new JsonObject();PetExplicitFacts.Apply(message,explicitFacts);
                     foreach(var fact in explicitFacts)changes[fact.Key]=fact.Value?.DeepClone();
-                    foreach(var uncertain in result.Array("needsClarification") ?? new JsonArray()) {
+                    foreach(var uncertain in (s.CurrentChoice is null ? result.Array("needsClarification"):null) ?? new JsonArray()) {
                         var key=uncertain?.GetValue<string>() ?? "";
                         if(PetQuestions.Required.Contains(key) && !explicitFacts.ContainsKey(key)){s.Fields.Remove(key);changes.Remove(key);}
                     }
                     if(changes.ContainsKey("budgetCurrency") && s.Fields.TryGetValue("budgetCurrency",out var previousCurrency) && PetQuestions.Known(previousCurrency) && previousCurrency!=changes.Str("budgetCurrency") && !changes.ContainsKey("budget"))s.Fields.Remove("budget");
                     PetQuestions.Apply(s,changes);reply=result.Str("reply");
                     if(changes.ContainsKey("budget"))reply=PetExplicitFacts.BudgetReply(s) ?? "预算先收好啦，我们再确认金额、币种和范围。";
-                    else if(reply.Length>220)reply="收到，你的想法已放进这次的小背包。";
-                    if(PetQuestions.Next(s).Length==0)reply=(changes.ContainsKey("budget") ? (PetExplicitFacts.BudgetReply(s)??"")+"\n":"")+"小背包准备好啦！可以直接点下面的「生成行程」，可选信息以后再补也没关系～";
-                    if(PetQuestions.Next(s).Length>0 && !reply.Contains('？') && !reply.Contains('?') &&
-                        !new[]{"别问","不要问","不用问","再见","bye","don't ask","do not ask"}.Any(x=>message.Contains(x,StringComparison.OrdinalIgnoreCase)))
-                        reply+="\n"+PetQuestions.Question(PetQuestions.Next(s));
-                    if(PetQuestions.Required.Contains(unanswered) && !PetQuestions.Known(message) && !PetQuestions.Known(s.Fields.GetValueOrDefault(unanswered))) {reply=PetQuestions.UncertainReply(unanswered);mood="pouting";}
-                    if(PetQuestions.Known(s.Fields.GetValueOrDefault("budgetCurrency")) && s.Fields["budgetCurrency"]!="AUD")reply="小钱包先等等～"+PetQuestions.Question("budgetCurrency");
-                    if(PetQuestions.UnsupportedDestination(s)){reply="小爪爪先停一下～目前还不能生成这个城市的路线。可以改选悉尼，或者保留这份需求，之后再继续。";mood="confused";}
-                    var suggestion=new[]{"以后","平时","长期","每次","一直","记住"}.Any(message.Contains) && !new[]{"不保存","不要记","别记","不记住","只限这次","仅这次","只用于这次"}.Any(message.Contains) ? result.Str("memorySuggestion"):"";if(suggestion.Length>0)s.PendingMemory=suggestion[..Math.Min(500,suggestion.Length)];
-                    await Emit(new{type="reply",text=reply});
+                    if(PetQuestions.Known(s.Fields.GetValueOrDefault("budgetCurrency")) && s.Fields["budgetCurrency"]!="AUD" && (changes.ContainsKey("budget") || changes.ContainsKey("budgetCurrency")))reply="这笔预算先按原币种保留。生成路线前还需要一份澳元活动预算。";
+                    if(PetQuestions.UnsupportedDestination(s) && (changes.ContainsKey("destination") || message.Contains("生成") || reply.Contains("准备好"))){reply="可以先聊聊你想怎样玩，资料也会保留。目前能生成的路线是悉尼，其他城市还需要后续接入。";mood="confused";}
+                    if(choice?.Intent is "skip" or "skip_name" or "use_alias" or "keep" or "draft")result.Remove("preferences");
+                    var added=TravelProfiling.Apply(s,result,message,requestId);
+                    if(added.Count>0)await SyncPending(s,memory,ctx.RequestAborted);
+                    var suggestion=s.Dialogue is not null || result.Array("preferences") is not null || !TravelProfiling.AllowLegacySuggestion(message) ? "":result.Str("memorySuggestion");if(suggestion.Length>0)s.PendingMemory=suggestion[..Math.Min(500,suggestion.Length)];
                 }
-                s.Messages.Add(new(requestId,"user",message));s.Messages.Add(new(Guid.NewGuid().ToString("N"),"assistant",reply,mood));
+                var assistant=KokoDialogue.CompleteTurn(s,dialogueResult,reply,mood);
+                await Emit(new{type="reply",text=assistant.Text});
+                s.Messages.Add(new(requestId,"user",message,Choice:s.CurrentChoice));s.Messages.Add(assistant);
                 if(s.Messages.Count>100)s.Messages=s.Messages.TakeLast(100).ToList();
                 s.CompletedRequests.Add(requestId);if(s.CompletedRequests.Count>100)s.CompletedRequests.RemoveAt(0);
                 store.Save(s);await Emit(new{type="done",session=PetQuestions.View(s)});
@@ -122,4 +145,40 @@ public static class PetEndpoints
             catch(Exception) when(!ctx.RequestAborted.IsCancellationRequested){await Emit(new{type="error",error="保存或连接失败，请重新加载对话确认进度后重试。"});}
         }finally{store.Gate.Release();}
     }
+    private static async Task SyncPending(PetSession session,IMemoryService memory,CancellationToken ct)
+    {
+        try {
+            await memory.RunAsync("stage",new JsonObject{["sessionId"]=session.Id,["candidates"]=JsonSerializer.SerializeToNode(session.Preferences.Where(x=>x.Status=="awaiting_confirmation"),JsonExtensions.Options)},ct);
+            session.MemoryWarning="";
+        } catch(ServiceException){session.MemoryWarning="候选偏好已保留在本次对话，H-MEM 暂未同步；确认保存时会重试。";}
+    }
+    private static async Task DecidePreference(PetSession session,JsonObject input,PreferenceService preferences,MemoryRepository records,CancellationToken ct)
+    {
+        var candidate=session.Preferences.FirstOrDefault(x=>x.Id==input.Str("candidateId"));
+        if(candidate is null)throw new ServiceException("这条待确认信息已不存在，请刷新对话。");
+        if(candidate.Status!="awaiting_confirmation")return; // repeated taps/retries are idempotent
+        if(input.Bool("dismiss")){candidate.Status="rejected";return;}
+        if(!input.Bool("consent")) {
+            candidate.Status="trip_only";candidate.Scope="trip";return;
+        }
+        var current=await records.ListAsync(ct);TravelProfiling.Refresh(session,current);
+        var alreadySaved=session.ConfirmedDna.FirstOrDefault(x=>x.Key==candidate.Key && x.Condition==candidate.Condition && x.Value==candidate.Value);
+        if(alreadySaved is not null) {
+            candidate.Status="confirmed";candidate.Scope="long_term";candidate.MemoryId=alreadySaved.MemoryId;
+            return;
+        }
+        var expected=(input.Array("expectedConflicts") ?? new JsonArray()).Select(x=>x?.GetValue<string>() ?? "").Order().ToArray();
+        if(!expected.SequenceEqual(candidate.ConflictingMemoryIds))throw new ServiceException("长期偏好刚有变化，请刷新对话，查看旧值后再确认替换。");
+        if(candidate.ConflictingMemoryIds.Length>1)throw new ServiceException("这项偏好有多条旧记录，请先在记忆页整理，再确认更新。");
+        var confirmed=JsonSerializer.SerializeToNode(candidate,JsonExtensions.Options)!.AsObject();
+        confirmed["status"]="confirmed";confirmed["scope"]="long_term";
+        var payload=new JsonObject{["consent"]=true,["summary"]=TravelProfiling.Label(candidate),["profile"]=new JsonObject{["travelDna"]=confirmed}};
+        var saved=candidate.ConflictingMemoryIds.Length==1
+            ? await preferences.UpdateAsync(candidate.ConflictingMemoryIds[0],payload,ct)
+            : await preferences.SaveAsync(payload,ct);
+        candidate.Status="confirmed";candidate.Scope="long_term";candidate.MemoryId=saved.Str("id");
+
+        TravelProfiling.Refresh(session,await records.ListAsync(ct));
+    }
+
 }

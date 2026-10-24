@@ -31,7 +31,7 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
 
-val Muted = Color(0xFF6B7D73)
+val Muted = Color(0xFF75666D)
 
 @Composable fun TripArtwork() {
     Box(Modifier.fillMaxWidth().height(145.dp).clip(RoundedCornerShape(20.dp)).background(Brush.linearGradient(listOf(Mint,Color(0xFFADD9E6))))) {
@@ -54,27 +54,7 @@ val Muted = Color(0xFF6B7D73)
     }
 }
 
-@Composable fun Buddy(size: Int) {
-    Canvas(Modifier.size(size.dp,(size*1.15f).dp).semantics{contentDescription="旅行机器人 Buddy"}) {
-        val u=this.size.width
-        fun point(x:Float,y:Float)=Offset(u*x,u*y)
-        fun round(color:Color,x:Float,y:Float,w:Float,h:Float,r:Float)=drawRoundRect(color,point(x,y),Size(u*w,u*h),CornerRadius(u*r))
-        drawOval(Green.copy(alpha=.1f),point(.1f,.98f),Size(u*.8f,u*.1f))
-        rotate(14f,point(.55f,.16f)){round(Green,.52f,.08f,.055f,.2f,.025f)}
-        drawCircle(Mint,u*.06f,point(.58f,.055f));drawCircle(Green.copy(alpha=.4f),u*.06f,point(.58f,.055f),style=Stroke(u*.014f))
-        drawRoundRect(Brush.linearGradient(listOf(Mint,Color.White)),point(.18f,.54f),Size(u*.64f,u*.43f),CornerRadius(u*.18f))
-        rotate(24f,point(.3f,.94f)){round(Green,.235f,.83f,.13f,.22f,.06f)}
-        rotate(-24f,point(.7f,.94f)){round(Green,.635f,.83f,.13f,.22f,.06f)}
-        rotate(-28f,point(.13f,.6f)){round(Green.copy(alpha=.85f),.06f,.45f,.12f,.30f,.06f)}
-        rotate(-55f,point(.89f,.5f)){round(Green.copy(alpha=.85f),.83f,.35f,.12f,.3f,.06f)}
-        drawRoundRect(Brush.linearGradient(listOf(Color.White,Mint)),point(.09f,.20f),Size(u*.82f,u*.61f),CornerRadius(u*.25f))
-        drawRoundRect(Green.copy(alpha=.28f),point(.09f,.20f),Size(u*.82f,u*.61f),CornerRadius(u*.25f),style=Stroke(u*.018f))
-        round(Ink,.185f,.31f,.63f,.37f,.16f)
-        round(Color.White,.325f,.425f,.055f,.105f,.025f);round(Color.White,.61f,.425f,.055f,.105f,.025f)
-        drawArc(Color.White,0f,180f,false,point(.43f,.545f),Size(u*.14f,u*.07f),style=Stroke(u*.014f,cap=StrokeCap.Round))
-        drawCircle(Color(0xFFFFBF6D),u*.045f,point(.5f,.87f))
-    }
-}
+@Composable fun Buddy(size: Int) { KoalaAvatar(size) }
 
 @Composable fun Action(text: String, enabled: Boolean = true, onClick: () -> Unit) {
     Box(Modifier.fillMaxWidth().padding(bottom=5.dp).background(Ink,RoundedCornerShape(22.dp))) {
@@ -329,6 +309,8 @@ fun durationLabel(startMinute: Int, endMinute: Int): String {
 }
 
 @Composable fun Onboarding(store:BuddyStore) {
+    val welcome=remember{store.needsKoalaWelcome}
+    LaunchedEffect(Unit){if(welcome)store.markKoalaWelcome()}
     var step by rememberSaveable {mutableIntStateOf(0)}
     val p=store.profile
     val titles=listOf("哪天去悉尼玩？","这次玩几天？","想用什么节奏？","什么最让你心动？","每天准备花多少？","从哪里开始？","想几点出发返回？","一起出发吧！")
@@ -346,7 +328,7 @@ fun durationLabel(startMinute: Int, endMinute: Int): String {
         LaunchedEffect(step){scroll.scrollTo(0)}
         Column(Modifier.weight(1f).verticalScroll(scroll).padding(horizontal=24.dp).padding(top=10.dp,bottom=20.dp),verticalArrangement=Arrangement.spacedBy(20.dp)) {
             Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-                Buddy(76)
+                KoalaAvatar(76,action=if(step==0 && welcome)"wave" else "idle",eventToken="onboarding:$step")
                 Surface(shape=RoundedCornerShape(20.dp),color=Color.White,border=BorderStroke(1.5.dp,Green.copy(alpha=.15f)),modifier=Modifier.weight(1f)){
                     Text(messages[step],Modifier.padding(16.dp),fontSize=14.sp,fontWeight=FontWeight.Bold,lineHeight=21.sp)
                 }

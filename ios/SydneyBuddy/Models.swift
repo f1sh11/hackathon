@@ -97,7 +97,7 @@ struct Memory: Codable, Identifiable {
     var id: String; var summary: String; var profile: MemoryProfile
     var provenance:Provenance? = nil
     struct Provenance:Codable {var createdAt:String}
-    struct MemoryProfile: Codable { var interests: [String]; var maxSteps: Int; var habits:UserTravelProfile? = nil }
+    struct MemoryProfile: Codable { var interests: [String]; var maxSteps: Int; var habits:UserTravelProfile? = nil;var travelDna:TravelPreference? = nil }
 }
 struct Health: Codable { var navigationConfigured: Bool?; var paidServicesAllowed: Bool?; var status: String; var nvidiaConfigured: Bool; var googleConfigured: Bool; var iosMapConfigured: Bool; var model: String }
 struct Expense: Codable, Identifiable {
@@ -204,6 +204,9 @@ struct TravelPlanningTask:Codable {
     @Published var weatherBusy = false
     @Published var refreshedWeather: WeatherInfo?
     @Published var busy = false
+    @Published var koalaFeedback:KoalaCue?
+    @Published var koalaWork:KoalaCue?
+    @Published var koalaWelcomePending = !UserDefaults.standard.bool(forKey:"koala.welcome.seen") && !UserDefaults.standard.bool(forKey:"personalPreferences.v2.completed")
     @Published var canCancelOperation=false
     private var planningTask:Task<Void,Never>?
     var loader:(URLRequest) async throws -> (Data,URLResponse) = {try await URLSession.shared.data(for:$0)}
@@ -236,7 +239,7 @@ struct TravelPlanningTask:Codable {
     @Published var tab = 1
     @Published var dayIndex = 0
     @Published var expenses: [Expense] = [] { didSet { saveExpenses() } }
-    @Published var showPersonalPreferences = !UserDefaults.standard.bool(forKey:"personalPreferences.v2.completed")
+    @Published var showPersonalPreferences = !UserDefaults.standard.bool(forKey:"personalPreferences.v2.completed") && !UserDefaults.standard.bool(forKey:"onboarded")
     @Published var showOnboarding = !UserDefaults.standard.bool(forKey: "onboarded")
     @Published var agentText = "你好！我是你的旅行小伙伴。告诉我你的想法，一起把悉尼安排得刚刚好。"
     let base = URL(string: "http://127.0.0.1:8787")!
@@ -275,12 +278,12 @@ struct TravelPlanningTask:Codable {
         guard !weatherBusy else { return }; weatherBusy = true; refreshedWeather=WeatherInfo(summary:"正在查詢即時天氣…",rainy:false,source:travelDataSource == .zetaris ? "Open-Meteo / Zetaris":"Open-Meteo / direct",status:"loading"); defer { weatherBusy = false }
         do {
             refreshedWeather = try await api("weather",method:"POST",body:JSONEncoder().encode(trip?.profile ?? profile))
-            if refreshedWeather?.status == "ok" { markPrepared("weather") }
+            if refreshedWeather?.status == "ok" { markPrepared("weather");if refreshedWeather?.rainy==true{koalaFeedback=KoalaCue(event:.weatherRisk)} }
         }
         catch { refreshedWeather=WeatherInfo(summary:"即時天氣查詢失敗，請重試。",rainy:false,source:travelDataSource == .zetaris ? "Open-Meteo / Zetaris":"Open-Meteo / direct",status:"unavailable");errorMessage = error.localizedDescription }
     }
     func generate(_ message: String = "", rain: Bool = false, profileOverride:TripProfile? = nil) async {
-        guard !busy else { return }; busy = true; defer { busy = false }
+        guard !busy else { return }; busy = true;koalaWork=KoalaCue(event:.planningStarted); defer { busy = false;koalaWork=nil }
         do {
             operationTitle="正在调整行程…";operationDetail="检查兴趣、时间、预算和步数。"
             var p = profileOverride ?? trip?.profile ?? profile
@@ -293,6 +296,7 @@ struct TravelPlanningTask:Codable {
             result.title=trip?.title ?? result.suggestedTitle
             refreshedWeather = nil
             proposalIsSuggestion=true;proposal = result
+            if result.days.contains(where:{$0.estimatedCost>result.profile.budget}){koalaFeedback=KoalaCue(event:.budgetRisk)}
             agentText = result.explanation
         } catch { errorMessage = error.localizedDescription }
     }
@@ -327,9 +331,10 @@ struct TravelPlanningTask:Codable {
         }
         trip=accepted;profile=accepted.profile;proposal=nil;dayIndex=0;selectedStopID=nil
         if consumeDraft{UserDefaults.standard.removeObject(forKey:"petComposer.draft")}
+        koalaFeedback=KoalaCue(event:.tripSaved)
         if consumeDraft{tripToOpen=accepted}
         if showOnboarding || consumeDraft {pendingTripFields=[:]}
-        showOnboarding=false;UserDefaults.standard.set(true,forKey:"onboarded");tab=1
+        showPersonalPreferences=false;showOnboarding=false;UserDefaults.standard.set(true,forKey:"onboarded");tab=1
     }
     func saveAdjustment(_ candidate:Trip,original:Trip,dayIndex:Int?=nil) async -> Bool {
         guard !busy,original.id != nil else{return false}
@@ -342,7 +347,7 @@ struct TravelPlanningTask:Codable {
             let accepted:Trip=try await api("trips",method:"POST",body:JSONSerialization.data(withJSONObject:raw))
             lastAdjustment=original
             if let i=saved.firstIndex(where:{$0.id==accepted.id}){saved[i]=accepted}
-            trip=accepted;selectedStopID=nil;adjustmentError=nil;return true
+            trip=accepted;selectedStopID=nil;adjustmentError=nil;koalaFeedback=KoalaCue(event:.preferenceConfirmed);return true
         }catch{adjustmentError=error.localizedDescription;return false}
     }
     func undoLastAdjustment() async -> Bool {

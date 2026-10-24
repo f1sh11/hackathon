@@ -3,7 +3,8 @@ using System.Text.Json.Nodes;
 
 namespace SydneyBuddy.Api;
 
-public sealed record PetMessage(string Id, string Role, string Text, string Mood="greeting");
+public sealed record PetMessage(string Id, string Role, string Text, string Mood="greeting",
+    PetQuickReply[]? QuickReplies=null, PetChoiceEvidence? Choice=null);
 public static class PetEmotion
 {
     public static string Normalize(string value)=>value is "curious" or "excited" or "relaxed" or "remembering" or "confused" or "pouting" ? value:"curious";
@@ -15,6 +16,13 @@ public sealed class PetSession
     public Dictionary<string,string> Fields { get; set; } = [];
     public JsonObject PersonalProfile { get; set; } = new();
     public string PendingMemory { get; set; } = "";
+    public List<TravelPreference> Preferences { get; set; } = [];
+    public List<TravelPreference> ConfirmedDna { get; set; } = [];
+    public string MemoryWarning { get; set; } = "";
+    public bool DnaCompleted { get; set; }
+    public ProfilingDialogue? Dialogue { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore]
+    public PetChoiceEvidence? CurrentChoice { get; set; }
     public List<string> CompletedRequests { get; set; } = [];
     public string UpdatedAt { get; set; } = DateTimeOffset.UtcNow.ToString("O");
 }
@@ -53,7 +61,7 @@ public sealed class PetSessionStore(ProjectPaths paths)
 
 public static class PetQuestions
 {
-    public static readonly string[] Keys=["destination","date","days","companions","budget","interests","pace","notes","budgetCurrency","budgetBasis","travelers","origin","mustDo","avoid","energy","rhythm","queueTolerance","budgetCoverage","dayStyle"];
+    public static readonly string[] Keys=["destination","date","days","companions","budget","interests","pace","notes","budgetCurrency","budgetBasis","travelers","origin","mustDo","avoid","energy","rhythm","queueTolerance","budgetCoverage","flights","bookings","tickets","companionNeeds","specialLimits","dayStyle"];
     public static readonly Dictionary<string,string> Labels=new()
     {
         ["destination"]="目的地",["date"]="出发日期",["days"]="天数",["companions"]="同行伙伴",
@@ -123,7 +131,7 @@ public static class PetQuestions
         "budgetCurrency"=>["AUD"],"budgetBasis"=>["perPersonPerDay","groupPerDay","perPersonTrip","groupTrip"],"travelers"=>["1","2","3","4"],"origin"=>["环形码头","中央车站","稍后补充"],"mustDo"=>["暂不确定"],"avoid"=>["无特别要求","需要多休息","避免长时间步行"],
         "notes"=>["喜欢安静","需要多休息","没有其他要求"],_=>[]
     };
-    public static object View(PetSession s)=>new {s.Id,s.Messages,s.Fields,s.PendingMemory,s.UpdatedAt,nextField=Next(s),question=Question(Next(s)),options=Choices(Next(s)),completed=Required.Count(k=>Answered(s,k)), total=Required.Length};
+    public static object View(PetSession s)=>new {s.Id,s.Messages,s.Fields,s.PendingMemory,s.UpdatedAt,s.MemoryWarning,s.DnaCompleted,s.Dialogue,travelDna=TravelProfiling.Dna(s),tripContext=s.Fields,planningFields=TravelProfiling.PlanningFields(s),pendingPreferences=s.Preferences.Where(x=>x.Status=="awaiting_confirmation"),tripPreferences=s.Preferences.Where(x=>x.Status=="trip_only"),missingImportantFields=TravelProfiling.Missing(s),nextField=Next(s),question=Question(Next(s)),options=Choices(Next(s)),completed=Required.Count(k=>Answered(s,k)), total=Required.Length};
     public static void Apply(PetSession s,JsonObject fields)
     {
         foreach(var key in Keys)

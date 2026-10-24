@@ -1,0 +1,63 @@
+name: Sydney Buddy iOS checks
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, codex/travel-dna-koala-20261024]
+    paths:
+      - 'ios/**'
+      - 'assets/koala/**'
+      - 'tests/fixtures/**'
+      - '.github/workflows/ios.yml'
+  pull_request:
+    paths:
+      - 'ios/**'
+      - 'assets/koala/**'
+      - 'tests/fixtures/**'
+      - '.github/workflows/ios.yml'
+permissions:
+  contents: read
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  ios:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select an installed iPhone simulator
+        shell: bash
+        run: |
+          xcodebuild -version
+          xcrun simctl list devices available --json > "$RUNNER_TEMP/simulators.json"
+          python3 - <<'PY'
+          import json, os
+          with open(os.environ['RUNNER_TEMP']+'/simulators.json') as file:
+              devices=json.load(file)['devices']
+          phones=[device for runtime,items in devices.items() if 'iOS' in runtime for device in items if device.get('isAvailable') and 'iPhone' in device['name']]
+          if not phones:
+              raise SystemExit('No available iPhone simulator on this runner')
+          device=sorted(phones,key=lambda d:(d['state']!='Booted',d['name']))[0]
+          with open(os.environ['GITHUB_ENV'],'a') as file:
+              file.write('SIMULATOR_ID='+device['udid']+'\n')
+          print('Selected simulator:',device['name'],device['udid'])
+          PY
+      - name: Build and run native iOS tests
+        shell: bash
+        run: |
+          xcrun simctl boot "$SIMULATOR_ID" || true
+          xcrun simctl bootstatus "$SIMULATOR_ID" -b
+          xcodebuild test \
+            -project ios/SydneyBuddy.xcodeproj \
+            -scheme SydneyBuddy \
+            -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
+            -derivedDataPath "$RUNNER_TEMP/SydneyBuddyDerivedData" \
+            -resultBundlePath "$RUNNER_TEMP/SydneyBuddy.xcresult" \
+            CODE_SIGNING_ALLOWED=NO
+      - name: Preserve iOS test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-test-results
+          path: ${{ runner.temp }}/SydneyBuddy.xcresult
+          if-no-files-found: ignore

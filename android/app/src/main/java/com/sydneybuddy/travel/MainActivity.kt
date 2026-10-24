@@ -27,18 +27,25 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import org.json.JSONObject
 
-val Green = Color(0xFF0D825E)
-val Ink = Color(0xFF193830)
-val Cream = Color(0xFFFAF7F0)
-val Mint = Color(0xFFDBF2E0)
+val Coral = Color(0xFFBC3C55)
+val Blush = Color(0xFFFCE4E8)
+val Ink = Color(0xFF3D3138)
+val Cream = Color(0xFFFFF8F5)
+// Compatibility names keep the existing screens on the shared koala theme.
+val Green = Coral
+val Mint = Blush
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            MaterialTheme(colorScheme = lightColorScheme(primary = Green, onPrimary = Color.White,
-                background = Cream, surface = Color.White, onSurface = Ink, secondaryContainer = Mint)) {
+            MaterialTheme(colorScheme = lightColorScheme(primary = Coral, onPrimary = Color.White,
+                primaryContainer = Blush, onPrimaryContainer = Ink,
+                secondary = Coral, onSecondary = Color.White, secondaryContainer = Blush, onSecondaryContainer = Ink,
+                background = Cream, onBackground = Ink, surface = Color.White, onSurface = Ink,
+                surfaceVariant = Blush, onSurfaceVariant = Muted,
+                outline = Color(0xFFD9BBC4), outlineVariant = Color(0xFFEFD9DE))) {
                 BuddyApp()
             }
         }
@@ -75,6 +82,10 @@ class MainActivity : ComponentActivity() {
                 else -> SettingsScreen(store) { delete = "memory" to it }
             }
         }
+    }
+    store.koalaEvent?.let { (event,token) ->
+        LaunchedEffect(token){if(event !in listOf(KoalaEvent.PlanningStarted,KoalaEvent.OptimizationStarted,KoalaEvent.SimulationStarted,KoalaEvent.WeatherRisk,KoalaEvent.BudgetRisk,KoalaEvent.FatigueRisk)){kotlinx.coroutines.delay(if(event==KoalaEvent.TripSaved)2200 else 1700);if(store.koalaEvent?.second==token)store.koalaEvent=null}}
+        AlertDialog(onDismissRequest={store.koalaEvent=null},title={Text(when(event){KoalaEvent.BudgetRisk->"预计费用超出预算";KoalaEvent.WeatherRisk->"有天气风险";KoalaEvent.TripSaved->"行程已保存";KoalaEvent.PreferenceConfirmed->"偏好已确认";else->"Buddy 陪着你"})},text={Box(Modifier.fillMaxWidth(),contentAlignment=Alignment.Center){KoalaAvatar(180,event.action,token)}},confirmButton={TextButton(onClick={store.koalaEvent=null}){Text("知道了")}})
     }
     if (store.proposal != null) BackHandler { if (!store.busy) store.cancelProposal() }
     BackHandler(enabled = store.busy) { /* Keep the current operation visible until it finishes. */ }
