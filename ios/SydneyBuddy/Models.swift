@@ -146,9 +146,31 @@ struct Expense: Codable, Identifiable {
             agentText = result.explanation
         } catch { errorMessage = error.localizedDescription }
     }
-    func generateFromPet(_ profile:TripProfile, request:String) async {
-        self.profile=profile
-        await generate(request,profileOverride:profile)
+    func generateFromPet(_ profile:TripProfile, request:String, openMap:Bool=false) async {
+        guard openMap && showOnboarding else {
+            self.profile=profile
+            await generate(request,profileOverride:profile)
+            return
+        }
+        guard !busy else{return};busy=true;defer{busy=false}
+        do {
+            var p=profile;p.request=request;p.weatherOverride=nil
+            var raw=try JSONSerialization.jsonObject(with:JSONEncoder().encode(p)) as! [String:Any]
+            raw["mode"]=live ? (health?.googleConfigured == true ? "live" : "assisted") : "demo"
+            var planned:Trip=try await api("plan",method:"POST",body:JSONSerialization.data(withJSONObject:raw))
+            planned.id=nil;planned.revision=nil
+            let body:[String:Any]=["trip":try JSONSerialization.jsonObject(with:JSONEncoder().encode(planned)),"expectedRevision":0]
+            let accepted:Trip=try await api("trips",method:"POST",body:JSONSerialization.data(withJSONObject:body))
+            finishAcceptedTrip(accepted)
+            await reload()
+        } catch {errorMessage=error.localizedDescription}
+    }
+    private func finishAcceptedTrip(_ accepted:Trip) {
+        if showOnboarding,let id=accepted.id,let session=UserDefaults.standard.string(forKey:"petSession.draft") {
+            UserDefaults.standard.set(session,forKey:"petSession."+id);UserDefaults.standard.removeObject(forKey:"petSession.draft")
+        }
+        trip=accepted;profile=accepted.profile;proposal=nil;dayIndex=0
+        showOnboarding=false;UserDefaults.standard.set(true,forKey:"onboarded");tab=0
     }
     func acceptProposal() async {
         guard var p = proposal else { return }
@@ -157,11 +179,7 @@ struct Expense: Codable, Identifiable {
             p.id = trip?.id; p.revision = trip?.revision
             let raw: [String:Any] = ["trip":try JSONSerialization.jsonObject(with:JSONEncoder().encode(p)),"expectedRevision":p.revision ?? 0]
             let accepted: Trip = try await api("trips",method:"POST",body:JSONSerialization.data(withJSONObject:raw))
-            if showOnboarding,let id=accepted.id,let session=UserDefaults.standard.string(forKey:"petSession.draft") {
-                UserDefaults.standard.set(session,forKey:"petSession."+id);UserDefaults.standard.removeObject(forKey:"petSession.draft")
-            }
-            trip = accepted; profile = accepted.profile; proposal = nil; dayIndex = 0
-            showOnboarding = false; UserDefaults.standard.set(true,forKey:"onboarded"); tab = 0
+            finishAcceptedTrip(accepted)
             await reload()
         } catch { errorMessage = error.localizedDescription }
     }

@@ -168,6 +168,16 @@ struct PetChatView:View {
                     }.padding(20)
                 }.onChange(of:chat.streaming){_,_ in proxy.scrollTo("bottom",anchor:.bottom)}.onChange(of:chat.session?.messages.count){_,_ in proxy.scrollTo("bottom",anchor:.bottom)}
             }
+            if onboarding,let session=chat.session,session.nextField.isEmpty {
+                VStack(spacing:8) {
+                    Text("回答完成，准备出发啦！").font(.headline)
+                    PrimaryButton(title:"生成行程并打开地图",symbol:"map.fill") {
+                        fields=session.fields
+                        Task{await preparePlan(openMap:true)}
+                    }.disabled(chat.busy || store.busy)
+                    Text("按当前规划设置生成并保存，你仍可在地图中调整。").font(.caption2).foregroundStyle(Palette.muted)
+                }.padding(.horizontal,20).padding(.vertical,12)
+            }
             if !chat.choices {
                 HStack(alignment:.bottom){TextField("告诉 Buddy 你的想法…",text:$message,axis:.vertical).lineLimit(1...4).padding(12).background(.white,in:RoundedRectangle(cornerRadius:16));Button{let text=message;Task{await chat.send(text);if chat.error==nil{message=""}}}label:{Image(systemName:"arrow.up.circle.fill").font(.system(size:34))}.disabled(chat.busy || message.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty || message.count>2000)}.padding(.horizontal,20).padding(.vertical,8)
                 Text("AI 会收到这次对话和已确认偏好。长期保存需你确认。").font(.caption2).foregroundStyle(Palette.muted)
@@ -195,20 +205,21 @@ struct PetChatView:View {
                     Text("目前支持生成悉尼 1–3 天的路线。其他目的地可先保存资料。未确定的日期、天数和预算请补齐；预算为每人每日活动费用。").font(.caption)}
                 Section {
                     Button("保存修改"){Task{await chat.update(fields);if chat.error==nil{review=false}}}.disabled(chat.busy)
-                    Button(onboarding ? "确认信息，生成草案" : "用这些信息调整行程"){Task{await preparePlan()}}.disabled(chat.busy || store.busy)
+                    Button(onboarding ? "生成行程并打开地图" : "用这些信息调整行程"){Task{await preparePlan(openMap:onboarding)}}.disabled(chat.busy || store.busy)
                 }
                 if let error=chat.error{Text(error).foregroundStyle(.red)}
             }.navigationTitle("检查旅行信息").toolbar{Button("完成"){review=false}}
         }
     }
-    private func preparePlan() async {
+    private func preparePlan(openMap:Bool=false) async {
         await chat.update(fields);guard chat.error==nil else{return}
         let profile:TripProfile
         do {profile=try PetTripDraft.profile(fields,base:onboarding ? TripProfile() : (store.trip?.profile ?? store.profile))}
-        catch {chat.error=error.localizedDescription;return}
+        catch {chat.error=error.localizedDescription;review=true;return}
         let request=petFields.map{label in "\(label.1)：\(fields[label.0] ?? "未确定")"}.joined(separator:"；")
-        review=false;dismiss()
-        await store.generateFromPet(profile,request:request)
+        review=false
+        if !onboarding{dismiss()}
+        await store.generateFromPet(profile,request:request,openMap:openMap)
     }
 }
 
