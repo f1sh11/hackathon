@@ -1,0 +1,212 @@
+{
+  "version": 1,
+  "character": "Sydney Buddy Koala",
+  "canvas": [
+    256,
+    256
+  ],
+  "fps": 12,
+  "note": "Original koala art uploaded by the project team. Numbered PNG frames are authoritative; animated WebP files are for preview.",
+  "animations": [
+    {
+      "id": "wave",
+      "titleCN": "欢迎挥手",
+      "event": "welcome",
+      "fps": 12,
+      "frames": 12,
+      "durationMs": 1000,
+      "canvas": [
+        256,
+        256
+      ],
+      "playback": "once",
+      "ending": "idle",
+      "autoRecover": true,
+      "recovery": "none",
+      "framePath": "animations/wave/frames/{frame:03}.png",
+      "poster": "animations/wave/poster.png",
+      "preview": "animations/wave/preview.webp",
+      "terminal": "animations/wave/terminal.png"
+    },
+    {
+      "id": "clap",
+      "titleCN": "开心鼓掌",
+      "event": "positive_feedback",
+      "fps": 12,
+      "frames": 12,
+      "durationMs": 1000,
+      "canvas": [
+        256,
+        256
+      ],
+      "playback": "once",
+      "ending": "idle",
+      "autoRecover": true,
+      "recovery": "none",
+      "framePath": "animations/clap/frames/{frame:03}.png",
+      "poster": "animations/clap/poster.png",
+      "preview": "animations/clap/preview.webp",
+      "terminal": "animations/clap/terminal.png"
+    },
+    {
+      "id": "weather",
+      "titleCN": "撑伞挡风",
+      "event": "weather_risk",
+      "fps": 12,
+      "frames": 30,
+      "durationMs": 2500,
+      "canvas": [
+        256,
+        256
+      ],
+      "playback": "once",
+      "ending": "hold",
+      "autoRecover": false,
+      "recovery": "reverse",
+      "framePath": "animations/weather/frames/{frame:03}.png",
+      "poster": "animations/weather/poster.png",
+      "preview": "animations/weather/preview.webp",
+      "terminal": "animations/weather/terminal.png"
+    },
+    {
+      "id": "budget",
+      "titleCN": "预算不足",
+      "event": "budget_risk",
+      "fps": 12,
+      "frames": 36,
+      "durationMs": 3000,
+      "canvas": [
+        256,
+        256
+      ],
+      "playback": "once",
+      "ending": "hold",
+      "autoRecover": false,
+      "recovery": "crossfade",
+      "framePath": "animations/budget/frames/{frame:03}.png",
+      "poster": "animations/budget/poster.png",
+      "preview": "animations/budget/preview.webp",
+      "terminal": "animations/budget/terminal.png"
+    },
+    {
+      "id": "tired",
+      "titleCN": "走累躺平",
+      "event": "fatigue_risk",
+      "fps": 12,
+      "frames": 36,
+      "durationMs": 3000,
+      "canvas": [
+        256,
+        256
+      ],
+      "playback": "once",
+      "ending": "hold",
+      "autoRecover": false,
+      "recovery": "crossfade",
+      "framePath": "animations/tired/frames/{frame:03}.png",
+      "poster": "animations/tired/poster.png",
+      "preview": "animations/tired/preview.webp",
+      "terminal": "animations/tired/terminal.png"
+    },
+    {
+      "id": "map",
+      "titleCN": "展开地图研究",
+      "event": "planning",
+      "fps": 12,
+      "frames": 36,
+      "durationMs": 3000,
+      "canvas": [
+        256,
+        256
+      ],
+      "playback": "once",
+      "ending": "hold",
+      "autoRecover": false,
+      "recovery": "reverse",
+      "framePath": "animations/map/frames/{frame:03}.png",
+      "poster": "animations/map/poster.png",
+      "preview": "animations/map/preview.webp",
+      "terminal": "animations/map/terminal.png"
+    },
+    {
+      "id": "celebrate",
+      "titleCN": "跳起庆祝",
+      "event": "trip_saved",
+      "fps": 12,
+      "frames": 24,
+      "durationMs": 2000,
+      "canvas": [
+        256,
+        256
+      ],
+      "playback": "once",
+      "ending": "idle",
+      "autoRecover": true,
+      "recovery": "none",
+      "framePath": "animations/celebrate/frames/{frame:03}.png",
+      "poster": "animations/celebrate/poster.png",
+      "preview": "animations/celebrate/preview.webp",
+      "terminal": "animations/celebrate/terminal.png"
+    },
+    {
+      "id": "departure",
+      "titleCN": "拖箱出发",
+      "event": "simulation_started",
+      "fps": 12,
+      "frames": 36,
+      "durationMs": 3000,
+      "canvas": [
+        256,
+        256
+      ],
+      "playback": "once",
+      "ending": "hold",
+      "autoRecover": false,
+      "recovery": "crossfade",
+      "framePath": "animations/departure/frames/{frame:03}.png",
+      "poster": "animations/departure/poster.png",
+      "preview": "animations/departure/preview.webp",
+      "terminal": "animations/departure/terminal.png"
+    },
+    {
+      "id": "thumbs-up",
+      "titleCN": "点赞",
+      "event": "user_confirmed",
+      "fps": 12,
+      "frames": 18,
+      "durationMs": 1500,
+      "canvas": [
+        256,
+        256
+      ],
+      "playback": "once",
+      "ending": "idle",
+      "autoRecover": true,
+      "recovery": "none",
+      "framePath": "animations/thumbs-up/frames/{frame:03}.png",
+      "poster": "animations/thumbs-up/poster.png",
+      "preview": "animations/thumbs-up/preview.webp",
+      "terminal": "animations/thumbs-up/terminal.png"
+    },
+    {
+      "id": "idle",
+      "titleCN": "安静待机",
+      "event": "idle",
+      "fps": 12,
+      "frames": 36,
+      "durationMs": 3000,
+      "canvas": [
+        256,
+        256
+      ],
+      "playback": "loop",
+      "ending": "loop",
+      "autoRecover": false,
+      "recovery": "none",
+      "framePath": "animations/idle/frames/{frame:03}.png",
+      "poster": "animations/idle/poster.png",
+      "preview": "animations/idle/preview.webp",
+      "terminal": "animations/idle/terminal.png"
+    }
+  ]
+}
