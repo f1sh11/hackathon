@@ -53,7 +53,7 @@ public sealed class PetSessionStore(ProjectPaths paths)
 
 public static class PetQuestions
 {
-    public static readonly string[] Keys=["destination","date","days","companions","budget","interests","pace","notes","budgetCurrency","budgetBasis","travelers","origin","mustDo","avoid","energy","rhythm","queueTolerance","budgetCoverage"];
+    public static readonly string[] Keys=["destination","date","days","companions","budget","interests","pace","notes","budgetCurrency","budgetBasis","travelers","origin","mustDo","avoid","energy","rhythm","queueTolerance","budgetCoverage","dayStyle"];
     public static readonly Dictionary<string,string> Labels=new()
     {
         ["destination"]="目的地",["date"]="出发日期",["days"]="天数",["companions"]="同行伙伴",
@@ -103,7 +103,7 @@ public static class PetQuestions
         "days"=>"想留几天给这次小冒险？",
         "companions"=>"这次和谁一起出发呀？",
         "budget"=>"这次活动预算大概多少？请一起告诉我币种，以及是每人还是全体、每天还是全程。",
-        "budgetCurrency"=>"目前路线费用只支持澳元活动预算。原金额不会自动换汇，请告诉我新的 AUD 活动预算。",
+        "budgetCurrency"=>"这笔活动预算使用什么币种？目前支持澳元 AUD；其他币种需要先确认澳元金额。",
         "budgetBasis"=>"这笔金额是每人还是全体、每天还是全程呢？",
         "travelers"=>"这次总共几个人出发？包含你自己哦。",
         "origin"=>"有出发地点或住宿位置了吗？还不知道也可以稍后补充。",
@@ -162,19 +162,26 @@ public static class PetExplicitFacts
 {
     public static void Apply(string message,JsonObject fields)
     {
+        // Exact numeric limits outrank a model's qualitative "轻松" summary.
+        var walkingText=System.Text.RegularExpressions.Regex.Replace(message,@"(?<=\d)[,，](?=\d{3}\s*步)","");
+        var walking=System.Text.RegularExpressions.Regex.Matches(walkingText,@"(?<![\d\-–~到至])([1-9]\d{2,4})\s*步")
+            .Select(m=>m.Groups[1].Value).Distinct().ToArray();
+        if(walking.Length==1)fields["pace"]="约"+walking[0]+"步";
+
         if(System.Text.RegularExpressions.Regex.IsMatch(message,@"(?:没有|无)(?:什么|特别|任何)?必去(?:地点|的地方|景点)?") && !message.Contains("但是") && !message.Contains("但想"))fields["mustDo"]="无";
         if(System.Text.RegularExpressions.Regex.IsMatch(message,@"(?:没有|无)(?:什么|特别|任何)?(?:需要)?避开(?:的安排|的地方|安排)?"))fields["avoid"]="无";
         var amount=System.Text.RegularExpressions.Regex.Matches(message,@"(?<![0-9.])([0-9]+(?:\.[0-9]+)?)\s*(澳元|澳币|AUD|人民币|CNY|美元|USD)",System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        if(amount.Count==1){if(!fields.ContainsKey("budget"))fields["budget"]=amount[0].Groups[1].Value;if(!fields.ContainsKey("budgetCurrency"))fields["budgetCurrency"]=amount[0].Groups[2].Value;}
+        var amountExplicit=amount.Count==1 && !System.Text.RegularExpressions.Regex.IsMatch(message[..amount[0].Index],@"(?:不是|并非|不要|别用|还是|或者|或|到|至|[-~–])\s*$");
+        if(amountExplicit){fields["budget"]=amount[0].Groups[1].Value;fields["budgetCurrency"]=amount[0].Groups[2].Value;}
         var mentions=System.Text.RegularExpressions.Regex.Matches(message,@"([0-9]{1,2}|一|二|两|三|四|五|六|七|八|九|十)\s*(?:个)?人");
         var counts=mentions.Select(m=>m.Groups[1].Value switch {"一"=>"1","二" or "两"=>"2","三"=>"3","四"=>"4","五"=>"5","六"=>"6","七"=>"7","八"=>"8","九"=>"9","十"=>"10",_=>m.Groups[1].Value}).Distinct().ToArray();
         if(counts.Length==1 && !message.Contains("不是")) {
             fields["travelers"]=counts[0];
             if(counts[0] is "1" or "2")fields["companions"]=counts[0]=="1" ? "一个人":"两个人";
         }
-        if(amount.Count==1 && message.Contains("全程") && !fields.ContainsKey("budgetBasis")) {
+        if(amountExplicit && message.Contains("全程")) {
             if(message.Contains("每人"))fields["budgetBasis"]="perPersonTrip";
-            else if(message.Contains("一共") || message.Contains("全体") || message.Contains("总共"))fields["budgetBasis"]="groupTrip";
+            else if(message.Contains("一共") || message.Contains("全体") || message.Contains("总共") || System.Text.RegularExpressions.Regex.IsMatch(message,@"(?:[0-9]{1,2}|两|三|四|五|六|七|八|九|十)人全程"))fields["budgetBasis"]="groupTrip";
         }
         var points=new[]{"中央车站","环形码头","悉尼机场"}.Where(message.Contains).ToArray();
         if(points.Length==1 && !message.Contains("不从") && !message.Contains("不要从") && (message.Contains("出发") || message.Contains("住宿") || message.Contains("住在")))fields["origin"]=points[0];

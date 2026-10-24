@@ -165,6 +165,16 @@ extension ScheduleState {
             s.days[dayIndex].activities.insert(a,at:index)
         }
     }
+    func importAndAdd(_ candidate:ScheduleCandidate) {
+        guard !busy, state != nil else{return}
+        // One edit/recompute: importing first would start a concurrent calculation.
+        let a=ScheduleActivity(id:UUID().uuidString,placeId:candidate.id,kind:candidate.activityKind,name:candidate.name,lat:candidate.lat,lng:candidate.lng,duration:candidate.visitMinutes,cost:candidate.activityKind=="meal" ? (state?.settings.mealCost ?? 25):candidate.cost,arrival:"",departure:"",scheduledStart:state!.days[dayIndex].startMinute,travelMinutes:0,indoor:candidate.indoor)
+        guard !state!.days.flatMap(\.activities).contains(where:{$0.placeId==candidate.id}) else{return}
+        edit{s in
+            if !s.candidates.contains(where:{$0.id==candidate.id}){s.candidates.append(candidate)}
+            s.days[dayIndex].activities.append(a)
+        }
+    }
     func add(_ candidate:ScheduleCandidate) {
         guard let day=state?.days[dayIndex],!(state?.days.flatMap(\.activities).contains(where:{$0.placeId==candidate.id}) ?? true) else{return}
         let a=ScheduleActivity(id:UUID().uuidString,placeId:candidate.id,kind:candidate.activityKind,name:candidate.name,lat:candidate.lat,lng:candidate.lng,duration:candidate.visitMinutes,cost:candidate.cost,arrival:"",departure:"",scheduledStart:day.startMinute,travelMinutes:0,indoor:candidate.indoor)

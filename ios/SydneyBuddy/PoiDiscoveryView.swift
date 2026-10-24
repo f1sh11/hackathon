@@ -113,19 +113,23 @@ import CryptoKit
 }
 @MainActor struct PoiDiscoveryView:View {
     var embedded=false
+    var initialQuery=""
+    var addingToDay=false
     var onAdd:(ScheduleCandidate)->Void = {PoiToolbox.shared.add($0)}
     @EnvironmentObject var store:AppStore
     @Environment(\.dismiss) var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @StateObject private var model=PoiSearchModel()
     @State private var detail:ScheduleCandidate?
+    @State private var localProvider:MapProvider = .apple
+    private var searchProvider:MapProvider {addingToDay ? localProvider:store.mapProvider}
     @ObservedObject private var toolbox=PoiToolbox.shared
     @State private var showInsights=false
     @State private var zoom:Double=14
     @State private var expanded=false
     @State private var areaChanged=false
     @FocusState private var searching:Bool
-    private var visiblePlaces:[ScheduleCandidate] {model.provider==store.mapProvider && model.dataSource==store.travelDataSource ? model.places:[]}
+    private var visiblePlaces:[ScheduleCandidate] {model.provider==searchProvider && model.dataSource==store.travelDataSource ? model.places:[]}
     private var orderedPlaces:[ScheduleCandidate] {visiblePlaces.sorted{a,b in a.id==model.selected && b.id != model.selected}}
     private var insightPoints:[[String:Any]] {[["id":"center","name":"搜尋中心","lat":model.center.latitude,"lng":model.center.longitude]]+visiblePlaces.prefix(20).map{["id":$0.id,"name":$0.name,"lat":$0.lat,"lng":$0.lng]}}
     private var insightMarkers:[InsightMarker] {(store.insights?.traffic.items ?? [])+(store.insights?.pricePlaces ?? [])}
@@ -159,7 +163,7 @@ import CryptoKit
                         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
 
                         Menu {
-                            Picker("地图来源", selection: $store.mapProvider) {
+                            Picker("地图来源", selection: Binding(get:{searchProvider},set:{if addingToDay{localProvider=$0}else{store.mapProvider=$0}})) {
                                 ForEach(store.availableMapProviders) { Text($0.label).tag($0) }
                             }
                         } label: {
@@ -198,7 +202,7 @@ import CryptoKit
             }
         }
         .background(Palette.cream)
-        .navigationTitle("探索目的地")
+        .navigationTitle(addingToDay ? "寻找餐厅，加入当天":"探索目的地")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if !embedded {
@@ -217,18 +221,22 @@ import CryptoKit
         if let viewport = store.mapViewport {
             model.center = CLLocationCoordinate2D(latitude: viewport.lat, longitude: viewport.lng)
         }
-        model.configure(store.mapProvider, googleMapConfigured: SydneyBuddyApp.mapConfigured,dataSource:store.travelDataSource)
+        model.query=initialQuery
+        if addingToDay{model.category="food"}
+        model.configure(searchProvider, googleMapConfigured: SydneyBuddyApp.mapConfigured,dataSource:store.travelDataSource)
     }
+    .onChange(of:localProvider){_,provider in if addingToDay{detail=nil;areaChanged=false;model.configure(provider,googleMapConfigured:SydneyBuddyApp.mapConfigured,dataSource:store.travelDataSource)}}
     .onChange(of: store.mapProvider) { _, provider in
+        guard !addingToDay else{return}
         detail = nil
         areaChanged = false
         model.configure(provider, googleMapConfigured: SydneyBuddyApp.mapConfigured,dataSource:store.travelDataSource)
     }
-    .onChange(of:store.travelDataSource){_,_ in detail=nil;areaChanged=false;model.configure(store.mapProvider,googleMapConfigured:SydneyBuddyApp.mapConfigured,dataSource:store.travelDataSource)}
+    .onChange(of:store.travelDataSource){_,_ in detail=nil;areaChanged=false;model.configure(searchProvider,googleMapConfigured:SydneyBuddyApp.mapConfigured,dataSource:store.travelDataSource)}
     .onChange(of: model.category) { _, _ in
         searching = false
         areaChanged = false
-        if model.category != "gems" && store.mapProvider == .google && store.travelDataSource == .direct {
+        if model.category != "gems" && searchProvider == .google && store.travelDataSource == .direct {
             model.configure(.google, googleMapConfigured: SydneyBuddyApp.mapConfigured,dataSource:store.travelDataSource)
         } else {
             model.search()
@@ -244,8 +252,8 @@ import CryptoKit
     }
     private func panelHeight(_ height:CGFloat)->CGFloat {max(180,height*(expanded ? 0.65:0.36))}
     @ViewBuilder private var map:some View {
-        switch store.mapProvider {
-        case .apple,.osm:PoiNativeMap(places:visiblePlaces,osm:store.mapProvider == .osm,center:model.center,zoom:zoom,onCamera:{model.center=$0;zoom=$1;areaChanged=true},onSelect:{model.selected=$0},insightMarkers:insightMarkers).accessibilityIdentifier("poi-map-"+store.mapProvider.rawValue)
+        switch searchProvider {
+        case .apple,.osm:PoiNativeMap(places:visiblePlaces,osm:searchProvider == .osm,center:model.center,zoom:zoom,onCamera:{model.center=$0;zoom=$1;areaChanged=true},onSelect:{model.selected=$0},insightMarkers:insightMarkers).accessibilityIdentifier("poi-map-"+searchProvider.rawValue)
         case .google:
             if SydneyBuddyApp.mapReady{PoiGoogleMap(places:visiblePlaces,center:model.center,zoom:zoom,onCamera:{model.center=$0;zoom=$1;areaChanged=true},onSelect:{model.selected=$0},insightMarkers:insightMarkers)}
             else{ContentUnavailableView("地图尚未配置",systemImage:"map",description:Text("请切换到 Apple Maps 或 OpenStreetMap。"))}
@@ -272,18 +280,19 @@ import CryptoKit
                 Text("Google 地點暫不匯入本機示例時間軸").font(.caption2).foregroundStyle(Palette.muted)
             } else {
                 Button {
-                    if isAdded(p) { toolbox.remove(p.id) }
+                    if addingToDay {toolbox.add(p);onAdd(p)}
+                    else if isAdded(p) { toolbox.remove(p.id) }
                     else { toolbox.add(p); onAdd(p) }
                 } label: {
-                    Image(systemName:isAdded(p) ? "checkmark":"plus").font(.headline).frame(width:44,height:44).background(.white,in:Circle())
+                    Image(systemName:addingToDay ? "plus":isAdded(p) ? "checkmark":"plus").font(.headline).frame(width:44,height:44).background(.white,in:Circle())
                 }
-                .accessibilityLabel(store.language.text(isAdded(p) ? "移出工具箱":"＋工具箱") + "：" + p.name)
+                .accessibilityLabel((addingToDay ? "加入当天":store.language.text(isAdded(p) ? "移出工具箱":"＋工具箱")) + "：" + p.name)
                 .accessibilityIdentifier("poi-toggle-"+p.id)
             }
         }.padding(.horizontal,16).padding(.vertical,12).background(model.selected==p.id ? Palette.mint.opacity(0.5):.clear)
     }
     @ViewBuilder private var attribution:some View {
-        if store.mapProvider == .osm {
+        if searchProvider == .osm {
             VStack(spacing:3) {
                 HStack{Link("地圖 © OpenStreetMap contributors · ODbL",destination:URL(string:"https://www.openstreetmap.org/copyright")!);Spacer();Link(model.attribution,destination:URL(string:model.attribution.contains("OpenStreetMap") ? "https://www.openstreetmap.org/copyright":"https://docs.overturemaps.org/attribution/")!).lineLimit(1)}
                 if let version=model.dataVersion { Text(store.language.text("本機地點資料快照：{0}",version)) }

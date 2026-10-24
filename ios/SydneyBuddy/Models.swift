@@ -50,6 +50,7 @@ struct TripProfile: Codable {
     var energy:String? = nil
     var rhythm:String? = nil
     var queueTolerance:String? = nil
+    var dayStyle:String? = nil
     var mustVisit: [String] = []
     var start = Coordinate.quay
     var end = Coordinate.quay
@@ -210,7 +211,7 @@ struct TravelPlanningTask:Codable {
     @Published var operationDetail="请稍等，完成后会自动显示结果。"
     @Published var errorMessage: String?
     @Published var health: Health?
-    @Published var mapProvider = MapProvider(rawValue: UserDefaults.standard.string(forKey:"mapProvider") ?? "") ?? .osm {
+    @Published var mapProvider = MapProvider.preferred() {
         didSet { UserDefaults.standard.set(mapProvider.rawValue,forKey:"mapProvider") }
     }
     @Published var travelDataSource=TravelDataSource.current {
@@ -229,7 +230,7 @@ struct TravelPlanningTask:Codable {
     }
     var mapViewport: MapViewport?
     @Published var live = false
-    @Published var language = AppLanguage(rawValue:UserDefaults.standard.string(forKey:"appLanguage") ?? "") ?? .traditional {
+    @Published var language = AppLanguage(rawValue:UserDefaults.standard.string(forKey:"appLanguage") ?? "") ?? .simplified {
         didSet {UserDefaults.standard.set(language.rawValue,forKey:"appLanguage")}
     }
     @Published var tab = 1
@@ -444,9 +445,31 @@ struct TravelPlanningTask:Codable {
         do { let _: [String:Bool] = try await api("memories/"+memory.id,method:"DELETE");if memory.id==UserDefaults.standard.string(forKey:"personalProfile.memoryID"){personalProfile=UserTravelProfile();UserDefaults.standard.removeObject(forKey:"personalProfile.memoryID")}; await reload() }
         catch { errorMessage = error.localizedDescription }
     }
-    func deleteTrip(_ value: Trip) async {
-        guard let id = value.id else { return }
-        do { let _: [String:Bool] = try await api("trips/"+id,method:"DELETE"); if trip?.id==id { trip=nil }; await reload() }
-        catch { errorMessage=error.localizedDescription }
+    @discardableResult func deleteTrip(_ value: Trip) async -> Bool {
+        guard let id=value.id else{return false}
+        do {
+            let _: [String:Bool] = try await api("trips/"+id,method:"DELETE")
+            saved.removeAll{$0.id==id}
+            if trip?.id==id{trip=nil;selectedStopID=nil}
+            if tripToOpen?.id==id{tripToOpen=nil}
+            if lastAdjustment?.id==id{lastAdjustment=nil}
+            return true
+        }catch{errorMessage=error.localizedDescription;return false}
+    }
+}
+
+// Display the same per-person activity-cost basis at every stage.
+extension TripProfile {
+    var activityBudgetSummary:String {
+        guard let amount=budgetAmount,let basis=budgetBasis else{return "每人每天活动预算 A$\(Int(budget))"}
+        let label=TravelRequirements.budgetBases.first{$0.0==basis}?.1 ?? "每人每天"
+        return "\(label)活动预算 A$\(amount.formatted(.number.precision(.fractionLength(0...2))))"
+    }
+}
+extension DayPlan {
+    var buddySummary:String {
+        if freeTime == true || stops.isEmpty{return "🐨 这天先留给你自由安排：候选地点暂时无法满足约束，可以自己补充喜欢的地方。"}
+        let hour=Int(finishTime.split(separator:":").first ?? "24") ?? 24
+        return "🐨 今天安排 \(stops.count) 站，约 \(estimatedSteps.formatted()) 步。"+(hour<15 ? "景点集中在上午，\(finishTime) 后自由活动；想逛久一点可以调整。":"按顺序慢慢逛，点活动就能在地图上找到它。")
     }
 }

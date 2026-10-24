@@ -8,6 +8,35 @@ namespace SydneyBuddy.Api.Tests;
 [Trait("Category","Integration")]
 public sealed class PetConversationTests(ApiFixture fixture):IClassFixture<ApiFixture>
 {
+    [Fact]
+    public void ExplicitGroupBudgetOverridesEmptyOrIncorrectModelAmount()
+    {
+        var fields=new JsonObject{["budget"]="",["budgetBasis"]="perPersonTrip"};
+        PetExplicitFacts.Apply("2个人，两人全程活动预算400澳元，每天最多8000步",fields);
+        Assert.Equal("400",fields.Str("budget"));Assert.Equal("澳元",fields.Str("budgetCurrency"));
+        Assert.Equal("groupTrip",fields.Str("budgetBasis"));Assert.Equal("约8000步",fields.Str("pace"));
+    }
+    [Theory]
+    [InlineData("预算1000或2000澳元")]
+    [InlineData("不是400澳元")]
+    public void AmbiguousOrNegatedAmountIsNotAnExplicitBudget(string message)
+    {
+        var fields=new JsonObject();PetExplicitFacts.Apply(message,fields);Assert.Null(fields["budget"]);
+    }
+    [Theory]
+    [InlineData("每天最多1000步", "约1000步")]
+    [InlineData("每天最多 10,000 步", "约10000步")]
+    public void ExplicitStepLimitOverridesQualitativeModelSummary(string message,string expected)
+    {
+        var fields=new JsonObject{["pace"]="轻松"};PetExplicitFacts.Apply(message,fields);
+        Assert.Equal(expected,fields.Str("pace"));
+    }
+    [Fact]
+    public void StepRangeIsNotSilentlyConvertedToAnExactLimit()
+    {
+        var fields=new JsonObject();PetExplicitFacts.Apply("每天3000-6000步",fields);
+        Assert.Null(fields["pace"]);
+    }
     [Theory]
     [InlineData("relaxed","relaxed")]
     [InlineData("excited","excited")]

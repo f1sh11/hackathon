@@ -57,6 +57,7 @@ struct OverviewRoute {
     private var task: Task<Void, Never>?
     private var generation = UUID()
     private var homeIdentity=""
+    private var routeProvider:MapProvider?
     var loader:(URLRequest) async throws -> (Data,URLResponse) = {try await URLSession.shared.data(for:$0)}
     private let applePlan:(DayPlan,Date) async throws -> JourneyPlan
     init(applePlan:@escaping (DayPlan,Date) async throws -> JourneyPlan = {day,departure in
@@ -67,11 +68,14 @@ struct OverviewRoute {
         let identity=mapSceneKey(day)+"|"+provider.rawValue+"|"+contentSource
         guard homeIdentity != identity else{return};homeIdentity=identity
         clear();key=mapSceneKey(day)
-        if contentSource != "google" && (provider == .osm || provider == .apple){load(day,provider:provider)}
+        if !day.stops.isEmpty,contentSource != "google" && (provider == .osm || provider == .apple){load(day,provider:provider)}
     }
     func clear(){cancel();route=nil;plan=nil;message=nil}
     func accept(_ result:JourneyPlan,day:DayPlan) {
         cancel();key=mapSceneKey(day);plan=result;route=result.overview;message="路线来源："+result.source
+        if result.source=="Apple Maps / MapKit",result.legs.flatMap(\.steps).allSatisfy({$0.mode=="walk"}) {
+            routeProvider = .apple;homeIdentity=mapSceneKey(day)+"|apple|open"
+        }
     }
     func cancel() { generation = UUID(); task?.cancel(); task = nil; busy = false }
     func reset(_ newKey: String) {
@@ -79,6 +83,7 @@ struct OverviewRoute {
         clear(); key = newKey
     }
     func load(_ day: DayPlan,provider:MapProvider = .osm) {
+        if routeProvider != provider {clear();routeProvider=provider}
         reset(mapSceneKey(day)); guard !busy, route == nil else { return }
         guard provider == .osm || provider == .apple else {message="请从交通路线规划选择对应的路线服务。";return}
         busy = true; message = nil
@@ -119,7 +124,8 @@ struct OverviewRoute {
                 plan=nil;route = expanded; busy = false
             } catch {
                 guard token == generation, !Task.isCancelled else { return }
-                busy = false; message = "道路路線無法載入："+error.localizedDescription.trimmingCharacters(in:CharacterSet(charactersIn:"。.!"))+"。目前僅顯示站點。"
+                busy = false
+                message = provider == .apple ? "Apple 步行路线暂时无法载入，请检查网络后重试。当前仅显示站点顺序，未取得真实道路路线。":"道路路线无法载入："+error.localizedDescription.trimmingCharacters(in:CharacterSet(charactersIn:"。.!"))+"。当前仅显示站点顺序。"
             }
         }
     }

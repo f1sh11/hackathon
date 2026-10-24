@@ -7,6 +7,33 @@ import FerrostarCoreFFI
 @testable import SydneyBuddy
 
 @MainActor final class NavigationTests: XCTestCase {
+    func testDefaultMapMigratesToAppleOnceAndPreservesLaterChoice() {
+        let name="apple-default-test-"+UUID().uuidString
+        let defaults=UserDefaults(suiteName:name)!
+        defer{defaults.removePersistentDomain(forName:name)}
+        defaults.removePersistentDomain(forName:name)
+        defaults.set("osm",forKey:"mapProvider")
+        XCTAssertEqual(MapProvider.preferred(defaults:defaults),.apple)
+        defaults.set("osm",forKey:"mapProvider")
+        XCTAssertEqual(MapProvider.preferred(defaults:defaults),.osm)
+        defaults.set("invalid",forKey:"mapProvider")
+        XCTAssertEqual(MapProvider.preferred(defaults:defaults),.apple)
+    }
+    func testCoLocatedAppleWalkingLegsNeedNoRouteServiceAndKeepAllStops() async throws {
+        var plan=day();plan.end=plan.start
+        plan.stops=[Stop(id:"same",name:"同址休息",lat:plan.start.lat,lng:plan.start.lng,category:"自然",indoor:false,visitMinutes:10,cost:0,note:"",arrival:"10:00",departure:"10:10",hoursVerified:false,mapsURL:"",steps:0)]
+        let result=try await AppleJourneyProvider.plan(day:plan,modes:["walk","walk"],departure:Date())
+        XCTAssertEqual(result.source,"Apple Maps / MapKit");XCTAssertEqual(result.legs.count,2)
+        XCTAssertEqual(result.meters,0);XCTAssertEqual(result.travelSeconds,0);XCTAssertEqual(result.elapsedSeconds,600)
+        XCTAssertEqual(result.legs.first?.steps.first?.walkingDirections?.first?.text,"同一位置，无需步行")
+    }
+    func testUnavailableValhallaStillDoesNotEnableItsNavigator() {
+        XCTAssertFalse(TripNavigationAvailability.canNavigate(configured:nil,mode:"demo"))
+        XCTAssertFalse(TripNavigationAvailability.canNavigate(configured:false,mode:"demo"))
+        XCTAssertFalse(TripNavigationAvailability.canNavigate(configured:true,mode:"live"))
+        XCTAssertTrue(TripNavigationAvailability.canNavigate(configured:true,mode:"demo"))
+    }
+
     func day() -> DayPlan {
         DayPlan(date: "2026-10-23", stops: [], legs: [], estimatedCost: 0, estimatedSteps: 0, finishTime: "18:00", warnings: [], start: .quay, end: Coordinate(name: "Opera House", lat: -33.8568, lng: 151.2153))
     }

@@ -294,8 +294,7 @@ struct PetChatView:View {
             HStack {
                 Button("我的记忆"){memories=true}
                 Spacer()
-                Button("旅行需求摘要"){fields=chat.session?.fields ?? [:];editingRequirements=false;assumptionsConfirmed=false;review=true}.fontWeight(.bold)
-                Menu{Button("清空本次对话",role:.destructive){clearing=true}}label:{Image(systemName:"ellipsis.circle")}
+                Menu{Button("查看完整需求"){fields=liveFields;editingRequirements=false;assumptionsConfirmed=false;review=true};Button("清空本次对话",role:.destructive){clearing=true}}label:{Image(systemName:"ellipsis.circle")}
             }.font(.subheadline).padding(20).disabled(chat.busy)
         }.background(Palette.cream).foregroundStyle(Palette.ink)
     }
@@ -396,10 +395,20 @@ struct PetChatView:View {
     }
     private var directPlanningCard:some View {
         VStack(alignment:.leading,spacing:8){
-            HStack{Label("旅行需求已齐",systemImage:"checkmark.circle.fill").font(.subheadline.bold()).foregroundStyle(Palette.green);Spacer();Button("修改"){fields=liveFields;editingRequirements=false;review=true}.font(.caption)}
+            HStack{Label("旅行需求已齐",systemImage:"checkmark.circle.fill").font(.subheadline.bold()).foregroundStyle(Palette.green);Spacer();Button("修改小背包"){backpackOpen=true}.font(.caption)}
             Text(TripDraftSummary(fields:liveFields).title+" · "+(liveFields["date"] ?? "")).font(.caption)
             Text("活动预算："+(liveFields["budget"] ?? "待确认")+" "+(liveFields["budgetCurrency"] ?? "")+" · "+TravelRequirements.optionTitle(liveFields["budgetBasis"] ?? "",field:"budgetBasis")).font(.caption)
-            if let profile=directProfile{Text("换算为每人每日活动预算约 "+String(format:"%.2f",profile.budget)+" AUD").font(.caption).foregroundStyle(Palette.muted)}
+            if let profile=directProfile{
+                Text("\(profile.travelers ?? 1) 人同行 · 每天最多约 \(profile.maxSteps.formatted()) 步").font(.caption)
+                Text("这次想玩："+profile.interests.joined(separator:"、")).font(.caption)
+                if let must=profile.mustDo,TravelRequirements.known(must),must != "无"{Text("特别想做："+must).font(.caption)}
+                if let avoid=profile.avoid,TravelRequirements.known(avoid),avoid != "无"{Text("需要避开："+avoid).font(.caption)}
+                Text("换算为每人每日活动预算约 "+String(format:"%.2f",profile.budget)+" AUD").font(.caption).foregroundStyle(Palette.muted)
+            }
+            Picker("每天想怎么玩",selection:Binding(get:{liveFields["dayStyle"] ?? "flexible"},set:{value in Task{await chat.update(["dayStyle":value])}})){
+                Text("暂不确定").tag("flexible");Text("半天游玩").tag("halfDay");Text("慢逛一天").tag("fullDay")
+            }.pickerStyle(.segmented).accessibilityIdentifier("trip-day-style")
+            Text("半天游玩会在 15:00 前返回；慢逛一天可安排到 18:00。地点不足时会明确留出自由活动，不强行填满。").font(.caption2).foregroundStyle(Palette.muted)
             let assumptions=TravelRequirements.assumptions(liveFields,personal:store.pendingPersonalProfile)
             if let origin=assumptions.first(where:{$0.contains("起终点") || $0.contains("尚未定位")}){Text(origin).font(.caption2).foregroundStyle(Palette.muted).fixedSize(horizontal:false,vertical:true)}
             DisclosureGroup("查看临时假设与待核实信息") {ScrollView{VStack(alignment:.leading,spacing:6){ForEach(assumptions,id:\.self){Text("• "+$0).font(.caption)}}}.frame(maxHeight:100)}.font(.caption).foregroundStyle(Palette.muted)
@@ -789,6 +798,8 @@ struct TravelRequirements {
         result.energy=known(fields["energy"]) ? fields["energy"]:personal.energy
         result.rhythm=known(fields["rhythm"]) ? fields["rhythm"]:personal.rhythm
         result.queueTolerance=known(fields["queueTolerance"]) ? fields["queueTolerance"]:personal.queueTolerance
+        result.dayStyle=fields["dayStyle"]
+        if fields["dayStyle"]=="halfDay"{result.endMinute=900}
         switch fields["origin"] {
         case "中央车站","中央車站":result.start = .central;result.end = .central
         case "悉尼机场","悉尼機場":result.start = .airport;result.end = .airport
@@ -850,13 +861,22 @@ struct PersonalPreferencesView:View {
     private func clearCurrent(){switch step{case 0:draft.queueTolerance=nil;case 1:draft.dailySteps=nil;case 2:draft.energy=nil;case 3:draft.rhythm=nil;case 4:draft.interests=nil;default:break}}
     private func summary(_ title:String,_ value:String?)->some View{HStack(alignment:.top){Text(title).foregroundStyle(Palette.muted);Spacer();Text(value ?? "暂不确定").multilineTextAlignment(.trailing)}}
     private func choice(_ title:String,selected:Bool,action:@escaping()->Void)->some View{Button(action:action){HStack{Text(title).font(.subheadline.bold());Spacer();Image(systemName:selected ? "checkmark.circle.fill":"circle")}.padding(18).background(selected ? Palette.mint:.white,in:RoundedRectangle(cornerRadius:18)).foregroundStyle(Palette.ink)}.buttonStyle(.plain)}
-    private func singleOptions(_ options:[String],value:String?,set:@escaping(String)->Void)->some View{ForEach(options,id:\.self){option in choice(option,selected:value==option){set(option);response="收到！适合自己的旅行方式，就是最好的。"}}}
+    private func singleOptions(_ options:[String],value:String?,set:@escaping(String)->Void)->some View{ForEach(options,id:\.self){option in choice(option,selected:value==option){set(option);response=preferenceReply(option)}}}
+    private func preferenceReply(_ option:String)->String {
+        switch option {
+        case "尽量不排队":return "收到，小爪爪记下啦！我会参考这个偏好，排队情况仍要出发前确认哦。"
+        case "低精力":return "小电池也能玩得开心，我会给你多留一点喘口气的空间～"
+        case "高精力":return "探索能量满格！不过每天的步数上限我也会记在心里。"
+        case "轻松随意":return "好呀，留白也是旅行的一部分，我们慢慢来～"
+        case "紧凑充实":return "收到，想看的都先收进背包，再检查时间够不够！"
+        default:return "\(option)，收到啦！这会作为以后的旅行参考，随时都能改。"
+        }
+    }
     private func load() async {
-        draft=store.personalProfile
+        draft=editing ? store.personalProfile:UserTravelProfile()
         await chat.refreshMemories()
         // The questionnaire remains usable offline; save reports connection errors without losing answers.
-        existing=chat.memories.filter{$0.profile.habits != nil}.sorted{($0.provenance?.createdAt ?? "") > ($1.provenance?.createdAt ?? "")}.first
-        if UserDefaults.standard.data(forKey:"userTravelProfile")==nil,let habits=existing?.profile.habits{draft=habits}
+        existing=editing ? chat.memories.first{$0.id==UserDefaults.standard.string(forKey:"personalProfile.memoryID")}:nil
         loaded=true
     }
     private func save() async {
