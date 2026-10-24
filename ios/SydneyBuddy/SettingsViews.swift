@@ -38,13 +38,6 @@ struct SettingsView:View {
         NavigationStack {
             Form {
                 Section { HStack(spacing:18){Robot(size:65);VStack(alignment:.leading,spacing:6){Text("你好，旅行家").font(.title2.bold());Text("按自己的节奏，发现悉尼").font(.caption).foregroundStyle(Palette.muted)}}.padding(.vertical,10) }
-                Section("语言") {
-                    Picker("介面語言",selection:$store.language) {
-                        ForEach(AppLanguage.allCases){language in Text(verbatim:language.label).tag(language)}
-                    }.accessibilityIdentifier("app-language-picker")
-                    Text("語言切換後立即生效，並保存在這台裝置。").font(.caption)
-                    Text("景點名稱與已儲存的行程內容保留原始語言。").font(.caption).foregroundStyle(Palette.muted)
-                }
                 Section("我的旅行偏好") {
                     Text(store.personalProfile.summary.isEmpty ? "还没认识你的旅行习惯，来告诉 Buddy 吧。":store.personalProfile.summary).font(.subheadline)
                     Button { editingPersonalPreferences=true } label:{Label("修改旅行习惯",systemImage:"slider.horizontal.3")}
@@ -54,6 +47,9 @@ struct SettingsView:View {
                         if store.memories.isEmpty{Text("还没有额外保存的偏好。").foregroundStyle(Palette.muted)}
                         ForEach(store.memories){memory in HStack(alignment:.top){Text(memory.summary).font(.subheadline);Spacer();Button("删除",role:.destructive){deletingMemory=memory}.font(.subheadline).frame(minHeight:44)}}
                     }
+                }
+                Section("设置") {
+                    Picker("界面语言",selection:$store.language){ForEach(AppLanguage.allCases){language in Text(verbatim:language.label).tag(language)}}.accessibilityIdentifier("app-language-picker")
                 }
                 Section("体验与帮助") {
                     Button("创建一次新的旅行"){store.newTrip()}
@@ -84,7 +80,7 @@ struct SettingsView:View {
                         Text("Sydney Buddy · iOS 测试版本。路线来源和待确认信息可在行程详情中查看。").font(.caption).foregroundStyle(Palette.muted)
                     }
                 }
-            }.scrollContentBackground(.hidden).background(Palette.cream).navigationTitle(store.language.text("我的 Buddy"))
+            }.scrollContentBackground(.hidden).background(Palette.cream).navigationTitle(store.language.text("我的 Buddy")).tint(Palette.green)
             .sheet(isPresented:$editingPersonalPreferences){PersonalPreferencesView(editing:true)}
             .confirmationDialog("删除这条长期偏好？以后的旅行将不再参考它。",isPresented:Binding(get:{deletingMemory != nil},set:{if !$0{deletingMemory=nil}}),titleVisibility:.visible){Button("删除偏好",role:.destructive){if let memory=deletingMemory{Task{await store.deleteMemory(memory);deletingMemory=nil}}}}
         }

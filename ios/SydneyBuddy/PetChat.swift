@@ -270,17 +270,19 @@ struct PetChatView:View {
                     }.padding(20)
                 }.onChange(of:chat.streaming){_,_ in proxy.scrollTo("bottom",anchor:.bottom)}.onChange(of:chat.session?.messages.count){_,_ in proxy.scrollTo("bottom",anchor:.bottom)}
             }
-            if let session=chat.session,!session.nextField.isEmpty {quickAnswers(session)}
             if canPlanDirectly {directPlanningCard}
             else if let blocker=directPlanningBlocker {
-                VStack(alignment:.leading,spacing:8){Label(blocker,systemImage:"info.circle").font(.caption).foregroundStyle(Palette.muted)
+                VStack(alignment:.leading,spacing:10){
+                    Label(TravelRequirements.known(liveFields["destination"]) && !TravelRequirements.supportedDestination(liveFields["destination"]) ? "当前还需确认目的地":"还有一件事需要确认",systemImage:"exclamationmark.bubble.fill").font(.subheadline.bold()).foregroundStyle(Palette.ink)
+                    Text(blocker).font(.caption).foregroundStyle(Palette.muted).fixedSize(horizontal:false,vertical:true)
                     if TravelRequirements.known(liveFields["destination"]),!TravelRequirements.supportedDestination(liveFields["destination"]) {
-                        Button("改为悉尼，继续规划"){Task{await chat.send("改为悉尼，保留其他旅行需求",field:"destination",value:"悉尼")}}.font(.subheadline.bold()).disabled(chat.busy)
+                        PrimaryButton(title:"改为悉尼，继续规划",symbol:"map"){Task{await chat.send("改为悉尼，保留其他旅行需求",field:"destination",value:"悉尼")}}
                     } else if let currency=liveFields["budgetCurrency"],TravelRequirements.known(currency),currency != "AUD" {
-                        Button("重新填写澳元活动预算"){Task{await chat.update(["budget":"","budgetCurrency":"AUD","budgetCoverage":"activities"])}}.font(.subheadline.bold()).disabled(chat.busy)
-                    } else {Button("修改旅行需求"){fields=liveFields;review=true}.font(.subheadline.bold())}
-                }.padding(.horizontal,20).padding(.top,6)
-            }
+                        PrimaryButton(title:"重新填写澳元活动预算",symbol:"pencil"){Task{await chat.update(["budget":"","budgetCurrency":"AUD","budgetCoverage":"activities"])}}
+                    } else {PrimaryButton(title:"补充旅行需求",symbol:"pencil"){fields=liveFields;review=true}}
+                    Button("先保留，稍后继续"){if onboarding{store.returnToTrips(draft:liveFields)}else{dismiss()}}.font(.caption).frame(maxWidth:.infinity,minHeight:32)
+                }.padding(14).background(Palette.mint.opacity(0.6),in:RoundedRectangle(cornerRadius:18)).padding(.horizontal,20).disabled(chat.busy || store.busy).accessibilityIdentifier("chat-current-status")
+            } else if let session=chat.session,!session.nextField.isEmpty {quickAnswers(session)}
             HStack(alignment:.bottom){
                 TextField("告诉 Buddy 你的想法，也可以点上面的选项…",text:$message,axis:.vertical).focused($composing).lineLimit(1...4).padding(12).background(.white,in:RoundedRectangle(cornerRadius:16)).accessibilityIdentifier("chat-composer")
                 Button{let text=message;composing=false;Task{await chat.send(text);if chat.error==nil{message=""}}}label:{Image(systemName:"arrow.up.circle.fill").font(.system(size:34))}.accessibilityLabel("发送消息").disabled(chat.busy || message.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty || message.count>2000)

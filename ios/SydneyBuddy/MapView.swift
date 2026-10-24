@@ -386,12 +386,17 @@ struct HomeView: View {
                 Spacer(minLength:20)
                 HStack{Spacer();if store.trip != nil{Button{expandedMap=true}label:{Image(systemName:"arrow.up.left.and.arrow.down.right").frame(width:42,height:42).background(.white,in:Circle())}.accessibilityLabel("展开地图")};Button{chat=true}label:{Text("🐨 聊一聊").font(.caption.bold()).padding(12).background(.white,in:Capsule())}.accessibilityLabel("问 AI")}
                 VStack(alignment:.leading,spacing:10){
-                    HStack(alignment:.top){
-                        VStack(alignment:.leading,spacing:5){Text(store.trip?.title ?? "開始你的悉尼旅行").font(.headline).foregroundStyle(Palette.ink);if let day=store.currentDay{Text(store.language.text("{0} 站 · {1} 步 · A${2} · {3} 返回",String(day.stops.count),day.estimatedSteps.formatted(),String(Int(day.estimatedCost)),day.finishTime)).font(.caption).foregroundStyle(Palette.muted)}}
-                        Spacer(minLength:4)
-                        if store.trip != nil{Button{withAnimation{homeInfo.toggle()}}label:{Image(systemName:homeInfo ? "chevron.down.circle.fill":"ellipsis.circle").font(.title2)}.accessibilityLabel(homeInfo ? "收起行程資訊":"展開行程資訊").accessibilityIdentifier("home-info-toggle")}
+                    if store.trip != nil {
+                        Button{withAnimation(.spring(response:0.3)){homeInfo.toggle()}}label:{
+                            VStack(spacing:5){Capsule().fill(Palette.muted.opacity(0.35)).frame(width:34,height:4);Text(homeInfo ? "收起当天行程":"查看当天行程").font(.caption.weight(.medium))}.frame(maxWidth:.infinity).padding(.vertical,4)
+                        }.accessibilityIdentifier("home-info-toggle").gesture(DragGesture(minimumDistance:12).onEnded{value in withAnimation{if value.translation.height < -12{homeInfo=true}else if value.translation.height > 12{homeInfo=false}}})
                     }
-                    if let day=store.currentDay{HomeTransportStrip(day:day,overview:overview,onPlan:{journey=true},onRetry:{overview.load(day,provider:store.mapProvider)})}
+                    HStack(alignment:.top){
+                        VStack(alignment:.leading,spacing:5){Text(store.trip == nil ? "开始你的悉尼旅行":"第 \(store.dayIndex+1) 天 · 当天概况").font(.headline).foregroundStyle(Palette.ink);if let day=store.currentDay{Text(store.language.text("{0} 站 · {1} 步 · A${2} · {3} 返回",String(day.stops.count),day.estimatedSteps.formatted(),String(Int(day.estimatedCost)),day.finishTime)).font(.caption).foregroundStyle(Palette.muted)}}
+                        Spacer(minLength:4)
+
+                    }
+                    if homeInfo,let day=store.currentDay{HomeTransportStrip(day:day,overview:overview,onPlan:{journey=true},onRetry:{overview.load(day,provider:store.mapProvider)})}
                     if homeInfo,let trip=store.trip {
                         ScrollView{VStack(alignment:.leading,spacing:12){
                             WeatherCard(weather:store.refreshedWeather ?? trip.weather,compact:true)
@@ -404,7 +409,7 @@ struct HomeView: View {
                         }}.frame(maxHeight:220).accessibilityIdentifier("home-extra-info")
                     }
                     HStack(spacing:10){
-                        if store.trip != nil{Button{details=true}label:{Text("行程说明").font(.subheadline.bold()).frame(maxWidth:.infinity).padding(.vertical,12).background(Palette.mint,in:RoundedRectangle(cornerRadius:13))}}
+                        if store.trip != nil && homeInfo{Button{details=true}label:{Text("行程说明").font(.subheadline.bold()).frame(maxWidth:.infinity).padding(.vertical,12).background(Palette.mint,in:RoundedRectangle(cornerRadius:13))}}
                         Button{if store.trip==nil{store.newTrip()}else{navigation=true}}label:{Label(store.trip==nil ? "開始規劃":"開始導航",systemImage:"location.fill").font(.subheadline.bold()).frame(maxWidth:.infinity).padding(.vertical,12).foregroundStyle(.white).background(Palette.green,in:RoundedRectangle(cornerRadius:13))}
                     }
                     HStack(spacing:4){Text(LocalizedStringKey(store.mapProvider.label)).fontWeight(.medium);if store.mapProvider == .osm{Link("© OpenStreetMap contributors",destination:URL(string:"https://www.openstreetmap.org/copyright")!)};Spacer(minLength:0);Text(LocalizedStringKey(store.trip?.mode=="live" ? (store.mapProvider == .google ? "Google 路線":"需 Google 底圖"):store.mapProvider == .schematic ? "離線示意":overview.route==nil ? "僅顯示站點":"已規劃路線"))}.font(.system(size:9)).foregroundStyle(Palette.muted).lineLimit(1).minimumScaleFactor(0.8)

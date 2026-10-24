@@ -219,15 +219,17 @@ struct ScheduleRadarView:View {
                             Text(state.source).font(.caption).foregroundStyle(Palette.muted)
                             ScheduleRadarView(axes:state.radar)
                             Button("回到原建议"){model.restore()}.font(.caption)
+                            Button("按目前偏好重新建议（会重选活动）"){model.recompute(regenerate:true)}.font(.caption)
+                            DisclosureGroup("开发测试"){
+                            if state.rainy {Text("户外活动已标示，可替换为室内地点。").font(.caption)}
+                            Button(state.rainy ? "切回晴天示例":"测试下雨影响"){model.edit{$0.rainy.toggle()}}
+                            }.font(.caption).foregroundStyle(Palette.muted)
                         }.font(.subheadline)
-                        if state.rainy {Text("下雨測試：戶外活動已標示，可從景點清單替換室內地點。").font(.caption)}
-                        Button(state.rainy ? "切回晴天示例":"測試下雨影響"){model.edit{$0.rainy.toggle()}}
-                        Button("依目前偏好重新建議（會重選活動）"){model.recompute(regenerate:true)}.font(.caption)
                     }else if model.busy {ProgressView("建立多日首版行程…")}else {Text(model.error ?? "準備行程編輯器");Button("重試"){model.recompute(regenerate:true)}}
                 }.padding(20)
-            }.background(Palette.cream).navigationTitle("我的時間軸").navigationBarTitleDisplayMode(.inline)
+            }.background(Palette.cream).tint(Palette.green).navigationTitle("编辑当天行程").navigationBarTitleDisplayMode(.inline)
             .toolbar {ToolbarItem(placement:.topBarLeading){Button("取消"){model.stop();store.proposal=nil}}}
-            .safeAreaInset(edge:.bottom){Button("確認並保存"){saveWarning=true}.buttonStyle(.borderedProminent).tint(Palette.green).disabled(model.busy || model.dirty || model.state == nil || model.state?.issues.contains(where:\.blocking)==true).padding().frame(maxWidth:.infinity).background(Palette.cream)}
+            .safeAreaInset(edge:.bottom){PrimaryButton(title:"保存行程",symbol:"checkmark"){saveWarning=true}.disabled(model.busy || model.dirty || model.state == nil || model.state?.issues.contains(where:\.blocking)==true).padding().frame(maxWidth:.infinity).background(Palette.cream)}
         }
         .task {if let trip=store.proposal {model.prepare(trip);await model.loadCatalog()}}
         .onDisappear{model.stop()}

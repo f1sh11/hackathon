@@ -133,11 +133,11 @@ struct SavedTripWorkspace:View {
     @State private var newTitle=""
     var body:some View {
         VStack(spacing:0) {
-            HStack{Button{newTitle=trip.title;renaming=true}label:{HStack(spacing:6){Text(trip.title).font(.headline);Image(systemName:"pencil").font(.caption)}}.foregroundStyle(Palette.ink).accessibilityLabel("修改旅行名称："+trip.title);Spacer();Text("\(trip.profile.date) · \(trip.days.count) 天").font(.caption).foregroundStyle(Palette.muted)}.padding(.horizontal,20).padding(.top,10)
+            HStack{Text("\(trip.profile.date) · \(trip.days.count) 天").font(.caption).foregroundStyle(Palette.muted);Spacer();Button{newTitle=trip.title;renaming=true}label:{Label("改名",systemImage:"pencil").font(.caption)}.accessibilityLabel("修改旅行名称："+trip.title)}.padding(.horizontal,20).padding(.top,4)
             Picker("旅行工作台",selection:$section){Text("路线地图").tag("map");Text("行程详情").tag("details")}.pickerStyle(.segmented).padding(.horizontal,20).padding(.vertical,10).accessibilityIdentifier("trip-workspace-section")
             if section=="map" {HomeView()}
             else {SavedTripOverview(trip:trip,onEdit:openEditor,onMap:{section="map"},onNavigate:onNavigate,onDelete:onDelete)}
-        }.background(Palette.cream).navigationTitle("旅行工作台").navigationBarTitleDisplayMode(.inline)
+        }.background(Palette.cream).navigationTitle(trip.title).navigationBarTitleDisplayMode(.inline)
         .toolbar{ToolbarItem(placement:.topBarTrailing){Button("编辑行程",action:openEditor).disabled(store.busy)}}
         .sheet(isPresented:$renaming){NavigationStack{Form{
             TextField("旅行名称",text:$newTitle).accessibilityIdentifier("trip-name-field")
