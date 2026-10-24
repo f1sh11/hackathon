@@ -4,6 +4,7 @@ struct TravelPreference:Codable,Identifiable,Equatable {
     var id:String;var key:String;var dimension:String;var value:String;var condition:String
     var scope:String;var source:String;var status:String;var confidence:Double
     var evidence:String;var sourceMessageId:String;var memoryId:String
+    var choice:PetChoiceEvidence? = nil
     var conflictingMemoryIds:[String];var previousValues:[String]
     var label:String {Self.labels[key] ?? key}
     var summary:String {label+"："+value+(condition.isEmpty ? "":"（"+condition+"）")}

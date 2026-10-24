@@ -12,7 +12,8 @@ public static class PetEndpoints
             TravelProfiling.Refresh(s,await records.ListAsync(ctx.RequestAborted));
             if(input.Object("personalProfile") is JsonObject personal)s.PersonalProfile=(JsonObject)personal.DeepClone();
             PetQuestions.Apply(s,input.Object("fields")??new());
-            s.Messages.Add(new(Guid.NewGuid().ToString("N"),"assistant","嗨，我是 Buddy 🐨！这次想去哪儿，过一段什么样的小假期？随便说说就好，我帮你慢慢整理。"));
+            KokoDialogue.Enable(s,input);
+            if(s.Dialogue is null)s.Messages.Add(new(Guid.NewGuid().ToString("N"),"assistant","嗨，我叫 Koko，是你的旅行向导。这次想过一段什么样的假期？随便说说就好。"));
             await store.Gate.WaitAsync(ctx.RequestAborted);try{store.Save(s);}finally{store.Gate.Release();}
             return Results.Json(PetQuestions.View(s));
         });
@@ -23,7 +24,7 @@ public static class PetEndpoints
         routes.MapPatch("/pet/sessions/{id}",async(string id,HttpContext ctx,PetSessionStore store)=>
         {
             var input=await RequestJson.ReadAsync(ctx);await store.Gate.WaitAsync(ctx.RequestAborted);
-            try{var s=store.Load(id);PetQuestions.Apply(s,input.Object("fields")??new());store.Save(s);return Results.Json(PetQuestions.View(s));}finally{store.Gate.Release();}
+            try{var s=store.Load(id);PetQuestions.Apply(s,input.Object("fields")??new());KokoDialogue.Enable(s,input);store.Save(s);return Results.Json(PetQuestions.View(s));}finally{store.Gate.Release();}
         });
         routes.MapPost("/pet/sessions/{id}/memory",async(string id,HttpContext ctx,PetSessionStore store,PreferenceService preferences,MemoryRepository records,IMemoryService memory)=>
         {
@@ -76,7 +77,8 @@ public static class PetEndpoints
             if(s.CompletedRequests.Contains(requestId)){await Emit(new{type="done",session=PetQuestions.View(s)});return;}
             try
             {
-                var field=input.Str("field");string reply;var mood="curious";
+                var choice=KokoDialogue.ResolveChoice(s,input);
+                var field=input.Str("field");string reply;var mood="curious";JsonObject dialogueResult=new();
                 if(field.Length>0)
                 {
                     if(!PetQuestions.Keys.Contains(field))throw new ServiceException("未知的旅行字段。");
@@ -91,28 +93,32 @@ public static class PetEndpoints
                         reply=repeated ? "没关系，我们慢慢来。我会留好背包，准备好再告诉我～\n"+PetQuestions.Question(field):PetQuestions.UncertainReply(field);mood=repeated ? "curious":"pouting";
                     } else reply=PetQuestions.UnsupportedDestination(s) ? "小爪爪先停一下～目前还不能生成这个城市的路线。可以改选悉尼，或者保留这份需求，之后再继续。": "收到啦～"+PetQuestions.Question(PetQuestions.Next(s));
 
-                    await Emit(new{type="reply",text=reply});
+                    if(s.Dialogue is not null)reply="这次的旅行资料已更新，可以继续调整草案。";
                 }
                 else
                 {
                     var records=await memories.ListAsync(ctx.RequestAborted);
                     TravelProfiling.Refresh(s,records);
-                    var confirmed=(JsonArray)records.DeepClone();
+                    var confirmed=s.Dialogue is null ? (JsonArray)records.DeepClone():new JsonArray();
                     if(records.Count>0) {
                         try {
-                            var recalled=await memory.RunAsync("query",new JsonObject{["query"]="travel preference "+message},ctx.RequestAborted);
+                            var recalled=await memory.RunAsync("query",new JsonObject{["query"]="travel preference "+(s.CurrentChoice?.QuestionText ?? "")+" "+message},ctx.RequestAborted);
                             var ids=(recalled.Array("memories") ?? new JsonArray()).Select(x=>x?.Object("memory").Str("id")).ToArray();
-                            confirmed=new JsonArray(records.OrderBy(x=>{var i=Array.IndexOf(ids,x.Str("id"));return i<0 ? int.MaxValue:i;}).Take(40).Select(x=>x?.DeepClone()).ToArray());
-                        } catch(ServiceException){s.MemoryWarning="长期偏好检索暂时不可用，本轮参考已确认的本机记录。";}
+                            var relevant=s.Dialogue is null ? records.AsEnumerable():records.Where(x=>ids.Contains(x.Str("id")));
+                            confirmed=new JsonArray(relevant.OrderBy(x=>{var i=Array.IndexOf(ids,x.Str("id"));return i<0 ? int.MaxValue:i;}).Take(s.Dialogue is null ? 40:8).Select(x=>x?.DeepClone()).ToArray());
+                        } catch(ServiceException){s.MemoryWarning=s.Dialogue is null ? "长期偏好检索暂时不可用，本轮参考已确认的本机记录。":"长期偏好检索暂时不可用，先按这次对话继续准备。";}
                     }
-                    var result=await model.RespondAsync(s,message,confirmed,_=>Task.CompletedTask,ctx.RequestAborted);
+                    var result=KokoDialogue.DirectResponse(s,message,choice) ?? await model.RespondAsync(s,message,confirmed,_=>Task.CompletedTask,ctx.RequestAborted);
+                    dialogueResult=result;
                     mood=PetEmotion.Normalize(result.Str("mood"));
                     var changes=result.Object("fields")??new();
+                    // A reaction to a proposal cannot silently fill unrelated trip facts or global habits.
+                    if(s.CurrentChoice is not null)changes=new();
                     // Do not let model-filled unknown placeholders skip unanswered questions.
                     foreach(var key in PetQuestions.Keys)
                         if(changes.Str(key) is "未确定" or "未知" or "未提供" or "unknown") changes.Remove(key);
                     PetExplicitFacts.Apply(message,changes);
-                    foreach(var uncertain in result.Array("needsClarification") ?? new JsonArray()) {
+                    foreach(var uncertain in (s.CurrentChoice is null ? result.Array("needsClarification"):null) ?? new JsonArray()) {
                         var key=uncertain?.GetValue<string>() ?? "";
                         if(PetQuestions.Required.Contains(key)){s.Fields.Remove(key);changes.Remove(key);}
                     }
@@ -121,12 +127,14 @@ public static class PetEndpoints
                     if(changes.ContainsKey("budget"))reply=PetExplicitFacts.BudgetReply(s) ?? "预算先收好啦，我们再确认金额、币种和范围。";
                     if(PetQuestions.Known(s.Fields.GetValueOrDefault("budgetCurrency")) && s.Fields["budgetCurrency"]!="AUD" && (changes.ContainsKey("budget") || changes.ContainsKey("budgetCurrency")))reply="这笔预算先按原币种保留。生成路线前还需要一份澳元活动预算。";
                     if(PetQuestions.UnsupportedDestination(s) && (changes.ContainsKey("destination") || message.Contains("生成") || reply.Contains("准备好"))){reply="可以先聊聊你想怎样玩，资料也会保留。目前能生成的路线是悉尼，其他城市还需要后续接入。";mood="confused";}
+                    if(choice?.Intent is "skip" or "skip_name" or "use_alias" or "keep" or "draft")result.Remove("preferences");
                     var added=TravelProfiling.Apply(s,result,message,requestId);
                     if(added.Count>0)await SyncPending(s,memory,ctx.RequestAborted);
-                    var suggestion=result.Array("preferences") is not null || !TravelProfiling.AllowLegacySuggestion(message) ? "":result.Str("memorySuggestion");if(suggestion.Length>0)s.PendingMemory=suggestion[..Math.Min(500,suggestion.Length)];
-                    await Emit(new{type="reply",text=reply});
+                    var suggestion=s.Dialogue is not null || result.Array("preferences") is not null || !TravelProfiling.AllowLegacySuggestion(message) ? "":result.Str("memorySuggestion");if(suggestion.Length>0)s.PendingMemory=suggestion[..Math.Min(500,suggestion.Length)];
                 }
-                s.Messages.Add(new(requestId,"user",message));s.Messages.Add(new(Guid.NewGuid().ToString("N"),"assistant",reply,mood));
+                var assistant=KokoDialogue.CompleteTurn(s,dialogueResult,reply,mood);
+                await Emit(new{type="reply",text=assistant.Text});
+                s.Messages.Add(new(requestId,"user",message,Choice:s.CurrentChoice));s.Messages.Add(assistant);
                 if(s.Messages.Count>100)s.Messages=s.Messages.TakeLast(100).ToList();
                 s.CompletedRequests.Add(requestId);if(s.CompletedRequests.Count>100)s.CompletedRequests.RemoveAt(0);
                 store.Save(s);await Emit(new{type="done",session=PetQuestions.View(s)});

@@ -18,10 +18,14 @@ public sealed class PetModel(HttpClient client,SecretStore secrets):IPetModel
         var config=secrets.Read();var key=config.GetValueOrDefault("NVIDIA_API_KEY","");
         if(key.Length==0)throw new ServiceException("还没有连接 AI。可以先用点选回答保存旅行进度。");
         var model=config.GetValueOrDefault("NVIDIA_MODEL","");if(string.IsNullOrWhiteSpace(model))model=SecretStore.DefaultModel;
-        var system=TravelProfiling.SystemPrompt;
+        var system=TravelProfiling.SystemPrompt+(session.Dialogue is not null ? "\n"+KokoDialogue.Prompt:"");
         var messages=new JsonArray(new JsonObject{["role"]="system",["content"]=system});
         var zone=TimeZoneInfo.FindSystemTimeZoneById("Australia/Sydney");
         var context=new JsonObject{["today"]=TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow,zone).ToString("yyyy-MM-dd"),["tripFields"]=JsonSerializer.SerializeToNode(session.Fields),["personalProfile"]=session.PersonalProfile.DeepClone(),["confirmedPreferences"]=memories.DeepClone(),["pendingPreferences"]=JsonSerializer.SerializeToNode(session.Preferences.Where(x=>x.Status is "awaiting_confirmation" or "trip_only"),JsonExtensions.Options),["missingImportantFields"]=JsonSerializer.SerializeToNode(TravelProfiling.Missing(session)),["tripFieldKeys"]=JsonSerializer.SerializeToNode(PetQuestions.Keys),["preferenceKeys"]=JsonSerializer.SerializeToNode(TravelProfiling.Keys.Keys)};
+        if(session.Dialogue is {} dialogue) {
+            context["dialogue"]=new JsonObject{["phase"]=dialogue.Phase,["nickname"]=dialogue.Nickname,["responsesUsed"]=dialogue.ResponseCount,["responsesRemaining"]=Math.Max(0,KokoDialogue.MaximumResponses-dialogue.ResponseCount),["mustDraft"]=dialogue.Inspiration is not null || dialogue.ResponseCount+1>=KokoDialogue.MaximumResponses,["currentIdeas"]=JsonSerializer.SerializeToNode(dialogue.Ideas)};
+            context["currentChoice"]=JsonSerializer.SerializeToNode(session.CurrentChoice,JsonExtensions.Options);
+        }
         messages.Add(new JsonObject{["role"]="user",["content"]="当前资料："+context.ToJsonString()});
         foreach(var item in session.Messages.TakeLast(20))messages.Add(new JsonObject{["role"]=item.Role,["content"]=item.Text});
         messages.Add(new JsonObject{["role"]="user",["content"]=message});

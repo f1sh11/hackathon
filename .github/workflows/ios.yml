@@ -2,7 +2,7 @@ name: Sydney Buddy iOS checks
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, codex/travel-dna-koala-20261024]
     paths:
       - 'ios/**'
       - 'assets/koala/**'

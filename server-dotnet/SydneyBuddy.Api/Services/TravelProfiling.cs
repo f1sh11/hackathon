@@ -18,6 +18,7 @@ public sealed class TravelPreference
     public double Confidence { get; set; }
     public string Evidence { get; set; } = "";
     public string SourceMessageId { get; set; } = "";
+    public PetChoiceEvidence? Choice { get; set; }
     public string MemoryId { get; set; } = "";
     public string[] ConflictingMemoryIds { get; set; } = [];
     public string[] PreviousValues { get; set; } = [];
@@ -40,7 +41,7 @@ public static class TravelProfiling
     };
 
     public const string SystemPrompt = """
-你是旅行伙伴 Buddy，一只温暖、聪明的小考拉。先回应这个人刚说的话、感受或好奇的事，再决定是否需要问题。用用户的语言，像朋友聊天，通常一到三句；可以只回应，不需要每轮提问。每轮至多一个真正有用的问题，允许用户先聊旅行经历或讨论选择。不要把对话变成按字段遍历的问卷，不催促，不卖萌施压，不固定使用“收到/小背包/哼唧”开头。不为填满画像而轮询十二个维度。根据本轮内容自然衔接；用户已经说过的信息自动整理，不再重复问。
+你是旅行向导 Koko，一只温暖、聪明的小考拉。先回应这个人刚说的话、感受或好奇的事，再决定是否需要问题。用用户的语言，像朋友聊天，通常一到三句；可以只回应，不需要每轮提问。每轮至多一个真正有用的问题，允许用户先聊旅行经历或讨论选择。不要把对话变成按字段遍历的问卷，不催促，不卖萌施压，不固定使用“收到/小背包/哼唧”开头。不为填满画像而轮询十二个维度。根据本轮内容自然衔接；用户已经说过的信息自动整理，不再重复问。
 返回严格 JSON，reply 必须第一个：{"reply":"自然回应","fields":{},"preferences":[],"needsClarification":[],"mood":"curious"}。不要代码围栏。
 mood 只允许 curious,excited,relaxed,remembering,confused；疲惫、困难或预算紧张不配庆祝表情。
 用户要修改既有日期、目的地、预算或人数，但新值存在歧义时，needsClarification 输出需重新确认的字段名数组，不能把旧值当作新要求；无歧义时为空数组。
@@ -75,7 +76,8 @@ confirmedPreferences 是当前有效的已确认记忆，pendingPreferences 只�
         {
             var key=item.Str("key");var value=item.Str("value").Trim();var evidence=item.Str("evidence").Trim();
             if(!Keys.TryGetValue(key,out var definition) || value.Length is 0 or >300)continue;
-            var scope=item.Str("scope");if(scope is not ("trip" or "long_term" or "inferred"))continue;
+            var scope=item.Str("scope");if(scope is not ("trip" or "long_term" or "inferred" or "activity"))continue;
+            if(session.CurrentChoice is not null && scope!="inferred")scope="activity";
             if(new[]{"不保存","不要记","别记","不记住","只限这次","仅这次","只用于这次"}.Any(message.Contains))scope="trip";
             var explicitEvidence=evidence.Length>0 && evidence.Length<=500 && message.Contains(evidence,StringComparison.Ordinal);
             if(scope!="inferred" && !explicitEvidence)continue;
@@ -83,12 +85,19 @@ confirmedPreferences 是当前有效的已确认记忆，pendingPreferences 只�
             if(scope=="long_term" && new[]{"这次","本次","这趟","for this trip"}.Any(x=>message.Contains(x,StringComparison.OrdinalIgnoreCase)) &&
                 !new[]{"平时","一般","总是","习惯","讨厌","每次","以后","通常","usually","always","hate"}.Any(x=>evidence.Contains(x,StringComparison.OrdinalIgnoreCase)))scope="trip";
             var condition=item.Str("condition").Trim();if(condition.Length>150)continue;
+            if(session.CurrentChoice is {} choice) {
+                // A contextual yes cannot establish someone's normal schedule, fitness, personality,
+                // overall pace or medical safety. Keep the complete scene with the accepted claim.
+                if(key is "normal_start_time" or "sleep_hours" or "daily_steps" or "walking_distance_km" or "hill_tolerance" or "continuous_activity_minutes" or "rhythm" or "crowd_preference" or "heat_tolerance" or "cold_tolerance" or "dietary_restrictions" or "transfer_tolerance_minutes")continue;
+                condition=string.Join("；",new[]{choice.QuestionText,condition}.Where(x=>x.Length>0).Distinct());
+            }
+            if(scope=="activity" && condition.Length==0)continue;
             if(session.Preferences.Any(x=>x.Key==key && x.Condition==condition && x.Value==value && x.Scope==scope && x.Status is "awaiting_confirmation" or "trip_only" or "confirmed"))continue;
             if(scope=="long_term" && session.ConfirmedDna.Any(x=>x.Key==key && x.Condition==condition && x.Value==value))continue;
             foreach(var old in session.Preferences.Where(x=>x.Key==key && x.Condition==condition && x.Scope==scope && x.Status is "awaiting_confirmation" or "trip_only"))old.Status="superseded";
             var fact=new TravelPreference {Key=key,Dimension=definition.Dimension,Value=value,Condition=condition,Scope=scope,
-                Source=scope=="inferred" ? "ai_inference":"user_statement",Status=scope=="trip" ? "trip_only":"awaiting_confirmation",
-                Confidence=Math.Clamp(item.Number("confidence",0.7),0,scope=="inferred" ? 0.6:1),Evidence=explicitEvidence ? evidence:"",SourceMessageId=messageId};
+                Source=scope=="inferred" ? "ai_inference":session.CurrentChoice is not null ? "contextual_choice":"user_statement",Status=scope is "trip" or "activity" ? "trip_only":"awaiting_confirmation",
+                Confidence=Math.Clamp(item.Number("confidence",0.7),0,scope=="inferred" ? 0.6:1),Evidence=explicitEvidence ? evidence:"",SourceMessageId=messageId,Choice=session.CurrentChoice};
             SetConflicts(fact,session.ConfirmedDna);session.Preferences.Add(fact);
             if(scope=="long_term")session.DnaCompleted=false;
             added.Add(JsonSerializer.SerializeToNode(fact,JsonExtensions.Options));
@@ -139,7 +148,7 @@ confirmedPreferences 是当前有效的已确认记忆，pendingPreferences 只�
         var notes=new List<string>();
         foreach(var fact in active) {
             var target=fact.Key switch {"daily_steps"=>"pace","rhythm"=>"rhythm","interests"=>"interests","queue_tolerance_minutes"=>"queueTolerance",_=>""};
-            if(target.Length>0 && PetQuestions.Known(fields.GetValueOrDefault(target)))continue;
+            if(target.Length>0 && fact.Condition.Length==0 && PetQuestions.Known(fields.GetValueOrDefault(target)))continue;
             if(target.Length>0 && fact.Condition.Length==0)fields[target]=fact.Key=="daily_steps" ? "约"+fact.Value+"步":fact.Value;
             notes.Add(Label(fact));
         }

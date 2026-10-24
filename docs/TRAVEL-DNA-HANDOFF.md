@@ -10,7 +10,25 @@ This slice implements natural-conversation profiling, candidate/consent/conflict
 
 The free-chat endpoint no longer appends the next fixed question, replaces a no-question reply with a completion script, truncates an ordinary response to generic boilerplate or pouts when a user says they do not know. Missing trip fields remain available to the review panel, rather than controlling every reply. Budget math and supported-city checks remain guarded. The response is buffered until its data is validated; the client receives NDJSON reply/done events, not a claim of raw token streaming.
 
-The first iOS flow opens conversational Buddy directly. Quick-fill controls are opt-in under the menu, using a fresh preference key so old questionnaire defaults do not turn them on. The separate editable personal-preferences form remains available in settings.
+The first iOS flow opens Koko directly. Contextual reply buttons follow the current proposal. The older fixed-field quick-fill controls remain opt-in under the menu. The separate editable personal-preferences form remains available in settings.
+
+## Travel Profiling v2: initial conversation slice
+
+The authoritative product rules are [Travel Profiling v2](TRAVEL-PROFILING-V2-SPEC.md). Section 8 of that document is simulation evidence only; none of its example preferences, nickname, destination or consent is seeded into application data.
+
+iOS draft/onboarding chat opts into `profilingVersion=2`. `KokoDialogue.Enable` handles a brief introduction and optional name, or resumes known context. Explicit nicknames are stored locally for future trips; no account/name inference or long-term memory consent is implied. Existing sessions upgrade through PATCH in place, count their prior user responses and preserve their trip fields/history. Older clients retain their existing contract.
+
+`ProfilingDialogue.responseCount` caps the initial conversation at four successful user-response turns, including the name response. Memory-card decisions and merely focusing the optional name editor do not add turns. An early draft request bypasses the model and immediately returns an inspiration from existing ideas. A fourth response forces the draft even if the model asks another profile question. Later chat can refine it without restarting the interview. Three contextual buttons are available throughout, with free text alongside them. Formal trip generation keeps its existing validated date/budget/group requirements; those requirements do not block inspiration.
+
+The model supplies the connected proposal, evolving hypothetical `ideas`, and contextual `quickReplies`; the server assigns option IDs and enforces completion. A clicked turn includes `questionId` and `optionId` as well as the exact displayed text. Only a current option can be used. The selected question/scene and option are stored with the user message and any extracted preference. Replaying the same completed request returns the saved result; submitting an old option as a new answer fails without advancing the dialogue.
+
+Contextual choices are `source=contextual_choice`, `scope=activity`, `status=trip_only`, with the full question retained as a condition. They cannot fill unrelated trip fields, set global fitness/pace/sleep/medical assumptions or create lasting memories. Conditional choices remain in planning notes even when a broad interest field is already present. Free statements retain the existing evidence/consent gates. V2 model context receives only relevant active H-MEM matches, with at most eight records; a failed recall does not dump every historical record into the conversation.
+
+The inspiration card shows the current ideas, explicit known preferences and dimensions still unknown. Ideas are Koko's proposals, with unverified places marked as such. Profile completion, user consent, successful memory persistence and final itinerary save remain separate events. The initial profile-to-inspiration transition can trigger `clap` even when no lasting memory is saved.
+
+This slice does not claim that every v2 inference boundary is formally verified by a classifier. The extraction prompt states those limits and contextual clicks have additional server guards; live NVIDIA wording and the full product acceptance scenario still need a configured model run. Android's conversational profiling UI remains a later slice. The spec's richer consent/persistence metadata and activity-specific promotion into long-term memory are not new APIs in this slice.
+
+V2 validation adds four-button end-to-end HTTP scenarios, stop-asking shortcuts, stale-option/idempotency checks, contextual provenance and legacy-draft upgrades. All 197 backend tests pass locally. Native iOS tests additionally cover restored inspiration, unknown formal fields, in-place upgrade and nickname reuse without simulated preference seeding. The iOS workflow also runs on pushes to this draft feature branch, so simulator validation does not depend on merging main.
 
 ## Responsibility map and data flow
 
@@ -46,7 +64,7 @@ Session responses retain the old mobile fields and add `travelDna`, `tripContext
 - `POST /pet/sessions/{id}/memory`: existing free-text consent remains compatible; structured requests add `candidateId`, `consent`, `dismiss` and `expectedConflicts`.
 - Conflicting values for the same key and condition show previous values. The user must confirm against the current memory IDs. A stale confirmation is rejected until the session is refreshed.
 - Equivalent saved values are reused. Multiple legacy conflicting records require explicit cleanup through the memory page.
-- `POST /pet/sessions/{id}/profile/complete`: requires at least one confirmed preference and no unresolved candidates. Only successful completion triggers `clap`.
+- `POST /pet/sessions/{id}/profile/complete`: requires at least one confirmed preference and no unresolved candidates. Successful completion triggers `clap`; the v2 initial profile-to-inspiration transition also triggers it independently of memory consent.
 - Existing `PUT/DELETE /memories/{id}` update/revoke memory. Structured iOS edits preserve the DNA key and provenance instead of reducing the record to an untyped summary. Active records are refreshed before subsequent chat/review.
 
 ## Animation behavior
