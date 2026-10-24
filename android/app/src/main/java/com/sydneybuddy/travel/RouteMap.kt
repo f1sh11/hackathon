@@ -21,11 +21,11 @@ import org.json.JSONObject
 
 @Composable fun RouteMap(day:JSONObject?,modifier:Modifier=Modifier,fullBleed:Boolean=false,
     provider:MapProvider=MapProvider.OSM,googleContent:Boolean=false,
-    viewport:MapViewport?=null,onViewport:(MapViewport)->Unit={},overview:OverviewRoute?=null,expanded:Boolean=false,sections:List<JourneyMapSection> = emptyList()) {
+    viewport:MapViewport?=null,onViewport:(MapViewport)->Unit={},overview:OverviewRoute?=null,expanded:Boolean=false,sections:List<JourneyMapSection> = emptyList(),insightMarkers:List<JSONObject> = emptyList()) {
     // Provider-owned live coordinates and paths must not be rendered on another provider's map.
     val visibleDay=mapDisplayDay(day,provider,googleContent)
     if(provider==MapProvider.OSM) {
-        OsmRouteMap(visibleDay,modifier,fullBleed,viewport,onViewport,if(googleContent)null else overview,expanded,sections)
+        OsmRouteMap(visibleDay,modifier,fullBleed,viewport,onViewport,if(googleContent)null else overview,expanded,sections,insightMarkers)
         return
     }
     if(provider==MapProvider.GOOGLE && !BuildConfig.MAPS_CONFIGURED) {
@@ -34,11 +34,11 @@ import org.json.JSONObject
         }
         return
     }
-    ProviderRouteMap(visibleDay,modifier,fullBleed,provider==MapProvider.GOOGLE,viewport,onViewport,if(googleContent)null else overview,expanded,sections)
+    ProviderRouteMap(visibleDay,modifier,fullBleed,provider==MapProvider.GOOGLE,viewport,onViewport,if(googleContent)null else overview,expanded,sections,insightMarkers)
 }
 
 @Composable private fun ProviderRouteMap(day:JSONObject?,modifier:Modifier,fullBleed:Boolean,
-    google:Boolean,viewport:MapViewport?,onViewport:(MapViewport)->Unit,overview:OverviewRoute?,expanded:Boolean,sections:List<JourneyMapSection>) {
+    google:Boolean,viewport:MapViewport?,onViewport:(MapViewport)->Unit,overview:OverviewRoute?,expanded:Boolean,sections:List<JourneyMapSection>,insightMarkers:List<JSONObject>) {
     val config=androidx.compose.ui.platform.LocalConfiguration.current
     val dotStyle=walkingDotStyle(minOf(config.screenWidthDp,config.screenHeightDp).toFloat())
     val density=androidx.compose.ui.platform.LocalDensity.current.density
@@ -65,6 +65,7 @@ import org.json.JSONObject
         GoogleMap(modifier=if(fullBleed)modifier else modifier.fillMaxWidth().height(310.dp).clip(RoundedCornerShape(22.dp)),cameraPositionState=camera,
             contentPadding=if(fullBleed)PaddingValues(top=if(expanded)100.dp else 280.dp,bottom=if(expanded)180.dp else 400.dp,start=12.dp,end=12.dp) else PaddingValues(0.dp),
             onMapLoaded={loaded=true},uiSettings=MapUiSettings(rotationGesturesEnabled=false,zoomControlsEnabled=false,myLocationButtonEnabled=false,mapToolbarEnabled=false)) {
+            insightMarkers.forEach{item->key(item.optString("id")){Marker(state=MarkerState(position=LatLng(item.getDouble("lat"),item.getDouble("lng"))),title=(if(item.optString("kind")=="price")"💰 "else "⚠️ ")+item.optString("title"),snippet=item.optString("summary"),icon=BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE))}}
             if(day!=null)key(day.toString(),overview) {
                 val entries=listOf(start)+stops+listOf(end)
                 val badges=itineraryBadges(points.map{it.latitude to it.longitude})

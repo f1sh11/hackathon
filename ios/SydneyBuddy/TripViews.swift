@@ -54,7 +54,7 @@ struct AgentView:View {
 }
 struct TripDetailView:View {
     @EnvironmentObject var store:AppStore
-    var body:some View { NavigationStack { ScrollView {VStack(alignment:.leading,spacing:20){if let t=store.trip {Text(t.explanation).font(.subheadline);WeatherCard(weather:store.refreshedWeather ?? t.weather);ForEach(t.days){DaySummary(day:$0)};ForEach(t.warnings,id:\.self){Text($0).font(.caption).foregroundStyle(Palette.muted)};DisclosureGroup("规划与验证记录"){ForEach(t.trace){r in VStack(alignment:.leading,spacing:6){Text(r.title).font(.headline);Text(r.detail).font(.caption);Text(r.source).font(.caption2).foregroundStyle(Palette.green)}.padding(.vertical,8)}}}}.padding(24)}.background(Palette.cream).navigationTitle("这次的小冒险").onAppear {store.markPrepared("route")} } }
+    var body:some View { NavigationStack { ScrollView {VStack(alignment:.leading,spacing:20){if let t=store.trip {Text(t.explanation).font(.subheadline);WeatherCard(weather:store.currentWeather);ForEach(t.days){DaySummary(day:$0)};ForEach(t.warnings,id:\.self){Text($0).font(.caption).foregroundStyle(Palette.muted)};DisclosureGroup("规划与验证记录"){ForEach(t.trace){r in VStack(alignment:.leading,spacing:6){Text(r.title).font(.headline);Text(r.detail).font(.caption);Text(r.source).font(.caption2).foregroundStyle(Palette.green)}.padding(.vertical,8)}}}}.padding(24)}.background(Palette.cream).navigationTitle("这次的小冒险").onAppear {store.markPrepared("route")}.task(id:store.travelDataSource){await store.refreshWeather()} } }
 }
 struct TripsView:View {
     @EnvironmentObject var store:AppStore

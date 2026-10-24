@@ -26,6 +26,9 @@ public static class PlanningEndpoints
             Results.Json(await journeys.PlanAsync(await RequestJson.ReadAsync(context), context.RequestAborted)));
         routes.MapPost("/poi/search",async (HttpContext context,PoiService pois)=>Results.Json(await pois.SearchAsync(await RequestJson.ReadAsync(context),context.RequestAborted)));
         routes.MapPost("/poi/media",async (HttpContext context,PoiMediaService media)=>Results.Json(await media.LoadAsync(await RequestJson.ReadAsync(context),context.RequestAborted)));
+        routes.MapGet("/data/map-layers",(TravelDataContext travel,ProjectPaths paths)=>Results.Json(new JsonObject{["dataSource"]=travel.Mode,["layers"]=travel.Warehouse?travel.Snapshot!.Maps.DeepClone():JsonNode.Parse(File.ReadAllText(Path.Combine(paths.RepoRoot,"shared","travel-map-layers.json")))}));
+        routes.MapPost("/data/insights",async (HttpContext context,TravelInsightService insights)=>{context.Response.Headers.CacheControl="no-store";return Results.Json(await insights.GetAsync(await RequestJson.ReadAsync(context),context.RequestAborted));});
+        routes.MapGet("/data/status",(TravelDataContext travel,PlaceCatalog catalog)=>Results.Json(new {dataSource=travel.Mode,status="ok",catalogCount=catalog.Get().Count,readAt=travel.Snapshot?.ReadAt,poiCount=travel.Snapshot?.Poi.Array("places")?.Count,hiddenGemCount=travel.Snapshot?.Gems?.Count,osmCount=travel.Snapshot?.Osm?.Count}));
         routes.MapPost("/schedule/editor", async (HttpContext context, ScheduleEditorService editor) => Results.Json(editor.Build(await RequestJson.ReadAsync(context))));
         routes.MapGet("/catalog", (Planner planner) => Results.Json(planner.Catalog));
         routes.MapPost("/plan", async (HttpContext context, Planner planner, PaidServicePolicy paidServices) =>
@@ -42,7 +45,8 @@ public static class PlanningEndpoints
         });
         routes.MapPost("/weather", async (HttpContext context, Planner planner, PaidServicePolicy paidServices) =>
         {
-            paidServices.RequireAllowed();
+            context.Response.Headers.CacheControl="no-store";
+            if(!context.Request.Headers.ContainsKey(TravelDataContext.Header))paidServices.RequireAllowed();
             return Results.Json(await planner.WeatherAsync(await RequestJson.ReadAsync(context), context.RequestAborted));
         });
     }

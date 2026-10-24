@@ -8,7 +8,7 @@ namespace SydneyBuddy.Api;
 /// Orchestrates validation, evidence, recommendations and scheduling; returns drafts without persistence.
 /// </summary>
 public sealed class Planner(PlaceService places, RecommendationService recommendations, RouteScheduler scheduler,
-    WeatherService weather, SecretStore secrets)
+    WeatherService weather, SecretStore secrets,TravelDataContext? travel=null,PublicTravelWeather? publicWeather=null)
 {
     public IReadOnlyList<JsonObject> Catalog => places.Catalog;
 
@@ -16,7 +16,7 @@ public sealed class Planner(PlaceService places, RecommendationService recommend
     public async Task<JsonObject> WeatherAsync(JsonObject raw, CancellationToken ct = default)
     {
         var context = new PlanningContext("live", secrets.Read());
-        return await WeatherForProfileAsync(PlanValidator.Validate(raw, Catalog), context, ct);
+        return await WeatherForProfileAsync(travel?.Explicit==true ? PlanValidator.ValidateForecast(raw):PlanValidator.Validate(raw, Catalog), context, ct);
     }
 
     /// <summary>
@@ -51,20 +51,20 @@ public sealed class Planner(PlaceService places, RecommendationService recommend
                 .SelectMany(x => x.Array("stops")!.OfType<JsonObject>()).Any(x => !x.Bool("indoor")))
             warnings.Add("你选择的必去地点包含户外活动，请自行确认天气并准备替代安排。");
         if (context.Mode == "demo") warnings.Insert(0, JsonValue.Create("演示模式：未调用 Google 或 Nemotron；路线不是导航路径。"));
-        else if (context.Mode == "assisted") warnings.Insert(0, JsonValue.Create("Nemotron 已真实调用；地点、天气、营业时段与路线仍为示例估算，未查询 Google。"));
+        else if (context.Mode == "assisted") warnings.Insert(0, JsonValue.Create("Nemotron 已真实调用；地点、营业时段与路线仍为示例估算；天氣以畫面標示來源為準，未查询 Google。"));
         var explanation = $"按你的兴趣、每天 A${profile.Number("budget").ToString("G", CultureInfo.InvariantCulture)} 活动预算和 {profile.Int("maxSteps")} 步上限安排了 {days.Count} 天路线。已计入步行、参观、休息和返回{profile.Object("end")!.Str("name")}的时间。";
         if (weather.Bool("rainy")) explanation += "下雨情景优先安排室内地点，必去地点除外。";
         return new JsonObject
         {
             ["title"] = "悉尼小冒险", ["mode"] = context.Mode, ["profile"] = profile, ["days"] = days,
-            ["weather"] = weather, ["explanation"] = explanation, ["warnings"] = warnings,
+            ["dataSource"] = weather.Str("dataSource","legacy"), ["weather"] = weather, ["explanation"] = explanation, ["warnings"] = warnings,
             ["trace"] = context.Trace.DeepClone(), ["createdAt"] = context.Now
         };
     }
 
     private async Task<JsonObject> WeatherForProfileAsync(JsonObject profile, PlanningContext context, CancellationToken ct)
     {
-        var value = context.Mode == "live"
+        var value = travel?.Explicit==true && publicWeather is not null ? await publicWeather.GetAsync(profile,ct) : context.Mode == "live"
             ? await weather.GetAsync(profile, context.Config.GetValueOrDefault("GOOGLE_SERVER_KEY"), ct)
             : new JsonObject { ["summary"] = "晴天（演示）", ["rainy"] = false, ["source"] = "演示假设" };
         if (profile.Str("weatherOverride") == "rain")

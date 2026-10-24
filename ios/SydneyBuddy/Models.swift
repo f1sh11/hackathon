@@ -1,6 +1,28 @@
 import Foundation
 import CoreLocation
 
+enum TravelDataSource:String,CaseIterable,Identifiable {
+    case direct,zetaris
+    var id:String {rawValue}
+    var label:String {self == .direct ? "直接來源":"透過 Zetaris"}
+    static var current:Self {Self(rawValue:UserDefaults.standard.string(forKey:"travelDataSource") ?? "") ?? .direct}
+    func apply(to request:inout URLRequest){request.setValue(rawValue,forHTTPHeaderField:"X-Travel-Data-Source")}
+}
+struct TravelMapLayer:Decodable,Identifiable {var id:String;var name:String}
+struct TravelMapConfiguration:Decodable {var dataSource:String;var layers:[TravelMapLayer]}
+struct TravelDataStatus:Decodable {var dataSource:String;var status:String;var catalogCount:Int}
+
+struct TravelInsights:Decodable {
+    var dataSource:String;var fetchedAt:String;var scope:String;var traffic:InsightTraffic;var places:[InsightPlace];var attribution:String;var pricePlaces:[InsightMarker]?
+}
+struct InsightTraffic:Decodable {var status:String;var summary:String;var source:String;var items:[InsightMarker]}
+struct InsightMarker:Decodable,Identifiable {var id:String;var lat:Double;var lng:Double;var title:String;var summary:String;var source:String;var kind:String?}
+struct InsightPlace:Decodable,Identifiable {var id:String;var name:String;var price:InsightPrice;var crowd:InsightCrowd;var googleFallback:String}
+struct InsightCrowd:Decodable {var status:String;var summary:String}
+struct InsightPrice:Decodable {var status:String;var summary:String;var source:String;var scope:String?;var sourceUrl:String?;var range:InsightPriceRange?}
+struct InsightPriceRange:Decodable {var startPrice:InsightMoney?;var endPrice:InsightMoney?}
+struct InsightMoney:Decodable {var currencyCode:String?;var units:String?;var nanos:Int?;var label:String {"\(currencyCode ?? "") \(units ?? "0")"}}
+
 struct Coordinate: Codable, Hashable {
     var name: String
     var lat: Double
@@ -79,6 +101,26 @@ struct Expense: Codable, Identifiable {
     }
     @Published var memories: [Memory] = []
     @Published var profile = TripProfile()
+    @Published var insights:TravelInsights?
+    @Published var insightsBusy=false
+    @Published var insightsError:String?
+    private var insightGeneration=UUID()
+    func refreshInsights(places requested:[[String:Any]]?=nil) async {
+        let generation=UUID();insightGeneration=generation;insightsBusy=true;insights=nil;insightsError=nil
+        let selected=travelDataSource;let provider=mapProvider;let scene=mapSceneKey(currentDay)
+        let stops=currentDay?.stops ?? []
+        var places:[[String:Any]]=stops.prefix(28).map{["id":$0.id,"name":$0.name,"lat":$0.lat,"lng":$0.lng]}
+        let start=currentDay?.start ?? profile.start
+        places.insert(["id":"start","name":start.name,"lat":start.lat,"lng":start.lng],at:0)
+        if let requested {places=Array(requested.prefix(30))}
+        do {
+            let body:[String:Any]=["places":places,"date":currentDay?.date ?? profile.date,"mapProvider":provider.rawValue]
+            let response:TravelInsights=try await api("data/insights",method:"POST",body:JSONSerialization.data(withJSONObject:body))
+            guard generation==insightGeneration,selected==travelDataSource,provider==mapProvider,scene==mapSceneKey(currentDay) else{return}
+            insights=response
+        }catch{if generation==insightGeneration{insightsError="交通、人潮與費用暫時無法更新，請重試。"}}
+        if generation==insightGeneration{insightsBusy=false}
+    }
     @Published var weatherBusy = false
     @Published var refreshedWeather: WeatherInfo?
     @Published var busy = false
@@ -86,6 +128,20 @@ struct Expense: Codable, Identifiable {
     @Published var health: Health?
     @Published var mapProvider = MapProvider(rawValue: UserDefaults.standard.string(forKey:"mapProvider") ?? "") ?? .osm {
         didSet { UserDefaults.standard.set(mapProvider.rawValue,forKey:"mapProvider") }
+    }
+    @Published var travelDataSource=TravelDataSource.current {
+        didSet{UserDefaults.standard.set(travelDataSource.rawValue,forKey:"travelDataSource");refreshedWeather=nil;insights=nil;dataConnection=nil;mapLayerIDs=nil}
+    }
+    @Published var dataConnection:String?
+    @Published var mapLayerIDs:Set<String>?
+    var availableMapProviders:[MapProvider] {MapProvider.allCases.filter{mapLayerIDs?.contains($0.rawValue) ?? true}}
+    func reloadTravelData() async {
+        let selected=travelDataSource
+        do{let maps:TravelMapConfiguration=try await api("data/map-layers");let status:TravelDataStatus=try await api("data/status")
+            guard selected==travelDataSource else{return}
+            guard maps.dataSource==selected.rawValue,status.dataSource==selected.rawValue,!maps.layers.isEmpty else{throw URLError(.cannotParseResponse)}
+            mapLayerIDs=Set(maps.layers.map(\.id));dataConnection=language.text("資料來源已連線 · {0} 個行程景點",String(status.catalogCount))
+        }catch{if selected==travelDataSource{dataConnection=error.localizedDescription}}
     }
     var mapViewport: MapViewport?
     @Published var live = false
@@ -105,12 +161,14 @@ struct Expense: Codable, Identifiable {
     func saveExpenses() { if let data = try? JSONEncoder().encode(expenses) { UserDefaults.standard.set(data,forKey:"expenses") } }
     func api<T: Decodable>(_ path: String, method: String = "GET", body: Data? = nil) async throws -> T {
         var req = URLRequest(url: base.appendingPathComponent(path)); req.httpMethod = method; req.httpBody = body
+        let selected=travelDataSource;selected.apply(to:&req);if path=="weather"{req.cachePolicy = .reloadIgnoringLocalCacheData}
         req.setValue("application/json", forHTTPHeaderField: "Content-Type"); req.timeoutInterval = 240
         let (data,response) = try await URLSession.shared.data(for: req)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
             let e = (try? JSONSerialization.jsonObject(with:data)) as? [String:Any]
             throw NSError(domain:"SydneyBuddy",code:1,userInfo:[NSLocalizedDescriptionKey:e?["error"] as? String ?? "服务暂不可用，请检查本机服务。"])
         }
+        if ["weather","plan","catalog","data/map-layers","data/status","data/insights"].contains(path),selected != travelDataSource {throw CancellationError()}
         return try JSONDecoder().decode(T.self, from: data)
     }
     func reload() async {
@@ -125,14 +183,14 @@ struct Expense: Codable, Identifiable {
         else if !preparations.contains(key) { preparations.append(key) }
         UserDefaults.standard.set(preparations,forKey:"preparations")
     }
+    var currentWeather:WeatherInfo {refreshedWeather ?? WeatherInfo(summary:"天氣尚未查詢",rainy:false,source:travelDataSource == .zetaris ? "Open-Meteo / Zetaris":"Open-Meteo / direct",status:"unavailable")}
     func refreshWeather() async {
-        guard health?.paidServicesAllowed == true else { errorMessage="后端已禁止付费服务，无法刷新实时天气。"; return }
-        guard !weatherBusy else { return }; weatherBusy = true; defer { weatherBusy = false }
+        guard !weatherBusy else { return }; weatherBusy = true; refreshedWeather=WeatherInfo(summary:"正在查詢即時天氣…",rainy:false,source:travelDataSource == .zetaris ? "Open-Meteo / Zetaris":"Open-Meteo / direct",status:"loading"); defer { weatherBusy = false }
         do {
             refreshedWeather = try await api("weather",method:"POST",body:JSONEncoder().encode(trip?.profile ?? profile))
             if refreshedWeather?.status == "ok" { markPrepared("weather") }
         }
-        catch { errorMessage = error.localizedDescription }
+        catch { refreshedWeather=WeatherInfo(summary:"即時天氣查詢失敗，請重試。",rainy:false,source:travelDataSource == .zetaris ? "Open-Meteo / Zetaris":"Open-Meteo / direct",status:"unavailable");errorMessage = error.localizedDescription }
     }
     func generate(_ message: String = "", rain: Bool = false, profileOverride:TripProfile? = nil) async {
         guard !busy else { return }; busy = true; defer { busy = false }

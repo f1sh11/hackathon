@@ -44,9 +44,16 @@ struct SettingsView:View {
                     Text("語言切換後立即生效，並保存在這台裝置。").font(.caption)
                     Text("景點名稱與已儲存的行程內容保留原始語言。").font(.caption).foregroundStyle(Palette.muted)
                 }
+                Section("旅遊資料來源") {
+                    Picker("資料取得方式",selection:$store.travelDataSource){ForEach(TravelDataSource.allCases){route in Text(LocalizedStringKey(route.label)).tag(route)}}.accessibilityIdentifier("travel-data-source")
+                    Text("店家、景點、天氣與地圖設定可切換來源；底圖與導航仍由地圖服務提供。").font(.caption).foregroundStyle(Palette.muted)
+                    Text("Zetaris 連線失敗時可手動切回直接來源。").font(.caption)
+                    if let status=store.dataConnection{Text(status).font(.caption).accessibilityIdentifier("travel-data-status")}
+                    Button("檢查資料連線"){Task{await store.reloadTravelData()}}
+                }.task(id:store.travelDataSource){await store.reloadTravelData()}
                 Section("地图底图") {
                     Picker("地图来源",selection:$store.mapProvider) {
-                        ForEach(MapProvider.allCases) { source in Text(LocalizedStringKey(source.label)).tag(source) }
+                        ForEach(store.availableMapProviders) { source in Text(LocalizedStringKey(source.label)).tag(source) }
                     }
                     Text("切换后，交通规划会预选对应路线服务，需点查询才取得新路线。NSW 资料可另选；Google 仍需启用服务。").font(.caption).foregroundStyle(Palette.muted)
                     if store.mapProvider == .google && !SydneyBuddyApp.mapConfigured {
@@ -83,7 +90,7 @@ struct SettingsView:View {
                 }
                 Section("关于这个版本") {
                     Text("Sydney Buddy · iOS MVP").font(.headline)
-                    Text("演示模式使用明确标记的示例数据；在线模式仅在服务成功返回后生成方案。尚未包含多人同步、自动预订、支付及后台定位。Cursor 与 Zetaris 按你的要求暂缓。").font(.caption).foregroundStyle(Palette.muted)
+                    Text("演示模式使用明确标记的示例数据；在线模式仅在服务成功返回后生成方案。尚未包含多人同步、自动预订、支付及后台定位。旅遊資料可在設定切換直接來源與 Zetaris。").font(.caption).foregroundStyle(Palette.muted)
                 }
             }.scrollContentBackground(.hidden).background(Palette.cream).navigationTitle(store.language.text("我的 Buddy"))
         }

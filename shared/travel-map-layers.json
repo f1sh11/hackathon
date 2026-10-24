@@ -1,0 +1,26 @@
+[
+  {
+    "id": "osm",
+    "name": "OpenStreetMap",
+    "attribution": "© OpenStreetMap contributors · ODbL",
+    "scope": "provider metadata; rendering and navigation stay in the map SDK"
+  },
+  {
+    "id": "apple",
+    "name": "Apple Maps",
+    "attribution": "Apple Maps / MapKit",
+    "scope": "provider metadata; rendering and navigation stay in the map SDK"
+  },
+  {
+    "id": "google",
+    "name": "Google Maps",
+    "attribution": "Google Maps",
+    "scope": "provider metadata; rendering and navigation stay in the map SDK"
+  },
+  {
+    "id": "schematic",
+    "name": "Offline schematic",
+    "attribution": "SydneyBuddy",
+    "scope": "provider metadata; rendering and navigation stay in the map SDK"
+  }
+]

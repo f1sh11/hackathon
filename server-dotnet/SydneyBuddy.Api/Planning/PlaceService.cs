@@ -6,16 +6,16 @@ namespace SydneyBuddy.Api;
 /// 从只读目录取得候选地点，live 模式再逐个补齐 Google 坐标/营业时段；不缓存外部响应。
 /// Loads catalog candidates and enriches live evidence from Google; provider responses are never cached here.
 /// </summary>
-public sealed class PlaceService(IExternalJsonClient external, PlaceCatalog catalog)
+public sealed class PlaceService(IExternalJsonClient external, PlaceCatalog catalog,TravelDataContext? travel=null)
 {
     public IReadOnlyList<JsonObject> Catalog => catalog.Get();
 
     public async Task<JsonObject[]> GetCandidatesAsync(PlanningContext context, CancellationToken ct = default)
     {
         var places = catalog.Get().ToArray();
-        if (context.Mode != "live")
+        if (context.Mode != "live" || travel?.Warehouse==true)
         {
-            context.Record("读取候选地点", "8 个悉尼示例地点；价格、营业时段与停留时间为演示假设。", "本地示例数据");
+            context.Record("读取候选地点", $"{places.Length} 個悉尼示例地點；價格、營業時段與停留時間為演示假設。", travel?.Warehouse==true ? "Zetaris / travel_catalog":"本地示例数据");
             return places;
         }
         var key = context.Config.GetValueOrDefault("GOOGLE_SERVER_KEY");

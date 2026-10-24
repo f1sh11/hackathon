@@ -12,7 +12,7 @@ public sealed class OsmPoiProvider(HttpClient http,IConfiguration? configuration
     public static string Query(double lat,double lng,int radius,string category,string text) {
         var around=FormattableString.Invariant($"(around:{radius},{lat},{lng})");
         var name=text.Length==0?"":"[\"name\"~"+System.Text.Json.JsonSerializer.Serialize(Regex.Escape(text),new System.Text.Json.JsonSerializerOptions{Encoder=System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping})+",i]";
-        var filters=category switch {"food"=>new[]{"[amenity~\"^(restaurant|cafe|fast_food|food_court)$\"]"},"facilities"=>new[]{"[amenity~\"^(toilets|drinking_water)$\"]"},_=>new[]{"[tourism~\"^(attraction|museum|gallery|viewpoint)$\"]","[leisure=park]","[historic]"}};
+        var filters=category switch {"all"=>new[]{"[tourism]","[shop]","[historic]","[amenity~\"^(restaurant|cafe|fast_food|food_court|toilets|drinking_water)$\"]"},"lodging"=>new[]{"[tourism~\"^(hotel|hostel|motel|guest_house)$\"]"},"shops"=>new[]{"[shop]"},"gems"=>new[]{"[tourism=viewpoint]","[historic]","[waterway=waterfall]"},"food"=>new[]{"[amenity~\"^(restaurant|cafe|fast_food|food_court)$\"]"},"facilities"=>new[]{"[amenity~\"^(toilets|drinking_water)$\"]"},_=>new[]{"[tourism~\"^(attraction|museum|gallery|viewpoint)$\"]","[leisure=park]","[historic]"}};
         return "[out:json][timeout:20];("+string.Concat(filters.Select(f=>"nwr"+around+f+name+";"))+");out center 120;";
     }
     public async Task<JsonArray> SearchAsync(double lat,double lng,int radius,string category,string text,CancellationToken token) {
@@ -26,12 +26,13 @@ public sealed class OsmPoiProvider(HttpClient http,IConfiguration? configuration
             if(raw is null||raw["remark"] is not null)throw new ServiceException("開源地點查詢未完成，請縮小範圍後重試。");
             var result=new JsonArray();
             foreach(var e in (raw.Array("elements")??new()).OfType<JsonObject>()) {
-                var tags=e.Object("tags");if(tags is null)continue;
+                var tags=e.Object("tags");if(tags is null||tags.Str("access") is "private" or "no")continue;
                 var point=e.Object("center")??e;var a=point.Number("lat",double.NaN);var b=point.Number("lon",double.NaN);
                 if(!ValidPoint(a,b))continue;
                 var kind=tags.Str("amenity",tags.Str("tourism",tags.Str("leisure","attraction")));
                 var name=tags.Str("name:zh",tags.Str("name",kind=="toilets"?"公共廁所":kind=="drinking_water"?"飲水設施":""));if(name.Length==0)continue;
-                result.Add(new JsonObject { ["id"]="osm:"+e.Str("type")+":"+e["id"]?.ToString(),["name"]=name,["lat"]=a,["lng"]=b,["category"]=category=="food"?"美食":category=="facilities"?"設施":"風景",["indoor"]=tags.Str("indoor")=="yes",["visitMinutes"]=category=="food"?45:category=="facilities"?10:60,["cost"]=0,["source"]="OpenStreetMap",["poiKind"]=kind,["description"]=tags.Str("description:zh",tags.Str("description","OSM 社群地點，詳細介紹尚未提供。")),["openingHoursText"]=tags.Str("opening_hours"),["note"]="費用、營業狀態與排隊未知；尚未預留費用，請自行確認。",["reason"]="由地圖搜尋加入工具箱" });
+                var kindCategory=category=="all"?(tags.Str("shop").Length>0?"shops":new[]{"hotel","hostel","motel","guest_house"}.Contains(tags.Str("tourism"))?"lodging":new[]{"restaurant","cafe","fast_food","food_court"}.Contains(tags.Str("amenity"))?"food":new[]{"toilets","drinking_water"}.Contains(tags.Str("amenity"))?"facilities":"sights"):category;
+                result.Add(new JsonObject { ["id"]="osm:"+e.Str("type")+":"+e["id"]?.ToString(),["name"]=name,["lat"]=a,["lng"]=b,["category"]=kindCategory=="food"?"美食":kindCategory=="facilities"?"設施":kindCategory=="lodging"?"住宿":kindCategory=="shops"?"店家":"風景",["indoor"]=tags.Str("indoor")=="yes",["visitMinutes"]=category=="food"?45:category=="facilities"?10:60,["cost"]=0,["source"]="OpenStreetMap",["poiKind"]=kind,["description"]=tags.Str("description:zh",tags.Str("description","OSM 社群地點，詳細介紹尚未提供。")),["openingHoursText"]=tags.Str("opening_hours"),["note"]="費用、營業狀態與排隊未知；尚未預留費用，請自行確認。",["reason"]="由地圖搜尋加入工具箱" });
             }
             return result;
         }catch(OperationCanceledException) when(!token.IsCancellationRequested){throw new ServiceException("開源地點服務逾時，請稍後重試。");}
@@ -40,11 +41,18 @@ public sealed class OsmPoiProvider(HttpClient http,IConfiguration? configuration
     }
     internal static bool ValidPoint(double a,double b)=>double.IsFinite(a)&&double.IsFinite(b)&&a is >= -34.2 and <= -33.5&&b is >=150.5 and <=151.5;
 }
-public sealed class PoiService(IPoiProvider provider,IMemoryCache cache,GooglePoiProvider? google=null) {
+public sealed class PoiService(IPoiProvider provider,IMemoryCache cache,GooglePoiProvider? google=null,TravelDataContext? travel=null,HiddenGemService? gems=null,UnifiedPoiService? unified=null) {
     static readonly SemaphoreSlim Gate=new(1,1);
     public async Task<JsonObject> SearchAsync(JsonObject input,CancellationToken token) {
         var lat=input.Number("lat",-33.865);var lng=input.Number("lng",151.212);var radius=input.Int("radius",1500);var text=input.Str("query").Trim();var category=input.Str("category","sights");
-        if(!OsmPoiProvider.ValidPoint(lat,lng)||radius is <100 or >5000||text.Length>80||category is not("sights" or "food" or "facilities"))throw new ServiceException("請使用悉尼範圍、100–5000 公尺及有效分類查詢。");
+        if(!OsmPoiProvider.ValidPoint(lat,lng)||radius is <100 or >5000||text.Length>80||category is not("all" or "sights" or "food" or "facilities" or "gems" or "lodging" or "shops"))throw new ServiceException("請使用悉尼範圍、100–5000 公尺及有效分類查詢。");
+        if(unified is not null&&(travel?.Warehouse==true||input.Str("provider","osm")=="osm"&&provider is OverturePoiProvider||category=="gems"))return unified.Search(lat,lng,radius,category,text,token);
+        if(category=="gems")return gems?.Search(lat,lng,radius,text,token)??throw new ServiceException("私房景點來源尚未設定。");
+        if(travel?.Warehouse==true){
+            var snapshot=travel.Snapshot??throw new ServiceException("Zetaris 店家資料尚未取得。");
+            var found=OverturePoiProvider.SearchSnapshot(snapshot.Poi,lat,lng,radius,category,text,token);
+            return new JsonObject{["places"]=found,["source"]="Overture Maps / Zetaris",["dataSource"]="zetaris",["attribution"]="Overture Maps Foundation · CDLA-Permissive-2.0 / Apache-2.0",["metadata"]=new JsonObject{["release"]=snapshot.Poi.Str("release"),["readAt"]=snapshot.ReadAt,["totalPlaces"]=snapshot.Poi.Array("places")!.Count},["message"]="Zetaris 公開資料快照；不是即時商家資訊。"};
+        }
         var source=input.Str("provider","osm");
         if(source=="google")return google is null?throw new ServiceException("Google Places 尚未設定。"):
             await google.SearchResultAsync(lat,lng,radius,category,text,input.Str("language","zh-TW"),token);
@@ -64,14 +72,18 @@ public sealed class PoiService(IPoiProvider provider,IMemoryCache cache,GooglePo
         }finally{Gate.Release();}
     }
     JsonObject Result(JsonArray points)=>new(){["places"]=points,["source"]=provider.Source,["attribution"]=provider.Attribution,["metadata"]=provider.Metadata,["message"]="開放地點資料快照；不包含即時評價、營業確認或價格。"};
-    public static bool IsImported(JsonObject p)=>p.Str("id").StartsWith("osm:")||p.Str("id").StartsWith("apple:")||p.Str("id").StartsWith("overture:");
+    public static bool IsImported(JsonObject p)=>p.Str("id").StartsWith("gem:")||p.Str("id").StartsWith("osm:")||p.Str("id").StartsWith("apple:")||p.Str("id").StartsWith("overture:");
     public static string ActivityKind(JsonObject p)=>p.Str("poiKind")=="toilets"?"restroom":p.Str("poiKind")=="drinking_water"?"rest":p.Str("category")=="美食"?"meal":"attraction";
     public static JsonObject Import(JsonObject p) {
         var id=p.Str("id");var name=p.Str("name");var lat=p.Number("lat",double.NaN);var lng=p.Number("lng",double.NaN);
         var apple=p.Str("source")=="Apple Maps"&&Regex.IsMatch(id,@"^apple:[A-Za-z0-9_-]{1,180}$");
         var overture=p.Str("source")=="Overture Maps"&&id.StartsWith("overture:")&&Guid.TryParse(id[9..],out _);
-        if(!(apple||overture||Regex.IsMatch(id,@"^osm:(node|way|relation):[0-9]{1,20}$"))||name.Length is <1 or >200||!OsmPoiProvider.ValidPoint(lat,lng))throw new ServiceException("工具箱地點資料無效。");
+        var gem=p.Str("source")=="Wikivoyage"&&Regex.IsMatch(id,@"^gem:[a-f0-9]{24}$");
+        if(!(gem||apple||overture||Regex.IsMatch(id,@"^osm:(node|way|relation):[0-9]{1,20}$"))||name.Length is <1 or >200||!OsmPoiProvider.ValidPoint(lat,lng))throw new ServiceException("工具箱地點資料無效。");
         string Short(string key,int max){var s=p.Str(key);return s[..Math.Min(max,s.Length)];}
-        return new JsonObject{["id"]=id,["name"]=name,["lat"]=lat,["lng"]=lng,["source"]=apple?"Apple Maps":overture?"Overture Maps":"OpenStreetMap",["category"]=p.Str("category") is "美食"?"美食":p.Str("category") is "設施"?"設施":"風景",["indoor"]=p.Bool("indoor"),["visitMinutes"]=Math.Clamp(p.Int("visitMinutes",60),5,240),["cost"]=0,["description"]=Short("description",3000),["note"]="費用、營業狀態與排隊未知；尚未預留費用，請自行確認。",["website"]=Short("website",2000),["phone"]=Short("phone",100),["address"]=Short("address",600),["sourceRelease"]=Short("sourceRelease",40),["openingHoursText"]=Short("openingHoursText",300),["poiKind"]=Short("poiKind",40),["reason"]="由地圖搜尋加入工具箱"};
+        var result=new JsonObject{["id"]=id,["name"]=name,["lat"]=lat,["lng"]=lng,["source"]=gem?"Wikivoyage":apple?"Apple Maps":overture?"Overture Maps":"OpenStreetMap",["category"]=p.Str("category") is "美食" or "設施" or "住宿" or "店家"?p.Str("category"):"風景",["indoor"]=p.Bool("indoor"),["visitMinutes"]=Math.Clamp(p.Int("visitMinutes",60),5,240),["cost"]=0,["description"]=Short("description",3000),["note"]="費用、營業狀態與排隊未知；尚未預留費用，請自行確認。",["website"]=Short("website",2000),["phone"]=Short("phone",100),["address"]=Short("address",600),["sourceRelease"]=Short("sourceRelease",40),["openingHoursText"]=Short("openingHoursText",300),["poiKind"]=Short("poiKind",40),["reason"]="由地圖搜尋加入工具箱"};
+        foreach(var key in new[]{"sourceUrl","sourceLicense","retrievedAt","sources","sourceIds","wikidata","hiddenGem","accessStatus"})if(p[key] is not null)result[key]=p[key]!.DeepClone();
+        if(gem){foreach(var key in new[]{"guide","photos","reviews","hiddenGem","accessStatus","reviewsStatus"})if(p[key] is not null)result[key]=p[key]!.DeepClone();}
+        return result;
     }
 }

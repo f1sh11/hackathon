@@ -1,0 +1,24 @@
+# This is a PUBLIC SOURCE DATABASE, not a substitute Zetaris engine.
+name: sydneybuddy-zetaris-source
+services:
+  source-db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: travel_public
+      POSTGRES_USER: travel_source_admin
+      POSTGRES_PASSWORD: ${SOURCE_DB_PASSWORD:?Set in private .env.local}
+      TRAVEL_READER_PASSWORD: ${TRAVEL_READER_PASSWORD:?Set in private .env.local}
+    ports:
+      - "127.0.0.1:55433:5432"
+    volumes:
+      - source-data:/var/lib/postgresql/data
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/10-travel.sql:ro
+      - ./data:/imports:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U travel_source_admin -d travel_public"]
+      interval: 3s
+      timeout: 3s
+      retries: 15
+    mem_limit: 512m
+volumes:
+  source-data:

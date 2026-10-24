@@ -16,6 +16,7 @@ struct GoogleRouteMap: UIViewRepresentable {
     var viewport: MapViewport?
     var onViewport: (MapViewport) -> Void
     var sections:[JourneyMapSection] = []
+    var insightMarkers:[InsightMarker] = []
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     final class Coordinator: NSObject, GMSMapViewDelegate {
         var parent: GoogleRouteMap
@@ -45,10 +46,11 @@ struct GoogleRouteMap: UIViewRepresentable {
     }
     func updateUIView(_ map:GMSMapView,context:Context) {
         context.coordinator.parent=self
-        let key=mapSceneKey(day)+"|"+String(overview?.coordinates.count ?? 0)
+        let key=mapSceneKey(day)+"|"+String(overview?.coordinates.count ?? 0)+insightMarkers.map{$0.id+$0.title}.joined()
         guard context.coordinator.sceneKey != key else {return}
         context.coordinator.sceneKey=key
         map.clear()
+        for item in insightMarkers {let pin=GMSMarker(position:.init(latitude:item.lat,longitude:item.lng));pin.title=(item.kind == "price" ? "💰 ":"⚠️ ")+item.title;pin.snippet=item.summary+" · "+item.source;pin.icon=GMSMarker.markerImage(with:item.kind == "price" ? .systemGreen:.systemOrange);pin.map=map}
         context.coordinator.walkingLines=[]
         guard let day else {
             if let saved=viewport, saved.sceneKey==mapSceneKey(day) {map.camera=GMSCameraPosition(latitude:saved.lat,longitude:saved.lng,zoom:Float(saved.zoom))}
@@ -192,6 +194,8 @@ private final class WalkingDotsView:UIView {
     }
 }
 
+final class InsightMapPin:MKPointAnnotation {var kind:String?}
+
 struct NativeRouteMap:UIViewRepresentable {
     var day:DayPlan?
     var overview:OverviewRoute? = nil
@@ -200,6 +204,7 @@ struct NativeRouteMap:UIViewRepresentable {
     var viewport:MapViewport?
     var onViewport:(MapViewport)->Void
     var sections:[JourneyMapSection] = []
+    var insightMarkers:[InsightMarker] = []
     func makeCoordinator()->Coordinator {Coordinator(self)}
     func makeUIView(context:Context)->MKMapView {
         let map=MKMapView();map.delegate=context.coordinator
@@ -212,12 +217,13 @@ struct NativeRouteMap:UIViewRepresentable {
     }
     func updateUIView(_ map:MKMapView,context:Context) {
         context.coordinator.parent=self
-        let key=mapSceneKey(day)+"|"+String(overview?.coordinates.count ?? 0)
+        let key=mapSceneKey(day)+"|"+String(overview?.coordinates.count ?? 0)+insightMarkers.map{$0.id+$0.title}.joined()
         guard context.coordinator.sceneKey != key else {return}
         context.coordinator.sceneKey=key
         context.coordinator.walkingDots?.paths=sections.isEmpty ? [overview?.coordinates ?? []] : sections.filter{$0.mode == "walk"}.map(\.coordinates)
         context.coordinator.walkingDots?.setNeedsDisplay()
         map.removeAnnotations(map.annotations)
+        for item in insightMarkers {let pin=InsightMapPin();pin.kind=item.kind;pin.coordinate = .init(latitude:item.lat,longitude:item.lng);pin.title=(item.kind == "price" ? "💰 ":"⚠️ ")+item.title;pin.subtitle=item.summary+" · "+item.source;map.addAnnotation(pin)}
         map.removeOverlays(map.overlays.filter {!($0 is MKTileOverlay)})
         let start=day?.start ?? .quay,end=day?.end ?? .central
         let coordinates=[start.location]+(day?.stops.map(\.coordinate) ?? [])+[end.location]
@@ -266,6 +272,10 @@ struct NativeRouteMap:UIViewRepresentable {
         }
         func mapViewDidChangeVisibleRegion(_ mapView:MKMapView) {walkingDots?.setNeedsDisplay()}
         func mapView(_ mapView:MKMapView,viewFor annotation:MKAnnotation)->MKAnnotationView? {
+            if let pin=annotation as? InsightMapPin {
+                let view=(mapView.dequeueReusableAnnotationView(withIdentifier:"insight") as? MKMarkerAnnotationView) ?? MKMarkerAnnotationView(annotation:pin,reuseIdentifier:"insight")
+                view.annotation=pin;view.markerTintColor=pin.kind == "price" ? .systemGreen:.systemOrange;view.glyphText=pin.kind == "price" ? "$":"!";view.canShowCallout=true;return view
+            }
             guard let pin=annotation as? ItineraryPin else {return nil}
             let id=pin.direction ? "direction" : "itinerary"
             let view=mapView.dequeueReusableAnnotationView(withIdentifier:id) ?? MKAnnotationView(annotation:pin,reuseIdentifier:id)
@@ -309,9 +319,9 @@ struct ProviderRouteMap:View {
         let safeSections = canShowOverview ? sections : []
         switch store.mapProvider {
         case .osm,.apple:
-            NativeRouteMap(day:visibleDay,overview:safeOverview,expanded:expanded,provider:store.mapProvider,viewport:expanded ? nil : store.mapViewport,onViewport:{if !expanded {store.mapViewport=$0}},sections:safeSections).id(store.mapProvider)
+            NativeRouteMap(day:visibleDay,overview:safeOverview,expanded:expanded,provider:store.mapProvider,viewport:expanded ? nil : store.mapViewport,onViewport:{if !expanded {store.mapViewport=$0}},sections:safeSections,insightMarkers:(store.insights?.traffic.items ?? [])+(store.insights?.pricePlaces ?? [])).id(store.mapProvider)
         case .google:
-            if SydneyBuddyApp.mapReady {GoogleRouteMap(day:visibleDay,overview:safeOverview,expanded:expanded,viewport:expanded ? nil : store.mapViewport,onViewport:{if !expanded {store.mapViewport=$0}},sections:safeSections)}
+            if SydneyBuddyApp.mapReady {GoogleRouteMap(day:visibleDay,overview:safeOverview,expanded:expanded,viewport:expanded ? nil : store.mapViewport,onViewport:{if !expanded {store.mapViewport=$0}},sections:safeSections,insightMarkers:(store.insights?.traffic.items ?? [])+(store.insights?.pricePlaces ?? []))}
             else {Palette.mint.overlay(Text("Google 地图未配置密钥\n请在“我的”选择其他底图").multilineTextAlignment(.center))}
         case .schematic:SchematicMap(day:visibleDay)
         }
@@ -363,6 +373,7 @@ struct SchematicMap: View {
 struct HomeView: View {
     @EnvironmentObject var store:AppStore
     @State var poiSearch=false
+    @State private var showInsights=false
     @State private var homeInfo=false
     @State var chat=false
     @State var details=false
@@ -391,10 +402,11 @@ struct HomeView: View {
                         Spacer(minLength:4)
                         if store.trip != nil{Button{withAnimation{homeInfo.toggle()}}label:{Image(systemName:homeInfo ? "chevron.down.circle.fill":"ellipsis.circle").font(.title2)}.accessibilityLabel(homeInfo ? "收起行程資訊":"展開行程資訊").accessibilityIdentifier("home-info-toggle")}
                     }
+                    Button{showInsights=true}label:{Label(store.insightsBusy ? "正在更新旅遊資訊…" : store.insights?.traffic.summary ?? "交通・人潮・費用",systemImage:"info.circle").font(.caption).lineLimit(1)}.accessibilityIdentifier("travel-insights-open")
                     if let day=store.currentDay{HomeTransportStrip(day:day,overview:overview,onPlan:{journey=true},onRetry:{overview.load(day,provider:store.mapProvider)})}
                     if homeInfo,let trip=store.trip {
                         ScrollView{VStack(alignment:.leading,spacing:12){
-                            WeatherCard(weather:store.refreshedWeather ?? trip.weather,compact:true)
+                            WeatherCard(weather:store.currentWeather,compact:true)
                             PreparationTrail{details=true}
                             Button("交通路线规划"){journey=true}.font(.subheadline.bold())
                             if let day=store.currentDay{
@@ -411,6 +423,9 @@ struct HomeView: View {
                 }.padding(16).background(.white,in:RoundedRectangle(cornerRadius:24)).shadow(color:Palette.ink.opacity(0.08),radius:12,y:4)
             }.padding(.horizontal,18).padding(.top,10).padding(.bottom,10).tint(Palette.green)
         }.task(id:mapSceneKey(store.currentDay)+"|"+store.mapProvider.rawValue+"|"+(store.trip?.mode ?? "")) {if let day=store.currentDay{overview.loadHome(day,provider:store.mapProvider,contentSource:store.trip?.mode == "live" ? "google":"open")}}
+        .task(id:(store.trip?.id ?? "")+store.travelDataSource.rawValue){if store.trip != nil{await store.refreshWeather()}}
+        .task(id:mapSceneKey(store.currentDay)+"|"+store.travelDataSource.rawValue+"|"+store.mapProvider.rawValue){await store.refreshInsights()}
+        .sheet(isPresented:$showInsights){TravelInsightsSheet()}
         .sheet(isPresented:$poiSearch){PoiDiscoveryView()}
         .sheet(isPresented:$chat){AgentView()}.sheet(isPresented:$details){TripDetailView()}
         .fullScreenCover(isPresented:$expandedMap) {
@@ -451,5 +466,35 @@ struct HomeView: View {
                 else {WalkingNavigationView(day:day,tripID:(trip.id ?? "draft")+":\(trip.revision ?? 0)")}
             }
         }
+    }
+}
+
+struct TravelInsightsSheet:View {
+    var places:[[String:Any]]?=nil
+    @EnvironmentObject var store:AppStore
+    @Environment(\.dismiss) var dismiss
+    var body:some View {
+        NavigationStack {ScrollView {VStack(alignment:.leading,spacing:16){
+            Button{Task{await store.refreshInsights(places:places)}}label:{Label(store.insightsBusy ? "更新中…":"重新查詢",systemImage:"arrow.clockwise")}.disabled(store.insightsBusy)
+            if let error=store.insightsError {Text(error).foregroundStyle(.red)}
+            if let report=store.insights {
+                Text(report.traffic.summary).font(.headline)
+                Text(report.scope).font(.caption).foregroundStyle(.secondary)
+                Text("來源：\(report.dataSource) · 查詢於 \(report.fetchedAt)").font(.caption)
+                ForEach(report.traffic.items){item in VStack(alignment:.leading){Text("⚠️ "+item.title).bold();Text(item.summary);Text(item.source).font(.caption)}.padding().frame(maxWidth:.infinity,alignment:.leading).background(Color.orange.opacity(0.12),in:RoundedRectangle(cornerRadius:12))}
+                if let fees=report.pricePlaces,!fees.isEmpty {Text("附近參考收費").font(.headline);ForEach(fees){place in VStack(alignment:.leading){Text(place.title).bold();Text(place.summary);Text(place.source).font(.caption)}.padding().frame(maxWidth:.infinity,alignment:.leading).background(Palette.mint,in:RoundedRectangle(cornerRadius:12))}}
+                ForEach(Array(report.places.enumerated()),id:\.offset){_,place in VStack(alignment:.leading,spacing:6){
+                    Text(place.name).font(.headline)
+                    Text(place.crowd.summary).foregroundStyle(.secondary)
+                    Text(place.price.summary)
+                    if let range=place.price.range {Text((range.startPrice?.label ?? "")+" – "+(range.endPrice?.label ?? "無上限"))}
+                    Text(place.price.source).font(.caption).foregroundStyle(.secondary)
+                    if let note=place.price.scope {Text(note).font(.caption)}
+                    if let url=place.price.sourceUrl.flatMap(URL.init(string:)){Link("查看收費來源",destination:url)}
+                }.padding().frame(maxWidth:.infinity,alignment:.leading).background(Palette.mint.opacity(0.6),in:RoundedRectangle(cornerRadius:14))}
+                Text(report.attribution).font(.caption).foregroundStyle(.secondary)
+            }else if store.insightsBusy {ProgressView()}
+        }.padding()}.navigationTitle("交通・人潮・費用").toolbar{ToolbarItem(placement:.confirmationAction){Button("完成"){dismiss()}}}}
+        .accessibilityIdentifier("travel-insights-sheet")
     }
 }
