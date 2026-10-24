@@ -30,7 +30,8 @@ public sealed class RouteScheduler(RouteService routes)
                 (!rainy || x.Bool("indoor") || mustVisit.Contains(x.Str("id")))).ToArray();
             HashSet<string> required = day == profile.Int("days") - 1
                 ? mustVisit.Except(used).ToHashSet(StringComparer.Ordinal) : [];
-            var dailyLimit = Math.Min(4, (int)Math.Ceiling((double)pool.Length / (profile.Int("days") - day)));
+            var activityLimit=profile.Str("energy")=="低精力" || profile.Str("rhythm")=="轻松随意" ? 2:4;
+            var dailyLimit = Math.Min(activityLimit, (int)Math.Ceiling((double)pool.Length / (profile.Int("days") - day)));
             var options = new List<(double Score, JsonObject[] Order)>();
 
             for (var length = 1; length <= dailyLimit; length++)

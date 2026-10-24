@@ -8,10 +8,117 @@ final class PetDraftTests:XCTestCase {
         XCTAssertEqual(profile.days,15);XCTAssertEqual(profile.maxSteps,8000);XCTAssertEqual(profile.budget,125.5)
         values["days"]="16";XCTAssertThrowsError(try PetTripDraft.profile(values))
     }
+    @MainActor func testPersonalOnboardingDoesNotCreateTripAndNewTripDoesNotRepeatIt() {
+        let defaults=UserDefaults.standard
+        let keys=["personalPreferences.completed","personalPreferences.v2.completed","onboarded","pendingTripFields","petSession.draft","travelPlanningTask","pendingPersonalProfile"]
+        let previous=keys.map{defaults.object(forKey:$0)}
+        defer{for (key,value) in zip(keys,previous){if let value{defaults.set(value,forKey:key)}else{defaults.removeObject(forKey:key)}}}
+        defaults.removeObject(forKey:"pendingTripFields")
+        let store=AppStore();store.completePersonalPreferences()
+        XCTAssertFalse(store.showPersonalPreferences);XCTAssertTrue(store.showOnboarding)
+        XCTAssertTrue(store.pendingTripFields.isEmpty)
+        store.newTrip()
+        XCTAssertTrue(store.showOnboarding);XCTAssertFalse(store.showPersonalPreferences)
+        XCTAssertTrue(defaults.bool(forKey:"onboarded"))
+    }
+    @MainActor func testPersonalPreferenceEditUpdatesStructuredMemoryWithoutTripFields() async throws {
+        let chat=PetChatStore();var saved:[String:Any]=[:];var method=""
+        let memory=Memory(id:"personal",summary:"喜欢艺术",profile:.init(interests:["艺术"],maxSteps:8000))
+        chat.loader={request in
+            if request.httpMethod=="PUT"{method=request.httpMethod!;saved=try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:Any]}
+            let data=try JSONEncoder().encode(request.httpMethod=="PUT" ? [memory]:[memory])
+            let payload=request.httpMethod=="PUT" ? try JSONEncoder().encode(memory):data
+            return (payload,HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)
+        }
+        var profile=TripProfile();profile.interests=["艺术"];profile.maxSteps=8000
+        await chat.savePersonalPreferences(profile,existing:memory)
+        XCTAssertNil(chat.error);XCTAssertEqual(method,"PUT")
+        let body=saved["profile"] as! [String:Any]
+        XCTAssertEqual(Set(body.keys),Set(["interests","maxSteps"]))
+        XCTAssertEqual(body["maxSteps"] as? Int,8000)
+    }
+    func testUnknownHabitsRemainUnknownAndAreNotSeededIntoTrip() throws {
+        let unknown=UserTravelProfile()
+        let restored=try JSONDecoder().decode(UserTravelProfile.self,from:JSONEncoder().encode(unknown))
+        XCTAssertNil(restored.dailySteps);XCTAssertNil(restored.energy);XCTAssertNil(restored.rhythm)
+        XCTAssertTrue(restored.seed.isEmpty)
+        XCTAssertTrue(TravelRequirements.assumptions([:],personal:restored).contains{$0.contains("10,000")})
+    }
+    func testGroupTripBudgetNormalizesWithoutChangingPersonalProfile() throws {
+        let personal=UserTravelProfile(queueTolerance:"尽量不排队",dailySteps:6000,energy:"低精力",rhythm:"轻松随意",interests:["自然"])
+        var values=fields;values["days"]="5";values["budget"]="2000";values["budgetCurrency"]="AUD";values["budgetBasis"]="groupTrip";values["travelers"]="2";values["pace"]="约8000步";values["origin"]="中央车站"
+        let profile=try TravelRequirements.profile(values,personal:personal)
+        XCTAssertEqual(profile.budget,200);XCTAssertEqual(profile.budgetAmount,2000);XCTAssertEqual(profile.travelers,2);XCTAssertEqual(profile.maxSteps,8000)
+        XCTAssertEqual(profile.start,.central);XCTAssertEqual(profile.energy,"低精力")
+        XCTAssertEqual(personal.dailySteps,6000)
+        values["budgetCurrency"]="CNY";XCTAssertThrowsError(try TravelRequirements.profile(values,personal:personal))
+        values["budgetCurrency"]="AUD";values["budgetBasis"]="不清楚";XCTAssertThrowsError(try TravelRequirements.profile(values,personal:personal))
+    }
+    @MainActor func testNewTripClearsPreviousTripFieldsButPreservesPersonalProfile() {
+        let defaults=UserDefaults.standard
+        let keys=["userTravelProfile","pendingTripFields","petSession.draft","travelPlanningTask","pendingPersonalProfile"]
+        let previous=keys.map{defaults.object(forKey:$0)}
+        defer{for (key,value) in zip(keys,previous){if let value{defaults.set(value,forKey:key)}else{defaults.removeObject(forKey:key)}}}
+        let store=AppStore();store.personalProfile=UserTravelProfile(dailySteps:7000,interests:["文化"])
+        store.pendingTripFields=fields;store.newTrip()
+        XCTAssertTrue(store.pendingTripFields.isEmpty)
+        XCTAssertEqual(store.personalProfile.dailySteps,7000)
+        XCTAssertEqual(UserTravelProfile.load().dailySteps,7000)
+        store.personalProfile.dailySteps=12000
+        XCTAssertEqual(store.pendingPersonalProfile.dailySteps,7000)
+    }
+    func testDraftDisplayNeverInventsDestinationDaysOrEmptySeparators() {
+        let blank=TripDraftSummary(fields:[:])
+        XCTAssertEqual(blank.title,"目的地待确定 · 天数待确定")
+        XCTAssertEqual(blank.subtitle,"日期待确定 · 同行人待确定")
+        let unknown=TripDraftSummary(fields:["destination":"未确定","days":"未确定","date":"","companions":""])
+        XCTAssertEqual(unknown.title,blank.title);XCTAssertEqual(unknown.subtitle,blank.subtitle)
+        XCTAssertTrue(TravelRequirements.missingFields([:]).contains("目的地"))
+    }
+    @MainActor func testReturningFromIncompleteChatOnlySavesDraftWithoutPlanningValidation() {
+        let defaults=UserDefaults.standard
+        let keys=["pendingTripFields","onboarded"]
+        let previous=keys.map{defaults.object(forKey:$0)}
+        defer{for (key,value) in zip(keys,previous){if let value{defaults.set(value,forKey:key)}else{defaults.removeObject(forKey:key)}}}
+        let store=AppStore();let personal=store.pendingPersonalProfile
+        store.showOnboarding=true
+        store.returnToTrips(draft:["interests":"艺术"])
+        XCTAssertNil(store.errorMessage);XCTAssertFalse(store.showOnboarding)
+        XCTAssertEqual(store.pendingTripFields,["interests":"艺术"])
+        XCTAssertEqual(store.pendingPersonalProfile,personal);XCTAssertEqual(store.tab,1)
+        store.resumePendingTrip()
+        XCTAssertTrue(store.showOnboarding);XCTAssertNil(store.trip)
+        XCTAssertEqual(store.pendingTripFields,["interests":"艺术"])
+    }
+    func testChatCanGenerateAsSoonAsCoreRequirementsAreKnownWithoutOptionalAnswers() throws {
+        var values=fields
+        values["budgetCurrency"]="AUD";values["budgetBasis"]="groupTrip";values["travelers"]="2";values["budget"]="400"
+        let profile=try TravelRequirements.readyProfile(values,personal:UserTravelProfile())
+        XCTAssertEqual(profile.budget,100)
+        XCTAssertNil(values["origin"]);XCTAssertNil(values["mustDo"]);XCTAssertNil(values["avoid"])
+        XCTAssertTrue(TravelRequirements.assumptions(values,personal:UserTravelProfile()).contains{$0.contains("环形码头")})
+        values["budgetCurrency"]=nil
+        XCTAssertThrowsError(try TravelRequirements.readyProfile(values,personal:UserTravelProfile()))
+    }
+    func testUncertainDestinationNeverOffersGenerationAndPoutingIsSupported() {
+        for destination in ["", "还没想好", "暂不确定", "不知道", "未确定"] {
+            var values=fields
+            values["destination"]=destination;values["budgetCurrency"]="AUD";values["budgetBasis"]="perPersonPerDay";values["travelers"]="2"
+            XCTAssertThrowsError(try TravelRequirements.readyProfile(values,personal:UserTravelProfile()))
+        }
+        XCTAssertEqual(PetMood.reply("pouting"),.pouting)
+    }
+    func testChatReadinessDoesNotAcceptUnknownCoreFieldsOrUnsupportedCurrency() {
+        var values=fields
+        values["budgetCurrency"]="AUD";values["budgetBasis"]="perPersonPerDay";values["travelers"]="未确定"
+        XCTAssertThrowsError(try TravelRequirements.readyProfile(values,personal:UserTravelProfile()))
+        values["travelers"]="2";values["budgetCurrency"]="CNY"
+        XCTAssertThrowsError(try TravelRequirements.readyProfile(values,personal:UserTravelProfile()))
+    }
     private var fields:[String:String] {["destination":"悉尼","date":"2026-11-01","days":"2","budget":"100","pace":"每天最多5000步","interests":"艺术和美食"]}
     @MainActor func testCompletingPreferencesOpensTripsWithoutPlanningAndRestoresDraft() throws {
         let defaults=UserDefaults.standard
-        let keys=["pendingTripFields","onboarded"]
+        let keys=["pendingTripFields","onboarded","travelPlanningTask"]
         let previous=keys.map{defaults.object(forKey:$0)}
         defer{for (key,value) in zip(keys,previous){if let value{defaults.set(value,forKey:key)}else{defaults.removeObject(forKey:key)}}}
         let store=AppStore()

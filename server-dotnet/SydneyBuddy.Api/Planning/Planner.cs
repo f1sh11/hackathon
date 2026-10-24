@@ -47,6 +47,10 @@ public sealed class Planner(PlaceService places, RecommendationService recommend
             "花费、场内步数与停留时间为估算；未包含酒店、交通票价、全部餐饮或特殊展门票。",
             "步行模式；未评估无障碍、坡度、排队与道路临时封闭。"
         };
+        if (!string.IsNullOrEmpty(profile.Str("mustDo")))warnings.Add("特别想去／想做："+profile.Str("mustDo")+"。当前示例规划尚未保证排入，请检查并编辑路线。");
+        if (!string.IsNullOrEmpty(profile.Str("avoid")))warnings.Add("避开／出行需求："+profile.Str("avoid")+"。尚未自动核实，请逐项检查路线是否适合。");
+        if (!string.IsNullOrEmpty(profile.Str("origin")) && profile.Str("origin") != profile.Object("start")!.Str("name"))warnings.Add("出发地点备注："+profile.Str("origin")+"；当前起点为"+profile.Object("start")!.Str("name")+"，请核实位置。");
+        if (!string.IsNullOrEmpty(profile.Str("queueTolerance")))warnings.Add("排队偏好已记录，但缺少可靠实时排队数据，无法保证排队时长。");
         if (days.OfType<JsonObject>().Any(d=>d.Bool("freeTime")))
             warnings.Add("部分日期为自由安排：现有候选景点不足以每天安排不重复活动，请在日程中补充地点。");
         if (weather.Bool("rainy") && days.OfType<JsonObject>()

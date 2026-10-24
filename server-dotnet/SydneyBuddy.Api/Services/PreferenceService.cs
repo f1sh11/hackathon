@@ -19,7 +19,7 @@ public sealed class PreferenceService(IMemoryService memory, MemoryRepository re
         var saved = new JsonObject
         {
             ["id"] = record.Str("id"), ["summary"] = summary,
-            ["profile"] = new JsonObject { ["interests"] = profile.Array("interests")?.DeepClone() ?? new JsonArray(), ["maxSteps"] = profile.Int("maxSteps", 10000) },
+            ["profile"] = new JsonObject { ["interests"] = profile.Array("interests")?.DeepClone() ?? new JsonArray(), ["maxSteps"] = profile.Int("maxSteps", 10000), ["habits"]=profile.Object("habits")?.DeepClone() },
             ["provenance"] = new JsonObject { ["source"] = "user_confirmed", ["createdAt"] = DateTimeOffset.UtcNow.ToString("O") },
             ["scope"] = "local_only", ["consent"] = true
         };

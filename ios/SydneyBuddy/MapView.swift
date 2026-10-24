@@ -404,7 +404,7 @@ struct HomeView: View {
                         }}.frame(maxHeight:220).accessibilityIdentifier("home-extra-info")
                     }
                     HStack(spacing:10){
-                        if store.trip != nil{Button{details=true}label:{Text("查看路线").font(.subheadline.bold()).frame(maxWidth:.infinity).padding(.vertical,12).background(Palette.mint,in:RoundedRectangle(cornerRadius:13))}}
+                        if store.trip != nil{Button{details=true}label:{Text("行程说明").font(.subheadline.bold()).frame(maxWidth:.infinity).padding(.vertical,12).background(Palette.mint,in:RoundedRectangle(cornerRadius:13))}}
                         Button{if store.trip==nil{store.newTrip()}else{navigation=true}}label:{Label(store.trip==nil ? "開始規劃":"開始導航",systemImage:"location.fill").font(.subheadline.bold()).frame(maxWidth:.infinity).padding(.vertical,12).foregroundStyle(.white).background(Palette.green,in:RoundedRectangle(cornerRadius:13))}
                     }
                     HStack(spacing:4){Text(LocalizedStringKey(store.mapProvider.label)).fontWeight(.medium);if store.mapProvider == .osm{Link("© OpenStreetMap contributors",destination:URL(string:"https://www.openstreetmap.org/copyright")!)};Spacer(minLength:0);Text(LocalizedStringKey(store.trip?.mode=="live" ? (store.mapProvider == .google ? "Google 路線":"需 Google 底圖"):store.mapProvider == .schematic ? "離線示意":overview.route==nil ? "僅顯示站點":"已規劃路線"))}.font(.system(size:9)).foregroundStyle(Palette.muted).lineLimit(1).minimumScaleFactor(0.8)

@@ -197,7 +197,8 @@ struct HomeTransportStrip:View {
     var onPlan:()->Void;var onRetry:()->Void
     var body:some View {
         VStack(alignment:.leading,spacing:6){
-            HStack{Button(action:onPlan){Label("交通方式",systemImage:"arrow.triangle.swap").font(.caption.bold())};Spacer();if overview.route != nil{Text(store.language.text("{0} 分 · 交通預估",String(Int(ceil((overview.route?.seconds ?? 0)/60))))).font(.caption2).foregroundStyle(Palette.muted)}}
+            HStack{Button(action:onPlan){Label("交通方式",systemImage:"arrow.triangle.swap").font(.caption.bold())};Spacer();if overview.route != nil{Text(store.language.text("{0} 分 · 道路查詢",String(Int(ceil((overview.route?.seconds ?? 0)/60))))).font(.caption2).foregroundStyle(Palette.muted)}}
+            Text("行程排程交通 \(day.legs.reduce(0){$0+$1.minutes}) 分；道路查詢為另一來源，尚未套用至時間軸。").font(.caption2).foregroundStyle(Palette.muted)
             if overview.busy{ProgressView("正在載入道路路線…").font(.caption)}
             else if overview.route != nil{
                 ScrollView(.horizontal,showsIndicators:false){HStack(spacing:6){ForEach(overviewTransportLegs(day,route:overview.route,plan:overview.plan)){leg in

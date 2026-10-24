@@ -4,6 +4,32 @@ import MapKit
 @testable import SydneyBuddy
 
 @MainActor final class ScheduleTests:XCTestCase {
+    func testSuccessfulGenerationRequestsOpeningTheAcceptedTripWorkspace() async throws {
+        let defaults=UserDefaults.standard
+        let keys=["pendingTripFields","travelPlanningTask","onboarded","petSession.draft","petSession.nav-workspace-trip"]
+        let previous=keys.map{defaults.object(forKey:$0)}
+        defer{for (key,value) in zip(keys,previous){if let value{defaults.set(value,forKey:key)}else{defaults.removeObject(forKey:key)}}}
+        var accepted=try fixture();accepted.id="nav-workspace-trip";accepted.revision=1
+        let data=try JSONEncoder().encode(accepted)
+        let list=try JSONEncoder().encode([accepted])
+        let store=AppStore()
+        store.pendingTripFields=["destination":"悉尼","date":accepted.profile.date,"days":String(accepted.profile.days),"budget":"100","budgetCurrency":"AUD","budgetBasis":"perPersonPerDay","travelers":"1","pace":"约10000步","interests":"自然"]
+        store.loader={request in
+            let body:Data
+            switch request.url!.path {
+            case "/plan":body=data
+            case "/trips":body=request.httpMethod=="POST" ? data:list
+            case "/health":body=Data(#"{"status":"ok","nvidiaConfigured":false,"googleConfigured":false,"iosMapConfigured":false,"model":"test"}"#.utf8)
+            default:body=Data("[]".utf8)
+            }
+            return (body,HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)
+        }
+        await store.generatePendingTrip()
+        XCTAssertNil(store.errorMessage)
+        XCTAssertEqual(store.tripToOpen?.id,"nav-workspace-trip")
+        XCTAssertEqual(store.travelTask?.status,"completed")
+        XCTAssertTrue(store.pendingTripFields.isEmpty)
+    }
     func testPoiToolboxRemovalPersistsAndAllowsAddingAgain() throws {
         let toolbox=PoiToolbox.shared;let original=toolbox.places
         defer{toolbox.places=original;if let data=try? JSONEncoder().encode(original){UserDefaults.standard.set(data,forKey:"poi-toolbox")}}

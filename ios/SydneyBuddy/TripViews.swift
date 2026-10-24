@@ -60,15 +60,14 @@ struct TripDetailView:View {
 struct TripsView:View {
     @EnvironmentObject var store:AppStore
     @State private var navigationTrip:Trip?
-    @State private var routeTrip:Trip?
     @State private var selectedTrip:Trip?
     @State private var editingDraft=false
-    @State private var chatting=false
     @State private var deleting:Trip?
     var body:some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment:.leading,spacing:20){
+                    if let task=store.travelTask,task.status=="failed" || task.status=="generating" {Label(task.status=="failed" ? "生成失败，需求已保留":"正在生成行程",systemImage:task.status=="failed" ? "exclamationmark.circle":"sparkles").font(.subheadline);if let message=task.message{Text(message).font(.caption).foregroundStyle(Palette.muted)}}
                     if !store.pendingTripFields.isEmpty { draftCard }
                     HStack{Text("已保存的旅行").font(.headline);Spacer();Text("\(store.saved.count) 份").font(.caption).foregroundStyle(Palette.muted)}
                     if store.saved.isEmpty {ContentUnavailableView("下一段旅程，等你出发",systemImage:"suitcase.rolling",description:Text("准备好偏好后，生成你的第一份路线。"))}
@@ -82,35 +81,34 @@ struct TripsView:View {
             }.background(Palette.cream).navigationTitle(store.language.text("我的行程"))
             .toolbar{ToolbarItem(placement:.topBarTrailing){Button{store.newTrip()}label:{Label("新旅行",systemImage:"plus")}.disabled(store.busy)}}
             .refreshable{await store.reload()}
+            .onAppear{openRequestedTrip()}
+            .onChange(of:store.tripToOpen?.id){_,_ in openRequestedTrip()}
             .navigationDestination(isPresented:Binding(get:{selectedTrip != nil},set:{if !$0{selectedTrip=nil}})){
                 if let selected=selectedTrip {
                     let current=store.saved.first(where:{$0.id==selected.id}) ?? selected
-                    SavedTripOverview(trip:current,onEdit:{store.trip=current;store.proposal=current},onMap:{store.trip=current;store.dayIndex=0;routeTrip=current},onNavigate:{navigationTrip=current},onDelete:{deleting=current})
+                    SavedTripWorkspace(trip:current,onNavigate:{navigationTrip=current},onDelete:{deleting=current})
                 }
             }
         }.fullScreenCover(item:$navigationTrip){trip in SavedTripNavigationView(trip:trip)}
-        .fullScreenCover(item:$routeTrip){_ in NavigationStack{HomeView().toolbar{ToolbarItem(placement:.topBarLeading){Button("返回行程"){routeTrip=nil}}}}}
         .sheet(isPresented:$editingDraft){TripDraftEditor(fields:store.pendingTripFields)}
-        .sheet(isPresented:$chatting,onDismiss:{Task{await syncDraft()}}){NavigationStack{PetChatView(conversationOnly:true,draftScope:true).toolbar{ToolbarItem(placement:.topBarTrailing){Button("完成"){chatting=false}}}}}
+
         .confirmationDialog("删除这份行程？此操作无法撤销。",isPresented:Binding(get:{deleting != nil},set:{if !$0{deleting=nil}}),titleVisibility:.visible){Button("删除行程",role:.destructive){if let trip=deleting{Task{await store.deleteTrip(trip);if selectedTrip?.id==trip.id{selectedTrip=nil};deleting=nil}}}}
+    }
+    private func openRequestedTrip(){
+        guard let trip=store.tripToOpen else{return}
+        selectedTrip=trip;store.tripToOpen=nil
     }
     private var draftCard:some View {
         VStack(alignment:.leading,spacing:14){
             HStack{Label("待生成的旅行",systemImage:"backpack.fill").font(.caption.bold()).foregroundStyle(Palette.green);Spacer();Button("编辑"){editingDraft=true}.font(.subheadline.bold()).frame(minHeight:44)}
-            Text("\(store.pendingTripFields["destination"] ?? "悉尼") · \(store.pendingTripFields["days"] ?? "1") 天").font(.title2.bold())
-            Text("\(store.pendingTripFields["date"] ?? "") · \(store.pendingTripFields["companions"] ?? "")").font(.subheadline).foregroundStyle(Palette.muted)
+            Text(TripDraftSummary(fields:store.pendingTripFields).title).font(.title2.bold())
+            Text(TripDraftSummary(fields:store.pendingTripFields).subtitle).font(.subheadline).foregroundStyle(Palette.muted)
             Text(store.pendingTripFields["interests"] ?? "").font(.subheadline).foregroundStyle(Palette.ink)
-            PrimaryButton(title:"生成旅行路线",symbol:"sparkles"){store.startGeneratingPendingTrip()}.disabled(store.busy)
-            HStack{Button{chatting=true}label:{Label("再和 Buddy 聊聊",systemImage:"bubble.left.and.bubble.right")}.font(.subheadline);Spacer();if !store.live{Text("示例数据").font(.caption).foregroundStyle(Palette.muted)}}
+            PrimaryButton(title:"继续和 Buddy 规划",symbol:"bubble.left.and.bubble.right"){store.resumePendingTrip()}.disabled(store.busy)
+            if !store.live{Text("示例数据").font(.caption).foregroundStyle(Palette.muted)}
         }.padding(18).background(Palette.mint.opacity(0.65),in:RoundedRectangle(cornerRadius:24))
     }
-    private func syncDraft() async {
-        let chat=PetChatStore();await chat.load(scope:"draft")
-        guard let session=chat.session,chat.error==nil else{store.errorMessage=chat.error;return}
-        let fields=store.pendingTripFields.merging(session.fields){_,new in new}
-        do {let profile=try PetTripDraft.profile(fields);store.completePetPreferences(profile,fields:fields)}
-        catch {store.errorMessage="对话已保存，请在编辑偏好中检查："+error.localizedDescription}
-    }
+
 }
 
 struct TripListRow:View {
@@ -125,6 +123,26 @@ struct TripListRow:View {
         }.padding(16).background(.white,in:RoundedRectangle(cornerRadius:22))
     }
 }
+struct SavedTripWorkspace:View {
+    let trip:Trip
+    var onNavigate:()->Void
+    var onDelete:()->Void
+    @EnvironmentObject private var store:AppStore
+    @State private var section="map"
+    var body:some View {
+        VStack(spacing:0) {
+            HStack{Text(trip.title).font(.headline);Spacer();Text("\(trip.profile.date) · \(trip.days.count) 天").font(.caption).foregroundStyle(Palette.muted)}.padding(.horizontal,20).padding(.top,10)
+            Picker("旅行工作台",selection:$section){Text("路线地图").tag("map");Text("行程详情").tag("details")}.pickerStyle(.segmented).padding(.horizontal,20).padding(.vertical,10).accessibilityIdentifier("trip-workspace-section")
+            if section=="map" {HomeView()}
+            else {SavedTripOverview(trip:trip,onEdit:openEditor,onMap:{section="map"},onNavigate:onNavigate,onDelete:onDelete)}
+        }.background(Palette.cream).navigationTitle("旅行工作台").navigationBarTitleDisplayMode(.inline)
+        .toolbar{ToolbarItem(placement:.topBarTrailing){Button("编辑行程",action:openEditor).disabled(store.busy)}}
+        .onAppear{store.trip=trip;store.dayIndex=0}
+        .onChange(of:trip.revision){_,_ in store.trip=trip}
+    }
+    private func openEditor(){store.trip=trip;store.proposal=trip}
+}
+
 struct SavedTripOverview:View {
     let trip:Trip
     var onEdit:()->Void;var onMap:()->Void;var onNavigate:()->Void;var onDelete:()->Void
@@ -164,10 +182,12 @@ struct TripDraftEditor:View {
                     field("pace","旅行节奏与步数")
                 }
                 Section("预算与补充"){
-                    field("budget","每天活动预算（AUD）")
+                    field("budget","预算金额")
                     field("notes","补充要求")
+                    ForEach(travelExtraFields,id:\.0){key,label in field(key,label)}
+                    Picker("预算范围",selection:Binding(get:{fields["budgetBasis"] ?? ""},set:{fields["budgetBasis"]=$0})){Text("请选择").tag("");ForEach(TravelRequirements.budgetBases,id:\.0){Text($0.1).tag($0.0)}}
                 }
-                Section{Text("修改只用于这次旅行，不会更改长期记忆。当前支持悉尼 1–15 天，活动预算单位为 AUD。").font(.caption).foregroundStyle(Palette.muted)}
+                Section{Text("修改只用于这次旅行，不会更改长期记忆。当前支持悉尼 1–15 天，预算按确认的范围计算；路线费用仅支持 AUD。").font(.caption).foregroundStyle(Palette.muted)}
                 if let problem{Section{Text(problem).foregroundStyle(.red)}}
             }.navigationTitle("编辑旅行偏好").navigationBarTitleDisplayMode(.inline)
             .toolbar{ToolbarItem(placement:.topBarLeading){Button("取消"){dismiss()}.disabled(saving)};ToolbarItem(placement:.topBarTrailing){Button(saving ? "保存中…":"保存"){Task{await save()}}.bold().disabled(saving)}}
@@ -182,7 +202,7 @@ struct TripDraftEditor:View {
     }
     private func save() async {
         guard !saving else{return};saving=true;defer{saving=false}
-        do{let profile=try PetTripDraft.profile(fields);await chat.load(scope:"draft");guard chat.error==nil else{problem=chat.error;return};await chat.update(fields);guard chat.error==nil else{problem=chat.error;return};store.completePetPreferences(profile,fields:fields);dismiss()}
+        do{let profile=try TravelRequirements.profile(fields,personal:store.pendingPersonalProfile);await chat.load(scope:"draft");guard chat.error==nil else{problem=chat.error;return};await chat.update(fields);guard chat.error==nil else{problem=chat.error;return};store.completePetPreferences(profile,fields:fields);dismiss()}
         catch{problem=error.localizedDescription}
     }
 }

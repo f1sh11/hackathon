@@ -23,6 +23,13 @@ public sealed class PlannerTests : IDisposable
         new WeatherService(_external), new SecretStore(_paths));
 
     [Fact]
+    public async Task LowEnergyAndRelaxedRhythmLimitDailyActivities()
+    {
+        var profile=TestSupport.Profile();profile["energy"]="低精力";profile["rhythm"]="轻松随意";
+        var result=await Create().PlanAsync(profile,"demo");
+        Assert.InRange(result.Array("days")![0]!.Array("stops")!.Count,1,2);
+    }
+    [Fact]
     public async Task FifteenDayTripCanBeGeneratedAndSaved()
     {
         var result=await Create().PlanAsync(TestSupport.Profile(15), "demo");

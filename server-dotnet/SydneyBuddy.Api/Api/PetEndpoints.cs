@@ -9,8 +9,9 @@ public static class PetEndpoints
         routes.MapPost("/pet/sessions",async (HttpContext ctx,PetSessionStore store)=>
         {
             var input=await RequestJson.ReadAsync(ctx);var s=new PetSession();
+            if(input.Object("personalProfile") is JsonObject personal)s.PersonalProfile=(JsonObject)personal.DeepClone();
             PetQuestions.Apply(s,input.Object("fields")??new());
-            s.Messages.Add(new(Guid.NewGuid().ToString("N"),"assistant","嗨，我是 Buddy 🐨！我会保存这次旅行的进度，方便你回来继续。长期喜好会先问过你。"+PetQuestions.Question(PetQuestions.Next(s))));
+            s.Messages.Add(new(Guid.NewGuid().ToString("N"),"assistant","嗨，我是 Buddy 🐨！这次想去哪儿，过一段什么样的小假期？随便说说就好，我帮你慢慢整理。"));
             await store.Gate.WaitAsync(ctx.RequestAborted);try{store.Save(s);}finally{store.Gate.Release();}
             return Results.Json(PetQuestions.View(s));
         });
@@ -65,25 +66,41 @@ public static class PetEndpoints
                     if(!PetQuestions.Keys.Contains(field))throw new ServiceException("未知的旅行字段。");
                     var value=input.Str("value");if(value.Length is 0 or >600)throw new ServiceException("回答太长或为空。");
                     if(field=="date"&&value is "今天" or "明天")value=TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTimeOffset.UtcNow,"Australia/Sydney").Date.AddDays(value=="明天"?1:0).ToString("yyyy-MM-dd");
-                    s.Fields[field]=value;reply="收到啦～"+PetQuestions.Question(PetQuestions.Next(s));
-                    if(field=="interests"&&value!="未确定")s.PendingMemory="喜欢"+value;
+                    s.Fields[field]=value;
+                    if(field=="companions" && value is "一个人" or "两个人")s.Fields["travelers"]=value=="一个人"?"1":"2";
+                    if(PetQuestions.Required.Contains(field) && !PetQuestions.Known(value)) {
+                        reply=PetQuestions.UncertainReply(field);mood="pouting";
+                    } else reply="收到啦～"+PetQuestions.Question(PetQuestions.Next(s));
+
+                    await Emit(new{type="reply",text=reply});
+                }
+                else if(PetQuestions.Required.Contains(PetQuestions.Next(s)) && !PetQuestions.Known(message))
+                {
+                    reply=PetQuestions.UncertainReply(PetQuestions.Next(s));mood="pouting";
                     await Emit(new{type="reply",text=reply});
                 }
                 else
                 {
+                    var unanswered=PetQuestions.Next(s);
                     var records=await memories.ListAsync(ctx.RequestAborted);
                     var confirmed=new JsonArray(records.Select(x=>(JsonNode?)JsonValue.Create(x.Str("summary"))).ToArray());
-                    var result=await model.RespondAsync(s,message,confirmed,text=>Emit(new{type="reply",text}),ctx.RequestAborted);
+                    var result=await model.RespondAsync(s,message,confirmed,_=>Task.CompletedTask,ctx.RequestAborted);
                     mood=PetEmotion.Normalize(result.Str("mood"));
                     var changes=result.Object("fields")??new();
                     // Do not let model-filled unknown placeholders skip unanswered questions.
                     foreach(var key in PetQuestions.Keys)
                         if(changes.Str(key) is "未确定" or "未知" or "未提供" or "unknown") changes.Remove(key);
+                    PetExplicitFacts.Apply(message,changes);
                     PetQuestions.Apply(s,changes);reply=result.Str("reply");
+                    if(changes.ContainsKey("budget"))reply=PetExplicitFacts.BudgetReply(s) ?? "预算先收好啦，我们再确认金额、币种和范围。";
+                    else if(reply.Length>220)reply="收到，你的想法已放进这次的小背包。";
+                    if(PetQuestions.Next(s).Length==0)reply="小背包准备好啦！可以直接点下面的「生成行程」，也可以继续告诉我你的想法～";
                     if(PetQuestions.Next(s).Length>0 && !reply.Contains('？') && !reply.Contains('?') &&
                         !new[]{"别问","不要问","不用问","再见","bye","don't ask","do not ask"}.Any(x=>message.Contains(x,StringComparison.OrdinalIgnoreCase)))
                         reply+="\n"+PetQuestions.Question(PetQuestions.Next(s));
+                    if(PetQuestions.Required.Contains(unanswered) && !PetQuestions.Known(message) && !PetQuestions.Known(s.Fields.GetValueOrDefault(unanswered))) {reply=PetQuestions.UncertainReply(unanswered);mood="pouting";}
                     var suggestion=result.Str("memorySuggestion");if(suggestion.Length>0)s.PendingMemory=suggestion[..Math.Min(500,suggestion.Length)];
+                    await Emit(new{type="reply",text=reply});
                 }
                 s.Messages.Add(new(requestId,"user",message));s.Messages.Add(new(Guid.NewGuid().ToString("N"),"assistant",reply,mood));
                 if(s.Messages.Count>100)s.Messages=s.Messages.TakeLast(100).ToList();

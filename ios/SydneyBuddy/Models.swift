@@ -18,6 +18,16 @@ struct TripProfile: Codable {
     var startMinute: Int = 600
     var endMinute: Int = 1080
     var interests: [String] = ["风景", "美食"]
+    var budgetAmount:Double?=nil
+    var budgetCurrency:String?=nil
+    var budgetBasis:String?=nil
+    var travelers:Int?=nil
+    var origin:String?=nil
+    var mustDo:String?=nil
+    var avoid:String?=nil
+    var energy:String? = nil
+    var rhythm:String? = nil
+    var queueTolerance:String? = nil
     var mustVisit: [String] = []
     var start = Coordinate.quay
     var end = Coordinate.quay
@@ -64,7 +74,7 @@ struct Memory: Codable, Identifiable {
     var id: String; var summary: String; var profile: MemoryProfile
     var provenance:Provenance? = nil
     struct Provenance:Codable {var createdAt:String}
-    struct MemoryProfile: Codable { var interests: [String]; var maxSteps: Int }
+    struct MemoryProfile: Codable { var interests: [String]; var maxSteps: Int; var habits:UserTravelProfile? = nil }
 }
 struct Health: Codable { var navigationConfigured: Bool?; var paidServicesAllowed: Bool?; var status: String; var nvidiaConfigured: Bool; var googleConfigured: Bool; var iosMapConfigured: Bool; var model: String }
 struct Expense: Codable, Identifiable {
@@ -72,10 +82,53 @@ struct Expense: Codable, Identifiable {
     var shares: [Int] { (0..<participants).map { cents/participants + ($0 < cents%participants ? 1 : 0) } }
 }
 
+struct UserTravelProfile:Codable,Equatable {
+    var queueTolerance:String?;var dailySteps:Int?;var energy:String?;var rhythm:String?;var interests:[String]?
+    static func load(key:String="userTravelProfile")->UserTravelProfile {
+        guard let data=UserDefaults.standard.data(forKey:key),let value=try? JSONDecoder().decode(Self.self,from:data) else{return .init()};return value
+    }
+    var summary:String {
+        [queueTolerance,dailySteps.map{"每天约 \($0) 步"},energy,rhythm,interests?.joined(separator:"、")].compactMap{$0}.filter{!$0.isEmpty}.joined(separator:" · ")
+    }
+    var seed:[String:String] {
+        var result:[String:String]=[:]
+        if let interests,!interests.isEmpty{result["interests"]=interests.joined(separator:"、")}
+        if let dailySteps{result["pace"]="约\(dailySteps)步"}
+        if let energy{result["energy"]=energy};if let rhythm{result["rhythm"]=rhythm};if let queueTolerance{result["queueTolerance"]=queueTolerance}
+        return result
+    }
+}
+struct TripDraftSummary {
+    let fields:[String:String]
+    var title:String {
+        let destination=TravelRequirements.known(fields["destination"]) ? fields["destination"]!:"目的地待确定"
+        let days=Int(fields["days"] ?? "").flatMap{(1...15).contains($0) ? "\($0) 天":nil} ?? "天数待确定"
+        return destination+" · "+days
+    }
+    var subtitle:String {
+        let date=TravelRequirements.known(fields["date"]) ? fields["date"]!:"日期待确定"
+        let companion=TravelRequirements.known(fields["companions"]) ? fields["companions"]!:(Int(fields["travelers"] ?? "").map{"\($0) 人同行"} ?? "同行人待确定")
+        return date+" · "+companion
+    }
+}
+struct TravelPlanningTask:Codable {
+    var id=UUID().uuidString;var status="draft";var fields:[String:String];var tripID:String?;var message:String?;var personalProfile:UserTravelProfile?=nil;var assumptions:[String]?=nil
+}
+
 @MainActor final class AppStore: ObservableObject {
+    @Published var personalProfile=UserTravelProfile.load() {
+        didSet{if let data=try? JSONEncoder().encode(personalProfile){UserDefaults.standard.set(data,forKey:"userTravelProfile")}}
+    }
+    @Published var pendingPersonalProfile=UserTravelProfile.load(key:"pendingPersonalProfile") {
+        didSet{if let data=try? JSONEncoder().encode(pendingPersonalProfile){UserDefaults.standard.set(data,forKey:"pendingPersonalProfile")}}
+    }
+    @Published var travelTask:TravelPlanningTask? {
+        didSet{if let value=travelTask,let data=try? JSONEncoder().encode(value){UserDefaults.standard.set(data,forKey:"travelPlanningTask")}}
+    }
     @Published var preparations: [String] = UserDefaults.standard.stringArray(forKey:"preparations") ?? []
     @Published var trip: Trip? { didSet { refreshedWeather = nil } }
     @Published var proposal: Trip?
+    @Published var tripToOpen:Trip?
     @Published var saved: [Trip] = []
     @Published var pendingTripFields: [String:String] = UserDefaults.standard.dictionary(forKey:"pendingTripFields") as? [String:String] ?? [:] {
         didSet {UserDefaults.standard.set(pendingTripFields,forKey:"pendingTripFields")}
@@ -103,10 +156,12 @@ struct Expense: Codable, Identifiable {
     @Published var tab = 1
     @Published var dayIndex = 0
     @Published var expenses: [Expense] = [] { didSet { saveExpenses() } }
+    @Published var showPersonalPreferences = !UserDefaults.standard.bool(forKey:"personalPreferences.v2.completed")
     @Published var showOnboarding = !UserDefaults.standard.bool(forKey: "onboarded")
     @Published var agentText = "你好！我是你的旅行小伙伴。告诉我你的想法，一起把悉尼安排得刚刚好。"
     let base = URL(string: "http://127.0.0.1:8787")!
     init() {
+        if let data=UserDefaults.standard.data(forKey:"travelPlanningTask"),var task=try? JSONDecoder().decode(TravelPlanningTask.self,from:data){if task.status=="generating"{task.status="draft";task.message="上次生成已中断，可以继续。"};travelTask=task}
         if let data = UserDefaults.standard.data(forKey: "expenses"), let v = try? JSONDecoder().decode([Expense].self, from: data) { expenses = v }
     }
     var currentDay: DayPlan? { guard let days = trip?.days, !days.isEmpty else { return nil }; return days[min(dayIndex, days.count-1)] }
@@ -186,6 +241,7 @@ struct Expense: Codable, Identifiable {
             UserDefaults.standard.set(session,forKey:"petSession."+id);UserDefaults.standard.removeObject(forKey:"petSession.draft")
         }
         trip=accepted;profile=accepted.profile;proposal=nil;dayIndex=0
+        if consumeDraft{tripToOpen=accepted}
         if showOnboarding || consumeDraft {pendingTripFields=[:]}
         showOnboarding=false;UserDefaults.standard.set(true,forKey:"onboarded");tab=1
     }
@@ -211,6 +267,7 @@ struct Expense: Codable, Identifiable {
     }
     func completePetPreferences(_ profile:TripProfile, fields:[String:String]) {
         self.profile=profile;pendingTripFields=fields;trip=nil;proposal=nil
+        travelTask=TravelPlanningTask(fields:fields,personalProfile:pendingPersonalProfile,assumptions:TravelRequirements.assumptions(fields,personal:pendingPersonalProfile))
         showOnboarding=false;UserDefaults.standard.set(true,forKey:"onboarded");tab=1
     }
     func startGeneratingPendingTrip() {
@@ -225,12 +282,32 @@ struct Expense: Codable, Identifiable {
     func generatePendingTrip() async {
         guard !pendingTripFields.isEmpty else{return}
         do {
-            let profile=try PetTripDraft.profile(pendingTripFields)
-            let request=petFields.map{"\($0.1)：\(pendingTripFields[$0.0] ?? "")"}.joined(separator:"；")
+            let profile=try TravelRequirements.profile(pendingTripFields,personal:pendingPersonalProfile)
+            travelTask=TravelPlanningTask(id:travelTask?.id ?? UUID().uuidString,status:"generating",fields:pendingTripFields,personalProfile:pendingPersonalProfile,assumptions:TravelRequirements.assumptions(pendingTripFields,personal:pendingPersonalProfile))
+            errorMessage=nil
+            let request=profile.request ?? ""
             await generateFromPet(profile,request:request,saveImmediately:true)
-        } catch {errorMessage=error.localizedDescription}
+            if Task.isCancelled{travelTask?.status="draft";travelTask?.message="生成已取消，需求已保留。"}
+            else if let errorMessage{travelTask?.status="failed";travelTask?.message=errorMessage}
+            else{travelTask?.status="completed";travelTask?.tripID=trip?.id;travelTask?.message=nil}
+        } catch {errorMessage=error.localizedDescription;travelTask?.status="failed";travelTask?.message=error.localizedDescription}
     }
-    func newTrip() { UserDefaults.standard.set(false,forKey:"onboarded"); UserDefaults.standard.removeObject(forKey:"petSession.draft"); let prefs = profile; trip = nil; proposal = nil; profile = TripProfile(); profile.interests = prefs.interests; profile.maxSteps = prefs.maxSteps; showOnboarding = true }
+    func completePersonalPreferences() {
+        UserDefaults.standard.set(true,forKey:"personalPreferences.completed")
+        UserDefaults.standard.set(true,forKey:"personalPreferences.v2.completed")
+        UserDefaults.standard.set(true,forKey:"onboarded")
+        if pendingTripFields.isEmpty{pendingPersonalProfile=personalProfile}
+        showPersonalPreferences=false;showOnboarding=true;tab=1
+    }
+    func returnToTrips(draft:[String:String]) {
+        pendingTripFields=draft
+        showOnboarding=false;UserDefaults.standard.set(true,forKey:"onboarded");tab=1
+    }
+    func resumePendingTrip() {
+        trip=nil;proposal=nil;showOnboarding=true
+    }
+    func newTrip() { tripToOpen=nil;pendingPersonalProfile=personalProfile;UserDefaults.standard.removeObject(forKey:"petSession.draft");pendingTripFields=[:];travelTask=nil;UserDefaults.standard.removeObject(forKey:"travelPlanningTask");trip=nil;proposal=nil;profile=TripProfile();showOnboarding=true }
+
     func saveMemory() async {
         do {
             let p = trip?.profile ?? profile
@@ -239,7 +316,7 @@ struct Expense: Codable, Identifiable {
         } catch { errorMessage = error.localizedDescription }
     }
     func deleteMemory(_ memory: Memory) async {
-        do { let _: [String:Bool] = try await api("memories/"+memory.id,method:"DELETE"); await reload() }
+        do { let _: [String:Bool] = try await api("memories/"+memory.id,method:"DELETE");if memory.id==UserDefaults.standard.string(forKey:"personalProfile.memoryID"){personalProfile=UserTravelProfile();UserDefaults.standard.removeObject(forKey:"personalProfile.memoryID")}; await reload() }
         catch { errorMessage = error.localizedDescription }
     }
     func deleteTrip(_ value: Trip) async {

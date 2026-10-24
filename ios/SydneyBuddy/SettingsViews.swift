@@ -33,6 +33,7 @@ struct JournalView:View {
 struct SettingsView:View {
     @EnvironmentObject var store:AppStore
     @State private var deletingMemory:Memory?
+    @State private var editingPersonalPreferences=false
     var body:some View {
         NavigationStack {
             Form {
@@ -44,14 +45,18 @@ struct SettingsView:View {
                     Text("語言切換後立即生效，並保存在這台裝置。").font(.caption)
                     Text("景點名稱與已儲存的行程內容保留原始語言。").font(.caption).foregroundStyle(Palette.muted)
                 }
+                Section("个人画像") {
+                    Button { editingPersonalPreferences=true } label:{Label("修改旅行习惯画像",systemImage:"slider.horizontal.3")}
+                    Text("新旅行会带入这些偏好；修改不会影响已有行程或当前旅行草稿。").font(.caption).foregroundStyle(Palette.muted)
+                }
                 Section("Buddy 记住的偏好") {
-                    Text("新旅行会参考你同意保存的兴趣与节奏，本次选择始终优先。长期记忆可在开场摘要中保存。").font(.caption).foregroundStyle(Palette.muted)
+                    Text("新旅行会参考你同意保存的兴趣与节奏，本次选择始终优先。可在个人偏好中修改。").font(.caption).foregroundStyle(Palette.muted)
                     if store.memories.isEmpty{Text("还没有长期偏好，和 Buddy 聊聊吧。").foregroundStyle(Palette.muted)}
                     ForEach(store.memories){memory in HStack(alignment:.top){Text(memory.summary).font(.subheadline);Spacer();Button("删除",role:.destructive){deletingMemory=memory}.font(.subheadline).frame(minHeight:44)}}
                 }
                 Section("体验与帮助") {
-                    Button("重新体验开场提问"){store.newTrip()}
-                    Text("开启新的旅行草稿，历史行程和长期偏好保留。").font(.caption).foregroundStyle(Palette.muted)
+                    Button("创建一次新的旅行"){store.newTrip()}
+                    Text("询问这次的日期、天数、同行人和预算，个人偏好会自动带入。").font(.caption).foregroundStyle(Palette.muted)
                 }
                 Section {
                     DisclosureGroup("高级设置与开发测试") {
@@ -79,6 +84,7 @@ struct SettingsView:View {
                     }
                 }
             }.scrollContentBackground(.hidden).background(Palette.cream).navigationTitle(store.language.text("我的 Buddy"))
+            .sheet(isPresented:$editingPersonalPreferences){PersonalPreferencesView(editing:true)}
             .confirmationDialog("删除这条长期偏好？以后的旅行将不再参考它。",isPresented:Binding(get:{deletingMemory != nil},set:{if !$0{deletingMemory=nil}}),titleVisibility:.visible){Button("删除偏好",role:.destructive){if let memory=deletingMemory{Task{await store.deleteMemory(memory);deletingMemory=nil}}}}
         }
     }

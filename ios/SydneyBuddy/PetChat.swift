@@ -6,7 +6,9 @@ struct PetSession: Codable {
     var nextField: String; var question: String; var options: [String]; var completed: Int; var total: Int
 }
 struct PetEvent: Decodable { var type: String; var text: String?; var error: String?; var session: PetSession? }
-let petFields: [(String,String)] = [("destination","目的地"),("date","出发日期 YYYY-MM-DD"),("days","旅行天数"),("companions","同行伙伴"),("budget","每人每日活动预算 AUD"),("interests","这次想玩什么"),("pace","旅行节奏"),("notes","补充要求")]
+let petFields: [(String,String)] = [("destination","目的地"),("date","出发日期 YYYY-MM-DD"),("days","旅行天数"),("companions","同行伙伴"),("budget","预算金额"),("interests","这次想玩什么"),("pace","旅行节奏"),("notes","补充要求")]
+let travelExtraFields:[(String,String)]=[("budgetCoverage","预算包含范围"),("budgetCurrency","预算币种"),("travelers","同行总人数"),("origin","出发地点或住宿"),("mustDo","特别想去或想做的"),("avoid","必须避开的安排"),("energy","本次精力"),("rhythm","本次节奏"),("queueTolerance","本次排队偏好")]
+
 
 @MainActor final class PetChatStore: ObservableObject {
     @Published var session: PetSession?
@@ -37,14 +39,14 @@ let petFields: [(String,String)] = [("destination","目的地"),("date","出发�
         defer{busy=false}
         do{try await action()}catch{self.error=error.localizedDescription}
     }
-    func load(scope:String, seed:[String:String]=[:]) async {
+    func load(scope:String, seed:[String:String]=[:],personal:UserTravelProfile?=nil) async {
         guard !busy else{return}
         if self.scope==scope,session != nil{return}
         self.scope=scope;session=nil;streaming="";outgoing="";pendingRequest=nil
         choices=UserDefaults.standard.object(forKey:"petChoices") as? Bool ?? true
         await run {
             if let id=UserDefaults.standard.string(forKey:storageKey) {session=try await request("pet/sessions/"+id)}
-            else {let value:PetSession=try await request("pet/sessions",method:"POST",body:["fields":seed]);session=value;UserDefaults.standard.set(value.id,forKey:storageKey)}
+            else {let value:PetSession=try await request("pet/sessions",method:"POST",body:["fields":seed,"personalProfile":personal.flatMap{try? JSONSerialization.jsonObject(with:JSONEncoder().encode($0))} ?? [:]]);session=value;UserDefaults.standard.set(value.id,forKey:storageKey)}
         }
     }
     func reloadSession() async { session=nil;await load(scope:scope) }
@@ -88,6 +90,21 @@ let petFields: [(String,String)] = [("destination","目的地"),("date","出发�
             memories.append(memory)
         }
     }
+    func savePersonalPreferences(_ profile:TripProfile,existing:Memory?) async {
+        await run {
+            let body:[String:Any]=["consent":true,"summary":"喜欢"+profile.interests.joined(separator:"、")+"，每天步数偏好约 \(profile.maxSteps) 步","profile":["interests":profile.interests,"maxSteps":profile.maxSteps]]
+            let _:Memory=try await request(existing.map{"memories/"+$0.id} ?? "memories",method:existing == nil ? "POST":"PUT",body:body)
+            memories=try await request("memories")
+        }
+    }
+    func saveTravelProfile(_ profile:UserTravelProfile,existing:Memory?) async {
+        await run {
+            let habits=try JSONSerialization.jsonObject(with:JSONEncoder().encode(profile))
+            let body:[String:Any]=["consent":true,"summary":profile.summary.isEmpty ? "旅行习惯暂不确定":profile.summary,"profile":["interests":profile.interests ?? [],"maxSteps":profile.dailySteps ?? 10000,"habits":habits]]
+            let _:Memory=try await request(existing.map{"memories/"+$0.id} ?? "memories",method:existing == nil ? "POST":"PUT",body:body)
+            memories=try await request("memories")
+        }
+    }
     func refreshMemories() async {await run{memories=try await request("memories")}}
     func deleteMemory(_ id:String) async {
         await run{let _: [String:Bool]=try await request("memories/"+id,method:"DELETE");memories=try await request("memories")}
@@ -108,7 +125,7 @@ let petFields: [(String,String)] = [("destination","目的地"),("date","出发�
     }
 }
 
-enum PetMood:String {case greeting,listening,thinking,remembering,ready,confused,curious,excited,relaxed,speaking
+enum PetMood:String {case greeting,listening,thinking,remembering,ready,confused,curious,excited,relaxed,speaking,pouting
     static func reply(_ value:String?)->PetMood {PetMood(rawValue:value ?? "") ?? .curious}
 }
 struct PetReaction:Equatable {
@@ -141,7 +158,7 @@ struct PetAvatar:View {
     @State private var blink=false
     @State private var mouthOpen=false
     private var joyful:Bool {[.excited,.ready,.remembering].contains(mood)}
-    private var symbol:String {switch mood{case .thinking:return "ellipsis";case .remembering:return "heart.fill";case .ready:return "checkmark";case .confused:return "questionmark";case .listening:return "ear.fill";case .curious:return "leaf.fill";case .relaxed:return "cloud.sun.fill";case .speaking:return "waveform";default:return "sparkles"}}
+    private var symbol:String {switch mood{case .pouting:return "exclamationmark";case .thinking:return "ellipsis";case .remembering:return "heart.fill";case .ready:return "checkmark";case .confused:return "questionmark";case .listening:return "ear.fill";case .curious:return "leaf.fill";case .relaxed:return "cloud.sun.fill";case .speaking:return "waveform";default:return "sparkles"}}
     private var tilt:Double {mood == .curious || mood == .confused ? -10 : mood == .listening ? 7:0}
     var body:some View {
         ZStack {
@@ -159,6 +176,10 @@ struct PetAvatar:View {
                 Ellipse().fill(Palette.ink).frame(width:17,height:22).overlay(Ellipse().fill(.white.opacity(0.2)).frame(width:5,height:7).offset(x:-3,y:-4)).offset(y:-5)
                 HStack(spacing:43){Circle().fill(Color.pink.opacity(joyful ? 0.45:0.22)).frame(width:11);Circle().fill(Color.pink.opacity(joyful ? 0.45:0.22)).frame(width:11)}.offset(y:-1)
                 if mood == .speaking && (mouthOpen || reduceMotion) || mood == .excited {Ellipse().fill(Palette.ink).frame(width:12,height:joyful ? 12:8).overlay(Ellipse().fill(.pink.opacity(0.7)).frame(width:7,height:4).offset(y:3)).offset(y:11)}
+                else if mood == .pouting {
+                    Capsule().fill(Palette.ink).frame(width:11,height:3).offset(y:11)
+                    HStack(spacing:20){ForEach([-1.0,1.0],id:\.self){side in Capsule().fill(Palette.ink).frame(width:11,height:3).rotationEffect(.degrees(side * -18))}}.offset(y:-24)
+                }
                 else if mood == .thinking || mood == .confused {Ellipse().stroke(Palette.ink,lineWidth:2).frame(width:6,height:7).offset(y:11)}
                 else {Path{p in p.move(to:CGPoint(x:0,y:0));p.addQuadCurve(to:CGPoint(x:14,y:0),control:CGPoint(x:7,y:joyful ? 10:6))}.stroke(Palette.ink,style:StrokeStyle(lineWidth:2,lineCap:.round)).frame(width:14,height:7).offset(y:9)}
                 ForEach([-1.0,1.0],id:\.self){side in
@@ -204,6 +225,9 @@ struct PetChatView:View {
     @State private var memories=false
     @State private var clearing=false
     @State private var fields:[String:String]=[:]
+    @State private var assumptionsConfirmed=false
+    @State private var editingRequirements=false
+    @FocusState private var composing:Bool
     @Environment(\.dismiss) private var dismiss
     var onboarding=false
     var conversationOnly=false
@@ -211,21 +235,28 @@ struct PetChatView:View {
     private var scope:String {(onboarding || draftScope) ? "draft" : (store.trip?.id ?? "draft")}
     private var displayedMessages:[PetMessage] {
         let messages=chat.session?.messages ?? []
-        return draftScope && messages.first?.role=="assistant" ? Array(messages.dropFirst()):messages
+        if !onboarding && !draftScope,store.trip != nil,messages.first?.role=="assistant" {return Array(messages.dropFirst())}
+        return messages
     }
-    var body:some View {
+    private var conversationContent:some View {
         VStack(spacing:0) {
+            HStack {
+                Button(onboarding ? "返回我的行程":"返回") {
+                    if onboarding{store.returnToTrips(draft:chat.session?.fields ?? store.pendingTripFields)}else{dismiss()}
+                }.font(.subheadline.bold()).accessibilityIdentifier("chat-back")
+                Spacer()
+                if !onboarding && !draftScope,let trip=store.trip{Text(trip.profile.date).font(.caption).foregroundStyle(Palette.muted)}
+            }.padding(.horizontal,20).padding(.vertical,10).disabled(chat.busy)
             HStack(spacing:12) {
                 PetAvatar(mood:!chat.streaming.isEmpty ? .speaking:chat.busy ? .thinking:!message.isEmpty ? .listening:chat.error != nil ? .confused:!(chat.session?.pendingMemory ?? "").isEmpty ? .remembering:PetMood.reply(chat.session?.messages.last?.mood))
-                VStack(alignment:.leading,spacing:5){Text("Buddy 的小背包").font(.title2.bold());Text(chat.busy ? "在认真听你说…" : "一起聊聊，慢慢准备出发").font(.caption).foregroundStyle(Palette.muted);if let s=chat.session{ProgressView(value:Double(s.completed),total:Double(s.total)).tint(Palette.green)}}
+                VStack(alignment:.leading,spacing:5){Text(!onboarding && !draftScope ? (store.trip?.title ?? "Buddy 的小背包"):"Buddy 的小背包").font(.title2.bold());Text(chat.busy ? "在认真听你说…" : "一起聊聊，慢慢准备出发").font(.caption).foregroundStyle(Palette.muted);if let s=chat.session{ProgressView(value:Double(s.completed),total:Double(s.total)).tint(Palette.green)}}
                 Spacer(minLength:0)
             }.padding(.horizontal,20)
-            Picker("回答方式",selection:Binding(get:{chat.choices},set:{chat.mode($0)})){Text("点选回答").tag(true);Text("自由聊").tag(false)}.pickerStyle(.segmented).padding(.horizontal,20).padding(.bottom,10)
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(alignment:.leading,spacing:14){
-                        if draftScope,let session=chat.session {
-                            VStack(alignment:.leading,spacing:8){Text("继续准备这次旅行").font(.headline);Text("\(session.fields["destination"] ?? "悉尼") · \(session.fields["days"] ?? "1") 天 · \(session.fields["interests"] ?? "")").font(.subheadline);Text("已有回答会保留，直接告诉 Buddy 你想补充或调整的内容。").font(.caption).foregroundStyle(Palette.muted)}.padding(16).frame(maxWidth:.infinity,alignment:.leading).background(Palette.mint,in:RoundedRectangle(cornerRadius:18))
+                        if draftScope,!onboarding,let session=chat.session {
+                            VStack(alignment:.leading,spacing:8){Text("继续准备这次旅行").font(.headline);Text(TripDraftSummary(fields:session.fields).title).font(.subheadline);Text("已有回答会保留，直接告诉 Buddy 你想补充或调整的内容。").font(.caption).foregroundStyle(Palette.muted)}.padding(16).frame(maxWidth:.infinity,alignment:.leading).background(Palette.mint,in:RoundedRectangle(cornerRadius:18))
                         }
                         ForEach(displayedMessages){item in bubble(item.text,user:item.role=="user",mood:PetMood.reply(item.mood))}
                         if !chat.outgoing.isEmpty{bubble(chat.outgoing,user:true)}
@@ -234,90 +265,191 @@ struct PetChatView:View {
                         if let s=chat.session,!s.pendingMemory.isEmpty {
                             VStack(alignment:.leading,spacing:10){Text("以后也这样安排，好吗？").font(.headline);Text(s.pendingMemory);HStack{Button("以后都记住"){Task{await chat.decideMemory(true)}}.buttonStyle(.borderedProminent);Button("仅限这次"){Task{await chat.decideMemory(false)}}.buttonStyle(.bordered)}}.padding(16).background(Palette.mint,in:RoundedRectangle(cornerRadius:20)).disabled(chat.busy)
                         }
-                        if chat.choices,let s=chat.session,!s.nextField.isEmpty {
-                            Text(s.question).font(.headline)
-                            ForEach(s.options,id:\.self){option in Button{Task{await chat.send(option,field:s.nextField)}}label:{HStack{Text(option);Spacer();Image(systemName:"chevron.right")}.padding(14).background(.white,in:RoundedRectangle(cornerRadius:16))}.buttonStyle(.plain).disabled(chat.busy)}
-                            HStack{Button("跳过这题"){Task{await chat.send("跳过",field:s.nextField,value:"未确定")}};Spacer();Button("其他，自己说"){chat.mode(false)}}.font(.caption).disabled(chat.busy)
-                        }
                         if let error=chat.error{Text(error).font(.caption).foregroundStyle(.red)}
                         Color.clear.frame(height:1).id("bottom")
                     }.padding(20)
                 }.onChange(of:chat.streaming){_,_ in proxy.scrollTo("bottom",anchor:.bottom)}.onChange(of:chat.session?.messages.count){_,_ in proxy.scrollTo("bottom",anchor:.bottom)}
             }
-            if onboarding,let session=chat.session,session.nextField.isEmpty {
-                VStack(spacing:8) {
-                    Text("回答完成，准备出发啦！").font(.headline)
-                    PrimaryButton(title:"保存偏好，去我的行程",symbol:"map.fill") {
-                        fields=session.fields
-                        Task{await preparePlan()}
-                    }.disabled(chat.busy || store.busy)
-                    Text("先收好偏好，再到我的行程生成路线。").font(.caption2).foregroundStyle(Palette.muted)
-                }.padding(.horizontal,20).padding(.vertical,12)
-            }
-            if !chat.choices {
-                HStack(alignment:.bottom){TextField("告诉 Buddy 你的想法…",text:$message,axis:.vertical).lineLimit(1...4).padding(12).background(.white,in:RoundedRectangle(cornerRadius:16));Button{let text=message;Task{await chat.send(text);if chat.error==nil{message=""}}}label:{Image(systemName:"arrow.up.circle.fill").font(.system(size:34))}.disabled(chat.busy || message.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty || message.count>2000)}.padding(.horizontal,20).padding(.vertical,8)
-                Text("AI 会收到这次对话和已确认偏好。长期保存需你确认。").font(.caption2).foregroundStyle(Palette.muted)
-            }
+            if let session=chat.session,!session.nextField.isEmpty {quickAnswers(session)}
+            if canPlanDirectly {directPlanningCard}
+            else if let blocker=directPlanningBlocker {Label(blocker,systemImage:"info.circle").font(.caption).foregroundStyle(Palette.muted).padding(.horizontal,20).padding(.top,6)}
+            HStack(alignment:.bottom){
+                TextField("告诉 Buddy 你的想法，也可以点上面的选项…",text:$message,axis:.vertical).focused($composing).lineLimit(1...4).padding(12).background(.white,in:RoundedRectangle(cornerRadius:16)).accessibilityIdentifier("chat-composer")
+                Button{let text=message;composing=false;Task{await chat.send(text);if chat.error==nil{message=""}}}label:{Image(systemName:"arrow.up.circle.fill").font(.system(size:34))}.accessibilityLabel("发送消息").disabled(chat.busy || message.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty || message.count>2000)
+            }.padding(.horizontal,20).padding(.vertical,8)
             HStack {
                 Button("我的记忆"){memories=true}
                 Spacer()
-                Button("检查旅行信息"){fields=chat.session?.fields ?? [:];review=true}.fontWeight(.bold)
-                Menu{Button("清空本次对话",role:.destructive){clearing=true};if onboarding{Button("先看看已有行程"){store.showOnboarding=false;UserDefaults.standard.set(true,forKey:"onboarded");Task{await store.reload()}}}}label:{Image(systemName:"ellipsis.circle")}
+                Button("旅行需求摘要"){fields=chat.session?.fields ?? [:];editingRequirements=false;assumptionsConfirmed=false;review=true}.fontWeight(.bold)
+                Menu{Button("清空本次对话",role:.destructive){clearing=true}}label:{Image(systemName:"ellipsis.circle")}
             }.font(.subheadline).padding(20).disabled(chat.busy)
         }.background(Palette.cream).foregroundStyle(Palette.ink)
-        .task(id:scope){var seed:[String:String]=draftScope ? store.pendingTripFields:[:];if !onboarding && !draftScope,let t=store.trip{seed=["destination":"悉尼","date":t.profile.date,"days":String(t.profile.days),"budget":String(Int(t.profile.budget)),"interests":t.profile.interests.joined(separator:"、"),"pace":"约\(t.profile.maxSteps)步"]};await chat.load(scope:scope,seed:seed);if draftScope{chat.mode(false)}}
-        .sheet(isPresented:$review){reviewSheet}
+    }
+    var body:some View {
+        ZStack {
+            conversationContent.opacity(review ? 0:1).allowsHitTesting(!review).accessibilityHidden(review)
+            if review{requirementsPanel}
+        }
+        .onChange(of:review){_,value in if value{composing=false}}
+        .task(id:scope){
+            var seed:[String:String]=(onboarding || draftScope) ? store.pendingTripFields:[:]
+            if onboarding,seed.isEmpty{seed=store.pendingPersonalProfile.seed}
+            if !onboarding && !draftScope,let t=store.trip{seed=["destination":"悉尼","date":t.profile.date,"days":String(t.profile.days),"budget":String(Int(t.profile.budget)),"interests":t.profile.interests.joined(separator:"、"),"pace":"约\(t.profile.maxSteps)步"]}
+            await chat.load(scope:scope,seed:seed,personal:(onboarding || draftScope) ? store.pendingPersonalProfile:nil)
+        }
+        .onChange(of:chat.session?.fields){_,value in
+            if onboarding,let value{store.pendingTripFields=value}
+            if value != nil{assumptionsConfirmed=false}
+            if canPlanDirectly{composing=false}
+        }
         .sheet(isPresented:$memories){PetMemoryView(chat:chat)}
         .confirmationDialog("清空本次对话和旅行草稿？已保存行程与长期偏好保留。",isPresented:$clearing,titleVisibility:.visible){Button("清空",role:.destructive){Task{await chat.clear()}}}
+    }
+    private var liveFields:[String:String]{chat.session?.fields ?? [:]}
+    private var directProfile:TripProfile? {
+        guard (onboarding || draftScope),(!conversationOnly || onboarding) else{return nil}
+        return try? TravelRequirements.readyProfile(liveFields,personal:store.pendingPersonalProfile)
+    }
+    private var canPlanDirectly:Bool{directProfile != nil}
+    private var directPlanningBlocker:String? {
+        guard (!conversationOnly || onboarding),(onboarding || draftScope),let session=chat.session else{return nil}
+        let missing=TravelRequirements.missingFields(liveFields)
+        if !missing.isEmpty{return session.nextField.isEmpty ? "还需要确认："+missing.joined(separator:"、")+"。直接在下面告诉 Buddy 就好。":nil}
+        do{_=try TravelRequirements.readyProfile(liveFields,personal:store.pendingPersonalProfile);return nil}catch{return error.localizedDescription}
+    }
+    private func quickAnswers(_ session:PetSession)->some View {
+        VStack(alignment:.leading,spacing:7){
+            HStack(alignment:.firstTextBaseline){Text(canPlanDirectly ? "可选补充："+session.question:session.question).font(.caption).foregroundStyle(Palette.muted).lineLimit(2);Spacer();Button(TravelRequirements.requiredKeys.contains(session.nextField) ? "暂不确定":"稍后补充"){composing=false;Task{await chat.send("稍后补充",field:session.nextField,value:"未确定")}}.font(.caption).disabled(chat.busy)}
+            ScrollView(.horizontal,showsIndicators:false){HStack(spacing:8){ForEach(session.options,id:\.self){option in
+                Button{composing=false;let label=TravelRequirements.optionTitle(option,field:session.nextField);Task{await chat.send(label,field:session.nextField,value:option)}}label:{Text(TravelRequirements.optionTitle(option,field:session.nextField)).font(.subheadline.weight(.medium)).padding(.horizontal,14).padding(.vertical,10).background(.white,in:Capsule()).overlay(Capsule().stroke(Palette.green.opacity(0.2)))}.buttonStyle(.plain).disabled(chat.busy)
+            }}}
+        }.padding(.horizontal,20).padding(.top,8).accessibilityIdentifier("chat-quick-answers")
+    }
+    private var directPlanningCard:some View {
+        VStack(alignment:.leading,spacing:8){
+            HStack{Label("旅行需求已齐",systemImage:"checkmark.circle.fill").font(.subheadline.bold()).foregroundStyle(Palette.green);Spacer();Button("修改"){fields=liveFields;editingRequirements=false;review=true}.font(.caption)}
+            Text(TripDraftSummary(fields:liveFields).title+" · "+(liveFields["date"] ?? "")).font(.caption)
+            if let profile=directProfile{Text("每人每日活动预算约 "+String(format:"%.2f",profile.budget)+" AUD").font(.caption).foregroundStyle(Palette.muted)}
+            let assumptions=TravelRequirements.assumptions(liveFields,personal:store.pendingPersonalProfile)
+            if let origin=assumptions.first(where:{$0.contains("起终点") || $0.contains("尚未定位")}){Text(origin).font(.caption2).foregroundStyle(Palette.muted).fixedSize(horizontal:false,vertical:true)}
+            DisclosureGroup("查看临时假设与待核实信息") {ScrollView{VStack(alignment:.leading,spacing:6){ForEach(assumptions,id:\.self){Text("• "+$0).font(.caption)}}}.frame(maxHeight:100)}.font(.caption).foregroundStyle(Palette.muted)
+            PrimaryButton(title:onboarding ? "生成行程":"按这些信息调整行程",symbol:"sparkles"){
+                composing=false;fields=liveFields;assumptionsConfirmed=true;Task{await preparePlan()}
+            }.disabled(chat.busy || store.busy || !message.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty).accessibilityIdentifier("chat-generate")
+            Text(message.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty ? "点击即按以上需求与临时假设生成；也可以继续聊。":"输入框还有未发送的内容，请先发送或清空。后续会按最新需求生成。").font(.caption2).foregroundStyle(Palette.muted)
+        }.padding(14).background(Palette.mint.opacity(0.6),in:RoundedRectangle(cornerRadius:18)).padding(.horizontal,20).padding(.top,8)
     }
     private func bubble(_ text:String,user:Bool,mood:PetMood = .curious)->some View {
         HStack(alignment:.top){if user{Spacer(minLength:30)}else{PetAvatar(mood:mood).scaleEffect(0.38).frame(width:42,height:48)};Text(text).font(.subheadline).lineSpacing(4).padding(16).background(user ? Palette.mint : .white,in:RoundedRectangle(cornerRadius:20));if !user{Spacer(minLength:25)}}
     }
-    private var reviewSheet:some View {
-        NavigationStack {
-            Form {
-                Section("这次旅行的小背包") {ForEach(petFields,id:\.0){key,label in TextField(label,text:Binding(get:{fields[key] ?? ""},set:{fields[key]=$0}))}}
-                Section{Text(store.live ? "路线使用当前在线规划设置。" : "宠物自由聊天使用在线 AI；路线草案目前使用示例地点和路线数据。")
-                    Text("目前支持生成悉尼 1–15 天的路线。其他目的地可先保存资料。未确定的日期、天数和预算请补齐；预算为每人每日活动费用。").font(.caption)}
-                Section {
-                    Button("保存修改"){Task{await chat.update(fields);if chat.error==nil{review=false}}}.disabled(chat.busy)
-                    if !conversationOnly { Button(onboarding ? "保存偏好，去我的行程" : "用这些信息调整行程"){Task{await preparePlan()}}.disabled(chat.busy || store.busy) }
+    private var requirementsPanel:some View {
+        VStack(spacing:0) {
+            HStack {
+                Button {Task{await saveReview(leave:false)}} label:{Label("返回对话",systemImage:"chevron.left")}.accessibilityIdentifier("requirements-back")
+                Spacer();Text("旅行需求摘要").font(.headline)
+            }.padding(20).disabled(chat.busy)
+            ScrollView {
+                VStack(alignment:.leading,spacing:16) {
+                    VStack(alignment:.leading,spacing:12) {
+                        Text(TripDraftSummary(fields:fields).title).font(.title3.bold())
+                        Text(TripDraftSummary(fields:fields).subtitle).font(.subheadline).foregroundStyle(Palette.muted)
+                        ForEach((petFields+travelExtraFields).filter{TravelRequirements.known(fields[$0.0]) && !["destination","days","date","companions"].contains($0.0)},id:\.0){key,label in
+                            HStack(alignment:.top){Text(label).foregroundStyle(Palette.muted);Spacer();Text(key=="budgetCoverage" ? (fields[key]=="activities" ? "活动费用":fields[key]=="totalTravel" ? "包含住宿或交通的总费用":"待确认"):fields[key] ?? "").multilineTextAlignment(.trailing)}.font(.subheadline)
+                        }
+                        if let basis=TravelRequirements.budgetBases.first(where:{$0.0==fields["budgetBasis"]}){LabeledContent("预算范围",value:basis.1).font(.subheadline)}
+                    }.padding(18).frame(maxWidth:.infinity,alignment:.leading).background(.white,in:RoundedRectangle(cornerRadius:22))
+                    if let issue=validationIssue {
+                        Label(issue,systemImage:"info.circle").font(.subheadline).foregroundStyle(Palette.muted).fixedSize(horizontal:false,vertical:true)
+                    }
+                    DisclosureGroup("修改或补充需求",isExpanded:$editingRequirements) {
+                        VStack(spacing:16){
+                            ForEach(petFields+travelExtraFields,id:\.0){key,label in
+                                if key=="budgetCoverage" {
+                                    Picker(label,selection:Binding(get:{fields[key] ?? ""},set:{fields[key]=$0})){Text("待确认").tag("");Text("活动费用").tag("activities");Text("包含住宿或交通的总费用").tag("totalTravel")}
+                                } else {
+                                    VStack(alignment:.leading,spacing:5){Text(label).font(.caption).foregroundStyle(Palette.muted);TextField("暂未确定",text:Binding(get:{fields[key] ?? ""},set:{fields[key]=$0}),axis:.vertical).textFieldStyle(.roundedBorder).accessibilityLabel(label)}
+                                }
+                            }
+                            Picker("预算范围",selection:Binding(get:{fields["budgetBasis"] ?? ""},set:{fields["budgetBasis"]=$0})){
+                                Text("请选择").tag("");ForEach(TravelRequirements.budgetBases,id:\.0){Text($0.1).tag($0.0)}
+                            }
+                        }.padding(.top,14)
+                    }.padding(18).background(.white,in:RoundedRectangle(cornerRadius:22))
+                    DisclosureGroup("临时假设与待核实信息") {
+                        VStack(alignment:.leading,spacing:10){
+                            ForEach(TravelRequirements.assumptions(fields,personal:store.pendingPersonalProfile),id:\.self){Text("• "+$0).font(.caption)}
+                            Text("当前支持悉尼 1–15 天、AUD 活动预算。示例地点、交通、排队及特殊要求仍需核实。").font(.caption)
+                        }.padding(.top,12)
+                    }.padding(18).background(.white,in:RoundedRectangle(cornerRadius:22))
+                    Toggle("我已查看并确认需求及临时假设",isOn:$assumptionsConfirmed).font(.subheadline).tint(Palette.green)
+                    if let error=chat.error{Text(error).font(.caption).foregroundStyle(.red)}
+                }.padding(.horizontal,20).padding(.bottom,20)
+            }.scrollDismissesKeyboard(.interactively)
+            VStack(spacing:12){
+                if !conversationOnly || onboarding {
+                    PrimaryButton(title:onboarding ? "生成行程":"用这些信息调整行程",symbol:"sparkles"){Task{await preparePlan()}}.disabled(chat.busy || store.busy || validationIssue != nil || !assumptionsConfirmed)
                 }
-                if let error=chat.error{Text(error).foregroundStyle(.red)}
-            }.navigationTitle("检查旅行信息").toolbar{Button("完成"){review=false}}
-        }
+                Button("保存需求，返回我的行程"){Task{await saveReview(leave:true)}}.font(.subheadline).disabled(chat.busy)
+            }.padding(20)
+        }.background(Palette.cream).foregroundStyle(Palette.ink)
+        .onChange(of:fields){_,_ in assumptionsConfirmed=false}
+    }
+    private func saveReview(leave:Bool) async {
+        if fields != chat.session?.fields{await chat.update(fields);guard chat.error==nil else{return}}
+        if onboarding || draftScope{store.pendingTripFields=fields}
+        review=false
+        if leave{if onboarding{store.returnToTrips(draft:fields)}else{dismiss()}}
+    }
+    private var validationIssue:String? {
+        do {
+            if onboarding || draftScope {
+                let missing=TravelRequirements.missingFields(fields)
+                if !missing.isEmpty{return "还需要确认："+missing.joined(separator:"、")+"。可以返回对话继续聊，或逐项补充。"}
+                _=try TravelRequirements.profile(fields,personal:store.pendingPersonalProfile)
+            } else {_=try PetTripDraft.profile(fields)}
+            return nil
+        }catch{return error.localizedDescription}
     }
     private func preparePlan() async {
+        guard assumptionsConfirmed else{return}
         await chat.update(fields);guard chat.error==nil else{return}
         let profile:TripProfile
-        do {profile=try PetTripDraft.profile(fields,base:onboarding ? TripProfile() : (store.trip?.profile ?? store.profile))}
+        do {profile=try (onboarding || draftScope) ? TravelRequirements.profile(fields,personal:store.pendingPersonalProfile):PetTripDraft.profile(fields,base:store.trip?.profile ?? store.profile)}
         catch {chat.error=error.localizedDescription;review=true;return}
-        let request=petFields.map{label in "\(label.1)：\(fields[label.0] ?? "未确定")"}.joined(separator:"；")
         review=false
-        if onboarding {store.completePetPreferences(profile,fields:fields);return}
+        if onboarding {
+            fields["assumptionsConfirmed"]="true"
+            store.completePetPreferences(profile,fields:fields)
+            store.startGeneratingPendingTrip()
+            return
+        }
         dismiss()
-        await store.generateFromPet(profile,request:request)
+        await store.generateFromPet(profile,request:profile.request ?? "")
     }
+
 }
 
 struct PetMemoryView:View {
+    @EnvironmentObject private var store:AppStore
     @ObservedObject var chat:PetChatStore
     @Environment(\.dismiss) private var dismiss
     @State private var edit:Memory?
     @State private var text=""
     @State private var deleting:Memory?
+    @State private var editingProfile=false
     var body:some View {
         NavigationStack {
             List {
                 Section("本次旅行") {ForEach(petFields,id:\.0){key,label in if let value=chat.session?.fields[key]{LabeledContent(label,value:value)}}}
                 Section("长期偏好 · 下次也会参考") {
                     if chat.memories.isEmpty{Text("还没有长期偏好。聊一聊，确认后我再记住。")}
-                    ForEach(chat.memories){m in VStack(alignment:.leading,spacing:8){Text(m.summary);HStack{Button("修改"){edit=m;text=m.summary};Spacer();Button("撤回",role:.destructive){deleting=m}}.font(.caption)}}
+                    ForEach(chat.memories){m in VStack(alignment:.leading,spacing:8){Text(m.summary);HStack{Button("修改"){if m.profile.habits != nil{editingProfile=true}else{edit=m;text=m.summary}};Spacer();Button("撤回",role:.destructive){deleting=m}}.font(.caption)}}
                 }
                 if let error=chat.error{Text(error).foregroundStyle(.red)}
             }.navigationTitle("Buddy 记住的事").toolbar{Button("完成"){dismiss()}}.task{await chat.refreshMemories()}
+            .sheet(isPresented:$editingProfile,onDismiss:{Task{await chat.refreshMemories()}}){PersonalPreferencesView(editing:true)}
             .alert("修改长期偏好",isPresented:Binding(get:{edit != nil},set:{if !$0{edit=nil}})){TextField("偏好",text:$text);Button("取消",role:.cancel){edit=nil};Button("保存"){if let m=edit{Task{await chat.editMemory(m,text:text)}};edit=nil}.disabled(text.trimmingCharacters(in:.whitespaces).isEmpty)}
-            .confirmationDialog("撤回后，未来对话和规划将不再检索这条偏好。",isPresented:Binding(get:{deleting != nil},set:{if !$0{deleting=nil}})){Button("撤回偏好",role:.destructive){if let m=deleting{Task{await chat.deleteMemory(m.id)}};deleting=nil}}
+            .confirmationDialog("撤回后，未来对话和规划将不再检索这条偏好。",isPresented:Binding(get:{deleting != nil},set:{if !$0{deleting=nil}})){Button("撤回偏好",role:.destructive){if let m=deleting{Task{await store.deleteMemory(m);await chat.refreshMemories()}};deleting=nil}}
         }
     }
 }
@@ -331,7 +463,7 @@ struct PetTripDraft {
         let format=DateFormatter();format.locale=Locale(identifier:"en_US_POSIX");format.dateFormat="yyyy-MM-dd";format.isLenient=false
         guard let date=fields["date"],let parsed=format.date(from:date),format.string(from:parsed)==date else{throw failure("请填写 YYYY-MM-DD 格式的有效出发日期。")}
         var result=base;result.date=date;result.days=days;result.budget=budget
-        let interests=fields["interests"] ?? "";result.interests=["风景","美食","自然","文化","艺术","城市"].filter{interests.contains($0)}
+        let interests=fields["interests"] ?? "";result.interests=["风景","美食","自然","文化","艺术","城市","购物"].filter{interests.contains($0)}
         let pace=fields["pace"] ?? ""
         if let range=pace.range(of:"[0-9]{3,5}",options:.regularExpression),let steps=Int(pace[range]) {
             guard (1000...30000).contains(steps) else{throw failure("每日步数请设在 1000–30000 之间。")};result.maxSteps=steps
@@ -374,10 +506,9 @@ struct PetWelcomeView: View {
     @State private var lastAnswer=""
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var confirmed=Set<String>()
-    @State private var rememberPreferences=false
     @State private var finishing=false
     @State private var problem: String?
-    private let questions=["嗨！我是 Buddy。\n这次可以陪你去悉尼吗？","我先在小日历上画个圈！你准备哪天出发，玩几天呀？","小背包准备几个位置？\n这次和谁一起去呀？","我想把你喜欢的都装进背包。你看到什么会开心呀？","我走得不快哦～\n这次想慢慢逛，还是多探索一点？","下次也想这样玩吗？我可以记住你喜欢的事物和旅行节奏。"]
+    private let questions=["嗨！我是 Buddy。\n这次可以陪你去悉尼吗？","我先在小日历上画个圈！你准备哪天出发，玩几天呀？","小背包准备几个位置？\n这次和谁一起去呀？","我想把你喜欢的都装进背包。你看到什么会开心呀？","我走得不快哦～\n这次想慢慢逛，还是多探索一点？","这次的旅行小背包准备好啦！个人喜好已带上，我们去“我的行程”看看？"]
     private var sceneMood:PetMood {if chat.error != nil || problem != nil{return .confused};if finishing{return .remembering};return reaction?.mood ?? (step==5 ? .ready:step==0 ? .greeting:.curious)}
     private var speech:String {if let error=chat.error ?? problem{return "刚才绊了一小下，你的选择还在。\n"+error};return reaction?.text ?? questions[step]}
     private var working: Bool { chat.busy || store.busy || finishing }
@@ -388,9 +519,9 @@ struct PetWelcomeView: View {
     var body: some View {
         VStack(spacing:0) {
             HStack(spacing:16) {
-                Button { step=max(0,step-1) } label:{Image(systemName:"chevron.left").font(.headline).frame(width:36,height:36)}.disabled(step==0 || working).accessibilityLabel("上一题")
-                ProgressView(value:Double(step),total:5).tint(Palette.green)
-                Text(step==5 ? "准备出发" : "\(step+1) / 5").font(.caption.bold()).foregroundStyle(Palette.muted)
+                Button { step=step==5 ? 2:max(0,step-1) } label:{Image(systemName:"chevron.left").font(.headline).frame(width:36,height:36)}.disabled(step==0 || working).accessibilityLabel("上一题")
+                ProgressView(value:Double(step==5 ? 3:min(step,2)),total:3).tint(Palette.green)
+                Text(step==5 ? "准备出发" : "\(min(step+1,3)) / 3").font(.caption.bold()).foregroundStyle(Palette.muted)
                 Menu { Button("重新体验开场"){restarting=true}; Button("查看已有行程"){store.showOnboarding=false;UserDefaults.standard.set(true,forKey:"onboarded");Task{await store.reload()}} } label:{Image(systemName:"ellipsis").frame(width:32,height:36)}.disabled(working)
             }.padding(.horizontal,20).padding(.top,12)
             HStack(alignment:.center,spacing:8){
@@ -420,16 +551,11 @@ struct PetWelcomeView: View {
             }.padding(.horizontal,26).padding(.top,12).padding(.bottom,18).background(Palette.cream)
         }.background(Palette.cream).foregroundStyle(Palette.ink)
         .task { await load() }
-        .onChange(of:rememberPreferences){_,enabled in
-            withAnimation(reduceMotion ? nil:.spring(response:0.3,dampingFraction:0.8)) {
-                reaction=PetReaction(text:enabled ? "好呀！出发时，我会把这些小喜好收进记忆里。" : "收到，这些选择就放在这次的小背包里。",mood:enabled ? .remembering:.relaxed)
-            }
-        }
         .onChange(of:confirmed){_,keys in if let id=chat.session?.id{UserDefaults.standard.set(Array(keys),forKey:"petWelcome.confirmed."+id)}}
         .onChange(of:step){_,value in reaction=nil;lastAnswer="";problem=nil;if loaded{UserDefaults.standard.set(value,forKey:"petWelcome.step")}}
         .onChange(of:values){_,value in if loaded,let id=chat.session?.id,let data=try? JSONEncoder().encode(value){UserDefaults.standard.set(data,forKey:"petWelcome.values."+id)}}
         .sheet(isPresented:$talking,onDismiss:{Task{await syncChat()}}){NavigationStack{PetChatView(conversationOnly:true).toolbar{ToolbarItem(placement:.topBarTrailing){Button("回到小背包"){talking=false}}}}}
-        .confirmationDialog("重新开始这次提问？历史行程和长期偏好保留。",isPresented:$restarting,titleVisibility:.visible){Button("重新开始",role:.destructive){Task{await chat.clear();if chat.error==nil{values=defaults;confirmed=[];rememberPreferences=false;step=0;loaded=true;UserDefaults.standard.set(chat.session?.id,forKey:"petWelcome.session");UserDefaults.standard.set(0,forKey:"petWelcome.step")}}}}
+        .confirmationDialog("重新开始这次提问？历史行程和长期偏好保留。",isPresented:$restarting,titleVisibility:.visible){Button("重新开始",role:.destructive){Task{await chat.clear();if chat.error==nil{values=defaults;confirmed=[];step=0;loaded=true;UserDefaults.standard.set(chat.session?.id,forKey:"petWelcome.session");UserDefaults.standard.set(0,forKey:"petWelcome.step")}}}}
     }
     @ViewBuilder private var cardContent: some View {
         switch step {
@@ -466,15 +592,12 @@ struct PetWelcomeView: View {
             }.padding(18).background(.white,in:RoundedRectangle(cornerRadius:20)).disabled(working)
             TextField("还有什么想让我照顾的？（选填）",text:Binding(get:{values["notes"] ?? ""},set:{values["notes"]=$0}),axis:.vertical).padding(18).background(.white,in:RoundedRectangle(cornerRadius:18))
             VStack(alignment:.leading,spacing:14) {
-                Label("留给下次的小记忆",systemImage:"sparkles").font(.headline)
+                Label("这次带上的喜好",systemImage:"sparkles").font(.headline)
                 summary("兴趣",values["interests"] ?? "")
                 summary("节奏",values["pace"] ?? "")
                 Divider()
-                Toggle("下次旅行也参考这些偏好",isOn:$rememberPreferences)
-                    .font(.subheadline.weight(.medium)).tint(Palette.green)
-                    .accessibilityIdentifier("pet-remember-preferences")
-                    .disabled(working)
-                Text("仅保存兴趣和节奏，可在记忆页随时删除。日期、同行人和预算只用于这次旅行。")
+                Button("调整本次兴趣与步数"){step=3}.font(.subheadline.bold()).disabled(working)
+                Text("这些偏好从个人档案带入。本次调整只用于这次旅行；长期偏好请到“我的”修改。")
                     .font(.caption).foregroundStyle(Palette.muted).fixedSize(horizontal:false,vertical:true)
             }.padding(20).background(.white,in:RoundedRectangle(cornerRadius:22))
         }
@@ -510,12 +633,12 @@ struct PetWelcomeView: View {
         if step==5 {
             do {
                 _=try PetTripDraft.profile(values)
-                await finish(remember:rememberPreferences)
+                await finish(remember:false)
             } catch {problem=error.localizedDescription}
         } else {
             let keys=confirmed.union(PetOnboardingDraft.groups[step])
             await chat.update(PetOnboardingDraft.confirmedPayload(values,confirmed:keys));guard chat.error==nil else{return}
-            confirmed=keys;step+=1;UserDefaults.standard.set(step,forKey:"petWelcome.step")
+            confirmed=keys;step = step==2 ? 5:step+1;if step==5{confirmed.formUnion(["interests","pace"])};UserDefaults.standard.set(step,forKey:"petWelcome.step")
         }
     }
     private func openChat() async {await chat.update(PetOnboardingDraft.confirmedPayload(values,confirmed:confirmed));if chat.error==nil{chat.mode(false);talking=true}}
@@ -536,5 +659,139 @@ struct PetWelcomeView: View {
         // The chat sheet owns its own store; reload the shared persisted session after it closes.
         await chat.reloadSession()
         if let session=chat.session{values=values.merging(session.fields){_,new in new};confirmed.formUnion(session.fields.keys)}
+    }
+}
+
+
+struct TravelRequirements {
+    static let requiredKeys=["destination","date","days","budget","budgetCurrency","budgetBasis","travelers"]
+    static let unknowns=["","未确定","暂不确定","未知","稍后补充","还没确定","还没想好","未提供","unknown","不确定","不知道"]
+    static func known(_ value:String?)->Bool{!unknowns.contains((value ?? "").trimmingCharacters(in:.whitespacesAndNewlines))}
+    static func missingFields(_ fields:[String:String])->[String] {
+        [("destination","目的地"),("date","出发日期"),("days","旅行天数"),("budget","预算金额"),("budgetCurrency","预算币种"),("budgetBasis","预算范围"),("travelers","同行总人数")].filter{!known(fields[$0.0])}.map{$0.1}
+    }
+    static func readyProfile(_ fields:[String:String],personal:UserTravelProfile) throws -> TripProfile {
+        let missing=missingFields(fields)
+        guard missing.isEmpty else{throw NSError(domain:"TravelRequirements",code:1,userInfo:[NSLocalizedDescriptionKey:"还需要确认："+missing.joined(separator:"、")])}
+        return try profile(fields,personal:personal)
+    }
+    static func optionTitle(_ value:String,field:String)->String {
+        if field=="budgetBasis"{return budgetBases.first(where:{$0.0==value})?.1 ?? value}
+        if field=="days",Int(value) != nil{return value+" 天"}
+        if field=="travelers",Int(value) != nil{return value+" 人"}
+        return value
+    }
+    static let budgetBases=[("perPersonPerDay","每人每天"),("groupPerDay","全体每天"),("perPersonTrip","每人全程"),("groupTrip","全体全程")]
+    static func assumptions(_ fields:[String:String],personal:UserTravelProfile)->[String] {
+        var result:[String]=[]
+        if !known(fields["origin"]){result.append("出发地点暂未确定：暂用悉尼环形码头作为每日起终点。")}
+        else if !["环形码头","環形碼頭","中央车站","中央車站","悉尼机场","悉尼機場"].contains(fields["origin"]!){result.append("住宿／出发地点尚未定位：暂用环形码头，生成后请修改起终点。")}
+        if !known(fields["pace"]),personal.dailySteps==nil{result.append("步数尚未确定：暂按每天 10,000 步上限规划。")}
+        if !known(fields["interests"]),personal.interests==nil{result.append("兴趣尚未确定：暂参考风景与美食。")}
+        if (fields["interests"] ?? personal.interests?.joined(separator:"、") ?? "").contains("购物"){result.append("购物兴趣已记录，当前示例地点未保证包含购物场所。")}
+        result.append("预算按活动费用估算，不含住宿、交通票价和全部餐饮。")
+        if known(fields["mustDo"]),fields["mustDo"] != "无"{result.append("特别想去／想做的内容作为需求备注，尚未保证已排入路线。")}
+        if known(fields["avoid"]),fields["avoid"] != "无"{result.append("避开要求需要逐项核实；当前自动规划不能保证满足，请在行程详情中检查。")}
+        if known(fields["queueTolerance"]) || personal.queueTolerance != nil{result.append("排队时间尚无可靠数据，不能保证免排队。")}
+        return result
+    }
+    static func profile(_ fields:[String:String],personal:UserTravelProfile) throws -> TripProfile {
+        func fail(_ message:String)->NSError{NSError(domain:"TravelRequirements",code:1,userInfo:[NSLocalizedDescriptionKey:message])}
+        var normalized=fields
+        if fields["budgetCoverage"]=="totalTravel"{throw fail("这笔预算包含住宿或交通等费用。请先单独确认活动预算，再将预算包含范围改为 activities。")}
+        if !known(fields["interests"]){normalized["interests"]=personal.interests?.joined(separator:"、") ?? "风景、美食"}
+        if !known(fields["pace"]){normalized["pace"]="约\(personal.dailySteps ?? 10000)步"}
+        else if fields["pace"]?.range(of:"[0-9]",options:.regularExpression)==nil,["轻松","慢","少走"].contains(where:{fields["pace"]!.contains($0)}){normalized["pace"]="约\(min(personal.dailySteps ?? 6000,6000))步"}
+        if let currency=fields["budgetCurrency"],!currency.isEmpty,currency.uppercased() != "AUD"{throw fail("需求可以保留。当前路线费用以 AUD 计算，请先提供确认过的澳元活动预算；不会自动猜测汇率。")}
+        if fields["budgetCurrency"] != nil || fields["budgetBasis"] != nil {
+            guard fields["budgetCurrency"]?.uppercased()=="AUD",let basis=fields["budgetBasis"],budgetBases.contains(where:{$0.0==basis}) else{throw fail("请确认预算币种，以及是每人还是全体、每天还是全程。")}
+            guard let people=Int(fields["travelers"] ?? ""),(1...30).contains(people) else{throw fail("请确认同行总人数（1–30 人，包含自己）。")}
+            guard let days=Int(fields["days"] ?? ""),(1...15).contains(days),let amount=Double(fields["budget"] ?? ""),amount.isFinite,amount>0,amount<=1000000 else{throw fail("请确认有效的预算金额和 1–15 天的旅行时长。")}
+            let perDay=amount / (basis.hasPrefix("group") ? Double(people):1) / (basis.hasSuffix("Trip") ? Double(days):1)
+            normalized["budget"]=String(perDay)
+        }
+        var result=try PetTripDraft.profile(normalized)
+        result.budgetAmount=Double(fields["budget"] ?? "")
+        result.budgetCurrency=fields["budgetCurrency"];result.budgetBasis=fields["budgetBasis"]
+        result.travelers=Int(fields["travelers"] ?? "");result.origin=fields["origin"]
+        result.mustDo=fields["mustDo"];result.avoid=fields["avoid"]
+        result.energy=known(fields["energy"]) ? fields["energy"]:personal.energy
+        result.rhythm=known(fields["rhythm"]) ? fields["rhythm"]:personal.rhythm
+        result.queueTolerance=known(fields["queueTolerance"]) ? fields["queueTolerance"]:personal.queueTolerance
+        switch fields["origin"] {
+        case "中央车站","中央車站":result.start = .central;result.end = .central
+        case "悉尼机场","悉尼機場":result.start = .airport;result.end = .airport
+        default:break
+        }
+        result.request=(petFields+travelExtraFields).map{"\($0.1)：\(fields[$0.0] ?? "未确定")"}.joined(separator:"；")+"；采用的假设："+assumptions(fields,personal:personal).joined(separator:"；")
+        guard (result.request?.count ?? 0)<=1500 else{throw fail("需求备注过长，请精简到 1,500 字以内后再生成；已填写内容会保留。")}
+        return result
+    }
+}
+
+struct PersonalPreferencesView:View {
+    var editing=false
+    @EnvironmentObject private var store:AppStore
+    @Environment(\.dismiss) private var dismiss
+    @StateObject private var chat=PetChatStore()
+    @State private var draft=UserTravelProfile()
+    @State private var step=0
+    @State private var loaded=false
+    @State private var existing:Memory?
+    @State private var response:String?
+    private let interests=["美食","自然","风景","文化","艺术","购物","城市"]
+    private let questions=["如果喜欢的地方有队伍，你通常愿意等多久呀？","旅行时，每天走多少路会让你觉得舒服？不用精确哦。","平时旅行，你的小电池通常有多少电？","你喜欢慢慢发现，还是把一天安排得充实一些？","看到哪些事物，会让你忍不住想去看看？可以多选哦。"]
+    var body:some View {
+        NavigationStack {
+            VStack(spacing:0) {
+                HStack{if step>0{Button{step-=1;response=nil}label:{Image(systemName:"chevron.left")}};Text(editing ? "修改旅行画像":"认识一下你").font(.headline);Spacer();Text(step==5 ? "画像总结":"\(step+1) / 5").font(.caption).foregroundStyle(Palette.muted)}.padding(20)
+                ProgressView(value:Double(step),total:5).tint(Palette.green).padding(.horizontal,22)
+                HStack(spacing:8){PetAvatar(mood:chat.busy ? .remembering:step==5 ? .ready:response==nil ? .curious:.relaxed).frame(width:110,height:126);PetSpeechBubble(text:response ?? (step==5 ? "这就是你的旅行小画像！没确定的事情可以以后再慢慢了解。":questions[step]))}.padding(18)
+                ScrollView {
+                    VStack(spacing:12){
+                        switch step {
+                        case 0:singleOptions(["尽量不排队","可以等一会儿","为喜欢的地方愿意排队"],value:draft.queueTolerance){draft.queueTolerance=$0}
+                        case 1:
+                            ForEach([(5000,"轻松走走 · 约 3,000–6,000 步"),(10000,"走走停停 · 约 7,000–12,000 步"),(15000,"多多探索 · 约 13,000–18,000 步")],id:\.0){n,title in choice(title,selected:draft.dailySteps==n){draft.dailySteps=n;response="收到，我会参考这个步数上限照顾你的节奏。"}}
+                            VStack(spacing:12){HStack{Text("自定义步数");Spacer();Text(draft.dailySteps.map{"\($0) 步"} ?? "暂未设置").bold()};Slider(value:Binding(get:{Double(draft.dailySteps ?? 10000)},set:{draft.dailySteps=Int($0)}),in:1000...30000,step:1000).tint(Palette.green).accessibilityLabel("个人步数偏好")}.padding(18).background(.white,in:RoundedRectangle(cornerRadius:20))
+                        case 2:singleOptions(["低精力","中等精力","高精力"],value:draft.energy){draft.energy=$0}
+                        case 3:singleOptions(["轻松随意","适中","紧凑充实"],value:draft.rhythm){draft.rhythm=$0}
+                        case 4:
+                            LazyVGrid(columns:[GridItem(.flexible()),GridItem(.flexible())],spacing:12){ForEach(interests,id:\.self){item in choice(item,selected:draft.interests?.contains(item)==true){var values=draft.interests ?? [];if values.contains(item){values.removeAll{$0==item}}else{values.append(item)};draft.interests=values.isEmpty ? nil:values;response="小背包收到你的喜好啦！"}}}
+                        default:
+                            VStack(alignment:.leading,spacing:16){summary("排队",draft.queueTolerance);summary("步数",draft.dailySteps.map{"每天约 \($0) 步"});summary("精力",draft.energy);summary("节奏",draft.rhythm);summary("兴趣",draft.interests?.joined(separator:"、"))}.padding(20).background(.white,in:RoundedRectangle(cornerRadius:22))
+                            Text("这是长期旅行习惯。每次旅行仍可调整，不会自动改写画像。可在“我的 → 个人画像”修改。").font(.caption).foregroundStyle(Palette.muted)
+                        }
+                        if let error=chat.error{Text(error).font(.caption).foregroundStyle(.red);if !loaded{Button("重新载入"){Task{await load()}}}}
+                    }.padding(22)
+                }.disabled(!loaded || chat.busy)
+                VStack(spacing:12){
+                    PrimaryButton(title:step==5 ? (editing ? "保存画像":"保存画像，开始规划旅行"):(answered ? "下一题":"暂不确定，下一题"),symbol:step==5 ? "sparkles":"arrow.right"){
+                        if step<5{step+=1;response=nil}else{Task{await save()}}
+                    }.disabled(!loaded || chat.busy)
+                    if step<5 && answered{Button("暂不确定"){clearCurrent();response="没关系，这题先留白。";step+=1}.font(.caption).foregroundStyle(Palette.muted).disabled(chat.busy || !loaded)}
+                    if editing{Button("取消"){dismiss()}.font(.caption).disabled(chat.busy)}
+                }.padding(22)
+            }.background(Palette.cream).foregroundStyle(Palette.ink).task{await load()}
+        }.interactiveDismissDisabled(chat.busy)
+    }
+    private var answered:Bool{switch step{case 0:return draft.queueTolerance != nil;case 1:return draft.dailySteps != nil;case 2:return draft.energy != nil;case 3:return draft.rhythm != nil;case 4:return draft.interests != nil;default:return true}}
+    private func clearCurrent(){switch step{case 0:draft.queueTolerance=nil;case 1:draft.dailySteps=nil;case 2:draft.energy=nil;case 3:draft.rhythm=nil;case 4:draft.interests=nil;default:break}}
+    private func summary(_ title:String,_ value:String?)->some View{HStack(alignment:.top){Text(title).foregroundStyle(Palette.muted);Spacer();Text(value ?? "暂不确定").multilineTextAlignment(.trailing)}}
+    private func choice(_ title:String,selected:Bool,action:@escaping()->Void)->some View{Button(action:action){HStack{Text(title).font(.subheadline.bold());Spacer();Image(systemName:selected ? "checkmark.circle.fill":"circle")}.padding(18).background(selected ? Palette.mint:.white,in:RoundedRectangle(cornerRadius:18)).foregroundStyle(Palette.ink)}.buttonStyle(.plain)}
+    private func singleOptions(_ options:[String],value:String?,set:@escaping(String)->Void)->some View{ForEach(options,id:\.self){option in choice(option,selected:value==option){set(option);response="收到！适合自己的旅行方式，就是最好的。"}}}
+    private func load() async {
+        draft=store.personalProfile
+        await chat.refreshMemories()
+        // The questionnaire remains usable offline; save reports connection errors without losing answers.
+        existing=chat.memories.filter{$0.profile.habits != nil}.sorted{($0.provenance?.createdAt ?? "") > ($1.provenance?.createdAt ?? "")}.first
+        if UserDefaults.standard.data(forKey:"userTravelProfile")==nil,let habits=existing?.profile.habits{draft=habits}
+        loaded=true
+    }
+    private func save() async {
+        await chat.saveTravelProfile(draft,existing:existing);guard chat.error==nil else{return}
+        store.personalProfile=draft;store.memories=chat.memories
+        if let memory=chat.memories.filter({$0.profile.habits != nil}).sorted(by:{($0.provenance?.createdAt ?? "") > ($1.provenance?.createdAt ?? "")}).first{UserDefaults.standard.set(memory.id,forKey:"personalProfile.memoryID")}
+        if editing{dismiss()}else{store.completePersonalPreferences()}
     }
 }

@@ -245,7 +245,7 @@ struct ScheduleSettingsView:View {
             TextField("每日交通＋景點等待（分鐘）",value:$settings.timeLimit,format:.number)
             TextField("廁所間隔（分鐘）",value:$settings.restroomInterval,format:.number)
             TextField("每日預算 A$",value:$settings.dailyBudget,format:.number)
-            TextField("全旅程預算 A$",value:$settings.totalBudget,format:.number)
+            TextField("每人全旅程活動預算 A$",value:$settings.totalBudget,format:.number)
             TextField("每餐預留 A$",value:$settings.mealCost,format:.number)
             Toggle("首版需要行李寄放／領取",isOn:$settings.luggage)
             Text("節奏／行李偏好儲存後，按重新建議可重選活動。現有手動順序不會自動覆蓋。餐飲與設施可逐項編輯。").font(.caption)
@@ -316,10 +316,10 @@ struct ScheduleAllowanceSummary:View {
                 bar("交通＋排隊時間",id:"time",allowance:time,value:integer(time.remaining)+" 分",color:.blue,pulse:pulse)
                 HStack(alignment:.top,spacing:6){
                     tile("預估步數",value:integer(Double(day.estimatedSteps)),detail:"上限 \(integer(steps.limit)) 步",symbol:"figure.walk")
-                    tile("當日花費",value:money(day.estimatedCost),detail:"全旅程 \(money(state.totalCost))",symbol:"dollarsign.circle")
+                    tile("每人當日活動花費",value:money(day.estimatedCost),detail:"每人全旅程 \(money(state.totalCost))",symbol:"dollarsign.circle")
                     tile("交通＋排隊",value:"\(day.timeUsed) 分",detail:"交通 \(day.transportMinutes)＋排隊 \(day.queueMinutes)",symbol:"clock")
                 }
-                HStack(alignment:.top,spacing:5){if total.exceeded{Image(systemName:"exclamationmark.triangle.fill").opacity(pulse)};Text("全旅程預算剩餘 "+money(total.remaining)+" / "+money(total.limit)).fixedSize(horizontal:false,vertical:true)}.font(.caption2).foregroundStyle(total.exceeded ? .red:Palette.muted)
+                HStack(alignment:.top,spacing:5){if total.exceeded{Image(systemName:"exclamationmark.triangle.fill").opacity(pulse)};Text("每人全旅程活動預算剩餘 "+money(total.remaining)+" / "+money(total.limit)).fixedSize(horizontal:false,vertical:true)}.font(.caption2).foregroundStyle(total.exceeded ? .red:Palette.muted)
                 if day.unknownQueue{Text("含未知排隊，剩餘僅供規劃參考").font(.caption2).foregroundStyle(Palette.muted)}
                 Text("\(String(format:"%02d:%02d",day.startMinute/60,day.startMinute%60)) 出發 · \(day.finishTime) 結束").font(.caption2).foregroundStyle(Palette.muted)
             }.padding(16).frame(maxWidth:.infinity,alignment:.leading).background(Palette.mint,in:RoundedRectangle(cornerRadius:20))
