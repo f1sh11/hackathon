@@ -32,6 +32,15 @@ public sealed class KokoDialogueUnitTests
         Assert.Empty(returning.Preferences);
     }
     [Fact]
+    public void PlainNameAnswersAreRememberedButAnInterestStatementIsNotMisreadAsAName()
+    {
+        var s=new PetSession();KokoDialogue.Enable(s,new(){["profilingVersion"]=2});
+        Assert.NotNull(KokoDialogue.DirectResponse(s,"Sam",null));Assert.Equal("Sam",s.Dialogue!.Nickname);
+        var other=new PetSession();KokoDialogue.Enable(other,new(){["profilingVersion"]=2});
+        Assert.Null(KokoDialogue.DirectResponse(other,"我喜欢动漫，平时宅家",null));Assert.Empty(other.Dialogue!.Nickname);
+        Assert.Null(KokoDialogue.DirectResponse(other,"hello",null));Assert.Empty(other.Dialogue.Nickname);
+    }
+    [Fact]
     public void FourthAnswerForcesInspirationWithoutCompletingMemoryOrFormalItinerary()
     {
         var s=new PetSession();KokoDialogue.Enable(s,new(){["profilingVersion"]=2});

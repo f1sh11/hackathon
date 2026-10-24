@@ -81,11 +81,15 @@ nickname、ideas、quickReplies 都不能来自产品文档里的模拟用户。
         if(s.Dialogue is not {} d)return null;
         if(choice?.Intent=="draft" || Expedite(text))return new(){["reply"]="先用已有的线索构想一版，未知的资料可以之后一起补。",["readyForDraft"]=true};
         if(choice?.Intent=="keep")return new(){["reply"]="这个方向留在这次草案里了。想调整哪一段，随时告诉我。"};
-        var match=Regex.Match(text,@"^(?:叫我|我叫|称呼我)\s*([^，。！？\r\n]{1,24})[。！!]?$");
+        var match=Regex.Match(text,@"^(?:叫我|我叫|称呼我)\s*([^,，。!！？\r\n]{1,24})[。！!]?$");
+        // A single name in direct response to the optional name question is explicit evidence.
+        var shortName=d.Phase=="introducing" && choice is null && Regex.IsMatch(text,@"^[A-Za-z][A-Za-z'’-]{0,23}$") &&
+            !new[]{"skip","hello","hi","yes","no","unknown"}.Contains(text,StringComparer.OrdinalIgnoreCase);
         if(choice?.Intent=="use_alias")d.Nickname="旅行搭子";
         else if(match.Success)d.Nickname=match.Groups[1].Value.Trim();
+        else if(shortName)d.Nickname=text;
         if(d.Phase!="introducing")return null;
-        if(choice?.Intent is not ("skip_name" or "use_alias") && !match.Success)return null;
+        if(choice?.Intent is not ("skip_name" or "use_alias") && !match.Success && !shortName)return null;
         return new(){["reply"]=(d.Nickname.Length>0 ? $"{d.Nickname}，咱们先找一点这趟旅行的灵感。":"咱们先找一点这趟旅行的灵感。")+"留一段自由探索，还是围绕一个最想体验的事展开？",
             ["quickReplies"]=new JsonArray(new JsonObject{["text"]="留一段自由探索"},new JsonObject{["text"]="美食或城市故事"},new JsonObject{["text"]="先看看你的想法",["intent"]="draft"})};
     }

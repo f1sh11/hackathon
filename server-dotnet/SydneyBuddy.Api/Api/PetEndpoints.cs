@@ -97,10 +97,11 @@ public static class PetEndpoints
                 }
                 else
                 {
+                    var direct=KokoDialogue.DirectResponse(s,message,choice);
                     var records=await memories.ListAsync(ctx.RequestAborted);
                     TravelProfiling.Refresh(s,records);
                     var confirmed=s.Dialogue is null ? (JsonArray)records.DeepClone():new JsonArray();
-                    if(records.Count>0) {
+                    if(records.Count>0 && direct is null) {
                         try {
                             var recalled=await memory.RunAsync("query",new JsonObject{["query"]="travel preference "+(s.CurrentChoice?.QuestionText ?? "")+" "+message},ctx.RequestAborted);
                             var ids=(recalled.Array("memories") ?? new JsonArray()).Select(x=>x?.Object("memory").Str("id")).ToArray();
@@ -108,7 +109,7 @@ public static class PetEndpoints
                             confirmed=new JsonArray(relevant.OrderBy(x=>{var i=Array.IndexOf(ids,x.Str("id"));return i<0 ? int.MaxValue:i;}).Take(s.Dialogue is null ? 40:8).Select(x=>x?.DeepClone()).ToArray());
                         } catch(ServiceException){s.MemoryWarning=s.Dialogue is null ? "长期偏好检索暂时不可用，本轮参考已确认的本机记录。":"长期偏好检索暂时不可用，先按这次对话继续准备。";}
                     }
-                    var result=KokoDialogue.DirectResponse(s,message,choice) ?? await model.RespondAsync(s,message,confirmed,_=>Task.CompletedTask,ctx.RequestAborted);
+                    var result=direct ?? await model.RespondAsync(s,message,confirmed,_=>Task.CompletedTask,ctx.RequestAborted);
                     dialogueResult=result;
                     mood=PetEmotion.Normalize(result.Str("mood"));
                     var changes=result.Object("fields")??new();
