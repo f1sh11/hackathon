@@ -44,14 +44,16 @@ Idle -> Playing(action) -> Holding(action) -> Recovering -> Idle
 
 - `idle`: loop 36 frames / 3s.
 - `wave`, `clap`, `thumbs-up`, `celebrate`: play once, return to idle.
-- `map` and `weather`: play once, HOLD. On completion/dismissal play frames in reverse as temporary return animations.
-- `tired`, `budget`, `departure`: play once, HOLD. On dismissal crossfade 200–250 ms until purpose-made recovery animation is produced.
+- `map` and `weather`: play once, HOLD. On dismissal play generated `map-to-idle` / `weather-to-idle` at 12 FPS.
+- `tired`, `budget`, `departure`: play once, HOLD. On dismissal play generated `tired-to-idle`, `budget-to-idle`, `departure-to-idle`; the latter retains a short transition dissolve pending authored suitcase-exit frames.
 - In particular, **do not snap a koala lying down into a standing idle pose.**
 - Cap repeated triggers (e.g. one celebration per successful save) and select one leading risk animation even if several risks are present.
 - Abort stale operations using `operationId` and reject late animation events.
 - If reduced motion is enabled, show `poster.png` and clear accessible text.
 
 ## Suggested native integration
+
+First run `python scripts/generate_koala_recovery.py --assets assets/koala` after installing the runtime assets. The manifest gains `recoveries[]` and `animations[].recoveryId`.
 
 - Android: new `KoalaAnimationController.kt` (event + state machine), `KoalaAnimationView.kt` (frame player); wire through existing `BuddyStore.kt`, `MainActivity.kt`, `IosStyle.kt`.
 - iOS: new `KoalaAnimationState.swift`, `KoalaAnimationView.swift`; wire through `SydneyBuddyApp.swift`, `Models.swift`.
@@ -81,5 +83,5 @@ Idle -> Playing(action) -> Holding(action) -> Recovering -> Idle
 
 - Ten supplied animations: `wave` 12, `clap` 12, `weather` 30, `budget` 36, `tired` 36, `map` 36, `celebrate` 24, `departure` 36, `thumbs-up` 18, `idle` 36.
 - Original first frame dimensions vary: wave/clap 512x512; most others 768x768. Production importer normalizes wave/clap once per action, not per frame.
-- Original five HOLD actions do not contain authored return clips. Reverse for map/weather is a **temporary approximation**; standing up, budget recovery and departure cleanup still need artwork.
+- Original five HOLD actions do not contain authored return clips. Five prototype return clips are generated from existing frames; time reversal is a **temporary visual approximation**, especially for standing up and money. The departure suitcase exit still needs individually authored frames. See [recovery implementation](KOALA-RECOVERY.md).
 - The production ZIP has 276 PNG frames; WebP previews can merge identical adjacent frames. Use PNGs for deterministic 12 FPS playback.
