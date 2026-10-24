@@ -479,6 +479,40 @@ struct SchematicMap: View {
         return CGPoint(x:45+(stop.lng-minLng)/(maxLng-minLng)*max(1,size.width-110),y:140+(maxLat-stop.lat)/(maxLat-minLat)*max(1,size.height-420))
     }
 }
+/// Keep each day readable even on long trips and when English or larger text is selected.
+struct MapDaySelector: View {
+    let dates:[String]
+    @Binding var selection:Int
+    let language:AppLanguage
+    var body:some View {
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal,showsIndicators:false) {
+                HStack(spacing:8) {
+                    ForEach(dates.indices,id:\.self) { index in
+                        let selected=index==selection
+                        Button {selection=index} label:{
+                            VStack(spacing:4) {
+                                Text(language.text("第 {0} 天",String(index+1))).font(.subheadline.bold())
+                                Text(String(dates[index].suffix(5))).font(.caption.monospacedDigit())
+                            }
+                            .fixedSize(horizontal:true,vertical:false)
+                            .frame(minWidth:64,minHeight:44)
+                            .padding(.horizontal,10).padding(.vertical,6)
+                            .foregroundStyle(selected ? Color.white:Palette.ink)
+                            .background(selected ? Palette.green:Color.white.opacity(0.96),in:RoundedRectangle(cornerRadius:16))
+                        }
+                        .buttonStyle(.plain).id(index)
+                        .accessibilityIdentifier("map-day-\(index)")
+                        .accessibilityLabel(language.text("第 {0} 天",String(index+1))+", "+dates[index])
+                        .accessibilityAddTraits(selected ? .isSelected:[])
+                    }
+                }.padding(3)
+            }
+            .onAppear {proxy.scrollTo(selection,anchor:.center)}
+            .onChange(of:selection) {_,index in withAnimation{proxy.scrollTo(index,anchor:.center)}}
+        }
+    }
+}
 struct HomeView: View {
     @EnvironmentObject var store:AppStore
     @State var poiSearch=false
@@ -502,10 +536,8 @@ struct HomeView: View {
                     Button{poiSearch=true}label:{Label("搜尋景點、餐廳與設施",systemImage:"magnifyingglass").font(.subheadline).padding(14).frame(maxWidth:.infinity,alignment:.leading).background(.white,in:Capsule())}
                     Menu{Picker("底圖",selection:$store.mapProvider){ForEach(MapProvider.allCases){Text($0.label).tag($0)}}}label:{Image(systemName:"square.3.layers.3d").frame(width:46,height:46).background(.white,in:Circle())}.accessibilityLabel("切换底图")
                 }
-                HStack(spacing:10){
-                    Text(store.language.text("悉尼 · {0}",store.currentDay?.date.suffix(5).description ?? store.language.text("準備出發"))).font(.caption.bold()).padding(.horizontal,12).padding(.vertical,9).background(.white.opacity(0.95),in:Capsule())
-                    if let t=store.trip,t.days.count>1{Picker("天数",selection:$store.dayIndex){ForEach(t.days.indices,id:\.self){Text(store.language.text("第 {0} 天",String($0+1))).tag($0)}}.pickerStyle(.segmented)}
-                    else{Spacer()}
+                if let trip=store.trip,!trip.days.isEmpty {
+                    MapDaySelector(dates:trip.days.map(\.date),selection:$store.dayIndex,language:store.language)
                 }
                 Spacer(minLength:20)
                 HStack{Spacer();if store.trip != nil{Button{expandedMap=true}label:{Image(systemName:"arrow.up.left.and.arrow.down.right").frame(width:42,height:42).background(.white,in:Circle())}.accessibilityLabel("展开地图")};Button{chat=true}label:{Text("🐨 聊一聊").font(.caption.bold()).padding(12).background(.white,in:Capsule())}.accessibilityLabel("问 AI")}
