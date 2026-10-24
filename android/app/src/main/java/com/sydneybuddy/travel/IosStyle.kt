@@ -31,7 +31,7 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
 
-val Muted = Color(0xFF6B7D73)
+val Muted = Color(0xFF75666D)
 
 @Composable fun TripArtwork() {
     Box(Modifier.fillMaxWidth().height(145.dp).clip(RoundedCornerShape(20.dp)).background(Brush.linearGradient(listOf(Mint,Color(0xFFADD9E6))))) {

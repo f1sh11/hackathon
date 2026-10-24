@@ -71,3 +71,18 @@ Suggested manual check: say the sunrise example; confirm both claims; complete D
 - Pose stuck: check `ending` and `recovery`; held poses without authored recovery are intentional.
 
 A useful small learning change is adding one travel preference key and label, then following its quoted statement through extraction, consent, memory retrieval and the review panel. The important concepts are API contracts, scope/provenance, optimistic conflict checks, compensating writes and a deterministic playback state machine.
+
+
+## Shared UI colours
+
+The iOS and Android UI use the koala bag's coral family, white fur and warm neutral outlines. Existing `green`/`mint` names remain aliases for the new accent/tint to avoid a broad view refactor.
+
+| Role | Colour |
+|---|---|
+| Primary buttons/navigation | `#BC3C55` |
+| Page background | `#FFF8F5` |
+| Soft cards and bubbles | `#FCE4E8` |
+| Main text | `#3D3138` |
+| Secondary text | `#75666D` |
+
+The sampled bag coral is lighter (`#F86070`); the darker button variant gives white text a computed contrast ratio of 5.36:1. Primary and secondary text against the page background are 11.80:1 and 5.16:1. Definitions live in `SydneyBuddyApp.swift`, `MainActivity.kt` and `IosStyle.kt`.

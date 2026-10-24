@@ -27,18 +27,25 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import org.json.JSONObject
 
-val Green = Color(0xFF0D825E)
-val Ink = Color(0xFF193830)
-val Cream = Color(0xFFFAF7F0)
-val Mint = Color(0xFFDBF2E0)
+val Coral = Color(0xFFBC3C55)
+val Blush = Color(0xFFFCE4E8)
+val Ink = Color(0xFF3D3138)
+val Cream = Color(0xFFFFF8F5)
+// Compatibility names keep the existing screens on the shared koala theme.
+val Green = Coral
+val Mint = Blush
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            MaterialTheme(colorScheme = lightColorScheme(primary = Green, onPrimary = Color.White,
-                background = Cream, surface = Color.White, onSurface = Ink, secondaryContainer = Mint)) {
+            MaterialTheme(colorScheme = lightColorScheme(primary = Coral, onPrimary = Color.White,
+                primaryContainer = Blush, onPrimaryContainer = Ink,
+                secondary = Coral, onSecondary = Color.White, secondaryContainer = Blush, onSecondaryContainer = Ink,
+                background = Cream, onBackground = Ink, surface = Color.White, onSurface = Ink,
+                surfaceVariant = Blush, onSurfaceVariant = Muted,
+                outline = Color(0xFFD9BBC4), outlineVariant = Color(0xFFEFD9DE))) {
                 BuddyApp()
             }
         }
