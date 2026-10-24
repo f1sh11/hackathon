@@ -4,6 +4,57 @@ import MapKit
 @testable import SydneyBuddy
 
 @MainActor final class ScheduleTests:XCTestCase {
+    func testNearbyPinsRefreshWithoutMovingRouteCameraOrSelectingTripStop() throws {
+        let point=try fixture().schedule!.candidates[0]
+        var selected:String?;var selectedPlace:String?
+        var subject=NativeRouteMap(day:nil,provider:.apple,viewport:nil,onViewport:{_ in},onSelect:{selected=$0},nearbyPlaces:[point],onPoiSelect:{selectedPlace=$0.id})
+        let delegate=subject.makeCoordinator(),map=MKMapView()
+        let center=CLLocationCoordinate2D(latitude:-33.9,longitude:151.25)
+        map.setRegion(MKCoordinateRegion(center:center,span:.init(latitudeDelta:0.02,longitudeDelta:0.02)),animated:false)
+        let before=map.region
+        delegate.refreshNearby(map)
+        let pin=try XCTUnwrap(map.annotations.first as? PoiPin)
+        delegate.mapView(map,didSelect:MKAnnotationView(annotation:pin,reuseIdentifier:nil))
+        XCTAssertEqual(selectedPlace,point.id);XCTAssertNil(selected)
+        subject.nearbyPlaces=[];delegate.parent=subject;delegate.refreshNearby(map)
+        XCTAssertTrue(map.annotations.isEmpty)
+        XCTAssertEqual(map.region.center.latitude,before.center.latitude,accuracy:0.000001)
+        XCTAssertEqual(map.region.center.longitude,before.center.longitude,accuracy:0.000001)
+    }
+    func testViewportMovementDebouncesAndUsesLatestCenterAndRadius() async throws {
+        let model=PoiSearchModel();model.cameraDelay=30_000_000
+        var centers:[Double]=[];var radii:[Double]=[]
+        model.appleSearch={point,_,_,radius in centers.append(point.latitude);radii.append(radius ?? 0);return []}
+        model.configure(.apple)
+        try await Task.sleep(nanoseconds:10_000_000);centers=[]
+        model.cameraChanged(.init(latitude:-33.88,longitude:151.22),zoom:15)
+        model.cameraChanged(.init(latitude:-33.90,longitude:151.24),zoom:16)
+        try await Task.sleep(nanoseconds:100_000_000)
+        XCTAssertEqual(centers,[-33.90]);XCTAssertGreaterThan(radii.last ?? 0,500);XCTAssertLessThan(radii.last ?? 0,5000)
+        model.cameraChanged(.init(latitude:-33.90,longitude:151.24),zoom:16)
+        try await Task.sleep(nanoseconds:60_000_000);XCTAssertEqual(centers.count,1)
+        model.stop()
+    }
+    func testViewportMoveCancelsOldResultsBeforeDebouncedRequest() async throws {
+        let model=PoiSearchModel();model.cameraDelay=20_000_000
+        let candidate=try fixture().schedule!.candidates[0]
+        model.appleSearch={point,_,_,_ in
+            if point.latitude > -33.89{try? await Task.sleep(nanoseconds:100_000_000);return [candidate]}
+            return []
+        }
+        model.configure(.apple)
+        model.cameraChanged(.init(latitude:-33.91,longitude:151.23),zoom:15)
+        try await Task.sleep(nanoseconds:160_000_000)
+        XCTAssertTrue(model.places.isEmpty);XCTAssertFalse(model.busy);XCTAssertNil(model.error);model.stop()
+    }
+    func testViewportStopPreventsPendingBackendQuery() async throws {
+        let model=PoiSearchModel();model.cameraDelay=40_000_000
+        var calls=0
+        model.loader={request in calls+=1;return(Data("{\"places\":[]}".utf8),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)}
+        model.configure(.osm);try await Task.sleep(nanoseconds:20_000_000);calls=0
+        model.cameraChanged(.init(latitude:-33.9,longitude:151.25),zoom:15);model.stop()
+        try await Task.sleep(nanoseconds:80_000_000);XCTAssertEqual(calls,0)
+    }
     func testAppleTimeUpdateKeepsOriginalOnFailureAndAcceptsServerSnapshot() async throws {
         var original=try fixture();original.id="walking-time-test";original.revision=3
         let store=AppStore();store.trip=original;store.saved=[original]
@@ -271,7 +322,7 @@ import MapKit
         var point=try fixture().schedule!.candidates[0];point.id="gem:"+String(repeating:"a",count:24);point.source="Wikivoyage"
         point.guide=CommunityGuide(directions:"Public path by the wharf",sourceUrl:"https://en.wikivoyage.org/w/index.php?oldid=1",revision:"1",license:"CC BY-SA 4.0",licenseUrl:"https://creativecommons.org/licenses/by-sa/4.0/",attribution:"Wikivoyage contributors",retrievedAt:"now")
         point.photos=[PlacePhoto(url:"https://thumb.wikimedia.org/example.jpg",pageUrl:"https://commons.wikimedia.org/wiki/File:Example.jpg",title:"Example",artist:"Author",license:"CC BY-SA 4.0")];point.reviews=[]
-        model.appleSearch={_,_,_ in XCTFail("Community collection must use backend");return []}
+        model.appleSearch={_,_,_,_ in XCTFail("Community collection must use backend");return []}
         model.loader={request in
             calls+=1;XCTAssertEqual(request.value(forHTTPHeaderField:"X-Travel-Data-Source"),"direct")
             let input=try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:Any];XCTAssertEqual(input["category"] as? String,"gems");XCTAssertEqual(input["radius"] as? Int,5000)
@@ -284,7 +335,7 @@ import MapKit
     }
     func testZetarisSearchUsesBackendEvenWithAppleMap() async throws {
         let model=PoiSearchModel();var calls=0
-        model.appleSearch={_,_,_ in XCTFail("Zetaris must not call native Apple search");return []}
+        model.appleSearch={_,_,_,_ in XCTFail("Zetaris must not call native Apple search");return []}
         model.loader={request in
             calls+=1;XCTAssertEqual(request.value(forHTTPHeaderField:"X-Travel-Data-Source"),"zetaris")
             return(Data("{\"places\":[],\"source\":\"Overture Maps / Zetaris\",\"attribution\":\"Overture Maps Foundation\"}".utf8),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)
@@ -298,7 +349,7 @@ import MapKit
     func testPoiSearchUsesAppleWithoutBackendAndClearsOnGoogleAndOfflineSwitch() async throws {
         let model=PoiSearchModel();var appleCalls=0;var backendCalls=0
         var candidate=try fixture().schedule!.candidates[0];candidate.id="apple:test";candidate.source="Apple Maps"
-        model.appleSearch={_,kind,_ in appleCalls+=1;XCTAssertEqual(kind,"all");return [candidate]}
+        model.appleSearch={_,kind,_,_ in appleCalls+=1;XCTAssertEqual(kind,"all");return [candidate]}
         model.loader={request in backendCalls+=1;let body=try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:Any];XCTAssertEqual(body["provider"] as? String,"google");return(Data("{\"places\":[],\"attribution\":\"Google Maps\"}".utf8),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)}
         model.configure(.apple)
         for _ in 0..<100{if !model.busy{break};try await Task.sleep(nanoseconds:10_000_000)}
@@ -317,7 +368,7 @@ import MapKit
     }
     func testSlowApplePoiCannotOverwriteNewProviderResults() async throws {
         let model=PoiSearchModel();let candidate=try fixture().schedule!.candidates[0]
-        model.appleSearch={_,_,_ in try? await Task.sleep(nanoseconds:100_000_000);return [candidate]}
+        model.appleSearch={_,_,_,_ in try? await Task.sleep(nanoseconds:100_000_000);return [candidate]}
         model.configure(.apple);try await Task.sleep(nanoseconds:10_000_000)
         model.configure(.google)
         try await Task.sleep(nanoseconds:160_000_000)

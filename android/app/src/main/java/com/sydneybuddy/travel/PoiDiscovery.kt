@@ -35,6 +35,39 @@ import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.annotations.MarkerOptions
 import org.maplibre.android.annotations.IconFactory
 
+/** Camera idle is deduplicated before the network debounce, so marker updates never re-query. */
+internal data class PoiViewport(val lat:Double,val lng:Double,val zoom:Double) {
+    val radius:Int get()=(156543.03392*kotlin.math.cos(Math.toRadians(lat))/Math.pow(2.0,zoom)*420).toInt().coerceIn(500,5000)
+    fun differs(other:PoiViewport?):Boolean {
+        if(other==null)return true
+        val north=(lat-other.lat)*111320
+        val east=(lng-other.lng)*111320*kotlin.math.cos(Math.toRadians(lat))
+        return kotlin.math.hypot(north,east)>60 || kotlin.math.abs(zoom-other.zoom)>0.35
+    }
+}
+internal class NearbyPoiState {
+    var viewport by mutableStateOf<PoiViewport?>(null)
+    var places by mutableStateOf<List<JSONObject>>(emptyList())
+    var error by mutableStateOf<String?>(null)
+    var busy by mutableStateOf(false)
+    fun move(lat:Double,lng:Double,zoom:Double){
+        val next=PoiViewport(lat,lng,zoom)
+        if(lat.isFinite()&&lng.isFinite()&&zoom.isFinite()&&next.differs(viewport)){viewport=next;places=emptyList();error=null}
+    }
+}
+@Composable internal fun rememberNearbyPoi(store:BuddyStore,requester:suspend(JSONObject)->JSONObject={store.searchPoi(it)}):NearbyPoiState {
+    val state=remember(store.mapProvider,store.travelDataSource){NearbyPoiState()}
+    val point=state.viewport
+    LaunchedEffect(state,point){
+        if(point==null||store.mapProvider==MapProvider.SCHEMATIC)return@LaunchedEffect
+        delay(800);state.busy=true
+        try {
+            val result=withTimeout(30000){requester(JSONObject().put("lat",point.lat).put("lng",point.lng).put("radius",point.radius).put("category","all").put("query","").put("provider",if(store.mapProvider==MapProvider.GOOGLE&&store.travelDataSource=="direct")"google"else "osm"))}
+            ensureActive();state.places=result.array("places").objects()
+        }catch(e:CancellationException){throw e}catch(e:Exception){state.error=e.message ?: "地點搜尋失敗"}finally{state.busy=false}
+    }
+    return state
+}
 internal fun poiActivityKind(p:JSONObject):String=if(p.optString("source") !in listOf("OpenStreetMap","Apple Maps","Overture Maps","Wikivoyage"))"attraction"else when {p.optString("poiKind")=="toilets"->"restroom";p.optString("poiKind")=="drinking_water"->"rest";p.optString("category")=="美食"->"meal";else->"attraction"}
 @Composable internal fun PoiDiscoveryDialog(store:BuddyStore,onDismiss:()->Unit,requester:suspend(JSONObject)->JSONObject={store.searchPoi(it)},onAdd:(JSONObject)->Unit={store.addPoi(it)},googleMapConfigured:Boolean=BuildConfig.MAPS_CONFIGURED) {
     var showInsights by remember{mutableStateOf(false)}
@@ -42,6 +75,8 @@ internal fun poiActivityKind(p:JSONObject):String=if(p.optString("source") !in l
     var places by remember{mutableStateOf<List<JSONObject>>(emptyList())};var selected by remember{mutableStateOf<String?>(null)}
     var center by remember{mutableStateOf(-33.865 to 151.212)};var busy by remember{mutableStateOf(false)};var error by remember{mutableStateOf<String?>(null)};var detail by remember{mutableStateOf<JSONObject?>(null)}
     var zoom by remember{mutableDoubleStateOf(14.0)}
+    var cameraRequest by remember{mutableStateOf<PoiViewport?>(null)}
+
     val scope=rememberCoroutineScope();val uri=LocalUriHandler.current
     var searchJob by remember{mutableStateOf<Job?>(null)}
     var hasSearched by remember{mutableStateOf(false)}
@@ -58,7 +93,7 @@ internal fun poiActivityKind(p:JSONObject):String=if(p.optString("source") !in l
         summary=null;val provider=store.mapProvider;val route=store.travelDataSource
         if(provider==MapProvider.SCHEMATIC){error="離線示意圖不提供地點搜尋，請切換其他底圖。";return}
         if(category!="gems"&&route=="direct"&&provider==MapProvider.GOOGLE&&!googleMapConfigured){error="Google 地圖尚未設定金鑰，請選擇其他底圖。";return}
-        val input=JSONObject().put("query",query).put("category",category).put("lat",center.first).put("lng",center.second).put("radius",if(category in listOf("gems","all"))5000 else 1500).put("provider",if(category!="gems"&&provider==MapProvider.GOOGLE&&route=="direct")"google"else "osm").put("language",when(store.language){AppLanguage.ENGLISH->"en";AppLanguage.SIMPLIFIED->"zh-CN";else->"zh-TW"})
+        val input=JSONObject().put("query",query).put("category",category).put("lat",center.first).put("lng",center.second).put("radius",cameraRequest?.radius ?: if(category in listOf("gems","all"))5000 else 1500).put("provider",if(category!="gems"&&provider==MapProvider.GOOGLE&&route=="direct")"google"else "osm").put("language",when(store.language){AppLanguage.ENGLISH->"en";AppLanguage.SIMPLIFIED->"zh-CN";else->"zh-TW"})
         busy=true
         searchJob=scope.launch{try{
             val result=withTimeout(30000){requester(input)}
@@ -69,7 +104,14 @@ internal fun poiActivityKind(p:JSONObject):String=if(p.optString("source") !in l
             if(category=="gems"||provider==MapProvider.OSM||route=="zetaris"){openSource=result.optString("source","開放地點資料");dataVersion=result.optJSONObject("metadata")?.optString("release") ?: ""}
         }catch(e:CancellationException){if(e is TimeoutCancellationException)error="地點服務逾時，請重試。"else throw e}catch(e:Exception){error=e.message ?: "搜尋失敗"}finally{if(isActive)busy=false}}
     }
+    fun moved(point:Pair<Double,Double>,value:Double){
+        center=point;zoom=value
+        val next=PoiViewport(point.first,point.second,value)
+        if(next.differs(cameraRequest)){searchJob?.cancel();places=emptyList();selected=null;cameraRequest=next}
+    }
+    LaunchedEffect(cameraRequest){if(cameraRequest!=null){delay(800);search()}}
     LaunchedEffect(category,store.mapProvider,store.travelDataSource){
+        cameraRequest=null
         searchJob?.cancel();places=emptyList();selected=null;detail=null;error=null;busy=false;hasSearched=false;resultProvider=null;attribution="";dataVersion=""
         if(category=="gems"||store.mapProvider==MapProvider.OSM||store.travelDataSource=="zetaris")search()
     }
@@ -87,11 +129,11 @@ internal fun poiActivityKind(p:JSONObject):String=if(p.optString("source") !in l
             }){Text("交通・人潮・費用")}
 
             when(store.mapProvider) {
-                MapProvider.OSM->PoiOsmMap(visiblePlaces,onCenter={center=it},onSelect={selected=it},Modifier.fillMaxWidth().height(230.dp),initialCenter=center,initialZoom=zoom,onZoom={zoom=it},insightMarkers=(store.insights?.optJSONObject("traffic")?.array("items")?.objects() ?: emptyList())+(store.insights?.array("pricePlaces")?.objects() ?: emptyList()))
-                MapProvider.GOOGLE->if(BuildConfig.MAPS_CONFIGURED)PoiGoogleMap(visiblePlaces,center,zoom,onCamera={point,z->center=point;zoom=z},onSelect={selected=it},insightMarkers=(store.insights?.optJSONObject("traffic")?.array("items")?.objects() ?: emptyList())+(store.insights?.array("pricePlaces")?.objects() ?: emptyList()))else Box(Modifier.fillMaxWidth().height(230.dp),contentAlignment=Alignment.Center){Text(ui("Google 地圖尚未設定金鑰，請選擇其他底圖。"))}
+                MapProvider.OSM->PoiOsmMap(visiblePlaces,onCenter={moved(it,zoom)},onSelect={selected=it},Modifier.fillMaxWidth().height(230.dp),initialCenter=center,initialZoom=zoom,onZoom={moved(center,it)},insightMarkers=(store.insights?.optJSONObject("traffic")?.array("items")?.objects() ?: emptyList())+(store.insights?.array("pricePlaces")?.objects() ?: emptyList()))
+                MapProvider.GOOGLE->if(BuildConfig.MAPS_CONFIGURED)PoiGoogleMap(visiblePlaces,center,zoom,onCamera={point,z->moved(point,z)},onSelect={selected=it},insightMarkers=(store.insights?.optJSONObject("traffic")?.array("items")?.objects() ?: emptyList())+(store.insights?.array("pricePlaces")?.objects() ?: emptyList()))else Box(Modifier.fillMaxWidth().height(230.dp),contentAlignment=Alignment.Center){Text(ui("Google 地圖尚未設定金鑰，請選擇其他底圖。"))}
                 MapProvider.SCHEMATIC->Box(Modifier.fillMaxWidth().height(230.dp),contentAlignment=Alignment.Center){Text(ui("離線示意圖沒有街道底圖，請切換聯網底圖來移動搜尋範圍。"))}
             }
-            Small(if(category=="all")"全部分類 · 附近 5 km · 資料限已匯入區域"else if(category=="gems")"社群探索候選 · 附近 5 km · 非熱門度評分"else if(store.mapProvider==MapProvider.GOOGLE&&store.travelDataSource=="direct")"Google Places · 按搜尋才查詢 · 附近 1.5 km"else "切換分類自動搜尋 · 移動地圖後按搜尋 · 附近 1.5 km")
+            Small(if(category=="all")"全部分類 · 附近 5 km · 資料限已匯入區域"else if(category=="gems")"社群探索候選 · 附近 5 km · 非熱門度評分"else if(store.mapProvider==MapProvider.GOOGLE&&store.travelDataSource=="direct")"Google Places · 移動地圖後自動搜尋 · 最遠 5 km"else "切換分類自動搜尋 · 移動地圖後自動搜尋 · 附近 1.5 km")
             summary?.let{Small(it)}
             if(busy){LinearProgressIndicator(Modifier.fillMaxWidth());Small("正在搜尋附近地點…")}
             error?.let{Text("地點資料暫時無法載入："+it,color=Color.Red,fontSize=12.sp);Small("地圖底圖仍可顯示；地點清單尚未取得，並非附近沒有地點。");TextButton(onClick=::search){Text(ui("重新搜尋"))}}

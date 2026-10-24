@@ -21,11 +21,11 @@ import org.json.JSONObject
 
 @Composable fun RouteMap(day:JSONObject?,modifier:Modifier=Modifier,fullBleed:Boolean=false,
     provider:MapProvider=MapProvider.OSM,googleContent:Boolean=false,
-    viewport:MapViewport?=null,onViewport:(MapViewport)->Unit={},overview:OverviewRoute?=null,expanded:Boolean=false,sections:List<JourneyMapSection> = emptyList(),insightMarkers:List<JSONObject> = emptyList()) {
+    viewport:MapViewport?=null,onViewport:(MapViewport)->Unit={},overview:OverviewRoute?=null,expanded:Boolean=false,sections:List<JourneyMapSection> = emptyList(),insightMarkers:List<JSONObject> = emptyList(),nearbyPlaces:List<JSONObject> = emptyList(),onPoiSelect:(JSONObject)->Unit={}) {
     // Provider-owned live coordinates and paths must not be rendered on another provider's map.
     val visibleDay=mapDisplayDay(day,provider,googleContent)
     if(provider==MapProvider.OSM) {
-        OsmRouteMap(visibleDay,modifier,fullBleed,viewport,onViewport,if(googleContent)null else overview,expanded,sections,insightMarkers)
+        OsmRouteMap(visibleDay,modifier,fullBleed,viewport,onViewport,if(googleContent)null else overview,expanded,sections,insightMarkers,nearbyPlaces,onPoiSelect)
         return
     }
     if(provider==MapProvider.GOOGLE && !BuildConfig.MAPS_CONFIGURED) {
@@ -34,11 +34,11 @@ import org.json.JSONObject
         }
         return
     }
-    ProviderRouteMap(visibleDay,modifier,fullBleed,provider==MapProvider.GOOGLE,viewport,onViewport,if(googleContent)null else overview,expanded,sections,insightMarkers)
+    ProviderRouteMap(visibleDay,modifier,fullBleed,provider==MapProvider.GOOGLE,viewport,onViewport,if(googleContent)null else overview,expanded,sections,insightMarkers,nearbyPlaces,onPoiSelect)
 }
 
 @Composable private fun ProviderRouteMap(day:JSONObject?,modifier:Modifier,fullBleed:Boolean,
-    google:Boolean,viewport:MapViewport?,onViewport:(MapViewport)->Unit,overview:OverviewRoute?,expanded:Boolean,sections:List<JourneyMapSection>,insightMarkers:List<JSONObject>) {
+    google:Boolean,viewport:MapViewport?,onViewport:(MapViewport)->Unit,overview:OverviewRoute?,expanded:Boolean,sections:List<JourneyMapSection>,insightMarkers:List<JSONObject>,nearbyPlaces:List<JSONObject>,onPoiSelect:(JSONObject)->Unit) {
     val config=androidx.compose.ui.platform.LocalConfiguration.current
     val dotStyle=walkingDotStyle(minOf(config.screenWidthDp,config.screenHeightDp).toFloat())
     val density=androidx.compose.ui.platform.LocalDensity.current.density
@@ -51,7 +51,8 @@ import org.json.JSONObject
     val routes=day?.array("legs")?.objects()?.map {runCatching {decodePolyline(it.optString("polyline")).map{p->LatLng(p.first,p.second)}}.getOrDefault(emptyList())} ?: emptyList()
     val bounds=LatLngBounds.builder().apply{(points+(overview?.points?.map{LatLng(it.first,it.second)} ?: routes.flatten())).forEach{include(it)}}.build()
     if(google) {
-        val camera=rememberCameraPositionState()
+        val currentOnViewport by rememberUpdatedState(onViewport)
+    val camera=rememberCameraPositionState()
         var loaded by remember {mutableStateOf(false)}
         LaunchedEffect(day.toString(),loaded,overview){if(loaded) {
             val saved=viewport?.takeIf{it.sceneKey==day.toString() && overview==null}
@@ -59,12 +60,13 @@ import org.json.JSONObject
         }}
         LaunchedEffect(camera,loaded) {
             snapshotFlow { camera.isMoving }.collect { moving ->
-                if(loaded && !moving) onViewport(MapViewport(day.toString(),camera.position.target.latitude,camera.position.target.longitude,camera.position.zoom.toDouble()))
+                if(loaded && !moving) currentOnViewport(MapViewport(day.toString(),camera.position.target.latitude,camera.position.target.longitude,camera.position.zoom.toDouble()))
             }
         }
         GoogleMap(modifier=if(fullBleed)modifier else modifier.fillMaxWidth().height(310.dp).clip(RoundedCornerShape(22.dp)),cameraPositionState=camera,
             contentPadding=if(fullBleed)PaddingValues(top=if(expanded)100.dp else 280.dp,bottom=if(expanded)180.dp else 400.dp,start=12.dp,end=12.dp) else PaddingValues(0.dp),
             onMapLoaded={loaded=true},uiSettings=MapUiSettings(rotationGesturesEnabled=false,zoomControlsEnabled=false,myLocationButtonEnabled=false,mapToolbarEnabled=false)) {
+            nearbyPlaces.forEach{point->key(point.optString("id")){Marker(state=remember(point.optString("id")){MarkerState(position=LatLng(point.getDouble("lat"),point.getDouble("lng")))},title=point.optString("name"),icon=BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_CYAN),onClick={onPoiSelect(point);true})}}
             insightMarkers.forEach{item->key(item.optString("id")){Marker(state=MarkerState(position=LatLng(item.getDouble("lat"),item.getDouble("lng"))),title=(if(item.optString("kind")=="price")"💰 "else "⚠️ ")+item.optString("title"),snippet=item.optString("summary"),icon=BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE))}}
             if(day!=null)key(day.toString(),overview) {
                 val entries=listOf(start)+stops+listOf(end)

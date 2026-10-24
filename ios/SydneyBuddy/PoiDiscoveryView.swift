@@ -11,7 +11,7 @@ import CryptoKit
     func add(_ p:ScheduleCandidate){guard !places.contains(where:{$0.id==p.id}) else{return};places.append(p);if let data=try? JSONEncoder().encode(places){UserDefaults.standard.set(data,forKey:"poi-toolbox")}}
 }
 @MainActor enum ApplePoiProvider {
-    static func search(_ center:CLLocationCoordinate2D,_ category:String,_ query:String) async throws -> [ScheduleCandidate] {
+    static func search(_ center:CLLocationCoordinate2D,_ category:String,_ query:String,_ radiusOverride:Double?=nil) async throws -> [ScheduleCandidate] {
         var categories:[MKPointOfInterestCategory]
         switch category {
         case "lodging":categories=[.hotel]
@@ -22,7 +22,7 @@ import CryptoKit
         default:categories=[.museum,.park,.nationalPark,.amusementPark,.aquarium,.zoo,.theater,.library]
         }
         if #available(iOS 18.0,*),category=="sights" {categories += [.landmark,.nationalMonument,.musicVenue]}
-        let radius:Double=category == "all" ? 5000:1500
+        let radius:Double=radiusOverride ?? (category == "all" ? 5000:1500)
         let search:MKLocalSearch
         if query.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty && category != "facilities" {
             let request=MKLocalPointsOfInterestRequest(center:center,radius:radius)
@@ -72,12 +72,31 @@ import CryptoKit
     var googleMapConfigured=true
     var center=CLLocationCoordinate2D(latitude:-33.865,longitude:151.212)
     var loader:(URLRequest) async throws -> (Data,URLResponse) = {try await URLSession.shared.data(for:$0)}
-    var appleSearch:(CLLocationCoordinate2D,String,String) async throws -> [ScheduleCandidate] = ApplePoiProvider.search
+    var appleSearch:(CLLocationCoordinate2D,String,String,Double?) async throws -> [ScheduleCandidate] = ApplePoiProvider.search
+    private var cameraJob:Task<Void,Never>?
+    private var lastCamera:(CLLocationCoordinate2D,Double)?
+    var cameraDelay:UInt64=800_000_000
+    private(set) var viewportRadius:Double?
+    func cameraChanged(_ point:CLLocationCoordinate2D,zoom:Double) {
+        guard CLLocationCoordinate2DIsValid(point),zoom.isFinite else{return}
+        if let last=lastCamera {
+            let distance=CLLocation(latitude:point.latitude,longitude:point.longitude).distance(from:CLLocation(latitude:last.0.latitude,longitude:last.0.longitude))
+            guard distance>60 || abs(zoom-last.1)>0.35 else{return}
+        }
+        lastCamera=(point,zoom);center=point
+        viewportRadius=min(5000,max(500,156543.03392*cos(point.latitude * .pi/180)/pow(2,zoom)*420))
+        stop();places=[];selected=nil;error=nil
+        guard provider != .schematic else{return}
+        cameraJob=Task{@MainActor in
+            do{try await Task.sleep(nanoseconds:cameraDelay);try Task.checkCancellation()}catch{return}
+            cameraJob=nil;search()
+        }
+    }
     private var job:Task<Void,Never>?
     private var generation=UUID()
     var source:String {if dataSource == .zetaris{return "Open travel data / Zetaris"};if category == "gems" {return "Open travel data / local"};switch provider{case .apple:return "Apple Maps / MapKit";case .google:return "Google Places";case .osm:return openSource;case .schematic:return "離線示意 · 不搜尋地點"}}
     func configure(_ value:MapProvider,googleMapConfigured:Bool=true,dataSource:TravelDataSource = .direct) {
-        stop();provider=value;self.dataSource=dataSource;self.googleMapConfigured=googleMapConfigured;places=[];selected=nil;error=nil;hasSearched=false
+        stop();lastCamera=nil;viewportRadius=nil;provider=value;self.dataSource=dataSource;self.googleMapConfigured=googleMapConfigured;places=[];selected=nil;error=nil;hasSearched=false
         attribution=dataSource == .zetaris ? "Overture Maps Foundation":value == .apple ? "Apple Maps":value == .google ? "Google Maps":value == .osm ? "Overture Maps Foundation":""
         dataVersion=nil
         if category == "gems" || value == .osm || value == .apple || dataSource == .zetaris{search()}
@@ -87,14 +106,14 @@ import CryptoKit
         guard provider != .schematic else{error="離線示意圖不提供地點搜尋，請切換其他底圖。";return}
         guard category == "gems" || dataSource == .zetaris || provider != .google || googleMapConfigured else{error="Google 地圖尚未設定金鑰，請選擇其他底圖。";return}
         busy=true
-        let point=center,text=query.trimmingCharacters(in:.whitespacesAndNewlines),kind=category,current=provider,route=dataSource,token=generation
+        let point=center,text=query.trimmingCharacters(in:.whitespacesAndNewlines),kind=category,current=provider,route=dataSource,token=generation,radius=viewportRadius
         job=Task {@MainActor in
             do {
                 let result:[ScheduleCandidate]
-                if current == .apple && route == .direct && kind != "gems" {result=try await appleSearch(point,kind,text)}
+                if current == .apple && route == .direct && kind != "gems" {result=try await appleSearch(point,kind,text,radius)}
                 else {
                     var request=URLRequest(url:URL(string:"http://127.0.0.1:8787/poi/search")!);request.httpMethod="POST";route.apply(to:&request);request.setValue("application/json",forHTTPHeaderField:"Content-Type");request.timeoutInterval=30
-                    request.httpBody=try JSONSerialization.data(withJSONObject:["lat":point.latitude,"lng":point.longitude,"radius":["gems","all"].contains(kind) ? 5000:1500,"category":kind,"query":text,"provider":current == .google && route == .direct && kind != "gems" ? "google":"osm","language":language])
+                    request.httpBody=try JSONSerialization.data(withJSONObject:["lat":point.latitude,"lng":point.longitude,"radius":Int(radius ?? (["gems","all"].contains(kind) ? 5000:1500)),"category":kind,"query":text,"provider":current == .google && route == .direct && kind != "gems" ? "google":"osm","language":language])
                     let (data,response)=try await loader(request);try Task.checkCancellation()
                     guard (response as? HTTPURLResponse)?.statusCode==200 else {let raw=(try? JSONSerialization.jsonObject(with:data)) as? [String:Any];throw NSError(domain:"POI",code:1,userInfo:[NSLocalizedDescriptionKey:raw?["error"] as? String ?? "地點搜尋失敗，請重試。"])}
                     struct Response:Decodable{struct Metadata:Decodable{var release:String?};var places:[ScheduleCandidate];var attribution:String?;var source:String?;var metadata:Metadata?;var message:String?;var truncated:Bool?}
@@ -109,7 +128,7 @@ import CryptoKit
             }catch {if !Task.isCancelled && token==generation{self.error="地點資料暫時無法載入："+error.localizedDescription;busy=false}}
         }
     }
-    func stop(){generation=UUID();job?.cancel();job=nil;busy=false}
+    func stop(){cameraJob?.cancel();cameraJob=nil;generation=UUID();job?.cancel();job=nil;busy=false}
 }
 @MainActor struct PoiDiscoveryView:View {
     var embedded=false
@@ -253,9 +272,9 @@ import CryptoKit
     private func panelHeight(_ height:CGFloat)->CGFloat {max(180,height*(expanded ? 0.65:0.36))}
     @ViewBuilder private var map:some View {
         switch searchProvider {
-        case .apple,.osm:PoiNativeMap(places:visiblePlaces,osm:searchProvider == .osm,center:model.center,zoom:zoom,onCamera:{model.center=$0;zoom=$1;areaChanged=true},onSelect:{model.selected=$0},insightMarkers:insightMarkers).accessibilityIdentifier("poi-map-"+searchProvider.rawValue)
+        case .apple,.osm:PoiNativeMap(places:visiblePlaces,osm:searchProvider == .osm,center:model.center,zoom:zoom,onCamera:{zoom=$1;areaChanged=false;model.cameraChanged($0,zoom:$1)},onSelect:{model.selected=$0},insightMarkers:insightMarkers).accessibilityIdentifier("poi-map-"+searchProvider.rawValue)
         case .google:
-            if SydneyBuddyApp.mapReady{PoiGoogleMap(places:visiblePlaces,center:model.center,zoom:zoom,onCamera:{model.center=$0;zoom=$1;areaChanged=true},onSelect:{model.selected=$0},insightMarkers:insightMarkers)}
+            if SydneyBuddyApp.mapReady{PoiGoogleMap(places:visiblePlaces,center:model.center,zoom:zoom,onCamera:{zoom=$1;areaChanged=false;model.cameraChanged($0,zoom:$1)},onSelect:{model.selected=$0},insightMarkers:insightMarkers)}
             else{ContentUnavailableView("地图尚未配置",systemImage:"map",description:Text("请切换到 Apple Maps 或 OpenStreetMap。"))}
         case .schematic:ContentUnavailableView("请选择在线底图",systemImage:"map",description:Text("示意图不支持地点搜索。"))
         }
@@ -266,7 +285,7 @@ import CryptoKit
                 .gesture(DragGesture(minimumDistance:15).onEnded{value in if abs(value.translation.height)>20{expanded=value.translation.height<0}})
             if model.busy{ProgressView().padding(12)}
             if let error=model.error{ScrollView{VStack(spacing:10){Text("暂时没找到地点资料").font(.headline);Text(error).font(.caption).foregroundStyle(Palette.muted);Button("重新搜索"){search()}}.padding(20)}}
-            else if !model.busy && visiblePlaces.isEmpty {ContentUnavailableView("换个地方看看",systemImage:"magnifyingglass",description:Text("移动地图后点“搜索此区域”，或换一个关键词。"))}
+            else if !model.busy && visiblePlaces.isEmpty {ContentUnavailableView("换个地方看看",systemImage:"magnifyingglass",description:Text("移动地图后自动搜索，也可点“搜索此区域”，或换一个关键词。"))}
             else{ScrollViewReader{proxy in ScrollView{LazyVStack(spacing:0){ForEach(orderedPlaces){p in placeRow(p).id(p.id);Divider().padding(.leading,68)}}}.onChange(of:model.selected){_,id in if let id{proxy.scrollTo(id,anchor:.top)}}}}
             Text(store.language.text("地點資料：{0}",model.source)).font(.caption2).foregroundStyle(Palette.muted)
             attribution.padding(.horizontal,16).padding(.vertical,6)
@@ -303,7 +322,7 @@ import CryptoKit
     private func search(){searching=false;areaChanged=false;model.search()}
     private func togglePanel(){withAnimation(reduceMotion ? nil:.easeInOut(duration:0.2)){expanded.toggle()}}
 }
-private final class PoiPin:NSObject,MKAnnotation {
+final class PoiPin:NSObject,MKAnnotation {
     let point:ScheduleCandidate
     var coordinate:CLLocationCoordinate2D {CLLocationCoordinate2D(latitude:point.lat,longitude:point.lng)}
     var title:String? {point.name}
