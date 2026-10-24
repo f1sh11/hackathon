@@ -9,6 +9,31 @@ namespace SydneyBuddy.Api.Tests;
 public sealed class PetConversationTests(ApiFixture fixture):IClassFixture<ApiFixture>
 {
     [Fact]
+    public void TravelFactsCannotSmuggleUnstatedHabitsIntoKokoTripFields()
+    {
+        var fields=new JsonObject{["energy"]="中等精力",["rhythm"]="紧凑充实",["queueTolerance"]="不排队",["pace"]="5000",["destination"]="悉尼"};
+        PetExplicitFacts.FilterUnsupportedHabits("这次去悉尼，明天玩2天。",fields);
+        Assert.Single(fields);Assert.Equal("悉尼",fields.Str("destination"));
+        fields=new JsonObject{["pace"]="10000",["interests"]="自然"};
+        PetExplicitFacts.FilterUnsupportedHabits("这次步数10000以内，想看自然风景。",fields);
+        Assert.Equal(2,fields.Count);
+    }
+    [Fact]
+    public void CompleteTripSentenceRetainsRequiredFactsWithoutModelExtraction()
+    {
+        var fields=new JsonObject();PetExplicitFacts.Apply("这次去悉尼，明天开始玩2天，一个人，每人每天活动预算100澳元，从环形码头出发，这次步数10000以内，必须去悉尼歌剧院，不想去博物馆。",fields);
+        Assert.Equal("悉尼",fields.Str("destination"));Assert.Equal("2",fields.Str("days"));
+        Assert.Equal("perPersonPerDay",fields.Str("budgetBasis"));Assert.Equal("activities",fields.Str("budgetCoverage"));
+        Assert.Equal("约10000步",fields.Str("pace"));Assert.False(string.IsNullOrEmpty(fields.Str("date")));
+    }
+    [Fact]
+    public void AmbiguousRelativeDatesAndDurationsAreNotGuessed()
+    {
+        var fields=new JsonObject();PetExplicitFacts.Apply("今天或明天出发，玩2天或3天，还没确定。",fields);
+        Assert.Null(fields["date"]);Assert.Null(fields["days"]);
+    }
+
+    [Fact]
     public void ExplicitMustAndAvoidAreKeptEvenWhenModelOnlyExtractsBudget() {
         var fields=new JsonObject();PetExplicitFacts.Apply("两个人，每人每天100澳元活动预算，必须去悉尼歌剧院，不想逛博物馆。只影响这次旅行。",fields);
         Assert.Equal("悉尼歌剧院",fields.Str("mustDo"));Assert.Equal("博物馆",fields.Str("avoid"));Assert.Equal("100",fields.Str("budget"));
@@ -32,6 +57,8 @@ public sealed class PetConversationTests(ApiFixture fixture):IClassFixture<ApiFi
     }
     [Theory]
     [InlineData("每天最多1000步", "约1000步")]
+    [InlineData("这次步数10000以内", "约10000步")]
+    [InlineData("步數：8,000以內，预算100元", "约8000步")]
     [InlineData("每天最多 10,000 步", "约10000步")]
     public void ExplicitStepLimitOverridesQualitativeModelSummary(string message,string expected)
     {
@@ -220,7 +247,7 @@ public sealed class PetConversationTests(ApiFixture fixture):IClassFixture<ApiFi
         Assert.Equal("墨尔本",chatResult.Object("fields").Str("destination"));
         Assert.Equal("艺术",chatResult.Object("fields").Str("interests"));
         Assert.Equal("喜欢艺术和慢节奏",chatResult.Str("pendingMemory"));
-        Assert.Equal("confused",chatResult.Array("messages")!.Last()!.Str("mood"));
+        Assert.Equal("relaxed",chatResult.Array("messages")!.Last()!.Str("mood"));
         Assert.Empty((await client.GetFromJsonAsync<JsonArray>("/memories"))!);
         var local=await client.PostAsJsonAsync($"/pet/sessions/{id}/memory",new {consent=false});local.EnsureSuccessStatusCode();
         Assert.Empty((await client.GetFromJsonAsync<JsonArray>("/memories"))!);

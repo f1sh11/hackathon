@@ -15,6 +15,8 @@ plist=obj('plist',{'isa':'PBXFileReference','lastKnownFileType':'text.plist.xml'
 localrefs=[obj('local'+lang,{'isa':'PBXFileReference','lastKnownFileType':'text.plist.strings','name':lang,'path':lang+'.lproj/Localizable.strings','sourceTree':'<group>'}) for lang in ['en','zh-Hans','zh-Hant']]
 localgroup=obj('localgroup',{'isa':'PBXVariantGroup','children':localrefs,'name':'Localizable.strings','sourceTree':'<group>'})
 source_refs.append(localgroup)
+koala=obj('koalaassets',{'isa':'PBXFileReference','lastKnownFileType':'folder','name':'koala','path':'../assets/koala','sourceTree':'SOURCE_ROOT'})
+source_refs.append(koala)
 sourcegroup=obj('sourcegroup' ,{'isa':'PBXGroup','children':source_refs,'path':'SydneyBuddy','sourceTree':'<group>'})
 product=obj('app',{'isa':'PBXFileReference','explicitFileType':'wrapper.application','path':'SydneyBuddy.app','sourceTree':'BUILT_PRODUCTS_DIR'})
 products=obj('products',{'isa':'PBXGroup','children':[product],'name':'Products','sourceTree':'<group>'})
@@ -27,11 +29,12 @@ navprod=obj('ferrostarproduct',{'isa':'XCSwiftPackageProductDependency','package
 navframework=obj('ferrostarbuild',{'isa':'PBXBuildFile','productRef':navprod})
 sources=obj('sources',{'isa':'PBXSourcesBuildPhase','buildActionMask':2147483647,'files':build_refs,'runOnlyForDeploymentPostprocessing':0})
 frameworks=obj('frameworks',{'isa':'PBXFrameworksBuildPhase','buildActionMask':2147483647,'files':[framework,navframework],'runOnlyForDeploymentPostprocessing':0})
-resources=obj('resources',{'isa':'PBXResourcesBuildPhase','buildActionMask':2147483647,'files':[obj('buildlocal',{'isa':'PBXBuildFile','fileRef':localgroup})],'runOnlyForDeploymentPostprocessing':0})
+resources=obj('resources',{'isa':'PBXResourcesBuildPhase','buildActionMask':2147483647,'files':[obj('buildlocal',{'isa':'PBXBuildFile','fileRef':localgroup}),obj('buildkoala',{'isa':'PBXBuildFile','fileRef':koala})],'runOnlyForDeploymentPostprocessing':0})
 def configs(prefix,base,settings):
  configs=[]
  for name in ['Debug','Release']:
   d={'isa':'XCBuildConfiguration','buildSettings':dict(settings,SWIFT_OPTIMIZATION_LEVEL='-Onone' if name=='Debug' else '-O'),'name':name}
+  if name=='Debug':d['buildSettings']['SWIFT_ACTIVE_COMPILATION_CONDITIONS']='$(inherited) DEBUG'
   if base:d['baseConfigurationReference']=base
   configs.append(obj(prefix+name,d))
  return obj(prefix+'list',{'isa':'XCConfigurationList','buildConfigurations':configs,'defaultConfigurationIsVisible':0,'defaultConfigurationName':'Release'})

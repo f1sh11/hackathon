@@ -39,6 +39,25 @@ import MapKit
         let success=await store.deleteTrip(target)
         XCTAssertTrue(success);XCTAssertEqual(store.saved.map(\.id),[other.id]);XCTAssertNil(store.trip);XCTAssertNil(store.tripToOpen);XCTAssertNil(store.lastAdjustment)
     }
+    func testCancelledKokoPlanningCannotSaveOrCelebrate() async {
+        let store=AppStore();store.showOnboarding=true
+        var saved=false
+        store.loader={request in
+            if request.url!.path == "/plan" {try await Task.sleep(nanoseconds:5_000_000_000)}
+            if request.url!.path == "/trips",request.httpMethod == "POST" {saved=true}
+            throw URLError(.cancelled)
+        }
+        let operation=Task {await store.generateFromPet(TripProfile(),request:"cancel",saveImmediately:true)}
+        await Task.yield();XCTAssertEqual(store.koalaWork?.action,.map)
+        operation.cancel();await operation.value
+        XCTAssertFalse(saved);XCTAssertFalse(store.busy);XCTAssertNil(store.koalaWork);XCTAssertNil(store.koalaFeedback)
+    }
+    func testRejectedKokoSaveDoesNotCelebrate() async throws {
+        let store=AppStore();store.proposal=try fixture()
+        store.loader={request in (Data(#"{"error":"revision conflict"}"#.utf8),HTTPURLResponse(url:request.url!,statusCode:409,httpVersion:nil,headerFields:nil)!)}
+        await store.acceptProposal()
+        XCTAssertNotNil(store.errorMessage);XCTAssertNil(store.koalaFeedback);XCTAssertFalse(store.busy)
+    }
     func testSuccessfulGenerationRequestsOpeningTheAcceptedTripWorkspace() async throws {
         let defaults=UserDefaults.standard
         let keys=["pendingTripFields","travelPlanningTask","onboarded","petSession.draft","petSession.nav-workspace-trip"]
@@ -62,6 +81,7 @@ import MapKit
         await store.generatePendingTrip()
         XCTAssertNil(store.errorMessage)
         XCTAssertEqual(store.tripToOpen?.id,"nav-workspace-trip")
+        XCTAssertNil(store.koalaWork);XCTAssertEqual(store.koalaFeedback?.action,.celebrate)
         XCTAssertEqual(store.travelTask?.status,"completed")
         XCTAssertTrue(store.pendingTripFields.isEmpty)
     }

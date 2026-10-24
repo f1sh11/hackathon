@@ -133,7 +133,7 @@ struct TripsView:View {
             Text(TripDraftSummary(fields:store.pendingTripFields).title).font(.title2.bold())
             Text(TripDraftSummary(fields:store.pendingTripFields).subtitle).font(.subheadline).foregroundStyle(Palette.muted)
             Text(store.pendingTripFields["interests"] ?? "").font(.subheadline).foregroundStyle(Palette.ink)
-            PrimaryButton(title:"继续和 Buddy 规划",symbol:"bubble.left.and.bubble.right"){store.resumePendingTrip()}.disabled(store.busy)
+            PrimaryButton(title:"继续和 Koko 规划",symbol:"bubble.left.and.bubble.right"){store.resumePendingTrip()}.disabled(store.busy)
             if !store.live{Text("示例数据").font(.caption).foregroundStyle(Palette.muted)}
         }.padding(18).background(Palette.mint.opacity(0.65),in:RoundedRectangle(cornerRadius:24))
     }
