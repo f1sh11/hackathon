@@ -3,7 +3,11 @@ using System.Text.Json.Nodes;
 
 namespace SydneyBuddy.Api;
 
-public sealed record PetMessage(string Id, string Role, string Text);
+public sealed record PetMessage(string Id, string Role, string Text, string Mood="greeting");
+public static class PetEmotion
+{
+    public static string Normalize(string value)=>value is "curious" or "excited" or "relaxed" or "remembering" or "confused" ? value:"curious";
+}
 public sealed class PetSession
 {
     public string Id { get; set; } = Guid.NewGuid().ToString("N");

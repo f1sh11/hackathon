@@ -81,6 +81,23 @@ final class PetDraftTests:XCTestCase {
         XCTAssertEqual(store.pendingTripFields,fields);XCTAssertNil(store.errorMessage)
         XCTAssertEqual(paths,["/plan"]);XCTAssertTrue(store.saved.isEmpty)
     }
+    func testPetReactionMatchesChosenAnswerAndNeverClaimsLongTermSave() {
+        XCTAssertEqual(PetReaction.answer("companions","一个人").mood,.relaxed)
+        XCTAssertEqual(PetReaction.answer("companions","和朋友").mood,.excited)
+        XCTAssertEqual(PetReaction.answer("companions","和家人").mood,.remembering)
+        XCTAssertEqual(PetReaction.answer("pace","慢悠悠（约6000步）").mood,.relaxed)
+        XCTAssertEqual(PetReaction.answer("pace","多逛逛（约15000步）").mood,.excited)
+        XCTAssertEqual(PetReaction.answer("interests","美食").mood,.excited)
+        XCTAssertEqual(PetReaction.answer("interests","艺术").mood,.curious)
+        for key in ["companions","interests","pace"] {XCTAssertFalse(PetReaction.answer(key,"和朋友").text.contains("永久记住"))}
+    }
+    func testReplyEmotionIsBackwardCompatibleAndUnknownValuesAreSafe() throws {
+        let reply=try JSONDecoder().decode(PetMessage.self,from:Data(#"{"id":"m","role":"assistant","text":"慢慢走就好","mood":"relaxed"}"#.utf8))
+        XCTAssertEqual(PetMood.reply(reply.mood),.relaxed)
+        let old=try JSONDecoder().decode(PetMessage.self,from:Data(#"{"id":"m","role":"assistant","text":"你好"}"#.utf8))
+        XCTAssertEqual(PetMood.reply(old.mood),.curious)
+        XCTAssertEqual(PetMood.reply("angry"),.curious)
+    }
     func testTripReviewPreservesExplicitWalkingLimitAndBudget() throws {
         let profile=try PetTripDraft.profile(fields)
         XCTAssertEqual(profile.maxSteps,5000);XCTAssertEqual(profile.budget,100);XCTAssertEqual(profile.days,2)
