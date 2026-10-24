@@ -73,7 +73,7 @@ import SwiftUI
                                     VStack(alignment:.leading,spacing:7) {
                                         Text(String(format:"%02d",index+1)).font(.caption2.bold()).foregroundStyle(Palette.green)
                                         Text(c.name).font(.system(size:12,weight:.semibold)).fixedSize(horizontal:false,vertical:true)
-                                        Text(c.source=="OpenStreetMap" ? "\(c.visitMinutes) 分 · 費用未知":"\(c.visitMinutes) 分 · A$\(Int(c.cost))").font(.system(size:10)).foregroundStyle(Palette.muted)
+                                        Text(c.importedPoi ? "\(c.visitMinutes) 分 · 費用未知":"\(c.visitMinutes) 分 · A$\(Int(c.cost))").font(.system(size:10)).foregroundStyle(Palette.muted)
                                         if let d=selected[c.id] {Text("第 \(d+1) 天已排").font(.system(size:10)).foregroundStyle(Palette.green)}
                                         let locked=state.days.flatMap(\.activities).contains{$0.placeId==c.id && $0.locked==true}
                                         if locked{Text("已鎖定").font(.system(size:10)).foregroundStyle(Palette.muted)}
@@ -130,18 +130,18 @@ struct SchedulePlaceDetail:View {
                 VStack(alignment:.leading,spacing:20) {
                     Image(systemName:candidate.indoor ? "building.2.crop.circle.fill":"leaf.circle.fill").font(.system(size:54)).foregroundStyle(Palette.green)
                     Text(candidate.name).font(.title2.bold())
-                    Text(candidate.category+" · "+(candidate.source=="OpenStreetMap" ? (candidate.indoor ? "室內（OSM 標記）":"室內外未確認"):(candidate.indoor ? "室內":"戶外"))).font(.subheadline).foregroundStyle(Palette.muted)
+                    Text(candidate.category+" · "+(candidate.importedPoi ? (candidate.indoor ? "室內（來源標記）":"室內外未確認"):(candidate.indoor ? "室內":"戶外"))).font(.subheadline).foregroundStyle(Palette.muted)
                     Text(candidate.description ?? "此草案尚未附上景點介紹，可重新試算以更新資料。").lineSpacing(6)
                     Text("為你推薦").font(.headline)
                     Text(candidate.reason)
                     VStack(alignment:.leading,spacing:10) {
                         Text("建議停留 \(candidate.visitMinutes) 分鐘")
-                        Text(candidate.source=="OpenStreetMap" ? "費用與排隊時間未知":"規劃預留 A$\(Int(candidate.cost)) · 排隊時間未知")
-                        if let text=candidate.openingHoursText,!text.isEmpty{Text("OSM 營業時間標記："+text).font(.caption)}
+                        Text(candidate.importedPoi ? "費用與排隊時間未知":"規劃預留 A$\(Int(candidate.cost)) · 排隊時間未知")
+                        if let text=candidate.openingHoursText,!text.isEmpty{Text("營業時間標記："+text).font(.caption)}
                         if let open=candidate.openMinute,let close=candidate.closeMinute {Text("示範開放時段 \(time(open))–\(time(close))")}
                         if let note=candidate.note {Text(note).font(.caption)}
                     }.padding().frame(maxWidth:.infinity,alignment:.leading).background(Palette.mint,in:RoundedRectangle(cornerRadius:14))
-                    Text(candidate.source=="OpenStreetMap" ? "資料來源：© OpenStreetMap contributors · 社群資料，費用及營業資訊未確認。":"本機景點資料；費用與開放時間是規劃示例，出發前請確認當日資訊。").font(.caption).foregroundStyle(Palette.muted)
+                    Text(candidate.importedPoi ? "資料來源："+(candidate.source ?? "未知")+"；費用及營業資訊未確認。":"本機景點資料；費用與開放時間是規劃示例，出發前請確認當日資訊。").font(.caption).foregroundStyle(Palette.muted)
                 }.padding(24)
             }.navigationTitle("景點介紹").navigationBarTitleDisplayMode(.inline).toolbar{Button("完成"){dismiss()}}
         }

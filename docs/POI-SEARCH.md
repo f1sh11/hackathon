@@ -1,4 +1,29 @@
-# 開源地點搜尋與景點工具箱
+# 地點搜尋與景點工具箱
+
+## 現行來源切換（2026-10-24）
+
+| 底圖 | 地點搜尋 | 查詢時機 |
+|---|---|---|
+| OpenStreetMap | 本機 `/poi/search` → Overpass | 開啟／換分類自動搜尋，移動地圖後手動搜尋 |
+| Apple Maps（iOS） | 裝置上的 `MKLocalSearch`／`MKLocalPointsOfInterestRequest` | 開啟／換分類自動搜尋，直接向 Apple 查詢，不走 OSM |
+| Google Maps | 本機 `/poi/search` 的 `provider=google` → Google Places Nearby／Text Search | 切換時清除舊結果，按搜尋後才查詢 |
+| 離線示意 | 不提供商家搜尋 | 不呼叫任何地點服務 |
+
+- 切換來源取消舊請求，清掉標記、清單及詳情；過期回應不能覆蓋新來源。畫面與頁尾同步標示資料來源。Google 回傳非 Google 資料時顯示來源錯誤，不回退至 OSM。
+- Apple 不需本機後端即可搜尋；可將地點加入工具箱及本機時間軸。iOS 18 以上以 Apple place identifier 產生穩定 ID，舊版以名稱及座標識別。附近搜尋範圍為 1.5 km；餐飲、景點使用 POI 分類，設施使用文字搜尋，不保證公共廁所或飲水設施已驗證。
+- Apple／OSM 地點的費用、排隊、室內外與營業狀態維持未確認，不會將零費用當成已知免費或宣稱全天營業。
+- Google 沿用伺服器 `GOOGLE_SERVER_KEY` 與 `AllowPaidServices`。選用 Google 底圖仍需各平台地圖金鑰。沒有設定或禁止付費時清楚回報，不自動啟用付費。
+- Google 使用明確欄位遮罩、附近半徑和分類；文字搜尋結果另外檢查實際距離。結果不使用 OSM 快取，不永久儲存，也不匯入僅支援 demo 的本機時間軸。切換底圖後不保留 Google 結果或標記；顯示 Google Maps 及第三方來源歸屬。
+- Android 沒有 Apple Maps 底圖選項，支援 OSM／Google／離線三種對應行為。儲存行程內的 Apple 地點仍可作為未知費用的匯入地點讀取。
+
+官方介面：[Apple 地點搜尋](https://developer.apple.com/documentation/mapkit/mklocalsearch/request)、[Google Nearby Search](https://developers.google.com/maps/documentation/places/web-service/nearby-search)、[Google Places 來源與儲存規則](https://developers.google.com/maps/documentation/places/web-service/policies)。
+
+驗證：後端 124 項、iOS 42 項、Android 27 項單元測試及 20 項畫面互動測試通過，Android Lint 通過。包含依底圖選擇來源、Google 手動查詢／伺服器付費保護／不使用 OSM 快取、分類與附近距離、過期結果取消，以及 Apple 地點匯入／排程／未知費用與營業時間處理。
+
+iOS 模擬器已用真實 Apple 服務取得附近景點與餐飲，包含 Aurora Place Lobby Cafe、Toca 等，並確認介紹頁為 Apple Maps 來源。未使用 Google 金鑰或發出付費測試請求；Google 為契約／模擬回應測試。OSM 公開 Overpass 連線限制仍在，未宣稱已修復公共服務。
+
+以下為先前 OSM 版本的開發與驗證紀錄，來源固定／不重查的說明已由上方現行行為取代。
+
 
 ## 使用方式
 

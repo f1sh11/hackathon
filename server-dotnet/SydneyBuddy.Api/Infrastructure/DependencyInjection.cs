@@ -43,6 +43,7 @@ public static class DependencyInjection
         services.AddScoped<Planner>();
         services.AddScoped<ScheduleEditorService>();
         services.AddHttpClient<IPoiProvider,OsmPoiProvider>(client=>client.Timeout=TimeSpan.FromSeconds(25)).ConfigurePrimaryHttpMessageHandler(()=>new HttpClientHandler{AllowAutoRedirect=false});
+        services.AddScoped<GooglePoiProvider>();
         services.AddScoped<PoiService>();
         return services;
     }

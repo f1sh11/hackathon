@@ -145,7 +145,7 @@ class ScheduleEditorTest {
         assertEquals(-1234.0,ScheduleAllowance(10000.0,11234.0).remaining,0.0)
         assertEquals(0f,ScheduleAllowance(0.0,10.0).fraction,0f)
     }
-    @Test fun poiMapFollowsSharedProviderWithoutRepeatingSearch() {
+    @Test fun poiMapFollowsSharedProviderAndRefreshesMatchingSource() {
         val inst=InstrumentationRegistry.getInstrumentation();lateinit var store:BuddyStore;lateinit var original:MapProvider;var requests=0
         rule.runOnIdle{store=BuddyStore(inst.targetContext.applicationContext as Application);original=store.mapProvider;store.chooseMapProvider(MapProvider.OSM)}
         rule.setContent{MaterialTheme{PoiDiscoveryDialog(store,onDismiss={},requester={requests++;JSONObject().put("places",org.json.JSONArray())})}}
@@ -157,7 +157,8 @@ class ScheduleEditorTest {
             if(!BuildConfig.MAPS_CONFIGURED){rule.onNodeWithText("Google Maps").performClick();rule.onNodeWithText("Google 地圖尚未設定金鑰",substring=true).assertIsDisplayed()}
             rule.onNodeWithText("OpenStreetMap",substring=false).performClick()
             rule.onNodeWithText("離線示意圖沒有街道底圖",substring=true).assertDoesNotExist()
-            rule.runOnIdle{assertEquals(MapProvider.OSM,store.mapProvider);assertEquals(1,requests)}
+            rule.waitUntil(5000){requests==2}
+            rule.runOnIdle{assertEquals(MapProvider.OSM,store.mapProvider);assertEquals(2,requests)}
         }finally{rule.runOnIdle{store.chooseMapProvider(original)}}
     }
     @Test fun savedTripCardEditsOnTapAndNavigationButtonsDoNotOpenEditor() {
@@ -182,10 +183,36 @@ class ScheduleEditorTest {
         val expected=listOf(days[1].getJSONObject("start").getString("name"))+days[1].array("stops").objects().map{it.getString("name")}+listOf(days[1].getJSONObject("end").getString("name")+"（返回）")
         assertEquals(expected,nav.points.map{it.name});nav.close()
     }
+    @Test fun poiEngineFollowsMapAndGoogleRequiresManualSearch() {
+        val inst=InstrumentationRegistry.getInstrumentation();lateinit var store:BuddyStore
+        val requests=mutableListOf<String>()
+        rule.runOnIdle{store=BuddyStore(inst.targetContext.applicationContext as Application)}
+        rule.waitUntil(15000){!store.busy};val previous=store.mapProvider
+        rule.runOnIdle{store.chooseMapProvider(MapProvider.OSM)}
+        rule.setContent{MaterialTheme{PoiDiscoveryDialog(store,onDismiss={},googleMapConfigured=true,requester={input->
+            requests.add(input.getString("provider"))
+            JSONObject().put("places",org.json.JSONArray().put(JSONObject().put("id",input.getString("provider")+":test").put("name",input.getString("provider")+" result").put("lat",-33.86).put("lng",151.21).put("source",if(input.getString("provider")=="google")"Google Places"else "OpenStreetMap")))
+        })}}
+        try {
+            rule.waitUntil(5000){requests.size==1}
+            rule.runOnIdle{store.chooseMapProvider(MapProvider.GOOGLE)}
+            rule.onNodeWithText("地點資料：Google Places").assertIsDisplayed()
+            rule.onNodeWithText("osm result",substring=true).assertDoesNotExist()
+            assertEquals(listOf("osm"),requests)
+            rule.onNodeWithText("搜尋").performClick()
+            rule.waitUntil(5000){requests.size==2}
+            rule.onNodeWithText("google result",substring=true).assertExists()
+            assertEquals(listOf("osm","google"),requests)
+            rule.runOnIdle{store.chooseMapProvider(MapProvider.SCHEMATIC)}
+            rule.onNodeWithText("google result",substring=true).assertDoesNotExist()
+            rule.onNodeWithText("搜尋").performClick();assertEquals(2,requests.size)
+        }finally{rule.runOnIdle{store.chooseMapProvider(previous)}}
+    }
     @Test fun poiAutomaticallyLoadsCategoriesAndSeparatesFailureFromEmptyResults() {
         val inst=InstrumentationRegistry.getInstrumentation();lateinit var store:BuddyStore
         val categories=mutableListOf<String>();var fail=false
         rule.runOnIdle{store=BuddyStore(inst.targetContext.applicationContext as Application)}
+        rule.runOnIdle{store.chooseMapProvider(MapProvider.OSM)}
         rule.setContent{MaterialTheme{PoiDiscoveryDialog(store,onDismiss={},requester={input->
             categories.add(input.getString("category"));if(fail)throw IllegalStateException("測試連線中斷")
             JSONObject().put("places",org.json.JSONArray())
@@ -206,6 +233,7 @@ class ScheduleEditorTest {
         val inst=InstrumentationRegistry.getInstrumentation();lateinit var store:BuddyStore;var added:JSONObject?=null
         rule.runOnIdle{store=BuddyStore(inst.targetContext.applicationContext as Application)}
         val point=JSONObject().put("id","osm:node:123").put("name","Test Cafe").put("lat",-33.86).put("lng",151.21).put("category","美食").put("description","OSM recorded cafe description").put("note","費用未知")
+        rule.runOnIdle{store.chooseMapProvider(MapProvider.OSM)}
         rule.setContent{MaterialTheme{PoiDiscoveryDialog(store,onDismiss={},requester={JSONObject().put("places",org.json.JSONArray().put(point))},onAdd={added=it})}}
         rule.onNodeWithText("搜尋").performClick()
         rule.waitUntil(5000){rule.onAllNodesWithText("Test Cafe",substring=true).fetchSemanticsNodes().isNotEmpty()}

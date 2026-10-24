@@ -878,5 +878,95 @@
     "en": "Food",
     "zh-Hans": "餐饮",
     "zh-Hant": "餐飲"
+  },
+  "搜尋附近地點名稱（可留空）": {
+    "zh-Hant": "搜尋附近地點名稱（可留空）",
+    "zh-Hans": "搜索附近地点名称（可留空）",
+    "en": "Place name nearby (optional)"
+  },
+  "地點名稱（可留空）": {
+    "zh-Hant": "地點名稱（可留空）",
+    "zh-Hans": "地点名称（可留空）",
+    "en": "Place name (optional)"
+  },
+  "地點分類": {
+    "zh-Hant": "地點分類",
+    "zh-Hans": "地点分类",
+    "en": "Place category"
+  },
+  "底圖": {
+    "zh-Hant": "底圖",
+    "zh-Hans": "底图",
+    "en": "Map"
+  },
+  "地點資料：{0}": {
+    "zh-Hant": "地點資料：{0}",
+    "zh-Hans": "地点资料：{0}",
+    "en": "Places: {0}"
+  },
+  "切換分類自動搜尋 · 移動地圖後按搜尋 · 附近 1.5 km": {
+    "zh-Hant": "切換分類自動搜尋 · 移動地圖後按搜尋 · 附近 1.5 km",
+    "zh-Hans": "切换分类自动搜索 · 移动地图后按搜索 · 附近 1.5 km",
+    "en": "Categories search automatically · search again after moving · within 1.5 km"
+  },
+  "Google Places · 按搜尋才查詢 · 附近 1.5 km": {
+    "zh-Hant": "Google Places · 按搜尋才查詢 · 附近 1.5 km",
+    "zh-Hans": "Google Places · 按搜索才查询 · 附近 1.5 km",
+    "en": "Google Places · tap Search to query · within 1.5 km"
+  },
+  "Google 地點暫不匯入本機示例時間軸": {
+    "zh-Hant": "Google 地點暫不匯入本機示例時間軸",
+    "zh-Hans": "Google 地点暂不导入本机示例时间轴",
+    "en": "Google places are not imported into the local demo timeline"
+  },
+  "地圖底圖仍可顯示；地點清單尚未取得，並非附近沒有地點。": {
+    "zh-Hant": "地圖底圖仍可顯示；地點清單尚未取得，並非附近沒有地點。",
+    "zh-Hans": "地图底图仍可显示；地点列表尚未取得，并非附近没有地点。",
+    "en": "The map is available, but places could not be loaded. This does not mean there are no places nearby."
+  },
+  "Google 地圖尚未設定金鑰，請選擇其他底圖。": {
+    "zh-Hant": "Google 地圖尚未設定金鑰，請選擇其他底圖。",
+    "zh-Hans": "Google 地图尚未设置密钥，请选择其他底图。",
+    "en": "Google Maps has no API key. Please choose another map."
+  },
+  "離線示意圖沒有街道底圖，請切換聯網底圖來移動搜尋範圍。": {
+    "zh-Hant": "離線示意圖沒有街道底圖，請切換聯網底圖來移動搜尋範圍。",
+    "zh-Hans": "离线示意图没有街道底图，请切换联网底图来移动搜索范围。",
+    "en": "Choose an online map to move the search area."
+  },
+  "正在搜尋附近地點…": {
+    "zh-Hant": "正在搜尋附近地點…",
+    "zh-Hans": "正在搜索附近地点…",
+    "en": "Searching nearby places…"
+  },
+  "重新搜尋": {
+    "zh-Hant": "重新搜尋",
+    "zh-Hans": "重新搜索",
+    "en": "Search again"
+  },
+  "此範圍沒有符合的地點。可清空名稱、切換分類，或移動地圖後重新搜尋。": {
+    "zh-Hant": "此範圍沒有符合的地點。可清空名稱、切換分類，或移動地圖後重新搜尋。",
+    "zh-Hans": "此范围没有符合的地点。可清空名称、切换分类，或移动地图后重新搜索。",
+    "en": "No matching places here. Clear the name, change category, or move the map and search again."
+  },
+  "詳細介紹": {
+    "zh-Hant": "詳細介紹",
+    "zh-Hans": "详细介绍",
+    "en": "Details"
+  },
+  "已加入": {
+    "zh-Hant": "已加入",
+    "zh-Hans": "已加入",
+    "en": "Added"
+  },
+  "＋工具箱": {
+    "zh-Hant": "＋工具箱",
+    "zh-Hans": "＋工具箱",
+    "en": "+ Toolbox"
+  },
+  "離線示意 · 不搜尋地點": {
+    "zh-Hant": "離線示意 · 不搜尋地點",
+    "zh-Hans": "离线示意 · 不搜索地点",
+    "en": "Offline overview · place search unavailable"
   }
 }

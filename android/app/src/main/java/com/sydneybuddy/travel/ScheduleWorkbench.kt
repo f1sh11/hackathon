@@ -73,7 +73,7 @@ internal fun toolboxMinute(y:Float,scale:Float,first:Int,start:Int,end:Int):Int?
                         Column(Modifier.fillMaxWidth().background(Color.White,RoundedCornerShape(13.dp)).border(1.dp,Green.copy(alpha=.12f),RoundedCornerShape(13.dp)).padding(8.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
                             Text("%02d".format(i+1),fontSize=10.sp,color=Green,fontWeight=FontWeight.Bold)
                             Text(p.optString("name"),fontSize=12.sp,fontWeight=FontWeight.SemiBold)
-                            Text(if(p.optString("source")=="OpenStreetMap")"${p.optInt("visitMinutes")} 分 · 費用未知"else "${p.optInt("visitMinutes")} 分 · A$${p.optInt("cost")}",fontSize=10.sp,color=Color.Gray)
+                            Text(if(p.optString("source") in listOf("OpenStreetMap","Apple Maps"))"${p.optInt("visitMinutes")} 分 · 費用未知"else "${p.optInt("visitMinutes")} 分 · A$${p.optInt("cost")}",fontSize=10.sp,color=Color.Gray)
                             selected[id]?.let{Text("第 ${it+1} 天已排",fontSize=10.sp,color=Green)}
                             if(locked)Text("已鎖定",fontSize=10.sp,color=Color.Gray)
                             Row(verticalAlignment=Alignment.CenterVertically){
@@ -107,10 +107,10 @@ internal fun toolboxMinute(y:Float,scale:Float,first:Int,start:Int,end:Int):Int?
         Text(p.optString("category")+" · "+if(p.optBoolean("indoor"))"室內"else "戶外",color=Color.Gray)
         Text(p.optString("description").takeIf{it.isNotBlank()} ?: "此草案尚未附上景點介紹，可重新試算以更新資料。")
         Text("為你推薦",fontWeight=FontWeight.Bold);Text(p.optString("reason"))
-        Text("建議停留 ${p.optInt("visitMinutes")} 分鐘\n"+if(p.optString("source")=="OpenStreetMap")"費用與排隊時間未知"else "規劃預留 A$${p.optInt("cost")} · 排隊時間未知")
+        Text("建議停留 ${p.optInt("visitMinutes")} 分鐘\n"+if(p.optString("source") in listOf("OpenStreetMap","Apple Maps"))"費用與排隊時間未知"else "規劃預留 A$${p.optInt("cost")} · 排隊時間未知")
         if(p.optString("openingHoursText").isNotBlank())Small("OSM 營業時間標記："+p.optString("openingHoursText"))
         if(!p.isNull("openMinute")&&!p.isNull("closeMinute"))Text("示範開放時段 ${time(p.optInt("openMinute"))}–${time(p.optInt("closeMinute"))}")
         if(p.optString("note").isNotBlank())Small(p.optString("note"))
-        Small(if(p.optString("source")=="OpenStreetMap")"資料來源：© OpenStreetMap contributors · 社群資料，費用及營業資訊未確認。"else "本機景點資料；費用與開放時間是規劃示例，出發前請確認當日資訊。")
+        Small(if(p.optString("source") in listOf("OpenStreetMap","Apple Maps"))"資料來源："+p.optString("source")+"；費用及營業資訊未確認。"else "本機景點資料；費用與開放時間是規劃示例，出發前請確認當日資訊。")
     }},confirmButton={TextButton(onClick=onDismiss){Text(ui("完成"))}})
 }

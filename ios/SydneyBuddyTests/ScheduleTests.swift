@@ -98,6 +98,34 @@ import MapKit
             XCTAssertGreaterThan(image.size.width,300)
         }
     }
+    func testPoiSearchUsesAppleWithoutBackendAndClearsOnGoogleAndOfflineSwitch() async throws {
+        let model=PoiSearchModel();var appleCalls=0;var backendCalls=0
+        var candidate=try fixture().schedule!.candidates[0];candidate.id="apple:test";candidate.source="Apple Maps"
+        model.appleSearch={_,kind,_ in appleCalls+=1;XCTAssertEqual(kind,"sights");return [candidate]}
+        model.loader={request in backendCalls+=1;let body=try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:Any];XCTAssertEqual(body["provider"] as? String,"google");return(Data("{\"places\":[],\"attribution\":\"Google Maps\"}".utf8),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)}
+        model.configure(.apple)
+        for _ in 0..<100{if !model.busy{break};try await Task.sleep(nanoseconds:10_000_000)}
+        XCTAssertEqual(appleCalls,1);XCTAssertEqual(backendCalls,0);XCTAssertEqual(model.places.first?.source,"Apple Maps")
+        model.configure(.google);XCTAssertTrue(model.places.isEmpty);XCTAssertFalse(model.hasSearched);XCTAssertEqual(backendCalls,0)
+        model.search()
+        for _ in 0..<100{if !model.busy{break};try await Task.sleep(nanoseconds:10_000_000)}
+        XCTAssertEqual(backendCalls,1);XCTAssertEqual(model.attribution,"Google Maps")
+        model.loader={request in let data=try JSONEncoder().encode([candidate]);return(try JSONSerialization.data(withJSONObject:["places":JSONSerialization.jsonObject(with:data)]),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)}
+        model.configure(.google);model.search()
+        for _ in 0..<100{if !model.busy{break};try await Task.sleep(nanoseconds:10_000_000)}
+        XCTAssertTrue(model.places.isEmpty);XCTAssertNotNil(model.error)
+        model.configure(.schematic);model.search();XCTAssertEqual(backendCalls,1);XCTAssertNotNil(model.error)
+        model.configure(.google,googleMapConfigured:false);model.search();XCTAssertEqual(backendCalls,1);XCTAssertNotNil(model.error)
+        model.stop()
+    }
+    func testSlowApplePoiCannotOverwriteNewProviderResults() async throws {
+        let model=PoiSearchModel();let candidate=try fixture().schedule!.candidates[0]
+        model.appleSearch={_,_,_ in try? await Task.sleep(nanoseconds:100_000_000);return [candidate]}
+        model.configure(.apple);try await Task.sleep(nanoseconds:10_000_000)
+        model.configure(.google)
+        try await Task.sleep(nanoseconds:160_000_000)
+        XCTAssertTrue(model.places.isEmpty);XCTAssertFalse(model.busy);XCTAssertNil(model.error);model.stop()
+    }
     func testPoiNativeMapRemovesOsmTilesOnAppleSwitchAndKeepsPinsAndCamera() async throws {
         let store=AppStore();let original=store.mapProvider;defer{store.mapProvider=original};store.mapProvider = .osm
         let points=try fixture().schedule!.candidates

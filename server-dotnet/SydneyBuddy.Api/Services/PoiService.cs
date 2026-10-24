@@ -35,11 +35,15 @@ public sealed class OsmPoiProvider(HttpClient http,IConfiguration? configuration
     }
     internal static bool ValidPoint(double a,double b)=>double.IsFinite(a)&&double.IsFinite(b)&&a is >= -34.2 and <= -33.5&&b is >=150.5 and <=151.5;
 }
-public sealed class PoiService(IPoiProvider provider,IMemoryCache cache) {
+public sealed class PoiService(IPoiProvider provider,IMemoryCache cache,GooglePoiProvider? google=null) {
     static readonly SemaphoreSlim Gate=new(1,1);
     public async Task<JsonObject> SearchAsync(JsonObject input,CancellationToken token) {
         var lat=input.Number("lat",-33.865);var lng=input.Number("lng",151.212);var radius=input.Int("radius",1500);var text=input.Str("query").Trim();var category=input.Str("category","sights");
         if(!OsmPoiProvider.ValidPoint(lat,lng)||radius is <100 or >5000||text.Length>80||category is not("sights" or "food" or "facilities"))throw new ServiceException("請使用悉尼範圍、100–5000 公尺及有效分類查詢。");
+        var source=input.Str("provider","osm");
+        if(source=="google")return google is null?throw new ServiceException("Google Places 尚未設定。"):
+            await google.SearchResultAsync(lat,lng,radius,category,text,input.Str("language","zh-TW"),token);
+        if(source!="osm")throw new ServiceException("不支援此地點來源；Apple Maps 請使用 iOS 原生搜尋。");
         var key=FormattableString.Invariant($"poi:{lat:F3}:{lng:F3}:{radius}:{category}:{text}");
         if(cache.TryGetValue(key,out JsonArray? stored))return Result((JsonArray)stored!.DeepClone());
         await Gate.WaitAsync(token);
@@ -54,11 +58,13 @@ public sealed class PoiService(IPoiProvider provider,IMemoryCache cache) {
         }finally{Gate.Release();}
     }
     static JsonObject Result(JsonArray points)=>new(){["places"]=points,["source"]="OpenStreetMap / Overpass",["attribution"]="© OpenStreetMap contributors · ODbL",["message"]="社群地點資料；不包含即時評價、營業確認或價格。"};
+    public static bool IsImported(JsonObject p)=>p.Str("id").StartsWith("osm:")||p.Str("id").StartsWith("apple:");
     public static string ActivityKind(JsonObject p)=>p.Str("poiKind")=="toilets"?"restroom":p.Str("poiKind")=="drinking_water"?"rest":p.Str("category")=="美食"?"meal":"attraction";
     public static JsonObject Import(JsonObject p) {
         var id=p.Str("id");var name=p.Str("name");var lat=p.Number("lat",double.NaN);var lng=p.Number("lng",double.NaN);
-        if(!Regex.IsMatch(id,@"^osm:(node|way|relation):[0-9]{1,20}$")||name.Length is <1 or >200||!OsmPoiProvider.ValidPoint(lat,lng))throw new ServiceException("工具箱的 OSM 地點資料無效。");
+        var apple=p.Str("source")=="Apple Maps"&&Regex.IsMatch(id,@"^apple:[A-Za-z0-9_-]{1,180}$");
+        if(!(apple||Regex.IsMatch(id,@"^osm:(node|way|relation):[0-9]{1,20}$"))||name.Length is <1 or >200||!OsmPoiProvider.ValidPoint(lat,lng))throw new ServiceException("工具箱地點資料無效。");
         string Short(string key,int max){var s=p.Str(key);return s[..Math.Min(max,s.Length)];}
-        return new JsonObject{["id"]=id,["name"]=name,["lat"]=lat,["lng"]=lng,["source"]="OpenStreetMap",["category"]=p.Str("category") is "美食"?"美食":p.Str("category") is "設施"?"設施":"風景",["indoor"]=p.Bool("indoor"),["visitMinutes"]=Math.Clamp(p.Int("visitMinutes",60),5,240),["cost"]=0,["description"]=Short("description",3000),["note"]="費用、營業狀態與排隊未知；尚未預留費用，請自行確認。",["openingHoursText"]=Short("openingHoursText",300),["poiKind"]=Short("poiKind",40),["reason"]="由地圖搜尋加入工具箱"};
+        return new JsonObject{["id"]=id,["name"]=name,["lat"]=lat,["lng"]=lng,["source"]=apple?"Apple Maps":"OpenStreetMap",["category"]=p.Str("category") is "美食"?"美食":p.Str("category") is "設施"?"設施":"風景",["indoor"]=p.Bool("indoor"),["visitMinutes"]=Math.Clamp(p.Int("visitMinutes",60),5,240),["cost"]=0,["description"]=Short("description",3000),["note"]="費用、營業狀態與排隊未知；尚未預留費用，請自行確認。",["openingHoursText"]=Short("openingHoursText",300),["poiKind"]=Short("poiKind",40),["reason"]="由地圖搜尋加入工具箱"};
     }
 }
