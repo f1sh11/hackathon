@@ -17,7 +17,7 @@
 
 ## 本机启动：PostgreSQL + .NET API
 
-需要 **.NET 10 SDK**、**Node.js 24** 和 **Docker / Docker Compose**。Node 仅用于官方 Meterless H-MEM 引擎；HTTP API、规划与天气逻辑由 C# 运行。
+需要 **.NET 10 SDK**、**Node.js 24 或更新版本** 和 **Docker / Docker Compose**。Node 仅用于官方 Meterless H-MEM 引擎；HTTP API、规划与天气逻辑由 C# 运行。
 
 在包含本次迁移的仓库根目录运行：
 
@@ -68,7 +68,7 @@ Android 仍连接 `http://127.0.0.1:8787`。Debug 允许本机 HTTP，Release �
 
 ## 保留的 iOS 客户端
 
-需要 macOS、Xcode（iOS 17+ SDK/模拟器）、.NET 10 SDK 和 Node.js 24。先启动 PostgreSQL 和 .NET API，再打开 `ios/SydneyBuddy.xcodeproj`，运行 `SydneyBuddy` scheme。首次 Xcode 构建需联网下载 Google Maps SDK 与 Ferrostar 导航核心。
+需要 macOS、Xcode（iOS 17+ SDK/模拟器）、.NET 10 SDK 和 Node.js 24 或更新版本。先启动 PostgreSQL 和 .NET API，再打开 `ios/SydneyBuddy.xcodeproj`，运行 `SydneyBuddy` scheme。首次 Xcode 构建需联网下载 Google Maps SDK 与 Ferrostar 导航核心。
 
 同机模拟器继续连接 `127.0.0.1:8787`；iPhone 真机不能用其自身的回环地址访问电脑。iOS 地图密钥更改后需要重新构建。原 [iOS 验证记录](docs/VERIFICATION.md) 是迁移前的历史记录，不能替代新版验证。
 
@@ -195,7 +195,7 @@ sh gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArg
 | `GOOGLE_IOS_KEY` | 保留的 iOS 客户端地图 SDK 配置 |
 | Android `MAPS_API_KEY` | 仅写入 `android/local.properties` 的 Android 地图 SDK 密钥 |
 | `Navigation__ValhallaUrl` | 可选，步行导航路由服务地址；默认未开启，配置后重启后端 |
-| `NODE_BINARY` | 可选，Node 24 可执行文件路径；默认从 PATH 查找 |
+| `NODE_BINARY` | 可选，Node 24 或更新版本可执行文件路径；默认从 PATH 查找 |
 | `SYDNEYBUDDY_ROOT` | 可选，仓库根目录绝对路径，自动定位失败时设置 |
 
 API 密钥也可通过本机 `/setup` 页面保存。模板见 [.secrets.example.json](.secrets.example.json) 和 [Secrets.example.xcconfig](ios/Config/Secrets.example.xcconfig)。单独设置 iOS 环境变量不会自动生成客户端构建配置；应通过设置页或手动填写 xcconfig。
@@ -240,7 +240,7 @@ dotnet build server-dotnet/SydneyBuddy.Api.Tests/SydneyBuddy.Api.Tests.csproj --
 dotnet test server-dotnet/SydneyBuddy.Api.Tests/SydneyBuddy.Api.Tests.csproj --no-build
 # macOS / Linux：官方 H-MEM conformance
 HMEM_IMPL="$PWD/server/vendor/hmem/src/index.ts" \
-  node --experimental-transform-types server/vendor/hmem/conformance/runner.ts
+  node server/vendor/hmem/conformance/runner.ts
 ```
 
 后端集成测试在上述 PostgreSQL 连接中创建专属随机 schema，完成后清理；连接用户需要创建 schema 的权限。详细说明见 [迁移说明](docs/ASPNET-MIGRATION.md)。GitHub Actions 启动 PostgreSQL 服务，使用 .NET 10 构建与测试，运行 H-MEM 检查。Android 继续使用原构建工作流。自动测试不调用付费 API。迁移后的测试结果以当前 CI 和迁移说明为准；原 Python / Android / iOS 版本的成功记录不能直接作为新版在线或真机验收结果。
@@ -276,7 +276,7 @@ flowchart TD
     API --> Preferences["PreferenceService · 偏好保存与撤回"]
     Preferences --> Repositories
     Preferences --> Memory
-    Memory --> Bridge["Node 24 · hmem_bridge.ts"]
+    Memory --> Bridge["Node 24+ · hmem_bridge.ts"]
     Bridge --> HMEM["官方 H-MEM · 本机记忆与审计文件"]
 ```
 

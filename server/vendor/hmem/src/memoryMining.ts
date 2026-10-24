@@ -1,3 +1,4 @@
+// Sydney Buddy compatibility patch (2026-10-24): explicit fields for native Node type stripping.
 // Acquisition pipeline (AGENTS.md section 4). The model-free fallback path is
 // the DEFAULT: heuristic sentence extraction preserves capture continuity with
 // no model available. An optional minerFn hook accepts an extraction prompt
@@ -20,11 +21,18 @@ const EVENT_TYPE_MAP: Record<MiningEventType, MemoryType> = {
 const SIGNAL = /\b(prefer|always|never|decided|chose|choose|use|because|instead|must|should|important|remember)\b/i;
 
 export class MemoryMiningService {
+  private store: MemoryStoreService;
+  private clock: () => number;
+  private minerFn?: (prompt: string) => Promise<string>;
+
   constructor(
-    private store: MemoryStoreService,
-    private clock: () => number,
-    private minerFn?: (prompt: string) => Promise<string>
-  ) {}
+    store: MemoryStoreService,
+    clock: () => number,
+    minerFn?: (prompt: string) => Promise<string>
+  ) {
+    this.store = store;
+    this.clock = clock;
+    this.minerFn = minerFn;}
 
   async mineInteraction(event: MiningEventType, text: string, opts?: { chatId?: string; layer?: MemoryLayer }): Promise<MemoryRecord[]> {
     const candidates = this.minerFn

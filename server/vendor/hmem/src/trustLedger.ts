@@ -1,3 +1,4 @@
+// Sydney Buddy compatibility patch (2026-10-24): explicit fields for native Node type stripping.
 // Append-only trust ledger (AGENTS.md section 9.1). Entries are never
 // mutated or deleted. history() reconstructs a memory's full change record
 // from the previousState/newState snapshots carried on each entry.
@@ -10,7 +11,10 @@ export class TrustLedgerService {
   private entries: LedgerEntry[] = [];
   private file?: string;
 
-  constructor(private clock: () => number, persistDir?: string) {
+  private clock: () => number;
+
+  constructor(clock: () => number, persistDir?: string) {
+    this.clock = clock;
     if (persistDir) {
       this.file = path.join(persistDir, "ledger.jsonl");
       if (fs.existsSync(this.file)) {

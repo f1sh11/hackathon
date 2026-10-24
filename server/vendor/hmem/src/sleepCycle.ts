@@ -1,3 +1,4 @@
+// Sydney Buddy compatibility patch (2026-10-24): explicit fields for native Node type stripping.
 // Sleep cycle (AGENTS.md section 8). Preview-first: preview() computes the
 // full action plan and mutates nothing; execute() takes a backup snapshot
 // first and exposes restore(). Guardrails: superseding/current records,
@@ -15,12 +16,21 @@ export class SleepCycleService {
   private backups = new Map<string, { records: MemoryRecord[]; seq: number }>();
   private backupSeq = 0;
 
+  private store: MemoryStoreService;
+  private ledger: TrustLedgerService;
+  private clock: () => number;
+  private actor: string;
+
   constructor(
-    private store: MemoryStoreService,
-    private ledger: TrustLedgerService,
-    private clock: () => number,
-    private actor: string
-  ) {}
+    store: MemoryStoreService,
+    ledger: TrustLedgerService,
+    clock: () => number,
+    actor: string
+  ) {
+    this.store = store;
+    this.ledger = ledger;
+    this.clock = clock;
+    this.actor = actor;}
 
   preview(): SleepPreview {
     const now = this.clock();

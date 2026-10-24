@@ -1,3 +1,4 @@
+// Sydney Buddy compatibility patch (2026-10-24): explicit fields for native Node type stripping.
 // Conflict detection and resolution (AGENTS.md section 10). The losing record
 // is marked supersededBy (kept, penalized in ranking), never deleted.
 // Auto-resolve only at decision confidence >= 0.70; everything else queues.
@@ -21,12 +22,21 @@ export class ConflictDetectionService {
   private conflicts: ConflictRecord[] = [];
   private seq = 0;
 
+  private store: MemoryStoreService;
+  private ledger: TrustLedgerService;
+  private clock: () => number;
+  private actor: string;
+
   constructor(
-    private store: MemoryStoreService,
-    private ledger: TrustLedgerService,
-    private clock: () => number,
-    private actor: string
-  ) {}
+    store: MemoryStoreService,
+    ledger: TrustLedgerService,
+    clock: () => number,
+    actor: string
+  ) {
+    this.store = store;
+    this.ledger = ledger;
+    this.clock = clock;
+    this.actor = actor;}
 
   scan(): ConflictRecord[] {
     const found: ConflictRecord[] = [];

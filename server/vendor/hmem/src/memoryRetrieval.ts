@@ -1,3 +1,4 @@
+// Sydney Buddy compatibility patch (2026-10-24): explicit fields for native Node type stripping.
 // Hybrid retrieval and reinjection (AGENTS.md section 6). The canonical formula:
 //
 //   raw = 0.35*semantic + 0.20*keyword + 0.10*tag + 0.10*domain
@@ -26,12 +27,21 @@ const LAYER_WEIGHT: Record<MemoryRecord["layer"], number> = {
 };
 
 export class MemoryRetrievalService {
+  private store: MemoryStoreService;
+  private ledger: TrustLedgerService;
+  private clock: () => number;
+  private actor: string;
+
   constructor(
-    private store: MemoryStoreService,
-    private ledger: TrustLedgerService,
-    private clock: () => number,
-    private actor: string
-  ) {}
+    store: MemoryStoreService,
+    ledger: TrustLedgerService,
+    clock: () => number,
+    actor: string
+  ) {
+    this.store = store;
+    this.ledger = ledger;
+    this.clock = clock;
+    this.actor = actor;}
 
   scoreOne(memory: MemoryRecord, query: string): number {
     const queryEmbedding = embed(query);
