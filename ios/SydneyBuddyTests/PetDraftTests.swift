@@ -2,6 +2,15 @@ import XCTest
 @testable import SydneyBuddy
 
 final class PetDraftTests:XCTestCase {
+    func testExpenseMigrationPreservesLegacyRecordsAndTripAssociation() throws {
+        let legacy=Data("{\"id\":\"12345678-1234-1234-1234-123456789012\",\"title\":\"午餐\",\"cents\":1001,\"participants\":2}".utf8)
+        let old=try JSONDecoder().decode(Expense.self,from:legacy)
+        XCTAssertNil(old.tripID);XCTAssertEqual(old.shares,[501,500])
+        let current=Expense(title:"门票",cents:2400,participants:2,tripID:"trip-a")
+        let restored=try JSONDecoder().decode(Expense.self,from:JSONEncoder().encode(current))
+        XCTAssertEqual(restored.tripID,"trip-a");XCTAssertEqual(restored.cents,2400)
+    }
+
     func testHalfDayChoiceChangesOnlyTemporaryTimeWindowAndBudgetKeepsBasis() throws {
         let personal=UserTravelProfile(dailySteps:5000,rhythm:"轻松随意",interests:["自然"])
         var fields=["destination":"悉尼","date":"2026-10-25","days":"3","travelers":"2","budget":"600","budgetCurrency":"AUD","budgetBasis":"groupTrip","dayStyle":"halfDay"]

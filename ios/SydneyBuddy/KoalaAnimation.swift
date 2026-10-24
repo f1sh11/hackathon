@@ -102,6 +102,7 @@ struct PetAvatar:View {
     var mood:PetMood = .greeting
     var cue:KoalaCue? = nil
     var animated=true
+    var size:CGFloat=108
     @StateObject private var player=KoalaPlayer()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
@@ -115,7 +116,7 @@ struct PetAvatar:View {
         Group {
             if let image=player.image{Image(uiImage:image).resizable().interpolation(.high).scaledToFit()}
             else {Image(systemName:"leaf.circle.fill").resizable().scaledToFit().foregroundStyle(Palette.green)}
-        }.frame(width:108,height:116)
+        }.frame(width:size,height:size*116/108)
         .overlay(alignment:.bottomTrailing) {
             if animated,let symbol=interactionSymbol {Image(systemName:symbol).font(.system(size:11,weight:.semibold)).foregroundStyle(Palette.green).padding(6).background(Palette.cream,in:Circle()).offset(x:-3,y:-5)}
         }
@@ -149,5 +150,41 @@ struct KoalaFeedbackBanner:View {
         HStack(spacing:10){PetAvatar(cue:cue).scaleEffect(0.65).frame(width:70,height:72);VStack(alignment:.leading,spacing:8){Text(title).font(.subheadline.bold());if held{Text("你可以检查详情后继续调整").font(.caption).foregroundStyle(Palette.muted)}};Spacer(minLength:0);Button(action:dismiss){Image(systemName:"xmark.circle.fill")}.accessibilityLabel("关闭 Koko 提示")}
             .padding(.horizontal,14).background(Palette.cream,in:RoundedRectangle(cornerRadius:24))
             .task(id:cue.id){if !held{do{try await Task.sleep(nanoseconds:cue.action == .celebrate ? 2_200_000_000:1_700_000_000);dismiss()}catch{}}}
+    }
+}
+
+
+/// One companion stage, shared by the welcome and current conversational turn.
+/// Prop gestures use authored clips; listening uses a small pose change only.
+struct KokoCompanionScene:View {
+    var mood:PetMood = .greeting
+    var cue:KoalaCue? = nil
+    var ready=false
+    var height:CGFloat=226
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var tapped:KoalaCue?
+    private var activeCue:KoalaCue? {tapped ?? cue}
+    var body:some View {
+        ZStack(alignment:.bottom){
+            Ellipse().fill(Palette.mint.opacity(0.75)).frame(width:250,height:28).padding(.bottom,7)
+            HStack{Image(systemName:"leaf.fill").rotationEffect(.degrees(-35));Spacer();Image(systemName:"leaf.fill").rotationEffect(.degrees(35))}.font(.system(size:22)).foregroundStyle(Palette.green.opacity(0.25)).frame(width:270).padding(.bottom,24).accessibilityHidden(true)
+            if ready {
+                HStack(spacing:134){packingCard("leaf.fill",angle:-12);packingCard("map.fill",angle:12)}.padding(.bottom,64).transition(.opacity.combined(with:.scale(scale:0.85)))
+            }
+            Button{if mood != .thinking{tapped=KoalaCue(action:.wave)}}label:{
+                PetAvatar(mood:mood,cue:activeCue,size:height*1.12)
+                    .rotationEffect(.degrees(!reduceMotion && mood == .listening ? -4:0),anchor:.bottom)
+                    .offset(y:!reduceMotion && mood == .excited ? -5:0)
+            }.buttonStyle(.plain).accessibilityLabel(mood == .thinking ? "Koko 正在看小地图":mood == .listening ? "Koko 正在听你说":ready ? "Koko 已准备好，点击打招呼":"和 Koko 打个招呼").accessibilityIdentifier("koko-companion")
+        }.frame(maxWidth:.infinity).frame(height:height).animation(reduceMotion ? nil:.spring(response:0.45,dampingFraction:0.8),value:mood).animation(reduceMotion ? nil:.easeInOut(duration:0.3),value:ready)
+        .task(id:tapped?.id){
+            guard let token=tapped?.id else{return}
+            do{try await Task.sleep(nanoseconds:ready ? 4_500_000_000:1_500_000_000);if tapped?.id==token{tapped=nil}}catch{}
+        }
+        .onChange(of:cue){_,_ in tapped=nil}
+        .onChange(of:mood){_,_ in tapped=nil}
+    }
+    private func packingCard(_ symbol:String,angle:Double)->some View {
+        Image(systemName:symbol).font(.title2).foregroundStyle(Palette.green).frame(width:42,height:52).background(.white,in:RoundedRectangle(cornerRadius:9)).overlay(RoundedRectangle(cornerRadius:9).stroke(Palette.green.opacity(0.15))).rotationEffect(.degrees(angle))
     }
 }

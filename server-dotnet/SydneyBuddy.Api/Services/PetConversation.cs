@@ -15,6 +15,8 @@ public sealed class PetSession
     public List<PetMessage> Messages { get; set; } = [];
     public Dictionary<string,string> Fields { get; set; } = [];
     public JsonObject PersonalProfile { get; set; } = new();
+    [System.Text.Json.Serialization.JsonIgnore]
+    public JsonArray ActiveMemories {get;set;}=[];
     public string PendingMemory { get; set; } = "";
     public List<TravelPreference> Preferences { get; set; } = [];
     public List<TravelPreference> ConfirmedDna { get; set; } = [];
@@ -168,8 +170,11 @@ public static class PetQuestions
 /// Only unambiguous, explicit phrases are normalized here; unknowns stay unset.
 public static class PetExplicitFacts
 {
+    public static bool MentionsBudget(string message) => System.Text.RegularExpressions.Regex.IsMatch(message,
+        @"预算|預算|澳元|澳币|澳幣|人民币|人民幣|美元|美金|AUD|CNY|USD|RMB|budget|dollars?|每人|全体|全體|全程|总共|一共|^\s*[0-9]+(?:\.[0-9]+)?\s*$",System.Text.RegularExpressions.RegexOptions.IgnoreCase);
     public static void FilterUnsupportedHabits(string message,JsonObject fields)
     {
+        if(!MentionsBudget(message))foreach(var key in new[]{"budget","budgetCurrency","budgetBasis","budgetCoverage"})fields.Remove(key);
         var evidence=new Dictionary<string,string>{
             ["energy"]="精力|体力|活力|電量|电量",
             ["rhythm"]="节奏|節奏|轻松|輕鬆|紧凑|緊湊|适中|慢慢|慢逛|悠闲|充实",

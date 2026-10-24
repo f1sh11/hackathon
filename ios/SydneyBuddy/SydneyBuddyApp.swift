@@ -32,8 +32,9 @@ enum Palette {
 struct PrimaryButton: View {
     var title: String; var symbol = "arrow.right"; var action: () -> Void
     var body: some View {
-        Button(action:action) { HStack { Spacer(); Text(LocalizedStringKey(title)).fontWeight(.bold); Image(systemName:symbol); Spacer() }.padding(.vertical,15) }
-            .buttonStyle(BuddyPressStyle()).foregroundStyle(.white).background(Palette.green,in:RoundedRectangle(cornerRadius:17)).accessibilityLabel(title)
+        Button { UIImpactFeedbackGenerator(style:.soft).impactOccurred(); action() } label: {
+            HStack(spacing:10) { Spacer(); Text(LocalizedStringKey(title)).font(.system(.body,design:.rounded,weight:.bold)); Image(systemName:symbol).font(.subheadline.bold()); Spacer() }.padding(.horizontal,18).padding(.vertical,16).frame(minHeight:54)
+        }.buttonStyle(KokoPrimaryStyle()).accessibilityLabel(title)
     }
 }
 struct Robot:View {
@@ -49,17 +50,18 @@ struct RootView: View {
             }
         ZStack {
             Palette.cream.ignoresSafeArea()
+            Group {
             if store.showPersonalPreferences || store.showOnboarding { NavigationStack{PetChatView(onboarding:true)} }
             else {
                 TabView(selection:$store.tab) {
                     TripsView().tabItem { Label(store.language.text("行程"),systemImage:"suitcase.rolling.fill") }.tag(1)
-                    PoiDiscoveryView(embedded:true).tabItem { Label(store.language.text("地图"),systemImage:"map.fill") }.tag(0)
-                    JournalView().tabItem { Label(store.language.text("记账"),systemImage:"creditcard.fill") }.tag(2)
+                    PoiDiscoveryView(embedded:true).tabItem { Label(store.language.text("探索"),systemImage:"map.fill") }.tag(0)
                     SettingsView().tabItem { Label(store.language.text("我的"),systemImage:"person.crop.circle") }.tag(3)
                 }.tint(Palette.green).modifier(CompactTabs())
             }
+            }.disabled(store.busy).accessibilityHidden(store.busy)
             if store.busy {
-                ZStack { Color.black.opacity(0.15).ignoresSafeArea(); VStack(spacing:14) { PetAvatar(mood:.thinking,cue:store.koalaWork); ProgressView(); Text(LocalizedStringKey(store.operationTitle)).font(.headline); Text(LocalizedStringKey(store.operationDetail)).font(.caption).foregroundStyle(Palette.muted);if store.travelTask?.status=="generating" {VStack(alignment:.leading,spacing:6){ForEach(Array(["整理旅行需求","安排当天活动","校验并保存"].enumerated()),id:\.offset){i,label in Label(label,systemImage:i<store.planningStage ? "checkmark.circle.fill":i==store.planningStage ? "circle.inset.filled":"circle").foregroundStyle(i<=store.planningStage ? Palette.green:Palette.muted).font(.caption)}}};if store.canCancelOperation{Button("取消生成"){store.cancelPendingGeneration()}.buttonStyle(.bordered)} }.padding(30).background(Palette.cream,in:RoundedRectangle(cornerRadius:28)) }
+                ZStack { Palette.cream.ignoresSafeArea(); VStack(spacing:14) { if store.travelTask?.status=="generating"{KokoCompanionScene(mood:.thinking,cue:store.koalaWork,height:180)}else{PetAvatar(mood:.thinking,cue:store.koalaWork)}; ProgressView(); Text(LocalizedStringKey(store.travelTask?.status=="generating" ? "让我把小路线铺好～":store.operationTitle)).font(.headline); Text(LocalizedStringKey(store.operationDetail)).font(.caption).foregroundStyle(Palette.muted);if store.travelTask?.status=="generating" {VStack(alignment:.leading,spacing:6){ForEach(Array(["整理旅行需求","安排当天活动","校验并保存"].enumerated()),id:\.offset){i,label in Label(label,systemImage:i<store.planningStage ? "checkmark.circle.fill":i==store.planningStage ? "circle.inset.filled":"circle").foregroundStyle(i<=store.planningStage ? Palette.green:Palette.muted).font(.caption)}}};if store.canCancelOperation{Button("取消生成"){store.cancelPendingGeneration()}.buttonStyle(.bordered)} }.padding(30).background(Palette.cream,in:RoundedRectangle(cornerRadius:28)) }
             }
         }
         }.background(Palette.cream.ignoresSafeArea())
@@ -177,9 +179,22 @@ struct CompactTabs: ViewModifier {
     }
 }
 
+struct KokoPrimaryStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var enabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    func makeBody(configuration:Configuration)->some View {
+        configuration.label.foregroundStyle(enabled ? .white:Palette.muted)
+            .background(enabled ? Palette.green:Palette.mint,in:RoundedRectangle(cornerRadius:18))
+            .offset(y:configuration.isPressed ? 3:0)
+            .background(RoundedRectangle(cornerRadius:18).fill(enabled ? Color(red:0.03,green:0.34,blue:0.25):Palette.mint).offset(y:4))
+            .padding(.bottom,4)
+            .animation(reduceMotion ? nil:.easeOut(duration:0.12),value:configuration.isPressed)
+    }
+}
+
 struct BuddyPressStyle: ButtonStyle {
     @Environment(\.accessibilityReduceMotion) var reduceMotion
     func makeBody(configuration:Configuration) -> some View {
-        configuration.label.offset(y:configuration.isPressed ? 3 : 0).opacity(configuration.isPressed ? 0.85 : 1).animation(reduceMotion ? nil : .easeOut(duration:0.12),value:configuration.isPressed)
+        configuration.label.scaleEffect(reduceMotion ? 1:configuration.isPressed ? 0.97:1).opacity(configuration.isPressed ? 0.75:1).animation(reduceMotion ? nil : .easeOut(duration:0.12),value:configuration.isPressed)
     }
 }

@@ -11,6 +11,12 @@ public sealed record TravelInspiration(string Title,string[] Ideas,string Status
 public sealed class ProfilingDialogue
 {
     public int Version { get; set; } = 2;
+    public int CompanionVersion {get;set;}
+    public bool MoodAnswered {get;set;}
+    public bool RecallOffered {get;set;}
+    public string RecallKey {get;set;}="";
+    public string RecallValue {get;set;}="";
+    public string RecallSourceId {get;set;}="";
     public int ResponseCount { get; set; }
     public string Phase { get; set; } = "introducing";
     public string Nickname { get; set; } = "";
@@ -41,11 +47,12 @@ nickname、ideas、quickReplies 都不能来自产品文档里的模拟用户。
 
     public static void Enable(PetSession session,JsonObject input)
     {
-        if(input.Int("profilingVersion")!=2 || session.Dialogue is not null)return;
+        if(input.Int("profilingVersion")!=2)return;
+        if(session.Dialogue is not null){if(input.Int("companionVersion")==1)session.Dialogue.CompanionVersion=1;return;}
         var name=input.Str("nickname").Trim();
         if(name.Length>24 || name.Any(char.IsControl))name="";
         var previousResponses=session.Messages.Count(x=>x.Role=="user");
-        session.Dialogue=new(){Nickname=name,ResponseCount=Math.Min(previousResponses,MaximumResponses)};
+        session.Dialogue=new(){Nickname=name,ResponseCount=Math.Min(previousResponses,MaximumResponses),CompanionVersion=input.Int("companionVersion")==1 ? 1:0};
         if(previousResponses>0) {
             session.Dialogue.Phase="exploring";
             if(previousResponses>=MaximumResponses)Finish(session,[]);
@@ -62,7 +69,7 @@ nickname、ideas、quickReplies 都不能来自产品文档里的模拟用户。
         var greeting=returning
             ? (name.Length>0 ? $"{name}，咱们先挑一种玩法：绿意慢走，还是城市故事？你也可以自己说。":"咱们先挑一种玩法：绿意慢走，还是城市故事？你也可以自己说。")
             : "嗨，我叫 Koko，是你的旅行向导。怎么称呼你？也可以先跳过。";
-        session.Messages.Add(new(Guid.NewGuid().ToString("N"),"assistant",greeting,"greeting",returning ? ExplorationReplies():NameReplies()));
+        session.Messages.Add(new(Guid.NewGuid().ToString("N"),"assistant",KokoCompanion.Enabled(session) && returning ? KokoCompanion.Greeting:greeting,"greeting",KokoCompanion.Enabled(session) && returning ? KokoCompanion.MoodReplies():returning ? ExplorationReplies():NameReplies()));
     }
 
     public static PetQuickReply? ResolveChoice(PetSession s,JsonObject input)
@@ -85,6 +92,7 @@ nickname、ideas、quickReplies 都不能来自产品文档里的模拟用户。
     public static JsonObject? DirectResponse(PetSession s,string text,PetQuickReply? choice)
     {
         if(s.Dialogue is not {} d)return null;
+        if(KokoCompanion.Direct(s,text,choice) is {} companion)return companion;
         if(choice?.Intent=="choose_sydney") {s.Fields["destination"]="悉尼";return StepResult(s,"那就去悉尼，其他资料都留着。", "destination");}
         if(choice?.Intent is "people_1" or "people_2") {s.Fields["travelers"]=choice.Intent[^1..];return StepResult(s,"同行人数收好啦。", "travelers");}
         if(choice?.Intent is "budget_60" or "budget_120") {
@@ -117,6 +125,7 @@ nickname、ideas、quickReplies 都不能来自产品文档里的模拟用户。
         else if(shortName)d.Nickname=text;
         if(d.Phase!="introducing")return null;
         if(choice?.Intent is not ("skip_name" or "use_alias") && !match.Success && !shortName)return null;
+        if(KokoCompanion.Enabled(s))return new(){["reply"]=KokoCompanion.Greeting,["companionTurn"]=true,["companionReplies"]=System.Text.Json.JsonSerializer.SerializeToNode(KokoCompanion.MoodReplies(),JsonExtensions.Options)};
         return new(){["reply"]=(d.Nickname.Length>0 ? $"{d.Nickname}，咱们先找一点这趟旅行的灵感。":"咱们先找一点这趟旅行的灵感。")+"先挑一种玩法：绿意慢走，还是城市故事？也可以换一组。",
             ["offerDirections"]=true};
     }
@@ -124,6 +133,7 @@ nickname、ideas、quickReplies 都不能来自产品文档里的模拟用户。
     public static PetMessage CompleteTurn(PetSession s,JsonObject result,string reply,string mood)
     {
         if(s.Dialogue is not {} d)return new(Guid.NewGuid().ToString("N"),"assistant",reply,mood);
+        if(result.Bool("companionTurn")){d.ResponseCount=Math.Min(MaximumResponses,d.ResponseCount+1);d.Phase="exploring";return new(Guid.NewGuid().ToString("N"),"assistant",reply,"relaxed",KokoCompanion.Options(result));}
         var initial=d.Inspiration is null;
         if(initial)d.ResponseCount=Math.Min(MaximumResponses,d.ResponseCount+1);
         var ideas=(result.Array("ideas") ?? new JsonArray()).OfType<JsonValue>()
@@ -179,7 +189,7 @@ nickname、ideas、quickReplies 都不能来自产品文档里的模拟用户。
         if(!PetQuestions.Answered(s,"date") || !PetQuestions.Answered(s,"days"))return "time";
         return "";
     }
-    private static string StepQuestion(PetSession s)=>NextNeed(s) switch {
+    public static string StepQuestion(PetSession s)=>NextNeed(s) switch {
         "destination"=>PetQuestions.UnsupportedDestination(s) ? "资料会保留。目前只支持悉尼路线，可以改选悉尼或先保存草稿。":"这次想去哪个城市？目前可以生成悉尼路线，也能先保存其他城市的想法。",
         "time"=>"接下来选出发日期和天数，最多 15 天；没定日期也可以先保留草稿。",
         "travelers"=>"这次一共几个人？记得包括自己呀。",

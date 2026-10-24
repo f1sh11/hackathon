@@ -56,6 +56,7 @@ confirmedPreferences 是当前有效的已确认记忆，pendingPreferences 只�
 
     public static void Refresh(PetSession session, JsonArray records)
     {
+        session.ActiveMemories=(JsonArray)records.DeepClone();
         RemoveCopiedPreferenceNotes(session);
         session.ConfirmedDna = records.OfType<JsonObject>().Select(record =>
         {
@@ -97,6 +98,7 @@ confirmedPreferences 是当前有效的已确认记忆，pendingPreferences 只�
             // Companion requirements belong to this trip, not to the user's Travel DNA.
             if(scope=="long_term" && new[]{"这次","本次","这趟","for this trip"}.Any(x=>message.Contains(x,StringComparison.OrdinalIgnoreCase)) &&
                 !new[]{"平时","一般","总是","习惯","讨厌","每次","以后","通常","usually","always","hate"}.Any(x=>evidence.Contains(x,StringComparison.OrdinalIgnoreCase)))scope="trip";
+            if(scope=="long_term" && KokoCompanion.Enabled(session) && KokoCompanion.TemporaryFeeling(message) && !Regex.IsMatch(evidence,"平时|通常|一直|每次|以后|习惯|总是"))scope="trip";
             var condition=item.Str("condition").Trim();if(condition.Length>150)continue;
             if(session.CurrentChoice is {} choice) {
                 // A contextual yes cannot establish someone's normal schedule, fitness, personality,
