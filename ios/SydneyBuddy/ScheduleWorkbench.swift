@@ -69,7 +69,7 @@ import SwiftUI
                         Text("依推薦排序\n按住 ☰ 拖到日期切換\n再拖入右側時段").font(.caption2).foregroundStyle(Palette.muted)
                         ScrollView {
                             VStack(spacing:10) {
-                                ForEach(Array(state.candidates.enumerated()),id:\.element.id){index,c in
+                                ForEach(Array(state.candidates.filter{p in !p.importedPoi || toolbox.places.contains(where:{$0.id==p.id})}.enumerated()),id:\.element.id){index,c in
                                     VStack(alignment:.leading,spacing:7) {
                                         Text(String(format:"%02d",index+1)).font(.caption2.bold()).foregroundStyle(Palette.green)
                                         Text(c.name).font(.system(size:12,weight:.semibold)).fixedSize(horizontal:false,vertical:true)
@@ -132,6 +132,7 @@ struct SchedulePlaceDetail:View {
                     Text(candidate.name).font(.title2.bold())
                     Text(candidate.category+" · "+(candidate.importedPoi ? (candidate.indoor ? "室內（來源標記）":"室內外未確認"):(candidate.indoor ? "室內":"戶外"))).font(.subheadline).foregroundStyle(Palette.muted)
                     Text(candidate.description ?? "此草案尚未附上景點介紹，可重新試算以更新資料。").lineSpacing(6)
+                    PlaceMediaView(candidate:candidate)
                     Text("為你推薦").font(.headline)
                     Text(candidate.reason)
                     if let release=candidate.sourceRelease{Text("Overture · "+release).font(.caption)}

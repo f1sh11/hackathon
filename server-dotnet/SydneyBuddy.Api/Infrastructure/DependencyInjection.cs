@@ -49,6 +49,7 @@ public static class DependencyInjection
         services.AddScoped<IPoiProvider>(p=>p.GetRequiredService<IConfiguration>()["Poi:OpenProvider"]=="overpass" ? p.GetRequiredService<OsmPoiProvider>() : p.GetRequiredService<OverturePoiProvider>());
         services.AddScoped<GooglePoiProvider>();
         services.AddScoped<PoiService>();
+        services.AddHttpClient<PoiMediaService>(client=>client.Timeout=TimeSpan.FromSeconds(18)).ConfigurePrimaryHttpMessageHandler(()=>new HttpClientHandler{AllowAutoRedirect=false});
         return services;
     }
 }

@@ -1,5 +1,6 @@
 package com.sydneybuddy.travel
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -8,6 +9,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
@@ -83,10 +85,10 @@ internal fun poiActivityKind(p:JSONObject):String=if(p.optString("source") !in l
             error?.let{Text("地點資料暫時無法載入："+it,color=Color.Red,fontSize=12.sp);Small("地圖底圖仍可顯示；地點清單尚未取得，並非附近沒有地點。");TextButton(onClick=::search){Text(ui("重新搜尋"))}}
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)) {
                 if(visiblePlaces.isEmpty()&&!busy&&error==null&&hasSearched)Small("此範圍沒有符合的地點。可清空名稱、切換分類，或移動地圖後重新搜尋。")
-                visiblePlaces.sortedBy{if(it.optString("id")==selected)0 else 1}.forEach{p->Column(Modifier.fillMaxWidth().background(if(p.optString("id")==selected)Mint else Color.White).padding(8.dp)) {
+                visiblePlaces.sortedBy{if(it.optString("id")==selected)0 else 1}.forEach{p->Column(Modifier.fillMaxWidth().background(if(p.optString("id")==selected)Mint else Color.White).clickable{detail=p}.padding(8.dp)) {
                     Text((if(p.optString("category")=="美食")"🍴 "else if(p.optString("category")=="設施")"🚻 "else "📍 ")+p.optString("name"),color=if(p.optString("category")=="美食")Color(0xffa65d12)else Green)
                     Text(p.optString("description"),fontSize=12.sp,maxLines=2)
-                    Row{TextButton(onClick={detail=p}){Text(ui("詳細介紹"))};Spacer(Modifier.weight(1f));val added=store.poiToolbox.any{it.optString("id")==p.optString("id")};if(p.optString("source")=="Google Places")Small("Google 地點暫不匯入本機示例時間軸")else TextButton(onClick={onAdd(p)},enabled=!added){Text(if(added)"已加入"else "＋工具箱")}}
+                    Row{TextButton(onClick={detail=p}){Text(ui("詳細介紹"))};Spacer(Modifier.weight(1f));val added=store.poiToolbox.any{it.optString("id")==p.optString("id")};if(p.optString("source")=="Google Places")Small("Google 地點暫不匯入本機示例時間軸")else TextButton(onClick={if(added)store.removePoi(p.optString("id"))else{store.addPoi(p);onAdd(p)}}){Text(ui(if(added)"移出工具箱"else "＋工具箱"))}}
                 }}
             }
             if(store.mapProvider==MapProvider.OSM)Column {
@@ -99,7 +101,7 @@ internal fun poiActivityKind(p:JSONObject):String=if(p.optString("source") !in l
             else if(store.mapProvider==MapProvider.GOOGLE)Small(attribution.ifBlank{"Google Maps"})
         }}
     }
-    detail?.let{p->AlertDialog(onDismissRequest={detail=null},title={Text(p.optString("name"))},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)){Text(p.optString("description"));if(p.optString("sourceRelease").isNotBlank())Text("Overture · "+p.optString("sourceRelease"));val website=p.optString("website");if(website.startsWith("https://")||website.startsWith("http://"))TextButton(onClick={uri.openUri(website)}){Text(ui("官方網站"))};Text("營業時間標記："+p.optString("openingHoursText").ifBlank{"未知"});Text(p.optString("note"))}},confirmButton={TextButton(onClick={detail=null}){Text(ui("完成"))}})}
+    detail?.let{p->SchedulePlaceDetail(p,store){detail=null}}
 }
 @Composable private fun PoiOsmMap(places:List<JSONObject>,onCenter:(Pair<Double,Double>)->Unit,onSelect:(String)->Unit,modifier:Modifier,initialCenter:Pair<Double,Double>,initialZoom:Double,onZoom:(Double)->Unit) {
     val context=LocalContext.current;val lifecycle=LocalLifecycleOwner.current.lifecycle
@@ -126,4 +128,51 @@ internal fun poiActivityKind(p:JSONObject):String=if(p.optString("source") !in l
     GoogleMap(Modifier.fillMaxWidth().height(230.dp),cameraPositionState=camera,onMapLoaded={loaded=true}) {
         places.forEach{p->Marker(state=MarkerState(position=GoogleLatLng(p.getDouble("lat"),p.getDouble("lng"))),title=p.getString("name"),onClick={onSelect(p.getString("id"));false})}
     }
+}
+
+@Composable internal fun PlaceContact(p:JSONObject) {
+    val uri=LocalUriHandler.current
+    if(p.optString("phone").isNotBlank())Text(ui("電話：")+p.optString("phone"))
+    val website=p.optString("website")
+    if(website.startsWith("https://")||website.startsWith("http://"))TextButton(onClick={uri.openUri(website)}){Text(ui("官方網站"))}
+    if(p.optString("sourceRelease").isNotBlank())Small("Overture · "+p.optString("sourceRelease"))
+}
+@Composable internal fun PlaceMedia(p:JSONObject,store:BuddyStore) {
+    val scope=rememberCoroutineScope();val uri=LocalUriHandler.current
+    var photos by remember(p.optString("id")){mutableStateOf<List<JSONObject>>(emptyList())}
+    var loading by remember{mutableStateOf(false)};var message by remember{mutableStateOf<String?>(null)}
+    Text(ui("照片與街景"),style=MaterialTheme.typography.titleSmall)
+    Small(ui("附近 100 公尺的實景照片，並非已核實的商家或店內照片。"))
+    TextButton(onClick={scope.launch{
+        loading=true;message=null
+        try{photos=store.poiMedia(JSONObject().put("lat",p.optDouble("lat")).put("lng",p.optDouble("lng"))).array("photos").objects();if(photos.isEmpty())message="附近尚無可用的開放照片。"}
+        catch(e:CancellationException){throw e}catch(e:Exception){message="照片暫時無法載入，請稍後重試。"}finally{loading=false}
+    }},enabled=!loading){Text(ui(if(photos.isEmpty())"載入附近照片"else "重新載入照片"))}
+    if(loading)LinearProgressIndicator(Modifier.fillMaxWidth())
+    message?.let{Small(ui(it))}
+    photos.forEach{photo->
+        CommonsPhoto(photo.optString("url"))
+        Text(photo.optString("title"),fontSize=12.sp)
+        Small(photo.optString("artist")+" · "+photo.optString("license"))
+        TextButton(onClick={uri.openUri(photo.getString("pageUrl"))}){Text(ui("照片來源與授權"))}
+    }
+    TextButton(onClick={uri.openUri("https://www.mapillary.com/app/?lat=${p.optDouble("lat")}&lng=${p.optDouble("lng")}&z=17")}){Text(ui("開啟附近街景（外部地圖）"))}
+    Small(ui("街景覆蓋由服務提供者決定；未必有此商家的全景。"))
+}
+private val photoClient=okhttp3.OkHttpClient.Builder().callTimeout(15,java.util.concurrent.TimeUnit.SECONDS).followRedirects(false).build()
+@Composable private fun CommonsPhoto(url:String) {
+    var bitmap by remember(url){mutableStateOf<android.graphics.Bitmap?>(null)};var failed by remember(url){mutableStateOf(false)}
+    LaunchedEffect(url){
+        try{bitmap=withContext(Dispatchers.IO){
+            require(android.net.Uri.parse(url).let{it.scheme=="https"&&it.host=="upload.wikimedia.org"})
+            photoClient.newCall(okhttp3.Request.Builder().url(url).build()).execute().use{response->
+                require(response.isSuccessful);val body=response.body ?: error("Empty photo")
+                require(body.contentLength() in 1..5_000_000)
+                android.graphics.BitmapFactory.decodeStream(body.byteStream()) ?: error("Invalid photo")
+            }
+        }}catch(e:CancellationException){throw e}catch(e:Exception){failed=true}
+    }
+    val photo=bitmap
+    if(photo!=null)androidx.compose.foundation.Image(bitmap=photo.asImageBitmap(),contentDescription=ui("附近實景照片"),modifier=Modifier.fillMaxWidth().height(170.dp),contentScale=androidx.compose.ui.layout.ContentScale.Crop)
+    else if(failed)Small(ui("照片無法載入"))else CircularProgressIndicator()
 }

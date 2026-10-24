@@ -983,5 +983,85 @@
     "zh-Hant": "官方網站",
     "zh-Hans": "官方网站",
     "en": "Official website"
+  },
+  "此位置尚無可用街景。": {
+    "en": "Street view is not available here.",
+    "zh-Hans": "此位置暂无可用街景。",
+    "zh-Hant": "此位置尚無可用街景。"
+  },
+  "照片來源與授權": {
+    "en": "Photo source & license",
+    "zh-Hans": "照片来源与授权",
+    "zh-Hant": "照片來源與授權"
+  },
+  "照片暫時無法載入，請稍後重試。": {
+    "en": "Photos could not load. Please try again.",
+    "zh-Hans": "照片暂时无法加载，请稍后重试。",
+    "zh-Hant": "照片暫時無法載入，請稍後重試。"
+  },
+  "照片無法載入": {
+    "en": "Photo unavailable",
+    "zh-Hans": "照片无法加载",
+    "zh-Hant": "照片無法載入"
+  },
+  "照片與街景": {
+    "en": "Photos & street view",
+    "zh-Hans": "照片与街景",
+    "zh-Hant": "照片與街景"
+  },
+  "移出工具箱": {
+    "en": "Remove from toolbox",
+    "zh-Hans": "移出工具箱",
+    "zh-Hant": "移出工具箱"
+  },
+  "街景暫時無法載入，請稍後重試。": {
+    "en": "Street view could not load. Please try again.",
+    "zh-Hans": "街景暂时无法加载，请稍后重试。",
+    "zh-Hant": "街景暫時無法載入，請稍後重試。"
+  },
+  "街景覆蓋由服務提供者決定；未必有此商家的全景。": {
+    "en": "Street view coverage depends on the provider; a panorama of this business may not be available.",
+    "zh-Hans": "街景覆盖由服务提供者决定；未必有此商家的全景。",
+    "zh-Hant": "街景覆蓋由服務提供者決定；未必有此商家的全景。"
+  },
+  "載入附近照片": {
+    "en": "Load nearby photos",
+    "zh-Hans": "加载附近照片",
+    "zh-Hant": "載入附近照片"
+  },
+  "重新載入照片": {
+    "en": "Reload photos",
+    "zh-Hans": "重新加载照片",
+    "zh-Hant": "重新載入照片"
+  },
+  "開啟附近街景（外部地圖）": {
+    "en": "Open nearby street view (external map)",
+    "zh-Hans": "打开附近街景（外部地图）",
+    "zh-Hant": "開啟附近街景（外部地圖）"
+  },
+  "附近 100 公尺的實景照片，並非已核實的商家或店內照片。": {
+    "en": "Photos within 100 m; not verified photos of this business or its interior.",
+    "zh-Hans": "附近 100 米的实景照片，并非已核实的商家或店内照片。",
+    "zh-Hant": "附近 100 公尺的實景照片，並非已核實的商家或店內照片。"
+  },
+  "附近實景照片": {
+    "en": "Nearby location photo",
+    "zh-Hans": "附近实景照片",
+    "zh-Hant": "附近實景照片"
+  },
+  "附近尚無可用的開放照片。": {
+    "en": "No open photos available nearby.",
+    "zh-Hans": "附近暂无可用的开放照片。",
+    "zh-Hant": "附近尚無可用的開放照片。"
+  },
+  "電話：": {
+    "en": "Phone: ",
+    "zh-Hans": "电话：",
+    "zh-Hant": "電話："
+  },
+  "預覽街景（Apple Look Around）": {
+    "en": "Preview street view (Apple Look Around)",
+    "zh-Hans": "预览街景（Apple Look Around）",
+    "zh-Hant": "預覽街景（Apple Look Around）"
   }
 }
