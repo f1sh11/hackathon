@@ -10,7 +10,7 @@ public static class PoiCategories {
     public static string Parent(string category)=>Parents.GetValueOrDefault(category,category);
     public static bool Valid(string category)=>category is "all" or "sights" or "gems" or "food" or "lodging" or "shops" or "facilities"||Parents.ContainsKey(category);
     public static bool Matches(JsonObject point,string category){
-        if(category=="all")return true;
+        if(category=="all"||category=="gems"&&point.Bool("socialHiddenGemClaim"))return true;
         var broad=point.Bool("hiddenGem")||point.Str("source")=="Wikivoyage"?"gems":point.Str("searchCategory",point.Str("category") switch{"美食"=>"food","設施"=>"facilities","住宿"=>"lodging","店家"=>"shops",_=>"sights"});
         if(!Parents.ContainsKey(category))return broad==category || category=="sights"&&broad=="gems" || category=="food"&&broad=="shops"&&Matches(point,"bakeries");
         var kind=point.Str("poiKind").ToLowerInvariant();

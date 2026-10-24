@@ -8,8 +8,14 @@ public sealed class BuddyDbContext(DbContextOptions<BuddyDbContext> options) : D
     public DbSet<TripEntity> Trips => Set<TripEntity>();
     public DbSet<MemoryEntity> Memories => Set<MemoryEntity>();
 
+    public DbSet<SocialImportEntity> SocialImports => Set<SocialImportEntity>();
+
     protected override void OnModelCreating(ModelBuilder model)
     {
+        var social=model.Entity<SocialImportEntity>();
+        social.ToTable("social_imports");social.HasKey(x=>x.Id);
+        social.Property(x=>x.Id).HasColumnName("id").HasColumnType("text").ValueGeneratedNever();
+        social.Property(x=>x.DataJson).HasColumnName("data").HasColumnType("jsonb").IsRequired();
         var trips = model.Entity<TripEntity>();
         // 不指定 schema；respect the connection SearchPath, including isolated integration-test schemas.
         trips.ToTable("trips", table => table.HasCheckConstraint("ck_trips_revision", "revision > 0"));
@@ -25,3 +31,5 @@ public sealed class BuddyDbContext(DbContextOptions<BuddyDbContext> options) : D
         memories.Property(memory => memory.DataJson).HasColumnName("data").HasColumnType("jsonb").IsRequired();
     }
 }
+
+public sealed class SocialImportEntity { public string Id {get;set;}=""; public string DataJson {get;set;}="{}"; }

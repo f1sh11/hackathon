@@ -24,6 +24,11 @@ public static class PlanningEndpoints
             Results.Json(await navigation.RouteAsync(await RequestJson.ReadAsync(context), context.RequestAborted)));
         routes.MapPost("/journey/plan", async (HttpContext context, JourneyService journeys) =>
             Results.Json(await journeys.PlanAsync(await RequestJson.ReadAsync(context), context.RequestAborted)));
+        routes.MapPost("/social/extract",async(HttpContext context,SocialImportService service)=>Results.Json(await service.ExtractAsync(await RequestJson.ReadAsync(context),context.RequestAborted)));
+        routes.MapPost("/social/import",async(HttpContext context,SocialImportService service)=>Results.Json(await service.ImportAsync(await RequestJson.ReadAsync(context),context.RequestAborted)));
+        routes.MapGet("/social/published",(SocialImportStore store)=>Results.Json(new{places=store.Published()}));
+        routes.MapGet("/social/imports",(SocialImportStore store)=>Results.Json(new{imports=store.List()}));
+        routes.MapPost("/social/{id}/publish",async(string id,HttpContext context,SocialImportService service)=>Results.Json(await service.PublishAsync(id,await RequestJson.ReadAsync(context),context.RequestAborted)));
         routes.MapPost("/poi/search",async (HttpContext context,PoiService pois)=>Results.Json(await pois.SearchAsync(await RequestJson.ReadAsync(context),context.RequestAborted)));
         routes.MapPost("/poi/media",async (HttpContext context,PoiMediaService media)=>Results.Json(await media.LoadAsync(await RequestJson.ReadAsync(context),context.RequestAborted)));
         routes.MapGet("/data/map-layers",(TravelDataContext travel,ProjectPaths paths)=>Results.Json(new JsonObject{["dataSource"]=travel.Mode,["layers"]=travel.Warehouse?travel.Snapshot!.Maps.DeepClone():JsonNode.Parse(File.ReadAllText(Path.Combine(paths.RepoRoot,"shared","travel-map-layers.json")))}));

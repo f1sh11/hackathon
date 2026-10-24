@@ -13,7 +13,7 @@ public sealed class TravelDataContext(IHttpContextAccessor accessor) {
     public bool Warehouse=>Mode=="zetaris";
     public TravelSnapshot? Snapshot=>accessor.HttpContext?.Items[typeof(TravelSnapshot)] as TravelSnapshot;
 }
-public sealed record TravelSnapshot(JsonObject Poi,JsonArray Catalog,JsonArray Maps,string ReadAt,JsonArray? Gems=null,JsonArray? Osm=null);
+public sealed record TravelSnapshot(JsonObject Poi,JsonArray Catalog,JsonArray Maps,string ReadAt,JsonArray? Gems=null,JsonArray? Osm=null,JsonArray? Social=null);
 public interface ITravelWarehouse {
     Task<TravelSnapshot> ReadAsync(CancellationToken token);
     Task<JsonObject> InsightRawAsync(string kind,CancellationToken token)=>throw new ServiceException("Zetaris 尚未設定此公開資料來源。");
@@ -73,14 +73,15 @@ public sealed class ZetarisTravelWarehouse(HttpClient http,IConfiguration config
         return JsonNode.Parse(row[0]!.GetValue<string>())?.AsObject()??throw new ServiceException("Zetaris 公開資料格式無效。");
     }
     public async Task<TravelSnapshot> ReadAsync(CancellationToken token){
-        var key="travel-public-v3:"+config["Zetaris:BaseUrl"]+":"+config["Zetaris:EnvironmentFile"];
+        var key="travel-public-v4:"+config["Zetaris:SocialEnabled"]+":"+config["Zetaris:BaseUrl"]+":"+config["Zetaris:EnvironmentFile"];
         if(cache.TryGetValue<TravelSnapshot>(key,out var hit))return hit!;
         await Gate.WaitAsync(token);
         try {
             if(cache.TryGetValue<TravelSnapshot>(key,out hit))return hit!;
-            const string sql="SELECT 'poi' AS dataset,payload FROM sydneybuddy_travel.travel_poi UNION ALL SELECT 'catalog',payload FROM sydneybuddy_travel.travel_catalog UNION ALL SELECT 'maps',payload FROM sydneybuddy_travel.travel_map_layers UNION ALL SELECT 'metadata',payload FROM sydneybuddy_travel.travel_metadata UNION ALL SELECT 'gems',payload FROM sydneybuddy_travel.travel_hidden_gems UNION ALL SELECT 'osm',payload FROM sydneybuddy_travel.travel_osm_places";
+            var sql="SELECT 'poi' AS dataset,payload FROM sydneybuddy_travel.travel_poi UNION ALL SELECT 'catalog',payload FROM sydneybuddy_travel.travel_catalog UNION ALL SELECT 'maps',payload FROM sydneybuddy_travel.travel_map_layers UNION ALL SELECT 'metadata',payload FROM sydneybuddy_travel.travel_metadata UNION ALL SELECT 'gems',payload FROM sydneybuddy_travel.travel_hidden_gems UNION ALL SELECT 'osm',payload FROM sydneybuddy_travel.travel_osm_places";
+            if(config.GetValue<bool>("Zetaris:SocialEnabled"))sql+=" UNION ALL SELECT 'social',payload FROM sydneybuddy_travel.travel_social_places";
             var rows=await QueryAsync(sql,token);
-            var groups=new Dictionary<string,JsonArray>{{"poi",new()},{"catalog",new()},{"maps",new()},{"metadata",new()},{"gems",new()},{"osm",new()}};
+            var groups=new Dictionary<string,JsonArray>{{"poi",new()},{"catalog",new()},{"maps",new()},{"metadata",new()},{"gems",new()},{"osm",new()},{"social",new()}};
             foreach(var row in rows.OfType<JsonArray>()){
                 if(row.Count!=2||!groups.TryGetValue(row[0]!.GetValue<string>(),out var group))throw new ServiceException("Zetaris 資料格式不一致。");
                 group.Add(JsonNode.Parse(row[1]!.GetValue<string>())?.AsObject()??throw new ServiceException("Zetaris 地點資料無效。"));
@@ -88,7 +89,7 @@ public sealed class ZetarisTravelWarehouse(HttpClient http,IConfiguration config
             if(groups["poi"].Count==0||groups["catalog"].Count==0||groups["maps"].Count==0||groups["metadata"].Count!=1)throw new ServiceException("Zetaris 缺少必要的公開資料表。");
             var poi=groups["metadata"][0]!.DeepClone().AsObject();poi["places"]=groups["poi"];
             if(poi.Str("source")!="Overture Maps"||poi.Array("bbox")?.Count!=4)throw new ServiceException("Zetaris 地點來源或涵蓋範圍無效。");
-            var value=new TravelSnapshot(poi,groups["catalog"],groups["maps"],DateTimeOffset.UtcNow.ToString("O"),groups["gems"],groups["osm"]);
+            var value=new TravelSnapshot(poi,groups["catalog"],groups["maps"],DateTimeOffset.UtcNow.ToString("O"),groups["gems"],groups["osm"],groups["social"]);
             cache.Set(key,value,TimeSpan.FromSeconds(15));return value;
         }finally{Gate.Release();}
     }

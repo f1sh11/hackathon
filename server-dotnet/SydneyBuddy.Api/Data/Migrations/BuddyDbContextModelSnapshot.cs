@@ -22,6 +22,11 @@ namespace SydneyBuddy.Api.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("SydneyBuddy.Api.SocialImportEntity", b => {
+                b.Property<string>("Id").HasColumnType("text").HasColumnName("id");
+                b.Property<string>("DataJson").IsRequired().HasColumnType("jsonb").HasColumnName("data");
+                b.HasKey("Id");b.ToTable("social_imports",(string)null);
+            });
             modelBuilder.Entity("SydneyBuddy.Api.MemoryEntity", b =>
                 {
                     b.Property<string>("Id")
