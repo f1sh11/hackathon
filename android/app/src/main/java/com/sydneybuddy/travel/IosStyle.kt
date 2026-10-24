@@ -183,14 +183,18 @@ fun durationLabel(startMinute: Int, endMinute: Int): String {
     var navigation by rememberSaveable {mutableStateOf(false)}
     var chat by rememberSaveable {mutableStateOf(false)}
     var expanded by rememberSaveable {mutableStateOf(false)}
+    var showInsights by rememberSaveable {mutableStateOf(false)}
     val trip=store.trip
+    LaunchedEffect(trip?.optString("id"),store.travelDataSource){if(trip!=null)store.refreshWeather()}
     val day=store.day
+    LaunchedEffect(day.toString(),store.travelDataSource,store.mapProvider){store.refreshInsights()}
+    if(showInsights)TravelInsightsDialog(store){showInsights=false}
     val overview=remember(day.toString(),trip?.optString("mode"),store.mapProvider,suppliedOverview){suppliedOverview ?: ItineraryOverview()}
     DisposableEffect(overview){onDispose{overview.close()}}
     LaunchedEffect(overview){if(day!=null&&trip?.optString("mode")!="live"&&store.mapProvider==MapProvider.OSM)overview.load(day,store.base)}
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val compact=maxHeight<650.dp
-        RouteMap(day,Modifier.fillMaxSize(),true,store.mapProvider,trip?.optString("mode")=="live",store.mapViewport,{store.mapViewport=it},overview.route,sections=overview.plan?.sections ?: emptyList())
+        RouteMap(day,Modifier.fillMaxSize(),true,store.mapProvider,trip?.optString("mode")=="live",store.mapViewport,{store.mapViewport=it},overview.route,sections=overview.plan?.sections ?: emptyList(),insightMarkers=(store.insights?.optJSONObject("traffic")?.array("items")?.objects() ?: emptyList())+(store.insights?.array("pricePlaces")?.objects() ?: emptyList()))
         Column(Modifier.fillMaxSize().padding(horizontal=18.dp).padding(top=10.dp,bottom=10.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically){
                 TextButton(onClick={poiSearch=true},modifier=Modifier.weight(1f).background(Color.White,CircleShape),contentPadding=PaddingValues(horizontal=16.dp,vertical=12.dp)){Icon(Icons.Outlined.Search,null,Modifier.size(20.dp));Spacer(Modifier.width(8.dp));Text(ui("搜尋景點、餐廳與設施"),fontSize=13.sp);Spacer(Modifier.weight(1f))}
@@ -212,6 +216,7 @@ fun durationLabel(startMinute: Int, endMinute: Int): String {
                         Text(trip?.optString("title") ?: "開始你的悉尼旅行",fontSize=17.sp,fontWeight=FontWeight.Bold)
                         if(day!=null)Text(ui("{0} 站 · {1} 步 · A${2} · {3} 返回",day.array("stops").length().toString(),"%,d".format(day.optInt("estimatedSteps")),day.optDouble("estimatedCost").toInt().toString(),day.optString("finishTime")),fontSize=11.sp,color=Muted)
                     };if(trip!=null)IconButton(onClick={expanded=!expanded},modifier=Modifier.size(28.dp).testTag("home-info-toggle")){Icon(if(expanded)Icons.Outlined.ExpandMore else Icons.Outlined.MoreHoriz,if(expanded)"收起行程資訊"else "展開行程資訊",tint=Green)}}
+                    TextButton(onClick={showInsights=true},contentPadding=PaddingValues(0.dp),modifier=Modifier.testTag("travel-insights-open")){Text(if(store.insightsBusy)"正在更新旅遊資訊…"else store.insights?.optJSONObject("traffic")?.optString("summary") ?: "交通・人潮・費用",fontSize=12.sp,maxLines=1)}
                     if(day!=null)HomeTransportStrip(day,overview,onPlan={journey=true},onRetry={overview.load(day,store.base)})
                     if(expanded&&trip!=null)Column(Modifier.fillMaxWidth().heightIn(max=220.dp).verticalScroll(rememberScrollState()).testTag("home-extra-info"),verticalArrangement=Arrangement.spacedBy(10.dp)) {
                         CompactWeather(store)
@@ -271,7 +276,7 @@ fun durationLabel(startMinute: Int, endMinute: Int): String {
     if(detail) ModalBottomSheet(onDismissRequest={detail=false},containerColor=Cream,sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true)) {
         Column(Modifier.fillMaxWidth().fillMaxHeight(.9f).verticalScroll(rememberScrollState()).padding(22.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
             Row(verticalAlignment=Alignment.CenterVertically){Heading("这次的小冒险");Spacer(Modifier.weight(1f));TextButton(onClick={detail=false}){Text(ui("完成"))}}
-            trip?.let{Text(it.optString("explanation"));WeatherPanel(store.weather ?: it.optJSONObject("weather"),!store.busy,store::refreshWeather);it.array("days").objects().forEach{d->DaySummary(d)};Evidence(it)}
+            trip?.let{Text(it.optString("explanation"));WeatherPanel(store.weather,!store.busy,store::refreshWeather);it.array("days").objects().forEach{d->DaySummary(d)};Evidence(it)}
         }
     }
     if(chat) ModalBottomSheet(onDismissRequest={chat=false},containerColor=Cream,sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true)) {
@@ -287,7 +292,7 @@ fun durationLabel(startMinute: Int, endMinute: Int): String {
 }
 
 @Composable fun CompactWeather(store:BuddyStore) {
-    val weather=store.weather ?: store.trip?.optJSONObject("weather")
+    val weather=store.weather
     val daily=weather?.array("days")?.objects()?.find{it.optString("date")==store.day?.optString("date")}
     Surface(shape=RoundedCornerShape(20.dp),color=Color.White,shadowElevation=2.dp) {
         Column(Modifier.fillMaxWidth().padding(horizontal=15.dp,vertical=12.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
@@ -413,4 +418,30 @@ fun durationLabel(startMinute: Int, endMinute: Int): String {
             else->Text(ui("選擇交通方式以規劃路線"),fontSize=11.sp,color=Muted)
         }
     }
+}
+
+@Composable fun TravelInsightsDialog(store:BuddyStore,requested:org.json.JSONArray?=null,onDismiss:()->Unit){
+    Dialog(onDismissRequest=onDismiss){Surface(shape=RoundedCornerShape(24.dp),color=Color.White){Column(Modifier.fillMaxWidth().heightIn(max=620.dp).padding(18.dp).verticalScroll(rememberScrollState()).testTag("travel-insights-sheet"),verticalArrangement=Arrangement.spacedBy(12.dp)){
+        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text("交通・人潮・費用",fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f));TextButton(onClick=onDismiss){Text("完成")}}
+        TextButton(onClick={store.refreshInsights(requested)},enabled=!store.insightsBusy){Text(if(store.insightsBusy)"更新中…"else "重新查詢")}
+        store.insightsError?.let{Text(it,color=Color.Red)}
+        store.insights?.let{report->
+            val traffic=report.getJSONObject("traffic")
+            Text(traffic.optString("summary"),fontWeight=FontWeight.Bold)
+            Small(report.optString("scope"));Small("來源：${report.optString("dataSource")} · ${report.optString("fetchedAt")}")
+            traffic.array("items").objects().forEach{item->Column(Modifier.fillMaxWidth().background(Color(0xFFFFF3E0),RoundedCornerShape(12.dp)).padding(12.dp)){Text("⚠️ "+item.optString("title"));Text(item.optString("summary"));Small(item.optString("source"))}}
+            if(report.array("pricePlaces").length()>0)Text("附近參考收費",fontWeight=FontWeight.Bold)
+            report.array("pricePlaces").objects().forEach{place->Column(Modifier.fillMaxWidth().background(Mint,RoundedCornerShape(12.dp)).padding(12.dp)){Text(place.optString("title"),fontWeight=FontWeight.Bold);Text(place.optString("summary"));Small(place.optString("source"))}}
+            report.array("places").objects().forEach{p->Column(Modifier.fillMaxWidth().background(Mint,RoundedCornerShape(12.dp)).padding(12.dp),verticalArrangement=Arrangement.spacedBy(5.dp)){
+                Text(p.optString("name"),fontWeight=FontWeight.Bold);Text(p.getJSONObject("crowd").optString("summary"),color=Muted)
+                val price=p.getJSONObject("price");Text(price.optString("summary"));Small(price.optString("source"))
+                price.optJSONObject("range")?.let{range->
+                    val low=range.optJSONObject("startPrice");val high=range.optJSONObject("endPrice")
+                    Text("${low?.optString("currencyCode") ?: ""} ${low?.optString("units") ?: "?"} – ${high?.optString("currencyCode") ?: ""} ${high?.optString("units") ?: "無上限"}")
+                }
+                if(price.has("scope"))Small(price.optString("scope"))
+            }}
+            Small(report.optString("attribution"))
+        }
+    }}}
 }

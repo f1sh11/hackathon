@@ -20,11 +20,14 @@ struct ScheduleDay:Codable,Identifiable {
     var unknownQueue:Bool;var estimatedSteps:Int;var estimatedCost:Double;var finishTime:String
     var id:String {date}
 }
-struct ScheduleCandidate:Codable,Identifiable {var id:String;var name:String;var category:String;var indoor:Bool;var visitMinutes:Int;var cost:Double;var lat:Double;var lng:Double;var reason:String;var description:String?;var note:String?;var openMinute:Int?;var closeMinute:Int?;var source:String?;var poiKind:String?;var openingHoursText:String?;var website:String?;var phone:String?;var address:String?;var sourceRelease:String?}
+struct CommunityGuide:Codable {var directions:String;var directionsStatus:String?;var sourceUrl:String;var revision:String;var license:String;var licenseUrl:String;var attribution:String;var retrievedAt:String;var coordinateSource:String?}
+struct CommunityReview:Codable,Identifiable {var id:String;var author:String;var text:String;var sourceUrl:String;var publishedAt:String?}
+struct ScheduleCandidate:Codable,Identifiable {var id:String;var name:String;var category:String;var indoor:Bool;var visitMinutes:Int;var cost:Double;var lat:Double;var lng:Double;var reason:String;var description:String?;var note:String?;var openMinute:Int?;var closeMinute:Int?;var source:String?;var poiKind:String?;var openingHoursText:String?;var website:String?;var phone:String?;var address:String?;var sourceRelease:String?;var guide:CommunityGuide?;var photos:[PlacePhoto]?;var reviews:[CommunityReview]?;var hiddenGem:Bool?;var accessStatus:String?;var sources:[String]?;var sourceIds:[String]?;var sourceUrl:String?;var sourceLicense:String?;var retrievedAt:String?;var wikidata:String?}
 extension ScheduleCandidate {
-    var importedPoi:Bool {source=="OpenStreetMap" || source=="Apple Maps" || source=="Overture Maps"}
+    var discoverySymbol:String {switch category{case "住宿":return "bed.double";case "店家":return "bag";case "美食":return "fork.knife";case "設施":return "figure.stand";default:return hiddenGem == true ? "sparkles":"mappin.and.ellipse"}}
+    var importedPoi:Bool {source=="OpenStreetMap" || source=="Apple Maps" || source=="Overture Maps" || source=="Wikivoyage"}
 
-    var activityKind:String {guard source=="OpenStreetMap" || source=="Apple Maps" || source=="Overture Maps" else{return "attraction"};return poiKind=="toilets" ? "restroom":poiKind=="drinking_water" ? "rest":category=="美食" ? "meal":"attraction"}
+    var activityKind:String {guard source=="OpenStreetMap" || source=="Apple Maps" || source=="Overture Maps" || source=="Wikivoyage" else{return "attraction"};return poiKind=="toilets" ? "restroom":poiKind=="drinking_water" ? "rest":category=="美食" ? "meal":"attraction"}
 }
 struct ScheduleIssue:Codable,Identifiable {var code:String;var message:String;var day:Int;var activityId:String?;var blocking:Bool;var id:String {code+message+(activityId ?? "")}}
 struct ScheduleRadar:Codable {var name:String;var value:Double}
@@ -86,7 +89,7 @@ extension ScheduleState {
             let data=try JSONSerialization.data(withJSONObject:body)
             job=Task {
                 do {
-                    var request=URLRequest(url:URL(string:"http://127.0.0.1:8787/schedule/editor")!);request.httpMethod="POST";request.httpBody=data;request.timeoutInterval=30;request.setValue("application/json",forHTTPHeaderField:"Content-Type")
+                    var request=URLRequest(url:URL(string:"http://127.0.0.1:8787/schedule/editor")!);request.httpMethod="POST";TravelDataSource.current.apply(to:&request);request.httpBody=data;request.timeoutInterval=30;request.setValue("application/json",forHTTPHeaderField:"Content-Type")
                     let (response,http)=try await loader(request)
                     guard (http as? HTTPURLResponse)?.statusCode == 200 else {let message=(try? JSONSerialization.jsonObject(with:response)) as? [String:Any];throw NSError(domain:"schedule",code:1,userInfo:[NSLocalizedDescriptionKey:message?["error"] as? String ?? "試算失敗，草案保留，可重試。"])}
                     let result=try JSONDecoder().decode(Trip.self,from:response)

@@ -229,6 +229,35 @@ class ScheduleEditorTest {
         rule.onNodeWithText("此範圍沒有符合的地點。",substring=true).assertIsDisplayed()
         assertEquals(listOf("sights","facilities","facilities"),categories)
     }
+    @Test fun unifiedSearchStartsWithAllAndShowsLodgingInTheSameMapToolbox() {
+        val inst=InstrumentationRegistry.getInstrumentation();val store=BuddyStore(inst.targetContext.applicationContext as Application)
+        val original=store.travelDataSource;store.chooseTravelDataSource("zetaris");store.chooseMapProvider(MapProvider.OSM)
+        val point=fixture().getJSONObject("schedule").getJSONArray("candidates").getJSONObject(0).copy().put("id","osm:node:888").put("source","OpenStreetMap").put("category","住宿").put("name","Unified test hotel").put("description","Public hotel candidate")
+        var firstCategory:String?=null
+        rule.setContent{MaterialTheme{PoiDiscoveryDialog(store,onDismiss={},requester={input->if(firstCategory==null)firstCategory=input.optString("category");JSONObject().put("places",org.json.JSONArray().put(point)).put("source","Open travel data / Zetaris")})}}
+        rule.waitUntil(10000){rule.onAllNodesWithText("Unified test hotel",substring=true).fetchSemanticsNodes().isNotEmpty()}
+        assertEquals("all",firstCategory)
+        rule.onNodeWithText("住宿").performScrollTo().performClick()
+        rule.waitUntil(10000){rule.onAllNodesWithText("Unified test hotel",substring=true).fetchSemanticsNodes().isNotEmpty()}
+        rule.onNodeWithText("住宿 · OpenStreetMap").assertExists()
+        rule.onNodeWithText("詳細介紹").performClick();rule.onNodeWithText("Unified test hotel").assertExists()
+        rule.runOnIdle{store.chooseTravelDataSource(original)}
+    }
+    @Test fun communityDiscoveryShowsDirectionsAndEmptyReviewsOnAnyBaseMap() {
+        val inst=InstrumentationRegistry.getInstrumentation();val store=BuddyStore(inst.targetContext.applicationContext as Application)
+        val original=store.travelDataSource;store.chooseTravelDataSource("zetaris");store.chooseMapProvider(MapProvider.OSM)
+        val point=fixture().getJSONObject("schedule").getJSONArray("candidates").getJSONObject(0).copy()
+            .put("id","gem:"+"a".repeat(24)).put("source","Wikivoyage").put("name","Community test reserve")
+            .put("description","Public community guide").put("photos",org.json.JSONArray()).put("reviews",org.json.JSONArray())
+            .put("guide",JSONObject().put("directions","Public path by the wharf").put("sourceUrl","https://en.wikivoyage.org/w/index.php?oldid=1").put("attribution","Wikivoyage contributors").put("license","CC BY-SA 4.0"))
+        rule.setContent{MaterialTheme{PoiDiscoveryDialog(store,onDismiss={},requester={input->JSONObject().put("places",if(input.optString("category")=="gems")org.json.JSONArray().put(point)else org.json.JSONArray()).put("source","Wikivoyage / Zetaris")})}}
+        rule.onNodeWithText("私房景點").performClick()
+        rule.waitUntil(10000){rule.onAllNodesWithText("Community test reserve",substring=true).fetchSemanticsNodes().isNotEmpty()}
+        rule.onNodeWithText("詳細介紹").performClick()
+        rule.onNodeWithText("Public path by the wharf").assertExists()
+        rule.onNodeWithText("此來源未提供旅客評論或評分。").assertExists()
+        rule.runOnIdle{store.chooseTravelDataSource(original)}
+    }
     @Test fun mapSearchShowsPoiDetailsAndAddsToToolbox() {
         val inst=InstrumentationRegistry.getInstrumentation();lateinit var store:BuddyStore;var added:JSONObject?=null
         rule.runOnIdle{store=BuddyStore(inst.targetContext.applicationContext as Application)}

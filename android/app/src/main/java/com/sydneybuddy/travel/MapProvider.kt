@@ -83,7 +83,7 @@ internal const val OSM_STYLE="""{
 }"""
 
 @Composable fun OsmRouteMap(day:JSONObject?,modifier:Modifier,fullBleed:Boolean,
-    viewport:MapViewport?,onViewport:(MapViewport)->Unit,overview:OverviewRoute?=null,expanded:Boolean=false,sections:List<JourneyMapSection> = emptyList()) {
+    viewport:MapViewport?,onViewport:(MapViewport)->Unit,overview:OverviewRoute?=null,expanded:Boolean=false,sections:List<JourneyMapSection> = emptyList(),insightMarkers:List<JSONObject> = emptyList()) {
     val context=LocalContext.current
     val configuration=androidx.compose.ui.platform.LocalConfiguration.current
     val density=androidx.compose.ui.platform.LocalDensity.current.density
@@ -140,14 +140,15 @@ internal const val OSM_STYLE="""{
         view.onStart(); view.onResume(); lifecycle.addObserver(observer)
         onDispose { lifecycle.removeObserver(observer); view.onPause();view.onStop();view.onDestroy() }
     }
-    LaunchedEffect(map,day.toString(),overview,sections) {
+    LaunchedEffect(map,day.toString(),overview,sections,insightMarkers.toString()) {
         val ready=map ?: return@LaunchedEffect
-        val key=OsmRouteScene(day.toString(),overview,sections)
+        val key=OsmRouteScene(day.toString(),overview,sections,insightMarkers.toString())
         if(sceneKey==key) return@LaunchedEffect
         applyingCamera=true
         if(sceneKey?.day!=day.toString()) rendered=false
         sceneKey=key
         ready.clear()
+        insightMarkers.forEach{item->ready.addMarker(MarkerOptions().position(LatLng(item.getDouble("lat"),item.getDouble("lng"))).title((if(item.optString("kind")=="price")"💰 "else "⚠️ ")+item.optString("title")).snippet(item.optString("summary")))}
         val start=day?.optJSONObject("start") ?: Endpoint.quay.json()
         val end=day?.optJSONObject("end") ?: Endpoint.central.json()
         val stops=day?.array("stops")?.objects() ?: emptyList()

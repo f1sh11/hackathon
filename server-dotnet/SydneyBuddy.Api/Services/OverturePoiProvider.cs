@@ -25,15 +25,19 @@ public sealed class OverturePoiProvider(ProjectPaths paths,IConfiguration config
             snapshot=data;loadedAt=file.LastWriteTimeUtc;return data;
         }catch(Exception e)when(e is IOException or System.Text.Json.JsonException or FormatException or InvalidOperationException){throw new ServiceException("開放商家資料檔案無效，請重新匯入，原有行程不受影響。");}
     }}
+    public JsonObject PublicSnapshot=>Snapshot();
     public JsonObject Metadata {get{var s=Snapshot();return new(){["release"]=s.Str("release"),["downloadedAt"]=s.Str("downloadedAt"),["bbox"]=s["bbox"]!.DeepClone(),["totalPlaces"]=s.Array("places")!.Count,["localSnapshot"]=true};}}
     public Task<JsonArray> SearchAsync(double lat,double lng,int radius,string category,string text,CancellationToken token){
-        token.ThrowIfCancellationRequested();var data=Snapshot();var b=data.Array("bbox")!.Select(x=>x!.GetValue<double>()).ToArray();
+        token.ThrowIfCancellationRequested();return Task.FromResult(SearchSnapshot(Snapshot(),lat,lng,radius,category,text,token));
+    }
+    public static JsonArray SearchSnapshot(JsonObject data,double lat,double lng,int radius,string category,string text,CancellationToken token){
+        token.ThrowIfCancellationRequested();var b=data.Array("bbox")!.Select(x=>x!.GetValue<double>()).ToArray();
         var dy=radius/111320.0;var dx=dy/Math.Cos(lat*Math.PI/180);
         if(lng-dx<b[0]||lng+dx>b[2]||lat-dy<b[1]||lat+dy>b[3])throw new ServiceException("搜尋範圍超出目前匯入的雪梨資料區域，請移回市中心或擴大匯入範圍。");
         double Distance(JsonObject p){var a=(p.Number("lat")-lat)*Math.PI/180;var z=(p.Number("lng")-lng)*Math.PI/180;var h=Math.Pow(Math.Sin(a/2),2)+Math.Cos(lat*Math.PI/180)*Math.Cos(p.Number("lat")*Math.PI/180)*Math.Pow(Math.Sin(z/2),2);return 6371000*2*Math.Asin(Math.Sqrt(Math.Clamp(h,0,1)));}
         var tokens=text.Split(' ',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
         var found=data.Array("places")!.OfType<JsonObject>().Where(p=>p.Str("searchCategory")==category&&tokens.All(q=>CultureInfo.InvariantCulture.CompareInfo.IndexOf(p.Str("searchText",p.Str("name")),q,CompareOptions.IgnoreCase|CompareOptions.IgnoreNonSpace)>=0)).Select(p=>(Point:p,Meters:Distance(p))).Where(x=>x.Meters<=radius).OrderBy(x=>x.Meters).ThenBy(x=>x.Point.Str("id")).Take(80);
         var result=new JsonArray();foreach(var (point,meters) in found){token.ThrowIfCancellationRequested();var p=point.DeepClone().AsObject();p.Remove("searchText");p.Remove("searchCategory");p["distanceMeters"]=Math.Round(meters);p["source"]="Overture Maps";result.Add(p);}
-        return Task.FromResult(result);
+        return result;
     }
 }

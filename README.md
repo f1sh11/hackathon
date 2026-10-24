@@ -428,7 +428,7 @@ server-dotnet/
 - 花费、步数和停留时间为估算；没有住宿、全部餐饮、实时票价、排队、坡度或无障碍模型。
 - 没有多人账户、共享同步、支付、订票、酒店预订、航班追踪或后台 GPS。PostgreSQL 支持存储，并不自动提供用户隔离或云端同步。
 - H-MEM 为本机单用户，撤回后不再检索，但审计历史保留；未启用自动 dreaming / sleep。
-- 原 Python 版本有 NVIDIA NIM 和 H-MEM 验证记录；迁移后的真实在线功能需使用本机配置重新验收。Cursor、Zetaris 按团队原要求暂缓，Nightshift 未接入；不声称满足全部赛事要求。见 [参赛清单](docs/submission-checklist.md)。
+- 原 Python 版本有 NVIDIA NIM 和 H-MEM 验证记录；迁移后的真实在线功能需使用本机配置重新验收。Cursor、Nightshift 未接入；Zetaris 已完成本機公開資料整合試驗；不声称满足全部赛事要求。见 [参赛清单](docs/submission-checklist.md)。
 - `docs/` 中既有截图与视频描述迁移前版本；当前原生客户端与 .NET 后端以代码和测试结果为准。
 
 ## 来源与许可
@@ -491,3 +491,16 @@ OpenStreetMap 底圖的商家／景點搜尋預設改讀取本機 Overture Place
 ## iOS 宠物对话（本分支）
 
 新增宠物首次引导、文字 AI 对话/点选回答切换、旅行草稿恢复和长期偏好确认管理。仅 iOS 界面更新，Android 保持原版。详见 [使用与记忆说明](docs/PET-CHAT-IOS.md)。
+
+
+### Zetaris 本機資料整合試驗
+
+本機公開資料來源與資料匯出／驗證工具請見 [infra/zetaris/README.md](infra/zetaris/README.md)。真正 Zetaris 已在本機啟動，五張公開旅遊資料 view 已註冊並通過 JDBC 查詢驗證；iOS／Android 可在「我的 → 旅遊資料來源」切換直接來源或 Zetaris，支援商家、候選景點目錄、私房景點、即時天氣與底圖設定。天氣由 Zetaris 原生 REST 表每次呼叫 Open-Meteo，不保存預報快照；社群景點包保存座標、到達介紹及逐張照片來源／授權，尚無旅客評論資料。底圖渲染與導航仍由既有服務提供。查詢快取及重啟步驟見該說明。
+
+地圖搜尋已整合「全部、景點、私房景點、餐飲、住宿、店家、生活設施」，Zetaris 模式合併 Overture／OSM／Wikivoyage，地圖標記與清單來自同一組結果，可看介紹及加入工具箱。OSM 另有 5,318 筆公開資料（含 207 筆住宿與 1,992 筆店家），更新與測試見上述 Zetaris 說明。
+
+### Zetaris 搬到 AWS
+
+公開資料的一鍵打包、校驗及 AWS 匯入步驟，請看 [Zetaris 搬移工具](infra/zetaris/migration/README.md)。
+
+Zetaris 平台的本機安裝／快速啟動、AWS managed cluster 建立及停止方式，請看 [服務啟動教學](infra/zetaris/migration/SERVICE-STARTUP.md)。

@@ -132,6 +132,19 @@ struct SchedulePlaceDetail:View {
                     Text(candidate.name).font(.title2.bold())
                     Text(candidate.category+" · "+(candidate.importedPoi ? (candidate.indoor ? "室內（來源標記）":"室內外未確認"):(candidate.indoor ? "室內":"戶外"))).font(.subheadline).foregroundStyle(Palette.muted)
                     Text(candidate.description ?? "此草案尚未附上景點介紹，可重新試算以更新資料。").lineSpacing(6)
+                    if let guide=candidate.guide {
+                        Text("如何到達").font(.headline)
+                        Text(guide.directions.isEmpty ? "來源未提供到達方式，請先查詢導航。":guide.directions)
+                        Text("社群到達說明並非即時交通班次，出發前請確認。").font(.caption).foregroundStyle(Palette.muted)
+                        Text(String(format:"座標：%.6f, %.6f",candidate.lat,candidate.lng)).font(.caption)
+                        if let url=URL(string:guide.sourceUrl){Link("社群指南與版本來源",destination:url)}
+                        Text(guide.attribution+" · "+guide.license).font(.caption)
+                        if let url=URL(string:guide.licenseUrl){Link("文字授權",destination:url).font(.caption)}
+                        Text("社群介紹與評論").font(.headline)
+                        if let reviews=candidate.reviews,!reviews.isEmpty {ForEach(reviews){review in Text(review.author+" · "+review.text)}}
+                        else {Text("此來源未提供旅客評論或評分。").font(.caption)}
+                    }
+                    if let source=candidate.sourceUrl,let url=URL(string:source){Link("地點資料來源",destination:url).font(.caption)}
                     PlaceMediaView(candidate:candidate)
                     Text("為你推薦").font(.headline)
                     Text(candidate.reason)

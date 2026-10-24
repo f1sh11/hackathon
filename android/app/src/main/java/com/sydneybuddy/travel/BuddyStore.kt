@@ -42,6 +42,14 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
         mapProvider = value
         prefs.edit().putString("mapProvider", value.name).apply()
     }
+    var travelDataSource by mutableStateOf(prefs.getString("travelDataSource","direct")?.takeIf{it in listOf("direct","zetaris")} ?: "direct");private set
+    var dataConnection by mutableStateOf<String?>(null);private set
+    var mapLayerIds by mutableStateOf<Set<String>?>(null);private set
+    fun chooseTravelDataSource(value:String){require(value in listOf("direct","zetaris"));travelDataSource=value;prefs.edit().putString("travelDataSource",value).apply();weather=null;insights=null;dataConnection=null;mapLayerIds=null;reloadTravelData()}
+    fun reloadTravelData(){val selected=travelDataSource;viewModelScope.launch{try{
+        val maps=JSONObject(request("data/map-layers"));val status=JSONObject(request("data/status"))
+        if(selected==travelDataSource){require(maps.optString("dataSource")==selected&&status.optString("dataSource")==selected);mapLayerIds=maps.array("layers").objects().map{it.getString("id")}.toSet();dataConnection=translated(JSONObject(getApplication<Application>().assets.open("ui-localizations.json").bufferedReader().use{it.readText()}),language,"資料來源已連線 · {0} 個行程景點",status.optInt("catalogCount").toString())}
+    }catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:Exception){if(selected==travelDataSource)dataConnection=e.message ?: "資料來源連線失敗"}}}
     var poiToolbox by mutableStateOf(runCatching{JSONArray(prefs.getString("poiToolbox","[]")).objects()}.getOrDefault(emptyList()));private set
     fun addPoi(p:JSONObject){if(poiToolbox.none{it.optString("id")==p.optString("id")}){poiToolbox=poiToolbox+p.copy();prefs.edit().putString("poiToolbox",JSONArray(poiToolbox).toString()).apply()}}
     fun removePoi(id:String){poiToolbox=poiToolbox.filterNot{it.optString("id")==id};prefs.edit().putString("poiToolbox",JSONArray(poiToolbox).toString()).apply()}
@@ -53,10 +61,12 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
     init { reload() }
 
     private suspend fun request(path: String, method: String = "GET", body: JSONObject? = null): String = withContext(Dispatchers.IO) {
+        val selectedSource=travelDataSource
         val conn = URL("$base/$path").openConnection() as HttpURLConnection
         try {
             conn.requestMethod = method; conn.connectTimeout = 10000; conn.readTimeout = 240000
-            conn.instanceFollowRedirects = false
+            conn.instanceFollowRedirects = false;conn.useCaches=false
+            conn.setRequestProperty("X-Travel-Data-Source",selectedSource)
             conn.setRequestProperty("Content-Type", "application/json")
             if (body != null) { conn.doOutput = true; conn.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) } }
             val status = conn.responseCode
@@ -65,6 +75,7 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
                 val message = runCatching { JSONObject(result).optString("error") }.getOrDefault("")
                 error(if (status == 409) "行程版本已变化。请取消草案，刷新行程后重新调整。" else message.ifBlank { "服务返回 HTTP $status" })
             }
+            if(path in listOf("weather","plan","catalog","data/map-layers","data/status","data/insights")&&selectedSource!=travelDataSource)error("資料來源已變更，請重新查詢。")
             result
         } finally { conn.disconnect() }
     }
@@ -154,10 +165,33 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
         preparations = if (toggle && full in preparations) preparations - full else preparations + full
         prefs.edit().putStringSet("preparations", preparations).apply()
     }
-    fun refreshWeather() = operation {
-        val source = trip?.getJSONObject("profile") ?: profile.json()
-        weather = JSONObject(request("weather", "POST", source))
-        if (weather?.optString("status") == "ok") mark("weather")
+    var insights by mutableStateOf<JSONObject?>(null);private set
+    var insightsBusy by mutableStateOf(false);private set
+    var insightsError by mutableStateOf<String?>(null);private set
+    private var insightGeneration=0
+    fun refreshInsights(requested:JSONArray?=null){
+        val generation=++insightGeneration;val selected=travelDataSource;val provider=mapProvider;val scene=day.toString()
+        insights=null;insightsBusy=true;insightsError=null
+        val places=JSONArray();val start=day?.optJSONObject("start") ?: profile.json().optJSONObject("start") ?: Endpoint.quay.json()
+        places.put(JSONObject().put("id","start").put("name",start.optString("name")).put("lat",start.optDouble("lat")).put("lng",start.optDouble("lng")))
+        day?.array("stops")?.objects()?.take(28)?.forEach{p->places.put(JSONObject().put("id",p.optString("id")).put("name",p.optString("name")).put("lat",p.optDouble("lat")).put("lng",p.optDouble("lng")))}
+        val body=JSONObject().put("places",requested ?: places).put("date",day?.optString("date") ?: profile.date).put("mapProvider",if(provider==MapProvider.GOOGLE)"google"else "open")
+        viewModelScope.launch{try{
+            val value=JSONObject(request("data/insights","POST",body))
+            if(generation==insightGeneration&&selected==travelDataSource&&provider==mapProvider&&scene==day.toString())insights=value
+        }catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:Exception){if(generation==insightGeneration)insightsError="交通、人潮與費用暫時無法更新，請重試。"}finally{if(generation==insightGeneration)insightsBusy=false}}
+    }
+    var weatherBusy by mutableStateOf(false);private set
+    fun refreshWeather() {
+        if(weatherBusy)return
+        weatherBusy=true;val selected=travelDataSource
+        weather=JSONObject().put("summary","正在查詢即時天氣…").put("rainy",false).put("status","loading").put("source",if(selected=="zetaris")"Open-Meteo / Zetaris"else "Open-Meteo / direct")
+        val source=trip?.getJSONObject("profile") ?: profile.json()
+        viewModelScope.launch{try {
+            val result=JSONObject(request("weather","POST",source));if(selected==travelDataSource){weather=result;if(result.optString("status")=="ok")mark("weather")}
+        }catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:Exception){
+            if(selected==travelDataSource){weather=JSONObject().put("summary","即時天氣查詢失敗，請重試。").put("status","unavailable").put("rainy",false);error=e.message}
+        }finally{weatherBusy=false}}
     }
     fun saveMemory(consent: Boolean) {
         if (!consent) return

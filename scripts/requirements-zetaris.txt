@@ -1,0 +1,2 @@
+# Same JDBC bridge range as the Zetaris getting-started helper.
+jaydebeapi>=1.2,<2

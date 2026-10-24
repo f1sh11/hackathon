@@ -34,6 +34,11 @@ public static class DependencyInjection
         services.AddScoped<PreferenceService>();
         services.AddSingleton<PetSessionStore>();
         services.AddHttpClient<IPetModel, PetModel>(client => client.Timeout = Timeout.InfiniteTimeSpan).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+        services.AddHttpContextAccessor();
+        services.AddSingleton<TravelDataContext>();
+        services.AddHttpClient<ITravelWarehouse,ZetarisTravelWarehouse>(client=>client.Timeout=TimeSpan.FromSeconds(40)).ConfigurePrimaryHttpMessageHandler(()=>new HttpClientHandler{AllowAutoRedirect=false});
+        services.AddHttpClient<PublicTravelWeather>(client=>client.Timeout=TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(()=>new HttpClientHandler{AllowAutoRedirect=false});
+        services.AddHttpClient<TravelInsightService>(client=>client.Timeout=TimeSpan.FromSeconds(25)).ConfigurePrimaryHttpMessageHandler(()=>new HttpClientHandler{AllowAutoRedirect=false});
         services.AddScoped<WeatherService>();
         services.AddMemoryCache();
         services.AddSingleton<CatalogCache>();
@@ -49,6 +54,8 @@ public static class DependencyInjection
         services.AddScoped<IPoiProvider>(p=>p.GetRequiredService<IConfiguration>()["Poi:OpenProvider"]=="overpass" ? p.GetRequiredService<OsmPoiProvider>() : p.GetRequiredService<OverturePoiProvider>());
         services.AddScoped<GooglePoiProvider>();
         services.AddScoped<PoiService>();
+        services.AddScoped<HiddenGemService>();
+        services.AddScoped<UnifiedPoiService>();
         services.AddHttpClient<PoiMediaService>(client=>client.Timeout=TimeSpan.FromSeconds(18)).ConfigurePrimaryHttpMessageHandler(()=>new HttpClientHandler{AllowAutoRedirect=false});
         return services;
     }

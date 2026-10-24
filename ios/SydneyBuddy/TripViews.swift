@@ -55,7 +55,7 @@ struct AgentView:View {
 }
 struct TripDetailView:View {
     @EnvironmentObject var store:AppStore
-    var body:some View { NavigationStack { ScrollView {VStack(alignment:.leading,spacing:20){if let t=store.trip {Text(t.explanation).font(.subheadline);WeatherCard(weather:store.refreshedWeather ?? t.weather);ForEach(t.days){DaySummary(day:$0)};ForEach(t.warnings,id:\.self){Text($0).font(.caption).foregroundStyle(Palette.muted)};DisclosureGroup("规划与验证记录"){ForEach(t.trace){r in VStack(alignment:.leading,spacing:6){Text(r.title).font(.headline);Text(r.detail).font(.caption);Text(r.source).font(.caption2).foregroundStyle(Palette.green)}.padding(.vertical,8)}}}}.padding(24)}.background(Palette.cream).navigationTitle("这次的小冒险").onAppear {store.markPrepared("route")} } }
+    var body:some View { NavigationStack { ScrollView {VStack(alignment:.leading,spacing:20){if let t=store.trip {Text(t.explanation).font(.subheadline);WeatherCard(weather:store.currentWeather);ForEach(t.days){DaySummary(day:$0)};ForEach(t.warnings,id:\.self){Text($0).font(.caption).foregroundStyle(Palette.muted)};DisclosureGroup("规划与验证记录"){ForEach(t.trace){r in VStack(alignment:.leading,spacing:6){Text(r.title).font(.headline);Text(r.detail).font(.caption);Text(r.source).font(.caption2).foregroundStyle(Palette.green)}.padding(.vertical,8)}}}}.padding(24)}.background(Palette.cream).navigationTitle("这次的小冒险").onAppear {store.markPrepared("route")}.task(id:store.travelDataSource){await store.refreshWeather()} } }
 }
 struct TripsView:View {
     @EnvironmentObject var store:AppStore
@@ -63,37 +63,60 @@ struct TripsView:View {
     @State private var selectedTrip:Trip?
     @State private var editingDraft=false
     @State private var deleting:Trip?
+    private var deletionPresented:Binding<Bool> {Binding(get:{deleting != nil},set:{if !$0{deleting=nil}})}
+    private var selectionPresented:Binding<Bool> {Binding(get:{selectedTrip != nil},set:{if !$0{selectedTrip=nil}})}
     var body:some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment:.leading,spacing:20){
-                    if let task=store.travelTask,task.status=="failed" || task.status=="generating" {Label(task.status=="failed" ? "生成失败，需求已保留":"正在生成行程",systemImage:task.status=="failed" ? "exclamationmark.circle":"sparkles").font(.subheadline);if let message=task.message{Text(message).font(.caption).foregroundStyle(Palette.muted)}}
-                    if store.travelTask?.status=="failed",!store.pendingTripFields.isEmpty {HStack{Button("重试生成"){store.startGeneratingPendingTrip()};Button("返回修改"){store.resumePendingTrip()}}.disabled(store.busy)}
-                    if !store.pendingTripFields.isEmpty { draftCard }
-                    HStack{Text("已保存的旅行").font(.headline);Spacer();Text("\(store.saved.count) 份").font(.caption).foregroundStyle(Palette.muted)}
-                    if store.saved.isEmpty {ContentUnavailableView("下一段旅程，等你出发",systemImage:"suitcase.rolling",description:Text("准备好偏好后，生成你的第一份路线。"))}
-                    ForEach(store.saved,id:\.id){t in
-                        Button{store.trip=t;selectedTrip=t}label:{
-                            TripListRow(trip:t)
-                        }.buttonStyle(.plain).accessibilityLabel("查看行程："+t.title+"，"+t.profile.date).accessibilityIdentifier("view-trip-"+(t.id ?? "draft"))
-                        .contextMenu{Button("删除行程",role:.destructive){deleting=t}}
-                    }
-                }.padding(20)
-            }.background(Palette.cream).navigationTitle(store.language.text("我的行程"))
+        NavigationStack { tripList }
+            .fullScreenCover(item:$navigationTrip){trip in SavedTripNavigationView(trip:trip)}
+            .sheet(isPresented:$editingDraft){TripDraftEditor(fields:store.pendingTripFields)}
+            .confirmationDialog("删除这份行程？此操作无法撤销。",isPresented:deletionPresented,titleVisibility:.visible){
+                Button("删除行程",role:.destructive){if let trip=deleting{Task{await store.deleteTrip(trip);if selectedTrip?.id==trip.id{selectedTrip=nil};deleting=nil}}}
+            }
+    }
+    private var tripList:some View {
+        ScrollView {
+            VStack(alignment:.leading,spacing:20){
+                taskStatus
+                if !store.pendingTripFields.isEmpty {draftCard}
+                HStack{Text("已保存的旅行").font(.headline);Spacer();Text("\(store.saved.count) 份").font(.caption).foregroundStyle(Palette.muted)}
+                if store.saved.isEmpty {ContentUnavailableView("下一段旅程，等你出发",systemImage:"suitcase.rolling",description:Text("准备好偏好后，生成你的第一份路线。"))}
+                savedRows
+            }.padding(20)
+        }.background(Palette.cream).navigationTitle(store.language.text("我的行程"))
             .toolbar{ToolbarItem(placement:.topBarTrailing){Button{store.newTrip()}label:{Label("新旅行",systemImage:"plus")}.disabled(store.busy)}}
             .refreshable{await store.reload()}
             .onAppear{openRequestedTrip()}
             .onChange(of:store.tripToOpen?.id){_,_ in openRequestedTrip()}
-            .navigationDestination(isPresented:Binding(get:{selectedTrip != nil},set:{if !$0{selectedTrip=nil}})){
-                if let selected=selectedTrip {
-                    let current=store.saved.first(where:{$0.id==selected.id}) ?? selected
-                    SavedTripWorkspace(trip:current,onNavigate:{navigationTrip=current},onDelete:{deleting=current})
-                }
-            }
-        }.fullScreenCover(item:$navigationTrip){trip in SavedTripNavigationView(trip:trip)}
-        .sheet(isPresented:$editingDraft){TripDraftEditor(fields:store.pendingTripFields)}
-
-        .confirmationDialog("删除这份行程？此操作无法撤销。",isPresented:Binding(get:{deleting != nil},set:{if !$0{deleting=nil}}),titleVisibility:.visible){Button("删除行程",role:.destructive){if let trip=deleting{Task{await store.deleteTrip(trip);if selectedTrip?.id==trip.id{selectedTrip=nil};deleting=nil}}}}
+            .navigationDestination(isPresented:selectionPresented){selectedDestination}
+    }
+    @ViewBuilder private var taskStatus:some View {
+        if let task=store.travelTask,task.status=="failed" || task.status=="generating" {
+            Label(task.status=="failed" ? "生成失败，需求已保留":"正在生成行程",systemImage:task.status=="failed" ? "exclamationmark.circle":"sparkles").font(.subheadline)
+            if let message=task.message{Text(message).font(.caption).foregroundStyle(Palette.muted)}
+        }
+        if store.travelTask?.status=="failed",!store.pendingTripFields.isEmpty {HStack{Button("重试生成"){store.startGeneratingPendingTrip()};Button("返回修改"){store.resumePendingTrip()}}.disabled(store.busy)}
+    }
+    private var savedRows:some View {
+        ForEach(store.saved,id:\.id){trip in savedRow(trip)}
+    }
+    private func savedRow(_ trip:Trip)->some View {
+        let title:String = "查看行程：" + trip.title + "，" + trip.profile.date
+        let identifier:String = "view-trip-" + (trip.id ?? "draft")
+        return Button(action:{store.trip=trip;selectedTrip=trip}) {
+            TripListRow(trip:trip)
+        }
+        .buttonStyle(PlainButtonStyle())
+        .accessibilityLabel(Text(title))
+        .accessibilityIdentifier(identifier)
+        .contextMenu {
+            Button("删除行程",role:.destructive,action:{deleting=trip})
+        }
+    }
+    @ViewBuilder private var selectedDestination:some View {
+        if let selected=selectedTrip {
+            let current=store.saved.first(where:{$0.id==selected.id}) ?? selected
+            SavedTripWorkspace(trip:current,onNavigate:{navigationTrip=current},onDelete:{deleting=current})
+        }
     }
     private func openRequestedTrip(){
         guard let trip=store.tripToOpen else{return}

@@ -7,10 +7,11 @@ namespace SydneyBuddy.Api;
 /// 只缓存本地公共景点目录 5 分钟；每次交付深拷贝，避免请求修改污染缓存。
 /// Caches only the public local place catalog for five minutes and returns deep clones to prevent mutation leaks.
 /// </summary>
-public sealed class PlaceCatalog(CatalogCache catalogCache, ProjectPaths paths)
+public sealed class PlaceCatalog(CatalogCache catalogCache, ProjectPaths paths,TravelDataContext? travel=null)
 {
     public IReadOnlyList<JsonObject> Get()
     {
+        if(travel?.Warehouse==true)return (travel.Snapshot?.Catalog??throw new ServiceException("Zetaris 景點目錄尚未取得。")).OfType<JsonObject>().Select(p=>p.DeepClone().AsObject()).ToArray();
         var key = $"SydneyBuddy.PlaceCatalog:{paths.ServerDirectory}";
         var stored = catalogCache.Cache.GetOrCreate(key, entry =>
         {

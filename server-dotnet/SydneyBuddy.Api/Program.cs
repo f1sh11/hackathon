@@ -17,6 +17,7 @@ await using (var scope = app.Services.CreateAsyncScope())
 }
 
 app.UseRouting();
+app.UseMiddleware<TravelDataMiddleware>();
 app.MapBuddyApi("");
 app.MapFallback("{**path}", (HttpContext context) => Results.Json(new { error = "未找到" }, statusCode: 404));
 app.Run();

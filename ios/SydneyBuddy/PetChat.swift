@@ -24,7 +24,7 @@ let travelExtraFields:[(String,String)]=[("budgetCoverage","预算包含范围")
     private var pendingRequest: (String,String)?
     private var storageKey: String { "petSession." + scope }
     private func request<T:Decodable>(_ path:String, method:String="GET", body:[String:Any]?=nil) async throws -> T {
-        var req=URLRequest(url:base.appendingPathComponent(path));req.httpMethod=method;req.timeoutInterval=120
+        var req=URLRequest(url:base.appendingPathComponent(path));req.httpMethod=method;TravelDataSource.current.apply(to:&req);req.timeoutInterval=120
         req.setValue("application/json",forHTTPHeaderField:"Content-Type")
         if let body {req.httpBody=try JSONSerialization.data(withJSONObject:body)}
         let (data,response)=try await loader(req)
@@ -59,7 +59,7 @@ let travelExtraFields:[(String,String)]=[("budgetCoverage","预算包含范围")
             pendingRequest=(fingerprint,requestID);outgoing=text;streaming=""
             var body:[String:Any] = ["message":text,"requestId":requestID]
             if let field {body["field"]=field;body["value"]=value ?? text}
-            var req=URLRequest(url:base.appendingPathComponent("pet/sessions/\(id)/turn"));req.httpMethod="POST";req.timeoutInterval=120
+            var req=URLRequest(url:base.appendingPathComponent("pet/sessions/\(id)/turn"));req.httpMethod="POST";TravelDataSource.current.apply(to:&req);req.timeoutInterval=120
             req.setValue("application/json",forHTTPHeaderField:"Content-Type");req.httpBody=try JSONSerialization.data(withJSONObject:body)
             let(bytes,response)=try await URLSession.shared.bytes(for:req)
             guard let http=response as? HTTPURLResponse,(200..<300).contains(http.statusCode) else{throw NSError(domain:"Pet",code:2,userInfo:[NSLocalizedDescriptionKey:"这次没有发送成功，请重试。"])}

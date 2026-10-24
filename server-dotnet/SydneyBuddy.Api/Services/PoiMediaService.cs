@@ -5,8 +5,9 @@ using Microsoft.Extensions.Caching.Memory;
 namespace SydneyBuddy.Api;
 
 /// <summary>Nearby Commons photography, explicitly not verified business/interior photos.</summary>
-public sealed class PoiMediaService(HttpClient http,IMemoryCache cache) {
+public sealed class PoiMediaService(HttpClient http,IMemoryCache cache,HiddenGemService? gems=null) {
     public async Task<JsonObject> LoadAsync(JsonObject input,CancellationToken token) {
+        if(input.Str("id").StartsWith("gem:"))return gems?.Media(input.Str("id"))??throw new ServiceException("私房景點來源尚未設定。");
         var lat=input.Number("lat",double.NaN);var lng=input.Number("lng",double.NaN);
         if(!OsmPoiProvider.ValidPoint(lat,lng))throw new ServiceException("地點座標無效。");
         var point=FormattableString.Invariant($"{lat:F6}|{lng:F6}");var key="poi-media:"+point;
@@ -21,7 +22,7 @@ public sealed class PoiMediaService(HttpClient http,IMemoryCache cache) {
         foreach(var page in (data?["query"]?["pages"] as JsonObject ?? new JsonObject()).Select(p=>p.Value).OfType<JsonObject>()) {
             var info=page.Array("imageinfo")?.OfType<JsonObject>().FirstOrDefault();if(info is null)continue;
             var image=info.Str("thumburl");var pageUrl=info.Str("descriptionurl");
-            if(info.Str("mime") is not ("image/jpeg" or "image/png" or "image/webp") || !SafeUrl(image,"upload.wikimedia.org") || !SafeUrl(pageUrl,"commons.wikimedia.org"))continue;
+            if(info.Str("mime") is not ("image/jpeg" or "image/png" or "image/webp") || !(SafeUrl(image,"upload.wikimedia.org")||SafeUrl(image,"thumb.wikimedia.org")) || !SafeUrl(pageUrl,"commons.wikimedia.org"))continue;
             var meta=info["extmetadata"] as JsonObject;
             string Value(string name)=>Plain(meta?[name]?["value"]?.GetValue<string>()??"");
             var license=Value("LicenseShortName");if(license.Length==0)continue;

@@ -254,6 +254,7 @@ internal fun savedTripNavigationDay(trip:JSONObject,today:String=java.time.Local
 
 @Composable fun SettingsScreen(store:BuddyStore,onDelete:(JSONObject)->Unit) {
     var consent by rememberSaveable {mutableStateOf(false)}
+    LaunchedEffect(Unit){store.reloadTravelData()}
     Page {
         Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(18.dp)){Buddy(65);Column(verticalArrangement=Arrangement.spacedBy(6.dp)){Text(ui("你好，旅行家"),style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Bold);Small("按自己的节奏，发现悉尼")}}
         Panel {
@@ -268,8 +269,16 @@ internal fun savedTripNavigationDay(trip:JSONObject,today:String=java.time.Local
             Small("景點名稱與已儲存的行程內容保留原始語言。")
         }
         Panel {
+            Text(ui("旅遊資料來源"),fontWeight=FontWeight.Bold)
+            listOf("direct" to "直接來源","zetaris" to "透過 Zetaris").forEach{(route,label)->TextButton(onClick={store.chooseTravelDataSource(route)},modifier=Modifier.testTag("travel-data-$route")){Text((if(store.travelDataSource==route)"✓ "else "")+ui(label))}}
+            Small(ui("店家、景點、天氣與地圖設定可切換來源；底圖與導航仍由地圖服務提供。"))
+            Small(ui("Zetaris 連線失敗時可手動切回直接來源。"))
+            store.dataConnection?.let{Small(it)}
+            TextButton(onClick={store.reloadTravelData()}){Text(ui("檢查資料連線"))}
+        }
+        Panel {
             Text(ui("地图底图"),fontWeight=FontWeight.Bold)
-            MapProvider.entries.forEach { provider ->
+            MapProvider.entries.filter{store.mapLayerIds?.contains(it.name.lowercase()) ?: true}.forEach { provider ->
                 Choice(provider.label,store.mapProvider==provider) {store.chooseMapProvider(provider)}
             }
             Small("底图切换不会重新规划或调用后端。OSM 需联网加载图砖；离线示意图不请求图砖。")
