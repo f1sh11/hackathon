@@ -50,25 +50,7 @@ struct DaySummary:View {
     }
 }
 struct AgentView:View {
-    @EnvironmentObject var store:AppStore
-    @Environment(\.dismiss) var dismiss
-    @State var message=""
-    var body:some View {
-        NavigationStack {
-            VStack(alignment:.leading,spacing:20) {
-                HStack {Robot(size:70);VStack(alignment:.leading,spacing:5){Text("一起调整行程").font(.title2.bold());Text(store.live ? "由 NVIDIA Nemotron 提供候选建议" : "演示模式 · 本地规则，无 AI 调用").font(.caption).foregroundStyle(Palette.muted)}}
-                Text(store.agentText).font(.subheadline).lineSpacing(6).padding(20).frame(maxWidth:.infinity,alignment:.leading).background(.white,in:RoundedRectangle(cornerRadius:24))
-                HStack { chip("少走一点","figure.walk",rain:false);chip("下雨了","cloud.rain",rain:true) }
-                Text("每次调整会先生成草案，你确认后才替换原行程。").font(.caption).foregroundStyle(Palette.muted)
-                Spacer()
-                TextField("例如：想多看艺术展，少走一点路",text:$message,axis:.vertical).lineLimit(2...4).padding(18).background(.white,in:RoundedRectangle(cornerRadius:20))
-                PrimaryButton(title:"帮我调整",symbol:"sparkles"){let text=message;dismiss();Task{await store.generate(text)}}.disabled(message.trimmingCharacters(in:.whitespaces).isEmpty || store.trip==nil)
-            }.padding(24).background(Palette.cream).navigationTitle("Buddy").navigationBarTitleDisplayMode(.inline).toolbar{ToolbarItem(placement:.topBarTrailing){Button("完成"){dismiss()}}}
-        }
-    }
-    func chip(_ text:String,_ symbol:String,rain:Bool)->some View {
-        Button{dismiss();Task{await store.generate(text,rain:rain)}} label:{Label(text,systemImage:symbol).font(.subheadline.bold()).padding(14).frame(maxWidth:.infinity).foregroundStyle(Palette.green).background(Palette.mint,in:RoundedRectangle(cornerRadius:16))}.disabled(store.trip==nil)
-    }
+    var body:some View { PetChatView() }
 }
 struct TripDetailView:View {
     @EnvironmentObject var store:AppStore

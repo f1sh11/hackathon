@@ -29,3 +29,6 @@ postgres-data/
 
 # Local open transit feeds / built OTP graphs (not source files)
 infra/transit/data/
+
+# Private pet conversations and journey drafts
+server/.pet-sessions/

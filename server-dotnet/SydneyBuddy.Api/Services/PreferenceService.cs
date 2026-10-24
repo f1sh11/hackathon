@@ -13,6 +13,7 @@ public sealed class PreferenceService(IMemoryService memory, MemoryRepository re
         if (!input.Bool("consent")) throw new ServiceException("需要你明确同意保存记忆");
         var profile = input.Object("profile") ?? new JsonObject();
         var summary = input.Str("summary");
+        if (string.IsNullOrWhiteSpace(summary)) throw new ServiceException("请填写要记住的偏好。");
         if (summary.Length > 500) summary = summary[..500];
         var record = await memory.RunAsync("add", new JsonObject { ["content"] = "travel preference Sydney: " + summary }, ct);
         var saved = new JsonObject
@@ -33,6 +34,16 @@ public sealed class PreferenceService(IMemoryService memory, MemoryRepository re
             }
             throw;
         }
+        return saved;
+    }
+
+    public async Task<JsonObject> UpdateAsync(string id, JsonObject input, CancellationToken ct = default)
+    {
+        var existing = (await records.ListAsync(ct)).FirstOrDefault(x => x.Str("id") == id);
+        if (existing is null) throw new ServiceException("这条偏好已不存在，请刷新后重试。");
+        var saved = await SaveAsync(input, ct);
+        try { await DeleteAsync(id, ct); }
+        catch { await DeleteAsync(saved.Str("id"), CancellationToken.None); throw; }
         return saved;
     }
 

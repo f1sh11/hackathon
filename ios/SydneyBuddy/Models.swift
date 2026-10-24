@@ -111,7 +111,7 @@ struct Expense: Codable, Identifiable {
         return try JSONDecoder().decode(T.self, from: data)
     }
     func reload() async {
-        do { health = try await api("health"); saved = try await api("trips"); saved.sort { $0.createdAt > $1.createdAt }; if trip == nil { trip = saved.first }; memories = try await api("memories") }
+        do { health = try await api("health"); saved = try await api("trips"); saved.sort { $0.createdAt > $1.createdAt }; if trip == nil && !showOnboarding { trip = saved.first }; memories = try await api("memories") }
         catch { errorMessage = "无法连接本机服务。请在电脑启动 Sydney Buddy 服务后重试。" }
     }
     func prepared(_ name: String) -> Bool { preparations.contains((trip?.id ?? "draft")+":"+name) }
@@ -131,10 +131,10 @@ struct Expense: Codable, Identifiable {
         }
         catch { errorMessage = error.localizedDescription }
     }
-    func generate(_ message: String = "", rain: Bool = false) async {
+    func generate(_ message: String = "", rain: Bool = false, profileOverride:TripProfile? = nil) async {
         guard !busy else { return }; busy = true; defer { busy = false }
         do {
-            var p = trip?.profile ?? profile
+            var p = profileOverride ?? trip?.profile ?? profile
             p.request = message
             p.weatherOverride = nil
             if rain { p.weatherOverride = "rain" }
@@ -146,6 +146,10 @@ struct Expense: Codable, Identifiable {
             agentText = result.explanation
         } catch { errorMessage = error.localizedDescription }
     }
+    func generateFromPet(_ profile:TripProfile, request:String) async {
+        self.profile=profile
+        await generate(request,profileOverride:profile)
+    }
     func acceptProposal() async {
         guard var p = proposal else { return }
         busy = true; defer { busy = false }
@@ -153,6 +157,9 @@ struct Expense: Codable, Identifiable {
             p.id = trip?.id; p.revision = trip?.revision
             let raw: [String:Any] = ["trip":try JSONSerialization.jsonObject(with:JSONEncoder().encode(p)),"expectedRevision":p.revision ?? 0]
             let accepted: Trip = try await api("trips",method:"POST",body:JSONSerialization.data(withJSONObject:raw))
+            if showOnboarding,let id=accepted.id,let session=UserDefaults.standard.string(forKey:"petSession.draft") {
+                UserDefaults.standard.set(session,forKey:"petSession."+id);UserDefaults.standard.removeObject(forKey:"petSession.draft")
+            }
             trip = accepted; profile = accepted.profile; proposal = nil; dayIndex = 0
             showOnboarding = false; UserDefaults.standard.set(true,forKey:"onboarded"); tab = 0
             await reload()
@@ -166,7 +173,7 @@ struct Expense: Codable, Identifiable {
             trip=nil;proposal=result
         }catch{errorMessage=error.localizedDescription}
     }
-    func newTrip() { let prefs = profile; trip = nil; proposal = nil; profile = TripProfile(); profile.interests = prefs.interests; profile.maxSteps = prefs.maxSteps; showOnboarding = true }
+    func newTrip() { UserDefaults.standard.set(false,forKey:"onboarded"); UserDefaults.standard.removeObject(forKey:"petSession.draft"); let prefs = profile; trip = nil; proposal = nil; profile = TripProfile(); profile.interests = prefs.interests; profile.maxSteps = prefs.maxSteps; showOnboarding = true }
     func saveMemory() async {
         do {
             let p = trip?.profile ?? profile

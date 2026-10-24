@@ -32,6 +32,8 @@ public static class DependencyInjection
         services.AddHttpClient<IExternalJsonClient, ExternalJsonClient>(client => client.Timeout = Timeout.InfiniteTimeSpan);
         services.AddSingleton<IMemoryService, MemoryService>();
         services.AddScoped<PreferenceService>();
+        services.AddSingleton<PetSessionStore>();
+        services.AddHttpClient<IPetModel, PetModel>(client => client.Timeout = Timeout.InfiniteTimeSpan).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         services.AddScoped<WeatherService>();
         services.AddMemoryCache();
         services.AddSingleton<CatalogCache>();

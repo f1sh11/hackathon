@@ -71,10 +71,10 @@ struct SettingsView:View {
                 }
                 Section("我同意保存的偏好") {
                     Toggle("仅保存本机旅行偏好",isOn:$consent).tint(Palette.green)
-                    Text("保存兴趣和步数偏好，供以后规划选择使用。可随时从检索中撤回；本机审计记录保留操作历史。不保存位置轨迹、照片或私人聊天。").font(.caption).foregroundStyle(Palette.muted)
+                    Text("长期偏好会用于之后的对话与规划，可随时撤回。宠物对话和本次旅行草稿另外保存在电脑上，可在聊天页清空。").font(.caption).foregroundStyle(Palette.muted)
                     Button("记住当前偏好"){Task{await store.saveMemory()}}.disabled(!consent)
                     ForEach(store.memories){memory in
-                        VStack(alignment:.leading,spacing:10){Text(memory.summary).font(.subheadline);HStack{Button("用于下次规划"){store.profile.interests=memory.profile.interests;store.profile.maxSteps=memory.profile.maxSteps};Spacer();Button("删除",role:.destructive){Task{await store.deleteMemory(memory)}}}.font(.caption)}
+                        VStack(alignment:.leading,spacing:10){Text(memory.summary).font(.subheadline);HStack{if !memory.profile.interests.isEmpty{Button("用于下次规划"){store.profile.interests=memory.profile.interests;store.profile.maxSteps=memory.profile.maxSteps}};Spacer();Button("删除",role:.destructive){Task{await store.deleteMemory(memory)}}}.font(.caption)}
                     }
                 }
                 Section("关于这个版本") {

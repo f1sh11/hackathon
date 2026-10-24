@@ -57,7 +57,7 @@ struct RootView: View {
     var body: some View {
         ZStack {
             Palette.cream.ignoresSafeArea()
-            if store.showOnboarding { OnboardingView() }
+            if store.showOnboarding { PetChatView(onboarding:true) }
             else {
                 TabView(selection:$store.tab) {
                     TripsView().tabItem { Label(store.language.text("行程"),systemImage:"suitcase.rolling.fill") }.tag(1)

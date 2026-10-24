@@ -481,3 +481,7 @@ iOS 的首頁與全天地圖共用交通面板的成功規劃結果；Apple / OS
 - 在「我的 → 語言」選擇繁體中文、簡體中文或 English，立即套用並保存在裝置；不改變已儲存行程或重新呼叫規劃服務。預設使用繁體中文。
 - 目前翻譯涵蓋主要導覽、設定頁、行程列表、地圖常用操作與交通摘要；尚未收錄的細部文案、後端回傳內容、使用者輸入及景點名稱保留原文。地圖圖磚與第三方導航提示的語言由資料來源決定。
 - 共用翻譯來源為 `shared/localization/ui.json`。編輯後執行 `python3 scripts/generate_localizations.py`，產生 iOS `.strings` 與 Android 資源；新增 Swift 檔案或重建專案時執行 `python3 scripts/generate_project.py`。
+
+## iOS 宠物对话（本分支）
+
+新增宠物首次引导、文字 AI 对话/点选回答切换、旅行草稿恢复和长期偏好确认管理。仅 iOS 界面更新，Android 保持原版。详见 [使用与记忆说明](docs/PET-CHAT-IOS.md)。
