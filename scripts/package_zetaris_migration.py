@@ -15,7 +15,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA_FILES = ('travel-records.csv', 'hidden-gems.csv', 'osm-map-places.csv')
-ASSETS = ('README.md', 'restore_source.py', 'restore.sql', 'register.template.sql',
+ASSETS = ('README.md', 'SERVICE-STARTUP.md', 'restore_source.py', 'restore.sql', 'register.template.sql',
           'weather.sql', 'insights.sql', 'verify.sql', 'grant-reader.sql', 'LICENSES.md')
 HEADERS = ['dataset', 'record_id', 'name', 'category', 'lat', 'lng', 'source', 'observed_at', 'payload']
 PLACE_HEADERS = ['id', 'name', 'lat', 'lng', 'payload']

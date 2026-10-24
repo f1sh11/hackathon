@@ -14,6 +14,10 @@ Zetaris 採資料虛擬化：景點資料實際放在 PostgreSQL，Zetaris 保�
                    App 後端 → iOS / Android
 ```
 
+## 啟動教學入口
+
+首次安裝、之後快速開關服務、AWS cluster 啟動及匯入順序，請看 [SERVICE-STARTUP.md](SERVICE-STARTUP.md)。這份教學也會放進 ZIP，目標機拿到資料包就能查閱。
+
 ## 1. 一個指令打包（本機）
 
 在 **專案根目錄** 執行，僅需 Python 3 標準函式庫：
@@ -52,6 +56,7 @@ python3 scripts/package_zetaris_migration.py --verify infra/zetaris/bundles/trav
 | `weather.sql` | Zetaris 原生即時天氣 REST Table；沒有快取指令 |
 | `insights.sql` | NSW 路況與 OSM 雪梨收費的即時 REST 來源登錄（不含人潮或 Google 私密金鑰） |
 | `verify.sql` | AWS Zetaris 驗收查詢 |
+| `SERVICE-STARTUP.md` | 本機／AWS Zetaris 啟動、來源 DB、App 接線與停止教學 |
 | `LICENSES.md` / `README.md` | 來源授權與這份操作說明 |
 
 不含：本機管理／來源 DB 密碼、AWS 金鑰、App 使用者與行程、偏好與聊天、資料庫 volume、Zetaris 映像或 JDBC 授權安裝包、圖片原檔、全景原檔、地圖圖磚或導航路線。底圖中繼資料不等於可離線使用 Apple／Google 地圖。

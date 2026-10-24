@@ -502,3 +502,5 @@ OpenStreetMap 底圖的商家／景點搜尋預設改讀取本機 Overture Place
 ### Zetaris 搬到 AWS
 
 公開資料的一鍵打包、校驗及 AWS 匯入步驟，請看 [Zetaris 搬移工具](infra/zetaris/migration/README.md)。
+
+Zetaris 平台的本機安裝／快速啟動、AWS managed cluster 建立及停止方式，請看 [服務啟動教學](infra/zetaris/migration/SERVICE-STARTUP.md)。

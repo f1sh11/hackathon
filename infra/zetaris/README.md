@@ -1,6 +1,6 @@
 # Zetaris 旅遊資料整合（本機）
 
-目前 iOS / Android 均可在「我的 → 旅遊資料來源」選擇 **直接來源** 或 **透過 Zetaris**。真正 Zetaris 已在本機執行，並非以 PostgreSQL 或測試伺服器代替。開發分支：`feat/zetaris-local-data`，尚未合併至 main。
+目前 iOS / Android 均可在「我的 → 旅遊資料來源」選擇 **直接來源** 或 **透過 Zetaris**。真正 Zetaris 已在本機執行，並非以 PostgreSQL 或測試伺服器代替。開發分支：`feat/zetaris-local-data`，整合服務啟動與資料搬移文件。
 
 實際平台：`/Users/linziqiao/zetaris-local/zetaris-platform`；管理頁 <http://localhost:3000>。憑證只存在私人安裝設定，手機不持有帳密或 SQL。平台曾在 Documents 目錄遇到檔案同步等待，因此改用獨立家目錄安裝。
 
@@ -139,3 +139,7 @@ Zetaris__EnvironmentFile=/Users/linziqiao/zetaris-local/zetaris-platform/.env \
 ## 交通、人潮與價格資訊
 
 已加入手機地圖的「交通・人潮・費用」入口、原生 Zetaris 路況與 OSM 收費 API。範圍、金鑰條件、部分失敗與未知狀態請看 [INSIGHTS.md](INSIGHTS.md)。
+
+## 本機與 AWS 服務啟動教學
+
+完整步驟見 [SERVICE-STARTUP.md](migration/SERVICE-STARTUP.md)。在專案根目錄可用 `bash scripts/zetaris_local.sh start` 啟動已安裝的官方平台，`status` 檢查、`verify` 驗證、`stop` 保留資料並暫停。啟動教學會自動加入搬移 ZIP。
