@@ -105,6 +105,7 @@ import CryptoKit
     func stop(){generation=UUID();job?.cancel();job=nil;busy=false}
 }
 @MainActor struct PoiDiscoveryView:View {
+    var embedded=false
     var onAdd:(ScheduleCandidate)->Void = {PoiToolbox.shared.add($0)}
     @EnvironmentObject var store:AppStore
     @Environment(\.dismiss) var dismiss
@@ -129,7 +130,7 @@ import CryptoKit
                     case .schematic:
                         Text("離線示意圖沒有街道底圖，請切換聯網底圖來移動搜尋範圍。").font(.caption).padding()
                     }
-                }.frame(height:250).accessibilityIdentifier("poi-map-"+store.mapProvider.rawValue)
+                }.frame(height:embedded ? 350 : 250).accessibilityIdentifier("poi-map-"+store.mapProvider.rawValue)
                 Text(LocalizedStringKey(store.mapProvider == .google ? "Google Places · 按搜尋才查詢 · 附近 1.5 km":"切換分類自動搜尋 · 移動地圖後按搜尋 · 附近 1.5 km")).font(.caption2).foregroundStyle(Palette.muted)
                 if model.busy {ProgressView("正在搜尋附近地點…")}
                 if let error=model.error {
@@ -159,7 +160,7 @@ import CryptoKit
                     }.font(.caption2)
                 }
                 else if !model.attribution.isEmpty {Text(model.attribution).font(.caption2).foregroundStyle(Palette.muted)}
-            }.navigationTitle("搜尋地圖地點").navigationBarTitleDisplayMode(.inline).toolbar{Button("完成"){dismiss()}}
+            }.navigationTitle(embedded ? "探索目的地" : "搜尋地圖地點").navigationBarTitleDisplayMode(.inline).toolbar{if !embedded{Button("完成"){dismiss()}}}
         }.sheet(item:$detail){SchedulePlaceDetail(candidate:$0)}
             .onAppear{model.language=store.language == .english ? "en":store.language == .simplified ? "zh-CN":"zh-TW";if let viewport=store.mapViewport{model.center=CLLocationCoordinate2D(latitude:viewport.lat,longitude:viewport.lng)};model.configure(store.mapProvider,googleMapConfigured:SydneyBuddyApp.mapConfigured)}
             .onChange(of:store.mapProvider){_,provider in detail=nil;model.configure(provider,googleMapConfigured:SydneyBuddyApp.mapConfigured)}

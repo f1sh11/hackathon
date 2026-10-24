@@ -57,17 +57,17 @@ struct RootView: View {
     var body: some View {
         ZStack {
             Palette.cream.ignoresSafeArea()
-            if store.showOnboarding { OnboardingView() }
+            if store.showOnboarding { PetWelcomeView() }
             else {
                 TabView(selection:$store.tab) {
                     TripsView().tabItem { Label(store.language.text("行程"),systemImage:"suitcase.rolling.fill") }.tag(1)
-                    HomeView().tabItem { Label(store.language.text("地图"),systemImage:"map.fill") }.tag(0)
+                    PoiDiscoveryView(embedded:true).tabItem { Label(store.language.text("地图"),systemImage:"map.fill") }.tag(0)
                     JournalView().tabItem { Label(store.language.text("记账"),systemImage:"creditcard.fill") }.tag(2)
                     SettingsView().tabItem { Label(store.language.text("我的"),systemImage:"person.crop.circle") }.tag(3)
                 }.tint(Palette.green).modifier(CompactTabs())
             }
             if store.busy {
-                ZStack { Color.black.opacity(0.15).ignoresSafeArea(); VStack(spacing:14) { Robot(size:75); ProgressView(); Text("正在检查整条行程…").font(.headline); Text("时间、步数、预算和返程都要刚刚好").font(.caption).foregroundStyle(Palette.muted) }.padding(30).background(Palette.cream,in:RoundedRectangle(cornerRadius:28)) }
+                ZStack { Color.black.opacity(0.15).ignoresSafeArea(); VStack(spacing:14) { PetAvatar(mood:.thinking); ProgressView(); Text("正在装好你的小冒险…").font(.headline); Text("时间、步数、预算和返程都要刚刚好").font(.caption).foregroundStyle(Palette.muted) }.padding(30).background(Palette.cream,in:RoundedRectangle(cornerRadius:28)) }
             }
         }
         .sheet(isPresented:Binding(get:{store.proposal != nil},set:{if !$0 {store.proposal=nil}})) { ProposalView() }

@@ -487,3 +487,7 @@ iOS 的首頁與全天地圖共用交通面板的成功規劃結果；Apple / OS
 OpenStreetMap 底圖的商家／景點搜尋預設改讀取本機 Overture Places，避免公共 Overpass 連線失敗。目前已下載雪梨市中心 5,968 筆真實地點；名稱搜尋、分類、附近距離、電話／地址／網站及工具箱匯入已接上。資料是 `2026-10-21.0` 的區域快照，不代表即時營業或已驗證座標。
 
 資料檔不放進 Git；新機器請依 [Overture 匯入與設定](infra/poi/README.md) 執行 `scripts/import_overture_places.py`。Apple Maps 仍用 Apple 搜尋，Google Maps 仍需原本的服務設定。
+
+## iOS 宠物对话（本分支）
+
+新增宠物首次引导、文字 AI 对话/点选回答切换、旅行草稿恢复和长期偏好确认管理。仅 iOS 界面更新，Android 保持原版。详见 [使用与记忆说明](docs/PET-CHAT-IOS.md)。
