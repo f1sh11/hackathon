@@ -98,6 +98,20 @@ import MapKit
             XCTAssertGreaterThan(image.size.width,300)
         }
     }
+    func testOpenSearchUsesOvertureVersionAndPreservesContactFieldsForToolbox() async throws {
+        let model=PoiSearchModel();var candidate=try fixture().schedule!.candidates[0]
+        candidate.id="overture:00000000-0000-4000-8000-000000000001";candidate.source="Overture Maps";candidate.category="美食";candidate.poiKind="cafe";candidate.website="https://example.com";candidate.phone="test-phone";candidate.sourceRelease="2026-10-21.0";candidate.cost=0
+        model.loader={request in
+            let places=try JSONSerialization.jsonObject(with:JSONEncoder().encode([candidate]))
+            let data=try JSONSerialization.data(withJSONObject:["places":places,"source":"Overture Maps / local snapshot","attribution":"Overture Maps Foundation","metadata":["release":"2026-10-21.0"]])
+            return(data,HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)
+        }
+        model.configure(.osm)
+        for _ in 0..<100{if !model.busy{break};try await Task.sleep(nanoseconds:10_000_000)}
+        let result=try XCTUnwrap(model.places.first)
+        XCTAssertEqual(model.source,"Overture Maps / local snapshot");XCTAssertEqual(model.dataVersion,"2026-10-21.0")
+        XCTAssertEqual(result.website,"https://example.com");XCTAssertEqual(result.phone,"test-phone");XCTAssertTrue(result.importedPoi);XCTAssertEqual(result.activityKind,"meal");model.stop()
+    }
     func testPoiSearchUsesAppleWithoutBackendAndClearsOnGoogleAndOfflineSwitch() async throws {
         let model=PoiSearchModel();var appleCalls=0;var backendCalls=0
         var candidate=try fixture().schedule!.candidates[0];candidate.id="apple:test";candidate.source="Apple Maps"

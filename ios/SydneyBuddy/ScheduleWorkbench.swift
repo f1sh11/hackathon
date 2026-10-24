@@ -134,6 +134,9 @@ struct SchedulePlaceDetail:View {
                     Text(candidate.description ?? "此草案尚未附上景點介紹，可重新試算以更新資料。").lineSpacing(6)
                     Text("為你推薦").font(.headline)
                     Text(candidate.reason)
+                    if let release=candidate.sourceRelease{Text("Overture · "+release).font(.caption)}
+                    if let website=candidate.website,let url=URL(string:website),["http","https"].contains(url.scheme?.lowercased() ?? ""){Link("官方網站",destination:url)}
+                    if let phone=candidate.phone,!phone.isEmpty{Text("電話："+phone)}
                     VStack(alignment:.leading,spacing:10) {
                         Text("建議停留 \(candidate.visitMinutes) 分鐘")
                         Text(candidate.importedPoi ? "費用與排隊時間未知":"規劃預留 A$\(Int(candidate.cost)) · 排隊時間未知")

@@ -57,7 +57,9 @@ import CryptoKit
     @Published var error:String?
     @Published var hasSearched=false
     @Published private(set) var provider:MapProvider = .osm
-    @Published private(set) var attribution="© OpenStreetMap contributors · ODbL"
+    @Published private(set) var attribution="Overture Maps Foundation"
+    @Published private(set) var openSource="Overture Maps / local snapshot"
+    @Published private(set) var dataVersion:String?
     var language="zh-TW"
     var googleMapConfigured=true
     var center=CLLocationCoordinate2D(latitude:-33.865,longitude:151.212)
@@ -65,10 +67,11 @@ import CryptoKit
     var appleSearch:(CLLocationCoordinate2D,String,String) async throws -> [ScheduleCandidate] = ApplePoiProvider.search
     private var job:Task<Void,Never>?
     private var generation=UUID()
-    var source:String {switch provider{case .apple:return "Apple Maps / MapKit";case .google:return "Google Places";case .osm:return "OpenStreetMap / Overpass";case .schematic:return "離線示意 · 不搜尋地點"}}
+    var source:String {switch provider{case .apple:return "Apple Maps / MapKit";case .google:return "Google Places";case .osm:return openSource;case .schematic:return "離線示意 · 不搜尋地點"}}
     func configure(_ value:MapProvider,googleMapConfigured:Bool=true) {
         stop();provider=value;self.googleMapConfigured=googleMapConfigured;places=[];selected=nil;error=nil;hasSearched=false
-        attribution=value == .apple ? "Apple Maps":value == .google ? "Google Maps":value == .osm ? "© OpenStreetMap contributors · ODbL":""
+        attribution=value == .apple ? "Apple Maps":value == .google ? "Google Maps":value == .osm ? "Overture Maps Foundation":""
+        dataVersion=nil
         if value == .osm || value == .apple{search()}
     }
     func search(){
@@ -86,11 +89,12 @@ import CryptoKit
                     request.httpBody=try JSONSerialization.data(withJSONObject:["lat":point.latitude,"lng":point.longitude,"radius":1500,"category":kind,"query":text,"provider":current == .google ? "google":"osm","language":language])
                     let (data,response)=try await loader(request);try Task.checkCancellation()
                     guard (response as? HTTPURLResponse)?.statusCode==200 else {let raw=(try? JSONSerialization.jsonObject(with:data)) as? [String:Any];throw NSError(domain:"POI",code:1,userInfo:[NSLocalizedDescriptionKey:raw?["error"] as? String ?? "地點搜尋失敗，請重試。"])}
-                    struct Response:Decodable{var places:[ScheduleCandidate];var attribution:String?}
+                    struct Response:Decodable{struct Metadata:Decodable{var release:String?};var places:[ScheduleCandidate];var attribution:String?;var source:String?;var metadata:Metadata?}
                     let parsed=try JSONDecoder().decode(Response.self,from:data)
                     guard current != .google || parsed.places.allSatisfy({$0.source=="Google Places"}) else{throw NSError(domain:"POI",code:2,userInfo:[NSLocalizedDescriptionKey:"搜尋來源不一致，請更新後端後重試。"])}
                     result=parsed.places
                     guard token==generation else{return};if let credit=parsed.attribution{attribution=credit}
+                    if current == .osm{openSource=parsed.source ?? "開放地點資料";dataVersion=parsed.metadata?.release}
                 }
                 try Task.checkCancellation();guard token==generation else{return}
                 places=result;busy=false
@@ -142,7 +146,13 @@ import CryptoKit
                         }.listRowBackground(p.id==model.selected ? Palette.mint:Color.white)
                     }
                 }.listStyle(.plain)
-                if store.mapProvider == .osm {Link("地點資料 © OpenStreetMap contributors · ODbL",destination:URL(string:"https://www.openstreetmap.org/copyright")!).font(.caption2)}
+                if store.mapProvider == .osm {
+                    VStack(spacing:3){
+                        Link("地圖 © OpenStreetMap contributors · ODbL",destination:URL(string:"https://www.openstreetmap.org/copyright")!)
+                        Link(model.attribution,destination:URL(string:model.attribution.contains("OpenStreetMap") ? "https://www.openstreetmap.org/copyright":"https://docs.overturemaps.org/attribution/")!)
+                        if let version=model.dataVersion{Text(store.language.text("本機地點資料快照：{0}",version))}
+                    }.font(.caption2)
+                }
                 else if !model.attribution.isEmpty {Text(model.attribution).font(.caption2).foregroundStyle(Palette.muted)}
             }.navigationTitle("搜尋地圖地點").navigationBarTitleDisplayMode(.inline).toolbar{Button("完成"){dismiss()}}
         }.sheet(item:$detail){SchedulePlaceDetail(candidate:$0)}

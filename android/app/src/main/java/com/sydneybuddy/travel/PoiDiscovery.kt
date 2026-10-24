@@ -31,7 +31,7 @@ import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.annotations.MarkerOptions
 import org.maplibre.android.annotations.IconFactory
 
-internal fun poiActivityKind(p:JSONObject):String=if(p.optString("source") !in listOf("OpenStreetMap","Apple Maps"))"attraction"else when {p.optString("poiKind")=="toilets"->"restroom";p.optString("poiKind")=="drinking_water"->"rest";p.optString("category")=="美食"->"meal";else->"attraction"}
+internal fun poiActivityKind(p:JSONObject):String=if(p.optString("source") !in listOf("OpenStreetMap","Apple Maps","Overture Maps"))"attraction"else when {p.optString("poiKind")=="toilets"->"restroom";p.optString("poiKind")=="drinking_water"->"rest";p.optString("category")=="美食"->"meal";else->"attraction"}
 @Composable internal fun PoiDiscoveryDialog(store:BuddyStore,onDismiss:()->Unit,requester:suspend(JSONObject)->JSONObject={store.searchPoi(it)},onAdd:(JSONObject)->Unit={store.addPoi(it)},googleMapConfigured:Boolean=BuildConfig.MAPS_CONFIGURED) {
     var query by remember{mutableStateOf("")};var category by remember{mutableStateOf("sights")}
     var places by remember{mutableStateOf<List<JSONObject>>(emptyList())};var selected by remember{mutableStateOf<String?>(null)}
@@ -42,8 +42,10 @@ internal fun poiActivityKind(p:JSONObject):String=if(p.optString("source") !in l
     var hasSearched by remember{mutableStateOf(false)}
     var resultProvider by remember{mutableStateOf<MapProvider?>(null)}
     var attribution by remember{mutableStateOf("")}
+    var openSource by remember{mutableStateOf("Overture Maps / local snapshot")}
+    var dataVersion by remember{mutableStateOf("")}
     val visiblePlaces=if(resultProvider==store.mapProvider)places else emptyList()
-    val source=when(store.mapProvider){MapProvider.OSM->"OpenStreetMap / Overpass";MapProvider.GOOGLE->"Google Places";MapProvider.SCHEMATIC->"離線示意 · 不搜尋地點"}
+    val source=when(store.mapProvider){MapProvider.OSM->openSource;MapProvider.GOOGLE->"Google Places";MapProvider.SCHEMATIC->"離線示意 · 不搜尋地點"}
     fun search(){
         searchJob?.cancel();places=emptyList();selected=null;detail=null;error=null;hasSearched=true;busy=false;resultProvider=null
         val provider=store.mapProvider
@@ -56,11 +58,12 @@ internal fun poiActivityKind(p:JSONObject):String=if(p.optString("source") !in l
             ensureActive();if(store.mapProvider!=provider)return@launch
             val found=result.array("places").objects()
             require(provider!=MapProvider.GOOGLE || found.all{it.optString("source")=="Google Places"}){"搜尋來源不一致，請更新後端後重試。"}
-            places=found;resultProvider=provider;attribution=result.optString("attribution",if(provider==MapProvider.GOOGLE)"Google Maps"else "© OpenStreetMap contributors · ODbL")
+            places=found;resultProvider=provider;attribution=result.optString("attribution",if(provider==MapProvider.GOOGLE)"Google Maps"else "Overture Maps Foundation")
+            if(provider==MapProvider.OSM){openSource=result.optString("source","開放地點資料");dataVersion=result.optJSONObject("metadata")?.optString("release") ?: ""}
         }catch(e:CancellationException){if(e is TimeoutCancellationException)error="地點服務逾時，請重試。"else throw e}catch(e:Exception){error=e.message ?: "搜尋失敗"}finally{if(isActive)busy=false}}
     }
     LaunchedEffect(category,store.mapProvider){
-        searchJob?.cancel();places=emptyList();selected=null;detail=null;error=null;busy=false;hasSearched=false;resultProvider=null;attribution=""
+        searchJob?.cancel();places=emptyList();selected=null;detail=null;error=null;busy=false;hasSearched=false;resultProvider=null;attribution="";dataVersion=""
         if(store.mapProvider==MapProvider.OSM)search()
     }
     Dialog(onDismissRequest=onDismiss,properties=DialogProperties(usePlatformDefaultWidth=false)) {
@@ -86,11 +89,17 @@ internal fun poiActivityKind(p:JSONObject):String=if(p.optString("source") !in l
                     Row{TextButton(onClick={detail=p}){Text(ui("詳細介紹"))};Spacer(Modifier.weight(1f));val added=store.poiToolbox.any{it.optString("id")==p.optString("id")};if(p.optString("source")=="Google Places")Small("Google 地點暫不匯入本機示例時間軸")else TextButton(onClick={onAdd(p)},enabled=!added){Text(if(added)"已加入"else "＋工具箱")}}
                 }}
             }
-            if(store.mapProvider==MapProvider.OSM)TextButton(onClick={uri.openUri("https://www.openstreetmap.org/copyright")}){Text("地點資料 © OpenStreetMap contributors · ODbL",fontSize=10.sp)}
+            if(store.mapProvider==MapProvider.OSM)Column {
+                Row {
+                TextButton(onClick={uri.openUri("https://www.openstreetmap.org/copyright")},modifier=Modifier.weight(1f),contentPadding=PaddingValues(0.dp)){Text(ui("地圖 © OpenStreetMap contributors · ODbL"),fontSize=10.sp)}
+                TextButton(onClick={uri.openUri(if(attribution.contains("OpenStreetMap"))"https://www.openstreetmap.org/copyright"else "https://docs.overturemaps.org/attribution/")},modifier=Modifier.weight(1f),contentPadding=PaddingValues(0.dp)){Text(attribution.ifBlank{"Overture Maps Foundation"},fontSize=10.sp)}
+                }
+                if(dataVersion.isNotBlank())Text(ui("本機地點資料快照：{0}",dataVersion),fontSize=10.sp)
+            }
             else if(store.mapProvider==MapProvider.GOOGLE)Small(attribution.ifBlank{"Google Maps"})
         }}
     }
-    detail?.let{p->AlertDialog(onDismissRequest={detail=null},title={Text(p.optString("name"))},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)){Text(p.optString("description"));Text("營業時間標記："+p.optString("openingHoursText").ifBlank{"未知"});Text(p.optString("note"))}},confirmButton={TextButton(onClick={detail=null}){Text(ui("完成"))}})}
+    detail?.let{p->AlertDialog(onDismissRequest={detail=null},title={Text(p.optString("name"))},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)){Text(p.optString("description"));if(p.optString("sourceRelease").isNotBlank())Text("Overture · "+p.optString("sourceRelease"));val website=p.optString("website");if(website.startsWith("https://")||website.startsWith("http://"))TextButton(onClick={uri.openUri(website)}){Text(ui("官方網站"))};Text("營業時間標記："+p.optString("openingHoursText").ifBlank{"未知"});Text(p.optString("note"))}},confirmButton={TextButton(onClick={detail=null}){Text(ui("完成"))}})}
 }
 @Composable private fun PoiOsmMap(places:List<JSONObject>,onCenter:(Pair<Double,Double>)->Unit,onSelect:(String)->Unit,modifier:Modifier,initialCenter:Pair<Double,Double>,initialZoom:Double,onZoom:(Double)->Unit) {
     val context=LocalContext.current;val lifecycle=LocalLifecycleOwner.current.lifecycle

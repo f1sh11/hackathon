@@ -2,7 +2,12 @@ using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Caching.Memory;
 namespace SydneyBuddy.Api;
-public interface IPoiProvider {Task<JsonArray> SearchAsync(double lat,double lng,int radius,string category,string text,CancellationToken token);}
+public interface IPoiProvider {
+    string Source=>"OpenStreetMap / Overpass";
+    string Attribution=>"© OpenStreetMap contributors · ODbL";
+    bool UsesRemoteService=>true;
+    JsonObject Metadata=>new();
+    Task<JsonArray> SearchAsync(double lat,double lng,int radius,string category,string text,CancellationToken token);}
 public sealed class OsmPoiProvider(HttpClient http,IConfiguration? configuration=null):IPoiProvider {
     public static string Query(double lat,double lng,int radius,string category,string text) {
         var around=FormattableString.Invariant($"(around:{radius},{lat},{lng})");
@@ -44,6 +49,7 @@ public sealed class PoiService(IPoiProvider provider,IMemoryCache cache,GooglePo
         if(source=="google")return google is null?throw new ServiceException("Google Places 尚未設定。"):
             await google.SearchResultAsync(lat,lng,radius,category,text,input.Str("language","zh-TW"),token);
         if(source!="osm")throw new ServiceException("不支援此地點來源；Apple Maps 請使用 iOS 原生搜尋。");
+        if(!provider.UsesRemoteService)return Result(await provider.SearchAsync(lat,lng,radius,category,text,token));
         var key=FormattableString.Invariant($"poi:{lat:F3}:{lng:F3}:{radius}:{category}:{text}");
         if(cache.TryGetValue(key,out JsonArray? stored))return Result((JsonArray)stored!.DeepClone());
         await Gate.WaitAsync(token);
@@ -57,14 +63,15 @@ public sealed class PoiService(IPoiProvider provider,IMemoryCache cache,GooglePo
             cache.Set(key,(JsonArray)points.DeepClone(),new MemoryCacheEntryOptions{AbsoluteExpirationRelativeToNow=TimeSpan.FromMinutes(15),Size=1});return Result(points);
         }finally{Gate.Release();}
     }
-    static JsonObject Result(JsonArray points)=>new(){["places"]=points,["source"]="OpenStreetMap / Overpass",["attribution"]="© OpenStreetMap contributors · ODbL",["message"]="社群地點資料；不包含即時評價、營業確認或價格。"};
-    public static bool IsImported(JsonObject p)=>p.Str("id").StartsWith("osm:")||p.Str("id").StartsWith("apple:");
+    JsonObject Result(JsonArray points)=>new(){["places"]=points,["source"]=provider.Source,["attribution"]=provider.Attribution,["metadata"]=provider.Metadata,["message"]="開放地點資料快照；不包含即時評價、營業確認或價格。"};
+    public static bool IsImported(JsonObject p)=>p.Str("id").StartsWith("osm:")||p.Str("id").StartsWith("apple:")||p.Str("id").StartsWith("overture:");
     public static string ActivityKind(JsonObject p)=>p.Str("poiKind")=="toilets"?"restroom":p.Str("poiKind")=="drinking_water"?"rest":p.Str("category")=="美食"?"meal":"attraction";
     public static JsonObject Import(JsonObject p) {
         var id=p.Str("id");var name=p.Str("name");var lat=p.Number("lat",double.NaN);var lng=p.Number("lng",double.NaN);
         var apple=p.Str("source")=="Apple Maps"&&Regex.IsMatch(id,@"^apple:[A-Za-z0-9_-]{1,180}$");
-        if(!(apple||Regex.IsMatch(id,@"^osm:(node|way|relation):[0-9]{1,20}$"))||name.Length is <1 or >200||!OsmPoiProvider.ValidPoint(lat,lng))throw new ServiceException("工具箱地點資料無效。");
+        var overture=p.Str("source")=="Overture Maps"&&id.StartsWith("overture:")&&Guid.TryParse(id[9..],out _);
+        if(!(apple||overture||Regex.IsMatch(id,@"^osm:(node|way|relation):[0-9]{1,20}$"))||name.Length is <1 or >200||!OsmPoiProvider.ValidPoint(lat,lng))throw new ServiceException("工具箱地點資料無效。");
         string Short(string key,int max){var s=p.Str(key);return s[..Math.Min(max,s.Length)];}
-        return new JsonObject{["id"]=id,["name"]=name,["lat"]=lat,["lng"]=lng,["source"]=apple?"Apple Maps":"OpenStreetMap",["category"]=p.Str("category") is "美食"?"美食":p.Str("category") is "設施"?"設施":"風景",["indoor"]=p.Bool("indoor"),["visitMinutes"]=Math.Clamp(p.Int("visitMinutes",60),5,240),["cost"]=0,["description"]=Short("description",3000),["note"]="費用、營業狀態與排隊未知；尚未預留費用，請自行確認。",["openingHoursText"]=Short("openingHoursText",300),["poiKind"]=Short("poiKind",40),["reason"]="由地圖搜尋加入工具箱"};
+        return new JsonObject{["id"]=id,["name"]=name,["lat"]=lat,["lng"]=lng,["source"]=apple?"Apple Maps":overture?"Overture Maps":"OpenStreetMap",["category"]=p.Str("category") is "美食"?"美食":p.Str("category") is "設施"?"設施":"風景",["indoor"]=p.Bool("indoor"),["visitMinutes"]=Math.Clamp(p.Int("visitMinutes",60),5,240),["cost"]=0,["description"]=Short("description",3000),["note"]="費用、營業狀態與排隊未知；尚未預留費用，請自行確認。",["website"]=Short("website",2000),["phone"]=Short("phone",100),["address"]=Short("address",600),["sourceRelease"]=Short("sourceRelease",40),["openingHoursText"]=Short("openingHoursText",300),["poiKind"]=Short("poiKind",40),["reason"]="由地圖搜尋加入工具箱"};
     }
 }
