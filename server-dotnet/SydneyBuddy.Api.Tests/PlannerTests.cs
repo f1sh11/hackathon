@@ -23,6 +23,15 @@ public sealed class PlannerTests : IDisposable
         new WeatherService(_external), new SecretStore(_paths));
 
     [Fact]
+    public async Task FifteenDayTripCanBeGeneratedAndSaved()
+    {
+        var result=await Create().PlanAsync(TestSupport.Profile(15), "demo");
+        Assert.Equal(15,result.Array("days")!.Count);
+        Assert.Contains(result.Array("days")!.OfType<JsonObject>(),d=>d.Bool("freeTime") && d.Array("stops")!.Count==0);
+        TripContractValidator.Validate(result);
+    }
+
+    [Fact]
     public async Task FeasibleTripAccountsForReturnAndInternalWalking()
     {
         var result = await Create().PlanAsync(TestSupport.Profile(), "demo");

@@ -19,14 +19,14 @@ public static class TripContractValidator
         StringArray(profile, "interests"); StringArray(profile, "mustVisit");
         Point(Object(profile, "start")); Point(Object(profile, "end"));
         var days = Array(trip, "days");
-        if (days.Count is < 1 or > 3 || days.Count != profile.Int("days")) Invalid();
+        if (days.Count is < 1 or > 15 || days.Count != profile.Int("days")) Invalid();
         foreach (var node in days)
         {
             var day = node as JsonObject ?? throw Failure();
             Strings(day, "date", "finishTime"); Numbers(day, "estimatedCost", "estimatedSteps");
             StringArray(day, "warnings"); Point(Object(day, "start")); Point(Object(day, "end"));
             var stops = Array(day, "stops");
-            if (trip.Object("schedule") is null ? stops.Count is < 1 or > 4 : stops.Count > 30) Invalid();
+            if (trip.Object("schedule") is null ? stops.Count > 4 || (stops.Count == 0 && !day.Bool("freeTime")) : stops.Count > 30) Invalid();
             foreach (var item in stops)
             {
                 var stop = item as JsonObject ?? throw Failure();

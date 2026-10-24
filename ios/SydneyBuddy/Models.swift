@@ -42,6 +42,7 @@ struct DayPlan: Codable, Identifiable {
     var date: String; var stops: [Stop]; var legs: [RouteLeg]; var estimatedCost: Double
     var estimatedSteps: Int; var finishTime: String; var warnings: [String]
     var start: Coordinate; var end: Coordinate
+    var freeTime: Bool? = nil
     var id: String { date }
 }
 struct WeatherDay: Codable { var date: String; var summary: String; var rainy: Bool; var available: Bool }

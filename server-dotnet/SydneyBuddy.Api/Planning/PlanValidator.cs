@@ -30,7 +30,7 @@ public static class PlanValidator
             var endMinute = ReadInteger(profile, "endMinute", 1080);
             var days = ReadInteger(profile, "days", 1);
             if (!double.IsFinite(budget) || budget is < 0 or > 100000 || maxSteps is < 500 or > 60000 ||
-                startMinute < 0 || startMinute >= endMinute || endMinute > 1440 || days is < 1 or > 3)
+                startMinute < 0 || startMinute >= endMinute || endMinute > 1440 || days is < 1 or > 15)
                 throw new FormatException();
             _ = date.AddDays(days - 1); // 校验跨天日期边界。 / Validate the entire date span, including year-end overflow.
             if (Text(profile["request"]).Length > 1500)

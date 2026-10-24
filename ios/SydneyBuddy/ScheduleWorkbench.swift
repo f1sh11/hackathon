@@ -91,12 +91,12 @@ import SwiftUI
                     }.frame(width:min(150,geometry.size.width*0.34))
                     Divider()
                     VStack(alignment:.leading,spacing:8) {
-                        HStack(spacing:4){ForEach(Array(state.days.enumerated()),id:\.offset){i,d in Button{model.dayIndex=i}label:{VStack(spacing:3){Text("第 \(i+1) 天");Text(d.date).font(.system(size:9)).lineLimit(1).minimumScaleFactor(0.75)}.frame(maxWidth:.infinity).padding(.vertical,7).background(i==model.dayIndex ? Palette.mint:Color.white,in:RoundedRectangle(cornerRadius:12))}.font(.system(size:10)).accessibilityIdentifier("schedule-day-\(i)")
+                        ScrollView(.horizontal,showsIndicators:false){HStack(spacing:4){ForEach(Array(state.days.enumerated()),id:\.offset){i,d in Button{model.dayIndex=i}label:{VStack(spacing:3){Text("第 \(i+1) 天");Text(d.date).font(.system(size:9)).lineLimit(1).minimumScaleFactor(0.75)}.frame(width:76).padding(.vertical,7).background(i==model.dayIndex ? Palette.mint:Color.white,in:RoundedRectangle(cornerRadius:12))}.font(.system(size:10)).accessibilityIdentifier("schedule-day-\(i)")
                             .overlay(RoundedRectangle(cornerRadius:12).stroke(dragSession.hoverDay==i ? Palette.green:Color.clear,lineWidth:2))
                             .background(GeometryReader{proxy in
                                 let frame=proxy.frame(in:.named("scheduleWorkbench"))
                                 Color.clear.onAppear{dragSession.dayFrames[i]=frame}.onChange(of:frame){_,value in dragSession.dayFrames[i]=value}
-                            })}}
+                            })}}}
                         ScrollView {
                         ScheduleTimeCanvas(day:state.days[model.dayIndex],onChange:{id,start,duration in model.retime(id,start:start,duration:duration)},onEdit:onEdit,onAdd:onAdd,onPlace:{id,minute in if let c=model.state?.candidates.first(where:{$0.id==id}){model.place(c,at:minute)}},onGeometry:{canvas=$0},dropHint:dragging==nil ? nil:dropMinute().map{"放到 \(String(format:"%02d:%02d",$0/60,$0%60))"} ?? "拖至右側時段").padding(.top,4).padding(.bottom,20)
                     }.id(model.dayIndex).frame(maxWidth:.infinity).background(GeometryReader{proxy in

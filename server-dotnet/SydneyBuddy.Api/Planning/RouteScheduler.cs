@@ -58,6 +58,14 @@ public sealed class RouteScheduler(RouteService routes)
                 selected = await ScheduleAsync(option.Order, daily, context, exact: true, ct);
                 if (selected is not null) break;
             }
+            if (selected is null && places.All(p=>used.Contains(p.Str("id"))))
+            {
+                selected=await ScheduleAsync([],daily,context,exact:true,ct);
+                if (selected is not null) {
+                    selected["freeTime"]=true;
+                    selected.Array("warnings")!.Add("自由安排：现有候选景点已用完，请自行添加地点；当天未安排景点活动。");
+                }
+            }
             if (selected is null)
                 throw new ServiceException($"第 {day + 1} 天没有满足预算、步数、营业时间和返程条件的路线。请增加时间/预算/步数，或减少必去地点。");
             selected["date"] = daily.Str("date");

@@ -47,6 +47,8 @@ public sealed class Planner(PlaceService places, RecommendationService recommend
             "花费、场内步数与停留时间为估算；未包含酒店、交通票价、全部餐饮或特殊展门票。",
             "步行模式；未评估无障碍、坡度、排队与道路临时封闭。"
         };
+        if (days.OfType<JsonObject>().Any(d=>d.Bool("freeTime")))
+            warnings.Add("部分日期为自由安排：现有候选景点不足以每天安排不重复活动，请在日程中补充地点。");
         if (weather.Bool("rainy") && days.OfType<JsonObject>()
                 .SelectMany(x => x.Array("stops")!.OfType<JsonObject>()).Any(x => !x.Bool("indoor")))
             warnings.Add("你选择的必去地点包含户外活动，请自行确认天气并准备替代安排。");

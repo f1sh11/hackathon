@@ -278,7 +278,7 @@ struct PetChatView:View {
             Form {
                 Section("这次旅行的小背包") {ForEach(petFields,id:\.0){key,label in TextField(label,text:Binding(get:{fields[key] ?? ""},set:{fields[key]=$0}))}}
                 Section{Text(store.live ? "路线使用当前在线规划设置。" : "宠物自由聊天使用在线 AI；路线草案目前使用示例地点和路线数据。")
-                    Text("目前支持生成悉尼 1–3 天的路线。其他目的地可先保存资料。未确定的日期、天数和预算请补齐；预算为每人每日活动费用。").font(.caption)}
+                    Text("目前支持生成悉尼 1–15 天的路线。其他目的地可先保存资料。未确定的日期、天数和预算请补齐；预算为每人每日活动费用。").font(.caption)}
                 Section {
                     Button("保存修改"){Task{await chat.update(fields);if chat.error==nil{review=false}}}.disabled(chat.busy)
                     if !conversationOnly { Button(onboarding ? "保存偏好，去我的行程" : "用这些信息调整行程"){Task{await preparePlan()}}.disabled(chat.busy || store.busy) }
@@ -327,7 +327,7 @@ struct PetTripDraft {
     static func profile(_ fields:[String:String],base:TripProfile=TripProfile()) throws -> TripProfile {
         func failure(_ message:String)->NSError{NSError(domain:"PetDraft",code:1,userInfo:[NSLocalizedDescriptionKey:message])}
         guard ["悉尼","sydney"].contains((fields["destination"] ?? "").trimmingCharacters(in:.whitespacesAndNewlines).lowercased()) else{throw failure("这份资料可保存。当前只能生成悉尼路线，其他城市暂未接入。")}
-        guard let days=Int(fields["days"] ?? ""),(1...3).contains(days),let budget=Double(fields["budget"] ?? ""),budget.isFinite,budget>0,budget<=10000 else{throw failure("请填写 1–3 天和有效的每日活动预算（纯数字，最多 10000 AUD）。")}
+        guard let days=Int(fields["days"] ?? ""),(1...15).contains(days),let budget=Double(fields["budget"] ?? ""),budget.isFinite,budget>0,budget<=10000 else{throw failure("请填写 1–15 天和有效的每日活动预算（纯数字，最多 10000 AUD）。")}
         let format=DateFormatter();format.locale=Locale(identifier:"en_US_POSIX");format.dateFormat="yyyy-MM-dd";format.isLenient=false
         guard let date=fields["date"],let parsed=format.date(from:date),format.string(from:parsed)==date else{throw failure("请填写 YYYY-MM-DD 格式的有效出发日期。")}
         var result=base;result.date=date;result.days=days;result.budget=budget
@@ -374,10 +374,10 @@ struct PetWelcomeView: View {
     @State private var lastAnswer=""
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var confirmed=Set<String>()
-    @State private var memoryDecision=false
+    @State private var rememberPreferences=false
     @State private var finishing=false
     @State private var problem: String?
-    private let questions=["嗨！我是 Buddy。\n这次可以陪你去悉尼吗？","我先在小日历上画个圈！你准备哪天出发，玩几天呀？","小背包准备几个位置？\n这次和谁一起去呀？","我想把你喜欢的都装进背包。你看到什么会开心呀？","我走得不快哦～\n这次想慢慢逛，还是多探索一点？","收到！这次的小心愿收好啦。我们去“我的行程”看看？"]
+    private let questions=["嗨！我是 Buddy。\n这次可以陪你去悉尼吗？","我先在小日历上画个圈！你准备哪天出发，玩几天呀？","小背包准备几个位置？\n这次和谁一起去呀？","我想把你喜欢的都装进背包。你看到什么会开心呀？","我走得不快哦～\n这次想慢慢逛，还是多探索一点？","下次也想这样玩吗？我可以记住你喜欢的事物和旅行节奏。"]
     private var sceneMood:PetMood {if chat.error != nil || problem != nil{return .confused};if finishing{return .remembering};return reaction?.mood ?? (step==5 ? .ready:step==0 ? .greeting:.curious)}
     private var speech:String {if let error=chat.error ?? problem{return "刚才绊了一小下，你的选择还在。\n"+error};return reaction?.text ?? questions[step]}
     private var working: Bool { chat.busy || store.busy || finishing }
@@ -407,7 +407,7 @@ struct PetWelcomeView: View {
                 }.padding(.horizontal,26).padding(.bottom,24)
             }.scrollDismissesKeyboard(.interactively)
             VStack(spacing:14) {
-                PrimaryButton(title:step==5 ? "收好背包，去我的行程" : reaction==nil ? "就这样告诉 Buddy" : "接着聊",symbol:step==5 ? "suitcase.rolling.fill" : "arrow.right") { Task{await advance()} }.disabled(working || !loaded)
+                PrimaryButton(title:step==5 ? "去我的行程" : reaction==nil ? "就这样告诉 Buddy" : "接着聊",symbol:step==5 ? "suitcase.rolling.fill" : "arrow.right") { Task{await advance()} }.disabled(working || !loaded)
                 if step<5 {
                     HStack {
                         Button("先用推荐选项"){Task{await advance()}}.font(.caption).foregroundStyle(Palette.muted)
@@ -420,16 +420,16 @@ struct PetWelcomeView: View {
             }.padding(.horizontal,26).padding(.top,12).padding(.bottom,18).background(Palette.cream)
         }.background(Palette.cream).foregroundStyle(Palette.ink)
         .task { await load() }
+        .onChange(of:rememberPreferences){_,enabled in
+            withAnimation(reduceMotion ? nil:.spring(response:0.3,dampingFraction:0.8)) {
+                reaction=PetReaction(text:enabled ? "好呀！出发时，我会把这些小喜好收进记忆里。" : "收到，这些选择就放在这次的小背包里。",mood:enabled ? .remembering:.relaxed)
+            }
+        }
         .onChange(of:confirmed){_,keys in if let id=chat.session?.id{UserDefaults.standard.set(Array(keys),forKey:"petWelcome.confirmed."+id)}}
         .onChange(of:step){_,value in reaction=nil;lastAnswer="";problem=nil;if loaded{UserDefaults.standard.set(value,forKey:"petWelcome.step")}}
         .onChange(of:values){_,value in if loaded,let id=chat.session?.id,let data=try? JSONEncoder().encode(value){UserDefaults.standard.set(data,forKey:"petWelcome.values."+id)}}
         .sheet(isPresented:$talking,onDismiss:{Task{await syncChat()}}){NavigationStack{PetChatView(conversationOnly:true).toolbar{ToolbarItem(placement:.topBarTrailing){Button("回到小背包"){talking=false}}}}}
-        .confirmationDialog("下次也按这些偏好吗？",isPresented:$memoryDecision,titleVisibility:.visible) {
-            Button("仅用于这次旅行"){Task{await finish(remember:false)}}
-            Button("以后也记住兴趣和节奏"){Task{await finish(remember:true)}}
-            Button("继续修改",role:.cancel){}
-        } message: {Text("长期保存：\(values["interests"] ?? "")，\(values["pace"] ?? "")。日期、同行人、预算和补充要求仅用于本次，可在记忆页撤回长期偏好。")}
-        .confirmationDialog("重新开始这次提问？历史行程和长期偏好保留。",isPresented:$restarting,titleVisibility:.visible){Button("重新开始",role:.destructive){Task{await chat.clear();if chat.error==nil{values=defaults;confirmed=[];step=0;loaded=true;UserDefaults.standard.set(chat.session?.id,forKey:"petWelcome.session");UserDefaults.standard.set(0,forKey:"petWelcome.step")}}}}
+        .confirmationDialog("重新开始这次提问？历史行程和长期偏好保留。",isPresented:$restarting,titleVisibility:.visible){Button("重新开始",role:.destructive){Task{await chat.clear();if chat.error==nil{values=defaults;confirmed=[];rememberPreferences=false;step=0;loaded=true;UserDefaults.standard.set(chat.session?.id,forKey:"petWelcome.session");UserDefaults.standard.set(0,forKey:"petWelcome.step")}}}}
     }
     @ViewBuilder private var cardContent: some View {
         switch step {
@@ -438,7 +438,12 @@ struct PetWelcomeView: View {
             Text("这一版先陪你探索悉尼。其他城市还在准备中。").font(.caption).foregroundStyle(Palette.muted)
         case 1:
             DatePicker("出发日期",selection:day,displayedComponents:.date).datePickerStyle(.compact).padding(18).background(.white,in:RoundedRectangle(cornerRadius:20))
-            HStack(spacing:10){ForEach(1...3,id:\.self){n in Button{choose("days",String(n))}label:{Text("\(n) 天").font(.headline).frame(maxWidth:.infinity).padding(.vertical,18).background(values["days"]==String(n) ? Palette.mint : .white,in:RoundedRectangle(cornerRadius:18)).overlay(RoundedRectangle(cornerRadius:18).stroke(values["days"]==String(n) ? Palette.green : Color.clear,lineWidth:2))}.buttonStyle(.plain)}}
+            VStack(spacing:14) {
+                Stepper("旅行天数：\(values["days"] ?? "1") 天",value:Binding(get:{Int(values["days"] ?? "1") ?? 1},set:{choose("days",String($0))}),in:1...15)
+                Slider(value:Binding(get:{Double(values["days"] ?? "1") ?? 1},set:{values["days"]=String(Int($0))}),in:1...15,step:1,onEditingChanged:{editing in if !editing{choose("days",values["days"] ?? "1")}}).tint(Palette.green).accessibilityLabel("旅行天数")
+                HStack{Text("1 天");Spacer();Text("15 天")}.font(.caption).foregroundStyle(Palette.muted)
+            }.padding(20).background(.white,in:RoundedRectangle(cornerRadius:20)).disabled(working)
+
         case 2:
             ForEach([("一个人","person.fill"),("两个人","heart.fill"),("和朋友","person.2.fill"),("和家人","house.fill")],id:\.0){label,icon in option(label,icon:icon,selected:values["companions"]==label){choose("companions",label)}}
         case 3:
@@ -446,12 +451,38 @@ struct PetWelcomeView: View {
         case 4:
             if (values["pace"] ?? "").hasPrefix("沿用偏好"){option(values["pace"]!,detail:"你之前同意保存的步数",icon:"heart.fill",selected:true){}}
             ForEach([("慢悠悠（约6000步）","多坐一会儿，多看看风景","tortoise.fill"),("适中（约10000步）","走走停停，刚刚好","figure.walk"),("多逛逛（约15000步）","想把一天装得满一点","shoeprints.fill")],id:\.0){label,detail,icon in option(label,detail:detail,icon:icon,selected:values["pace"]==label){choose("pace",label)}}
+            VStack(alignment:.leading,spacing:12) {
+                HStack{Text("每天步数上限").font(.headline);Spacer();Text("\(walkingSteps) 步").font(.headline).monospacedDigit()}
+                Slider(value:Binding(get:{Double(walkingSteps)},set:{values["pace"]="自定义（约\(Int($0))步）"}),in:1000...30000,step:1000,onEditingChanged:{editing in if !editing{choose("pace",values["pace"] ?? "")}}).tint(Palette.green).accessibilityLabel("每天步数上限")
+                HStack{Text("1,000 步");Spacer();Text("30,000 步")}.font(.caption).foregroundStyle(Palette.muted)
+                Text("推荐节奏也可以微调，Buddy 会按这个上限安排路线。").font(.caption).foregroundStyle(Palette.muted)
+            }.padding(20).background(.white,in:RoundedRectangle(cornerRadius:20)).disabled(working)
         default:
-            VStack(spacing:16){summary("目的地","\(values["destination"] ?? "悉尼") · \(values["days"] ?? "1") 天");summary("出发",values["date"] ?? "");summary("同行",values["companions"] ?? "");summary("喜欢",values["interests"] ?? "");summary("节奏",values["pace"] ?? "")}.padding(20).background(.white,in:RoundedRectangle(cornerRadius:24))
-            HStack{Text("每日活动预算").font(.subheadline);Spacer();TextField("100",text:Binding(get:{values["budget"] ?? "100"},set:{values["budget"]=$0})).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width:70);Text("AUD").foregroundStyle(Palette.muted)}.padding(18).background(.white,in:RoundedRectangle(cornerRadius:18))
+            VStack(spacing:16){summary("目的地","\(values["destination"] ?? "悉尼") · \(values["days"] ?? "1") 天");summary("出发",values["date"] ?? "");summary("同行",values["companions"] ?? "")}.padding(20).background(.white,in:RoundedRectangle(cornerRadius:24))
+            VStack(alignment:.leading,spacing:14) {
+                HStack{Text("每人每日活动预算").font(.subheadline.bold());Spacer();TextField("100",text:Binding(get:{values["budget"] ?? "100"},set:{values["budget"]=$0})).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width:80).accessibilityLabel("每人每日活动预算");Text("AUD").foregroundStyle(Palette.muted)}
+                HStack{ForEach([50,100,200,500],id:\.self){amount in Button{values["budget"]=String(amount)}label:{Text("$\(amount)").font(.subheadline.bold()).frame(maxWidth:.infinity).padding(.vertical,10).background(Double(values["budget"] ?? "")==Double(amount) ? Palette.mint:Palette.cream,in:RoundedRectangle(cornerRadius:12))}.buttonStyle(.plain)}}
+                Text("可直接输入金额，最多 10,000 AUD。不包含住宿、交通票价和全部餐饮；活动费用为估算。").font(.caption).foregroundStyle(Palette.muted).fixedSize(horizontal:false,vertical:true)
+            }.padding(18).background(.white,in:RoundedRectangle(cornerRadius:20)).disabled(working)
             TextField("还有什么想让我照顾的？（选填）",text:Binding(get:{values["notes"] ?? ""},set:{values["notes"]=$0}),axis:.vertical).padding(18).background(.white,in:RoundedRectangle(cornerRadius:18))
-            Text("这些回答先放在本次小背包里。长期记住之前，我会再征求你的同意。").font(.caption).foregroundStyle(Palette.muted)
+            VStack(alignment:.leading,spacing:14) {
+                Label("留给下次的小记忆",systemImage:"sparkles").font(.headline)
+                summary("兴趣",values["interests"] ?? "")
+                summary("节奏",values["pace"] ?? "")
+                Divider()
+                Toggle("下次旅行也参考这些偏好",isOn:$rememberPreferences)
+                    .font(.subheadline.weight(.medium)).tint(Palette.green)
+                    .accessibilityIdentifier("pet-remember-preferences")
+                    .disabled(working)
+                Text("仅保存兴趣和节奏，可在记忆页随时删除。日期、同行人和预算只用于这次旅行。")
+                    .font(.caption).foregroundStyle(Palette.muted).fixedSize(horizontal:false,vertical:true)
+            }.padding(20).background(.white,in:RoundedRectangle(cornerRadius:22))
         }
+    }
+    private var walkingSteps:Int {
+        let pace=values["pace"] ?? ""
+        if let range=pace.range(of:"[0-9]{3,5}",options:.regularExpression),let steps=Int(pace[range]){return min(30000,max(1000,steps))}
+        return 10000
     }
     private func summary(_ label:String,_ value:String)->some View { HStack(alignment:.top){Text(label).foregroundStyle(Palette.muted);Spacer();Text(value).multilineTextAlignment(.trailing).fontWeight(.medium)}.font(.subheadline) }
     private func option(_ title:String,detail:String?=nil,icon:String,selected:Bool,action:@escaping()->Void)->some View {
@@ -479,7 +510,7 @@ struct PetWelcomeView: View {
         if step==5 {
             do {
                 _=try PetTripDraft.profile(values)
-                memoryDecision=true
+                await finish(remember:rememberPreferences)
             } catch {problem=error.localizedDescription}
         } else {
             let keys=confirmed.union(PetOnboardingDraft.groups[step])
@@ -495,6 +526,9 @@ struct PetWelcomeView: View {
             await chat.update(values);guard chat.error==nil else{return}
             confirmed=Set(values.keys)
             if remember {await chat.savePreferences(profile,consent:true);guard chat.error==nil else{return}}
+            reaction=PetReaction(text:remember ? "记住啦！下次我会参考这些偏好。" : "收到！这次就照这个节奏出发。",mood:remember ? .remembering:.ready)
+            // Give Buddy's successful acknowledgement time to appear before navigation.
+            try await Task.sleep(for:.milliseconds(900))
             store.completePetPreferences(profile,fields:values)
         } catch {problem=error.localizedDescription}
     }

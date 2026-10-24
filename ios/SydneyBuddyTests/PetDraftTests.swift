@@ -2,6 +2,12 @@ import XCTest
 @testable import SydneyBuddy
 
 final class PetDraftTests:XCTestCase {
+    func testCustomValuesAndFifteenDayBoundary() throws {
+        var values=fields;values["days"]="15";values["pace"]="自定义（约8000步）";values["budget"]="125.50"
+        let profile=try PetTripDraft.profile(values)
+        XCTAssertEqual(profile.days,15);XCTAssertEqual(profile.maxSteps,8000);XCTAssertEqual(profile.budget,125.5)
+        values["days"]="16";XCTAssertThrowsError(try PetTripDraft.profile(values))
+    }
     private var fields:[String:String] {["destination":"悉尼","date":"2026-11-01","days":"2","budget":"100","pace":"每天最多5000步","interests":"艺术和美食"]}
     @MainActor func testCompletingPreferencesOpensTripsWithoutPlanningAndRestoresDraft() throws {
         let defaults=UserDefaults.standard
@@ -108,7 +114,7 @@ final class PetDraftTests:XCTestCase {
         XCTAssertThrowsError(try PetTripDraft.profile(values))
     }
     func testInvalidDatesUnknownDaysAndNonfiniteBudgetsAreRejected() {
-        for (key,value) in [("date","2026-02-30"),("date","2026-2-1"),("days","未确定"),("days","4"),("budget","nan"),("budget","-1"),("pace","每天99999步")] {
+        for (key,value) in [("date","2026-02-30"),("date","2026-2-1"),("days","未确定"),("days","16"),("budget","nan"),("budget","-1"),("pace","每天99999步")] {
             var values=fields;values[key]=value;XCTAssertThrowsError(try PetTripDraft.profile(values),key+value)
         }
     }

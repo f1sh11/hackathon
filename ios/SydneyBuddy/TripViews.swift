@@ -35,6 +35,7 @@ struct DaySummary:View {
             HStack {Text(day.date).font(.headline);Spacer();Text("约 A$\(Int(day.estimatedCost))").font(.subheadline.bold()).foregroundStyle(Palette.green)}
             Label("约 \(day.estimatedSteps) 步 · \(day.finishTime) 返回",systemImage:"figure.walk").font(.caption).foregroundStyle(Palette.muted)
             Text("\(day.start.name) 出发 → \(day.end.name) 返回").font(.caption2).foregroundStyle(Palette.muted)
+            if day.freeTime == true {Label("自由安排 · 景点待补充",systemImage:"leaf").font(.subheadline).foregroundStyle(Palette.green)}
             ForEach(Array(day.stops.enumerated()),id:\.element.id){i,s in
                 HStack(alignment:.top,spacing:13) {
                     Text("\(i+1)").font(.caption.bold()).frame(width:27,height:27).foregroundStyle(.white).background(Palette.green,in:Circle())
@@ -155,7 +156,7 @@ struct TripDraftEditor:View {
                 Section("这次旅行"){
                     field("destination","目的地")
                     DatePicker("出发日期",selection:Binding(get:{dateValue},set:{fields["date"]=TripProfile.dateString($0)}),displayedComponents:.date)
-                    Stepper("旅行天数：\(fields["days"] ?? "1") 天",value:Binding(get:{Int(fields["days"] ?? "1") ?? 1},set:{fields["days"]=String($0)}),in:1...3)
+                    Stepper("旅行天数：\(fields["days"] ?? "1") 天",value:Binding(get:{Int(fields["days"] ?? "1") ?? 1},set:{fields["days"]=String($0)}),in:1...15)
                     field("companions","同行伙伴")
                 }
                 Section("兴趣与节奏"){
@@ -166,7 +167,7 @@ struct TripDraftEditor:View {
                     field("budget","每天活动预算（AUD）")
                     field("notes","补充要求")
                 }
-                Section{Text("修改只用于这次旅行，不会更改长期记忆。当前支持悉尼 1–3 天，活动预算单位为 AUD。").font(.caption).foregroundStyle(Palette.muted)}
+                Section{Text("修改只用于这次旅行，不会更改长期记忆。当前支持悉尼 1–15 天，活动预算单位为 AUD。").font(.caption).foregroundStyle(Palette.muted)}
                 if let problem{Section{Text(problem).foregroundStyle(.red)}}
             }.navigationTitle("编辑旅行偏好").navigationBarTitleDisplayMode(.inline)
             .toolbar{ToolbarItem(placement:.topBarLeading){Button("取消"){dismiss()}.disabled(saving)};ToolbarItem(placement:.topBarTrailing){Button(saving ? "保存中…":"保存"){Task{await save()}}.bold().disabled(saving)}}
