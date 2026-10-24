@@ -256,6 +256,8 @@ struct AppleTripWalkingView:View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var overview=ItineraryOverview()
     @State private var dayIndex:Int
+    @State private var updated=false
+    @State private var updateError:String?
     init(trip:Trip,initialDay:Int=0,initialPlan:JourneyPlan?=nil,onPlan:((JourneyPlan,DayPlan)->Void)?=nil) {
         self.trip=trip;self.onPlan=onPlan;let index=trip.days.indices.contains(initialDay) ? initialDay:0
         self.initialDay=index;self.initialPlan=initialPlan?.source=="Apple Maps / MapKit" && initialPlan?.legs.flatMap(\.steps).allSatisfy({$0.mode=="walk"})==true ? initialPlan:nil;_dayIndex=State(initialValue:index)
@@ -274,6 +276,15 @@ struct AppleTripWalkingView:View {
                 else if let plan=overview.plan {
                     Label("约 \(Int(plan.meters.rounded())) 米 · 步行 \(Int(ceil(plan.travelSeconds/60))) 分钟",systemImage:"figure.walk").font(.headline).accessibilityIdentifier("apple-walking-summary")
                     Text("Apple Maps 真实道路路线；不含景点停留、休息和未知排队时间。路线预览不会自动跟随位置或播报。").font(.caption).foregroundStyle(Palette.muted)
+                    if day.legs.allSatisfy({$0.source.contains("Apple")}) {Label("当天安排已按 Apple 步行时间校准",systemImage:"checkmark.circle").font(.caption).foregroundStyle(Palette.green)}
+                    else {
+                        Text("行程里的到达与返回时间尚未按这条道路路线校准。").font(.caption).foregroundStyle(Palette.muted)
+                        if trip.schedule == nil {
+                            Button("按真实步行时间更新当天安排"){Task{if await store.updateWalkingTimes(plan,original:trip,dayIndex:dayIndex){updated=true;dismiss()}else{updateError=store.adjustmentError}}}.buttonStyle(.borderedProminent).disabled(store.busy).accessibilityIdentifier("apply-walking-times")
+                            Text("保留原景点与停留，计入衔接和休息；超出步数或时间上限会提示，原安排保留。").font(.caption2).foregroundStyle(Palette.muted)
+                        }else{Text("已有手动时间安排，请在编辑行程中参考实际步行用时调整。").font(.caption)}
+                        if let updateError{Text(updateError).font(.caption).foregroundStyle(.red)}
+                    }
                     ForEach(plan.legs){leg in
                         DisclosureGroup {
                             let directions=leg.steps.flatMap{$0.walkingDirections ?? []}
@@ -281,7 +292,7 @@ struct AppleTripWalkingView:View {
                             ForEach(Array(directions.enumerated()),id:\.offset){_,instruction in
                                 HStack(alignment:.top){Text(instruction.text).font(.subheadline);Spacer();if instruction.meters>0{Text("\(Int(instruction.meters.rounded())) 米").font(.caption).foregroundStyle(Palette.muted)}}.padding(.vertical,5)
                             }
-                        } label:{VStack(alignment:.leading,spacing:4){Text("\(leg.index+1). "+leg.from+" → "+leg.to).font(.subheadline.bold());Text("\(Int(leg.steps.reduce(0){$0+$1.meters}.rounded())) 米 · 约 \(Int(ceil(leg.steps.reduce(0){$0+$1.seconds}/60))) 分钟").font(.caption).foregroundStyle(Palette.muted)}}.padding(14).background(.white,in:RoundedRectangle(cornerRadius:16))
+                        } label:{VStack(alignment:.leading,spacing:4){Text("\(leg.index+1). "+leg.from+" → "+leg.to).font(.subheadline.bold());Text(leg.walkingSummary).font(.caption).foregroundStyle(Palette.muted)}}.padding(14).background(.white,in:RoundedRectangle(cornerRadius:16))
                     }
                 } else if let error=overview.message {
                     Label(store.language.display(error),systemImage:"exclamationmark.circle").font(.subheadline).foregroundStyle(Palette.muted).accessibilityIdentifier("apple-walking-error")
@@ -292,14 +303,21 @@ struct AppleTripWalkingView:View {
             }
         }.padding(18)}.background(Palette.cream).navigationTitle("App 内步行路线").navigationBarTitleDisplayMode(.inline).toolbar{Button("关闭"){dismiss()}}.tint(Palette.green)}
         .task(id:day.map{mapSceneKey($0)} ?? "empty"){
-            overview.clear()
+            overview.clear();updateError=nil
             guard let day,!day.stops.isEmpty else{return}
             if dayIndex==initialDay,let initialPlan{overview.accept(initialPlan,day:day)}else{overview.load(day,provider:.apple)}
         }
         .onDisappear{
             store.dayIndex=dayIndex;store.selectedStopID=nil
-            if let day,let plan=overview.plan{onPlan?(plan,day)}
+            if !updated,let day,let plan=overview.plan{onPlan?(plan,day)}
             overview.cancel()
         }
+    }
+}
+
+extension JourneyLeg {
+    var walkingSummary:String {
+        let meters=steps.reduce(0){$0+$1.meters};let seconds=steps.reduce(0){$0+$1.seconds}
+        return meters<30 ? "同一区域内 · 约 \(Int(meters.rounded())) 米，按现场入口步行":"\(Int(meters.rounded())) 米 · 约 \(Int(ceil(seconds/60))) 分钟"
     }
 }

@@ -28,7 +28,7 @@ public sealed class Planner(PlaceService places, RecommendationService recommend
         if (mode is not ("demo" or "assisted" or "live")) throw new ServiceException("模式不合法");
         var context = new PlanningContext(mode, secrets.Read());
         var profile = PlanValidator.Validate(raw, Catalog);
-        var candidates = await places.GetCandidatesAsync(context, ct);
+        var candidates = TravelConstraints.Apply(profile, await places.GetCandidatesAsync(context, ct));
         var forecast = await WeatherForProfileAsync(profile, context, ct);
         var choice = await recommendations.SelectAsync(profile, candidates, forecast, context, ct);
         var ranks = choice.Array("preferredIds")!.Select((id, index) => (id: id!.GetValue<string>(), index))
@@ -47,8 +47,8 @@ public sealed class Planner(PlaceService places, RecommendationService recommend
             "花费、场内步数与停留时间为估算；未包含酒店、交通票价、全部餐饮或特殊展门票。",
             "步行模式；未评估无障碍、坡度、排队与道路临时封闭。"
         };
-        if (!string.IsNullOrEmpty(profile.Str("mustDo")))warnings.Add("特别想去／想做："+profile.Str("mustDo")+"。当前示例规划尚未保证排入，请检查并编辑路线。");
-        if (!string.IsNullOrEmpty(profile.Str("avoid")))warnings.Add("避开／出行需求："+profile.Str("avoid")+"。尚未自动核实，请逐项检查路线是否适合。");
+        if (profile.Array("mustVisit")!.Count>0 && !string.IsNullOrEmpty(profile.Str("mustDo")))warnings.Add("特别想去／想做："+profile.Str("mustDo")+"。已作为必去约束检查并排入路线。");
+        if (!string.IsNullOrEmpty(profile.Str("avoid")) && profile.Str("avoid") is not ("无" or "未确定" or "暂不确定" or "无特别要求"))warnings.Add("避开／出行需求："+profile.Str("avoid")+"。已按可识别地点和类别筛选；无障碍、临时封路等仍需另行核实。");
         if (!string.IsNullOrEmpty(profile.Str("origin")) && profile.Str("origin") != profile.Object("start")!.Str("name"))warnings.Add("出发地点备注："+profile.Str("origin")+"；当前起点为"+profile.Object("start")!.Str("name")+"，请核实位置。");
         if (!string.IsNullOrEmpty(profile.Str("queueTolerance")))warnings.Add("排队偏好已记录，但缺少可靠实时排队数据，无法保证排队时长。");
         if (days.OfType<JsonObject>().Any(d=>d.Bool("freeTime")))

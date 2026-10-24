@@ -8,13 +8,19 @@ public static class TripEndpoints
     public static void MapTripEndpoints(this RouteGroupBuilder routes)
     {
         routes.MapGet("/trips", async (TripRepository trips, CancellationToken ct) => Results.Json(await trips.ListAsync(ct)));
-        routes.MapPost("/trips", async (HttpContext context, TripRepository trips, ScheduleEditorService editor) =>
+        routes.MapPost("/trips", async (HttpContext context, TripRepository trips, ScheduleEditorService editor, PlaceCatalog catalog) =>
         {
             var input = await RequestJson.ReadAsync(context);
             if (input["trip"] is not JsonObject trip) return Results.Json(new { error = "请求格式不合法" }, statusCode: 400);
             trip.Remove("previousAdjustment");
             if (trip["id"] is not null && (trip["id"] is not JsonValue id || !id.TryGetValue<string>(out _)))
                 return Results.Json(new { error = "行程标识必须是字符串" }, statusCode: 400);
+            if(input["walkingTimeDay"] is not null) {
+                var existing=await trips.FindAsync(trip.Str("id"),context.RequestAborted) ?? throw new ServiceException("行程不存在。");
+                if(existing.Int("revision")!=input.Int("expectedRevision"))throw new RevisionConflictException();
+                if(input["walkingTimeDay"] is not JsonValue day || !day.TryGetValue<int>(out var index) || input["walkingLegs"] is not JsonArray legs)throw new ServiceException("步行路线资料无效。");
+                return Results.Json(await trips.SaveAsync(WalkingTimeUpdate.Apply(existing,index,legs,catalog.Get()),input.Int("expectedRevision"),context.RequestAborted));
+            }
             if(input.Bool("renameOnly")) {
                 var existing=await trips.FindAsync(trip.Str("id"),context.RequestAborted) ?? throw new ServiceException("行程不存在。");
                 if(existing.Int("revision")!=input.Int("expectedRevision"))throw new RevisionConflictException();

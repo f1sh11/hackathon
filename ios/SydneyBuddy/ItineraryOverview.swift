@@ -57,6 +57,10 @@ struct OverviewRoute {
     private var task: Task<Void, Never>?
     private var generation = UUID()
     private var homeIdentity=""
+    private var routeIdentity=""
+    private func walkingIdentity(_ day:DayPlan)->String {
+        day.date+"|"+(["\(day.start.name):\(day.start.lat),\(day.start.lng)"]+day.stops.map{"\($0.id):\($0.name):\($0.lat),\($0.lng):\($0.visitMinutes)"}+["\(day.end.name):\(day.end.lat),\(day.end.lng)"]).joined(separator:"|")
+    }
     private var routeProvider:MapProvider?
     var loader:(URLRequest) async throws -> (Data,URLResponse) = {try await URLSession.shared.data(for:$0)}
     private let applePlan:(DayPlan,Date) async throws -> JourneyPlan
@@ -67,6 +71,8 @@ struct OverviewRoute {
     func loadHome(_ day:DayPlan,provider:MapProvider,contentSource:String) {
         let identity=mapSceneKey(day)+"|"+provider.rawValue+"|"+contentSource
         guard homeIdentity != identity else{return};homeIdentity=identity
+        // Updating display times or undoing a calibration does not change the walking path.
+        if provider == .apple,contentSource != "google",routeProvider == .apple,route != nil,plan?.source=="Apple Maps / MapKit",plan?.legs.flatMap(\.steps).allSatisfy({$0.mode=="walk"})==true,routeIdentity==walkingIdentity(day){key=mapSceneKey(day);return}
         clear();key=mapSceneKey(day)
         if !day.stops.isEmpty,contentSource != "google" && (provider == .osm || provider == .apple){load(day,provider:provider)}
     }
@@ -74,7 +80,7 @@ struct OverviewRoute {
     func accept(_ result:JourneyPlan,day:DayPlan) {
         cancel();key=mapSceneKey(day);plan=result;route=result.overview;message="路线来源："+result.source
         if result.source=="Apple Maps / MapKit",result.legs.flatMap(\.steps).allSatisfy({$0.mode=="walk"}) {
-            routeProvider = .apple;homeIdentity=mapSceneKey(day)+"|apple|open"
+            routeIdentity=walkingIdentity(day);routeProvider = .apple;homeIdentity=mapSceneKey(day)+"|apple|open"
         }
     }
     func cancel() { generation = UUID(); task?.cancel(); task = nil; busy = false }
@@ -92,9 +98,11 @@ struct OverviewRoute {
         task = Task {
             do {
                 if provider == .apple {
-                    let result=try await applePlan(day,Date())
+                    let formatter=DateFormatter();formatter.dateFormat="yyyy-MM-dd HH:mm";formatter.timeZone=TimeZone(identifier:"Australia/Sydney")
+                    let departure=formatter.date(from:day.date+" 10:00") ?? Date()
+                    let result=try await applePlan(day,departure)
                     try Task.checkCancellation();guard token==generation else{return}
-                    plan=result;route=result.overview;busy=false;message="路线来源："+result.source
+                    routeIdentity=walkingIdentity(day);plan=result;route=result.overview;busy=false;message="路线来源："+result.source
                     return
                 }
                 // Co-located meal/facility placeholders remain separate itinerary stops, but
@@ -204,7 +212,7 @@ struct HomeTransportStrip:View {
     var body:some View {
         VStack(alignment:.leading,spacing:6){
             HStack{Button(action:onPlan){Label("交通方式",systemImage:"arrow.triangle.swap").font(.caption.bold())};Spacer();if overview.route != nil{Text(store.language.text("{0} 分 · 道路查詢",String(Int(ceil((overview.route?.seconds ?? 0)/60))))).font(.caption2).foregroundStyle(Palette.muted)}}
-            Text("行程排程交通 \(day.legs.reduce(0){$0+$1.minutes}) 分；道路查詢為另一來源，尚未套用至時間軸。").font(.caption2).foregroundStyle(Palette.muted)
+            Text(day.legs.allSatisfy({$0.source.contains("Apple")}) ? "已按 Apple 步行时间校准，排程逐段向上取整为 \(day.legs.reduce(0){$0+$1.minutes}) 分。":"行程交通估算 \(day.legs.reduce(0){$0+$1.minutes}) 分；道路查询尚未用于校准安排。").font(.caption2).foregroundStyle(Palette.muted)
             if overview.busy{ProgressView("正在載入道路路線…").font(.caption)}
             else if overview.route != nil{
                 ScrollView(.horizontal,showsIndicators:false){HStack(spacing:6){ForEach(overviewTransportLegs(day,route:overview.route,plan:overview.plan)){leg in

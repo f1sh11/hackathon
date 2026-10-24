@@ -244,7 +244,7 @@ struct ScheduleRadarView:View {
             .toolbar {ToolbarItem(placement:.topBarLeading){Button("取消"){model.stop();store.proposal=nil}}}
             .safeAreaInset(edge:.bottom){PrimaryButton(title:"保存行程",symbol:"checkmark"){saveWarning=true}.disabled(model.busy || model.dirty || model.state == nil || model.state?.issues.contains(where:\.blocking)==true).padding().frame(maxWidth:.infinity).background(Palette.cream)}
         }
-        .task {if let trip=store.proposal {model.prepare(trip);await model.loadCatalog()}}
+        .task {if let trip=store.proposal {model.prepare(trip);model.dayIndex=min(store.dayIndex,max(0,trip.days.count-1));await model.loadCatalog()}}
         .onDisappear{model.stop()}
         .sheet(isPresented:$candidateSheet){candidates}
         .sheet(isPresented:$settingsSheet){ScheduleSettingsView(model:model)}

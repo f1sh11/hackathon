@@ -287,6 +287,11 @@ struct PetChatView:View {
                     Button("先保留，稍后继续"){if onboarding{store.returnToTrips(draft:liveFields)}else{dismiss()}}.font(.caption).frame(maxWidth:.infinity,minHeight:32)
                 }.padding(14).background(Palette.mint.opacity(0.6),in:RoundedRectangle(cornerRadius:18)).padding(.horizontal,20).disabled(chat.busy || store.busy).accessibilityIdentifier("chat-current-status")
             } else if !canPlanDirectly,let session=chat.session,!session.nextField.isEmpty {quickAnswers(session)}
+            if canPlanDirectly {
+                PrimaryButton(title:onboarding || draftScope ? "生成行程":"按这些信息调整行程",symbol:"sparkles"){composing=false;fields=liveFields;assumptionsConfirmed=true;Task{await preparePlan()}}
+                    .disabled(chat.busy || store.busy || !message.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty).padding(.horizontal,20).padding(.top,8).accessibilityIdentifier("chat-generate")
+                if !message.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty{Text("先发送新想法，再按最新需求生成").font(.caption).foregroundStyle(Palette.muted)}
+            }
             HStack(alignment:.bottom){
                 TextField("告诉 Buddy 你的想法，也可以点上面的选项…",text:$message,axis:.vertical).focused($composing).lineLimit(1...4).padding(12).background(.white,in:RoundedRectangle(cornerRadius:16)).accessibilityIdentifier("chat-composer").disabled(chat.busy)
                 Button{let text=message;composing=false;Task{await chat.send(text);if chat.error==nil{message=""}}}label:{Image(systemName:"arrow.up.circle.fill").font(.system(size:34))}.accessibilityLabel("发送消息").disabled(chat.busy || message.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty || message.count>2000)
@@ -412,9 +417,6 @@ struct PetChatView:View {
             let assumptions=TravelRequirements.assumptions(liveFields,personal:store.pendingPersonalProfile)
             if let origin=assumptions.first(where:{$0.contains("起终点") || $0.contains("尚未定位")}){Text(origin).font(.caption2).foregroundStyle(Palette.muted).fixedSize(horizontal:false,vertical:true)}
             DisclosureGroup("查看临时假设与待核实信息") {ScrollView{VStack(alignment:.leading,spacing:6){ForEach(assumptions,id:\.self){Text("• "+$0).font(.caption)}}}.frame(maxHeight:100)}.font(.caption).foregroundStyle(Palette.muted)
-            PrimaryButton(title:onboarding ? "生成行程":"按这些信息调整行程",symbol:"sparkles"){
-                composing=false;fields=liveFields;assumptionsConfirmed=true;Task{await preparePlan()}
-            }.disabled(chat.busy || store.busy || !message.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty).accessibilityIdentifier("chat-generate")
             Text(message.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty ? "点击即按以上需求与临时假设生成；也可以继续聊。":"输入框还有未发送的内容，请先发送或清空。后续会按最新需求生成。").font(.caption2).foregroundStyle(Palette.muted)
         }.padding(14).background(Palette.mint.opacity(0.6),in:RoundedRectangle(cornerRadius:18)).padding(.horizontal,20).padding(.top,8)
     }
@@ -770,8 +772,8 @@ struct TravelRequirements {
         if !known(fields["interests"]),personal.interests==nil{result.append("兴趣尚未确定：暂参考风景与美食。")}
         if (fields["interests"] ?? personal.interests?.joined(separator:"、") ?? "").contains("购物"){result.append("购物兴趣已记录，当前示例地点未保证包含购物场所。")}
         result.append("预算按活动费用估算，不含住宿、交通票价和全部餐饮。")
-        if known(fields["mustDo"]),fields["mustDo"] != "无"{result.append("特别想去／想做的内容作为需求备注，尚未保证已排入路线。")}
-        if known(fields["avoid"]),fields["avoid"] != "无"{result.append("避开要求需要逐项核实；当前自动规划不能保证满足，请在行程详情中检查。")}
+        if known(fields["mustDo"]),fields["mustDo"] != "无"{result.append("明确的必去地点会参与规划；无法识别或无法满足时会提示修改。")}
+        if known(fields["avoid"]),fields["avoid"] != "无"{result.append("明确的避开地点和类别会参与筛选；无法自动验证的要求会提示确认。")}
         if known(fields["queueTolerance"]) || personal.queueTolerance != nil{result.append("排队时间尚无可靠数据，不能保证免排队。")}
         return result
     }

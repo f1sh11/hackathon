@@ -59,7 +59,7 @@ public sealed class RouteScheduler(RouteService routes)
                 selected = await ScheduleAsync(option.Order, daily, context, exact: true, ct);
                 if (selected is not null) break;
             }
-            if (selected is null && required.Count == 0 && used.Count > 0)
+            if (selected is null && required.Count == 0 && (used.Count > 0 || pool.Length == 0))
             {
                 selected=await ScheduleAsync([],daily,context,exact:true,ct);
                 if (selected is not null) {
@@ -69,6 +69,9 @@ public sealed class RouteScheduler(RouteService routes)
             }
             if (selected is null)
                 throw new ServiceException($"第 {day + 1} 天没有满足预算、步数、营业时间和返程条件的路线。请增加时间/预算/步数，或减少必去地点。");
+            if(profile.Str("dayStyle")=="fullDay" && string.CompareOrdinal(selected.Str("finishTime"),"15:00")<0) {
+                selected.Array("warnings")!.Add("全天可用不代表必须排满：当前候选地点还需满足步数、预算、开放时间和跨天去重。余下时间可补附近地点、安排休息，或保留自由活动。");
+            }
             selected["date"] = daily.Str("date");
             days.Add(selected);
             used.UnionWith(selected.Array("stops")!.OfType<JsonObject>().Select(x => x.Str("id")));

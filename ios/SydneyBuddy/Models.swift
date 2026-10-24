@@ -345,6 +345,17 @@ struct TravelPlanningTask:Codable {
             trip=accepted;selectedStopID=nil;adjustmentError=nil;return true
         }catch{adjustmentError=error.localizedDescription;return false}
     }
+    func updateWalkingTimes(_ plan:JourneyPlan,original:Trip,dayIndex:Int) async -> Bool {
+        guard !busy,original.id != nil,original.days.indices.contains(dayIndex),plan.source=="Apple Maps / MapKit",plan.legs.flatMap(\.steps).allSatisfy({$0.mode=="walk"}),plan.legs.count==original.days[dayIndex].stops.count+1 else{return false}
+        busy=true;defer{busy=false}
+        do {
+            operationTitle="正在更新当天时间…";operationDetail="校验实际步行、休息、步数和返程时间。"
+            let legs=plan.legs.map{leg in ["meters":leg.steps.reduce(0){$0+$1.meters},"seconds":leg.steps.reduce(0){$0+$1.seconds}]}
+            let raw:[String:Any]=["trip":["id":original.id!],"expectedRevision":original.revision ?? 0,"walkingTimeDay":dayIndex,"walkingLegs":legs]
+            let accepted:Trip=try await api("trips",method:"POST",body:JSONSerialization.data(withJSONObject:raw))
+            lastAdjustment=original;if let i=saved.firstIndex(where:{$0.id==accepted.id}){saved[i]=accepted};trip=accepted;self.dayIndex=dayIndex;selectedStopID=nil;adjustmentError=nil;return true
+        }catch{adjustmentError=error.localizedDescription;return false}
+    }
     func undoLastAdjustment() async -> Bool {
         guard !busy,let original=trip,lastAdjustment?.id==original.id else{return false}
         busy=true;defer{busy=false}

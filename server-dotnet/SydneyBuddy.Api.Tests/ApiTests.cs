@@ -16,6 +16,23 @@ namespace SydneyBuddy.Api.Tests;
 public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
 {
     [Fact]
+    public async Task AppleWalkingTimesPersistOnlySelectedDayAndRejectStaleRevision() {
+        var profile=TestSupport.Profile(3);profile["mode"]="demo";
+        var plan=(await (await fixture.Client.PostAsJsonAsync("/plan",profile)).Content.ReadFromJsonAsync<JsonObject>())!;
+        var saved=(await (await fixture.Client.PostAsJsonAsync("/trips",new{trip=plan,expectedRevision=0})).Content.ReadFromJsonAsync<JsonObject>())!;
+        var legs=new JsonArray(saved.Array("days")![0]!.Array("legs")!.Select(_=>(JsonNode)new JsonObject{["meters"]=100,["seconds"]=60}).ToArray());
+        var body=new{trip=new{id=saved.Str("id")},expectedRevision=saved.Int("revision"),walkingTimeDay=0,walkingLegs=legs};
+        var response=await fixture.Client.PostAsJsonAsync("/trips",body);response.EnsureSuccessStatusCode();
+        var accepted=(await response.Content.ReadFromJsonAsync<JsonObject>())!;
+        Assert.True(JsonNode.DeepEquals(saved.Array("days")![1],accepted.Array("days")![1]));
+        Assert.Equal(2,accepted.Int("revision"));
+        Assert.Equal(HttpStatusCode.Conflict,(await fixture.Client.PostAsJsonAsync("/trips",body)).StatusCode);
+        var reloaded=(await fixture.Client.GetFromJsonAsync<JsonArray>("/trips"))!.OfType<JsonObject>().Single(t=>t.Str("id")==saved.Str("id"));
+        Assert.True(JsonNode.DeepEquals(accepted["days"],reloaded["days"]));
+        var undo=await fixture.Client.PostAsJsonAsync("/trips",new{trip=new{id=saved.Str("id")},expectedRevision=2,undoAdjustment=true});undo.EnsureSuccessStatusCode();
+        Assert.True(JsonNode.DeepEquals(saved["days"],(await undo.Content.ReadFromJsonAsync<JsonObject>())!["days"]));
+    }
+    [Fact]
     public async Task SingleDayAdjustmentPreservesOtherAcceptedDaysExactly() {
         var profile=TestSupport.Profile(3);profile["mode"]="demo";profile["budget"]=500;
         var planned=(await (await fixture.Client.PostAsJsonAsync("/plan",profile)).Content.ReadFromJsonAsync<JsonObject>())!;

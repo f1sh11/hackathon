@@ -23,6 +23,36 @@ public sealed class PlannerTests : IDisposable
         new WeatherService(_external), new SecretStore(_paths));
 
     [Fact]
+    public async Task ExplicitAvoidAndMustVisitConstrainActualStops()
+    {
+        var profile=TestSupport.Profile(3);profile["avoid"]="不逛博物馆";profile["mustDo"]="悉尼歌剧院";
+        var trip=await Create().PlanAsync(profile,"demo");
+        var stops=trip.Array("days")!.OfType<JsonObject>().SelectMany(d=>d.Array("stops")!.OfType<JsonObject>()).ToArray();
+        Assert.DoesNotContain(stops,p=>p.Str("name").Contains("博物馆"));Assert.Contains(stops,p=>p.Str("id")=="opera");
+    }
+    [Fact]
+    public async Task UnknownOrConflictingRequirementsCannotSilentlyGenerate()
+    {
+        var profile=TestSupport.Profile();profile["mustDo"]="月球基地";
+        await Assert.ThrowsAsync<ServiceException>(()=>Create().PlanAsync(profile,"demo"));
+        profile["mustDo"]="悉尼歌剧院";profile["avoid"]="歌剧院";
+        await Assert.ThrowsAsync<ServiceException>(()=>Create().PlanAsync(profile,"demo"));
+        profile["mustDo"]="无";profile["avoid"]="轮椅无障碍";
+        await Assert.ThrowsAsync<ServiceException>(()=>Create().PlanAsync(profile,"demo"));
+    }
+    [Fact]
+    public async Task AppleTimeUpdatePreservesOtherDaysAndRejectsLimitOverflow()
+    {
+        var trip=await Create().PlanAsync(TestSupport.Profile(3),"demo");var old=trip.ToJsonString();
+        var day=trip.Array("days")![0]!.AsObject();
+        JsonArray Legs(double seconds)=>new(day.Array("legs")!.Select(_=>(JsonNode)new JsonObject{["meters"]=10,["seconds"]=seconds}).ToArray());
+        var catalog=Create().Catalog;var updated=WalkingTimeUpdate.Apply(trip,0,Legs(60),catalog);
+        Assert.Equal(old,trip.ToJsonString());Assert.Equal(trip.Array("days")![1]!.ToJsonString(),updated.Array("days")![1]!.ToJsonString());
+        Assert.All(updated.Array("days")![0]!.Array("legs")!.OfType<JsonObject>(),l=>Assert.Contains("Apple",l.Str("source")));
+        Assert.Throws<ServiceException>(()=>WalkingTimeUpdate.Apply(trip,0,Legs(86400),catalog));
+        Assert.Throws<ServiceException>(()=>WalkingTimeUpdate.Apply(trip,0,new JsonArray(),catalog));
+    }
+    [Fact]
     public async Task LowEnergyAndRelaxedRhythmLimitDailyActivities()
     {
         var profile=TestSupport.Profile();profile["energy"]="低精力";profile["rhythm"]="轻松随意";

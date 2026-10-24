@@ -162,6 +162,16 @@ public static class PetExplicitFacts
 {
     public static void Apply(string message,JsonObject fields)
     {
+        // Explicit hard constraints must survive a model omitting optional fields once essentials are complete.
+        void Extract(string key,string pattern) {
+            var values=System.Text.RegularExpressions.Regex.Matches(message,pattern)
+                .Where(m=>!System.Text.RegularExpressions.Regex.IsMatch(message[..m.Index],@"(?:不是|没有|无需|不用|不需要|不必|不)\s*$"))
+                .Select(m=>System.Text.RegularExpressions.Regex.Split(m.Groups[1].Value,"但是|不过|但")[0].Trim())
+                .Where(v=>v.Length is >0 and <=120).Distinct().ToArray();
+            if(values.Length>0)fields[key]=string.Join("、",values);
+        }
+        Extract("mustDo",@"(?:必须去|一定要去|特别想去|必去(?:地点)?(?:是|：|:)?)\s*([^，,。；;！？\n]+)");
+        Extract("avoid",@"(?:必须避开|需要避开|不想(?:去|逛|参观)|不要(?:去|逛|参观)|避免(?:去|逛|参观)|避开)\s*([^，,。；;！？\n]+)");
         // Exact numeric limits outrank a model's qualitative "轻松" summary.
         var walkingText=System.Text.RegularExpressions.Regex.Replace(message,@"(?<=\d)[,，](?=\d{3}\s*步)","");
         var walking=System.Text.RegularExpressions.Regex.Matches(walkingText,@"(?<![\d\-–~到至])([1-9]\d{2,4})\s*步")

@@ -9,6 +9,13 @@ namespace SydneyBuddy.Api.Tests;
 public sealed class PetConversationTests(ApiFixture fixture):IClassFixture<ApiFixture>
 {
     [Fact]
+    public void ExplicitMustAndAvoidAreKeptEvenWhenModelOnlyExtractsBudget() {
+        var fields=new JsonObject();PetExplicitFacts.Apply("两个人，每人每天100澳元活动预算，必须去悉尼歌剧院，不想逛博物馆。只影响这次旅行。",fields);
+        Assert.Equal("悉尼歌剧院",fields.Str("mustDo"));Assert.Equal("博物馆",fields.Str("avoid"));Assert.Equal("100",fields.Str("budget"));
+        var negated=new JsonObject();PetExplicitFacts.Apply("不是必须去悉尼歌剧院，不需要避开博物馆。",negated);
+        Assert.Null(negated["mustDo"]);Assert.Null(negated["avoid"]);
+    }
+    [Fact]
     public void ExplicitGroupBudgetOverridesEmptyOrIncorrectModelAmount()
     {
         var fields=new JsonObject{["budget"]="",["budgetBasis"]="perPersonTrip"};

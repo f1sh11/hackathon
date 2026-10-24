@@ -84,9 +84,9 @@ struct TripsView:View {
         ScrollView {
             VStack(alignment:.leading,spacing:20){
                 taskStatus
-                if !store.pendingTripFields.isEmpty {draftCard}
+                if TravelRequirements.requiredKeys.contains(where:{TravelRequirements.known(store.pendingTripFields[$0])}) {draftCard}
                 HStack{Text("已保存的旅行").font(.headline);Spacer();Text("\(store.saved.count) 份").font(.caption).foregroundStyle(Palette.muted)}
-                if store.saved.isEmpty {ContentUnavailableView("下一段旅程，等你出发",systemImage:"suitcase.rolling",description:Text("准备好偏好后，生成你的第一份路线。"))}
+                if store.saved.isEmpty {ContentUnavailableView{Label("下一段旅程，等你出发",systemImage:"suitcase.rolling")}description:{Text("告诉 Buddy 想去哪儿，一起安排你的旅行。")}actions:{Button("和 Buddy 开始规划"){store.resumePendingTrip()}.buttonStyle(.borderedProminent)}}
                 savedRows
             }.padding(20)
         }.background(Palette.cream).navigationTitle(store.language.text("我的行程"))
@@ -359,7 +359,7 @@ struct TripAdjustmentView:View {
             HStack{PetAvatar(mood:model.busy ? .thinking:requested ? .ready:.curious).frame(width:100,height:110);Text("我们只改第 \(dayIndex+1) 天。先看看建议，喜欢再收进正式行程～").font(.headline)}
             if original.mode != "demo" {Text("当前快捷调整仅支持示例行程；在线行程可通过聊天提出调整建议。").foregroundStyle(Palette.muted)}
             else {
-                HStack{Button("再轻松一点"){lighten()}.disabled((day?.activities.count ?? 0)<2);Button("多一点美食"){addFood()}.disabled(!choices.contains{$0.category=="美食"})}
+                HStack{Button("再轻松一点"){lighten()}.disabled((day?.activities.count ?? 0)<2);Button("多一点美食"){addFood()}.disabled(!choices.contains{$0.category=="美食"});Button("加一段休息"){addRest()}}
                     .buttonStyle(.bordered).disabled(model.busy || requested)
                 if !requested,!choices.contains(where:{$0.category=="美食"}) {
                     Text("当前没有未安排的餐饮候选。可以直接找一家餐厅，加入后先预览，不会立即保存。").font(.caption).foregroundStyle(Palette.muted)
@@ -403,6 +403,16 @@ struct TripAdjustmentView:View {
             requested=true;model.importAndAdd(candidate)
         }}
         .task{store.adjustmentError=nil;model.prepare(original);model.dayIndex=dayIndex;await model.loadCatalog()}.onDisappear{model.stop()}
+    }
+    private func addRest() {
+        guard let day else{return};let last=day.activities.last
+        let rest=ScheduleActivity(id:UUID().uuidString,kind:"rest",name:"附近休息 · 位置待确认",lat:last?.lat ?? day.end.lat,lng:last?.lng ?? day.end.lng,duration:30,cost:0,confirmed:false,locked:false,openMinute:0,closeMinute:1440,arrival:"",departure:"",scheduledStart:0,travelMinutes:0)
+        let start=(last?.scheduledStart ?? day.startMinute)+(last?.duration ?? 0)+15
+        requested=true;model.edit{state in
+            for i in state.days[dayIndex].activities.indices {if state.days[dayIndex].activities[i].fixedStart == nil {state.days[dayIndex].activities[i].fixedStart=state.days[dayIndex].activities[i].scheduledStart}}
+            var value=rest;value.fixedStart=start;state.days[dayIndex].activities.append(value)
+        }
+        notice="保留原活动开始时间，新增30分钟休息；调整试算的交通仍为估算，位置和营业情况需确认。"
     }
     private func lighten(){
         guard let day,let a=day.activities.last(where:{$0.locked != true && !original.profile.mustVisit.contains($0.placeId ?? "")}),day.activities.count>1 else{notice="今天安排已经很少啦，可以在编辑器里增加休息或缩短停留。";return}

@@ -4,6 +4,23 @@ import MapKit
 @testable import SydneyBuddy
 
 @MainActor final class ScheduleTests:XCTestCase {
+    func testAppleTimeUpdateKeepsOriginalOnFailureAndAcceptsServerSnapshot() async throws {
+        var original=try fixture();original.id="walking-time-test";original.revision=3
+        let store=AppStore();store.trip=original;store.saved=[original]
+        let preview=applePreview(original.days[0])
+        store.loader={request in (Data(#"{"error":"超过步数上限"}"#.utf8),HTTPURLResponse(url:request.url!,statusCode:422,httpVersion:nil,headerFields:nil)!)}
+        let failure=await store.updateWalkingTimes(preview,original:original,dayIndex:0);XCTAssertFalse(failure)
+        XCTAssertEqual(store.trip?.revision,3);XCTAssertNotNil(store.adjustmentError)
+        var accepted=original;accepted.revision=4;accepted.days[0].finishTime="14:00"
+        let data=try JSONEncoder().encode(accepted)
+        store.loader={request in
+            let body=try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:Any]
+            XCTAssertEqual(body["walkingTimeDay"] as? Int,0);XCTAssertEqual(body["expectedRevision"] as? Int,3)
+            return(data,HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)
+        }
+        let success=await store.updateWalkingTimes(preview,original:original,dayIndex:0);XCTAssertTrue(success)
+        XCTAssertEqual(store.trip?.revision,4);XCTAssertEqual(store.saved.first?.days[0].finishTime,"14:00");XCTAssertNil(store.adjustmentError)
+    }
     func testDeleteFailureKeepsAcceptedTripAndList() async throws {
         var trip=try fixture();trip.id="delete-failure-test"
         let store=AppStore();store.trip=trip;store.saved=[trip]
@@ -80,6 +97,18 @@ import MapKit
             return JourneyLeg(index:i,mode:"walk",from:names[i],to:names[i+1],departureTime:step.departureTime,arrivalTime:step.arrivalTime,staySeconds:0,steps:[step])
         }
         return JourneyPlan(departureTime:legs.first!.departureTime,arrivalTime:legs.last!.arrivalTime,travelSeconds:Double(legs.count*60),elapsedSeconds:Double(legs.count*60),meters:Double(legs.count*100),legs:legs,warnings:[],source:"Apple Maps / MapKit")
+    }
+    func testTimeOnlyChangesReuseAppleRouteButMovedStopsRequestAgain() async throws {
+        let day=try fixture().days[0],plan=applePreview(try fixture().days[0]);var calls=0
+        let overview=ItineraryOverview(applePlan:{_,_ in calls+=1;return plan})
+        overview.loadHome(day,provider:.apple,contentSource:"open")
+        for _ in 0..<100{if !overview.busy{break};try await Task.sleep(nanoseconds:10_000_000)}
+        var calibrated=day;calibrated.finishTime="14:10";calibrated.stops[0].arrival="10:09";calibrated.legs[0].source="Apple Maps / MapKit"
+        overview.loadHome(calibrated,provider:.apple,contentSource:"open")
+        XCTAssertEqual(calls,1);XCTAssertEqual(overview.key,mapSceneKey(calibrated));XCTAssertNotNil(overview.route)
+        calibrated.stops[0].lat+=0.001;overview.loadHome(calibrated,provider:.apple,contentSource:"open")
+        for _ in 0..<100{if !overview.busy{break};try await Task.sleep(nanoseconds:10_000_000)}
+        XCTAssertEqual(calls,2);overview.cancel()
     }
     func testAppleRouteFailureRetriesWithoutCallingBackendOrChangingTrip() async throws {
         let trip=try fixture(),day=try fixture().days[0],plan=applePreview(try fixture().days[0]);var calls=0,backend=0

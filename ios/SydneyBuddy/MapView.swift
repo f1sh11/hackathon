@@ -446,6 +446,7 @@ struct HomeView: View {
     @State var chat=false
     @State var details=false
     @State private var adjusting=false
+    @State private var freeTimeAccepted=Set<String>()
     @State private var undoMessage:String?
     @State var expandedMap=false
     @State var journey=false
@@ -473,16 +474,25 @@ struct HomeView: View {
                         }.accessibilityIdentifier("home-info-toggle").gesture(DragGesture(minimumDistance:12).onEnded{value in withAnimation{if value.translation.height < -12{homeInfo=true}else if value.translation.height > 12{homeInfo=false}}})
                     }
                     Button{showInsights=true}label:{Label(store.insightsBusy ? "正在更新旅遊資訊…" : store.insights?.traffic.summary ?? "交通・人潮・費用",systemImage:"info.circle").font(.caption).lineLimit(1)}.accessibilityIdentifier("travel-insights-open")
+                    ScrollView {VStack(alignment:.leading,spacing:10){
                     if let day=store.currentDay {
                         Text(day.buddySummary).font(.caption).foregroundStyle(Palette.ink).fixedSize(horizontal:false,vertical:true)
                         ScrollViewReader{proxy in ScrollView(.horizontal,showsIndicators:false){HStack{ForEach(Array(day.stops.enumerated()),id:\.element.id){i,stop in
                             Button{store.selectedStopID=stop.id}label:{Text("\(i+1). "+stop.name).font(.caption.bold()).padding(8).background(store.selectedStopID==stop.id ? Palette.green:Palette.mint,in:Capsule()).foregroundStyle(store.selectedStopID==stop.id ? .white:Palette.ink)}.id(stop.id).accessibilityIdentifier("trip-stop-"+stop.id)
                         }}}.onChange(of:store.selectedStopID){_,id in if let id{withAnimation{proxy.scrollTo(id,anchor:.center)}}}}
+                        if homeInfo,store.trip?.profile.dayStyle=="fullDay",day.finishTime < "15:00",!freeTimeAccepted.contains(day.date) {
+                            VStack(alignment:.leading,spacing:6){
+                                Text("\(day.finishTime) 后留给你自由安排").font(.caption.bold())
+                                Text("全天可用不必排满；补充地点仍需满足步数、预算和开放时间。可以加附近地点、在调整中加入休息，或就这样慢慢逛。").font(.caption2).foregroundStyle(Palette.muted)
+                                HStack{Button("补附近地点"){poiSearch=true};Button("安排休息"){adjusting=true};Button("保留自由活动"){freeTimeAccepted.insert(day.date)}}.font(.caption)
+                            }.accessibilityIdentifier("free-time-options")
+                        }
                         if homeInfo{Text(store.trip?.mode == "live" ? "在线路线 · 出发前核实开放时间":"示例行程 · 费用和步数为估算").font(.caption2).foregroundStyle(Palette.muted)}
                         HStack{Text("每人活动估算 A$\(Int(day.estimatedCost)) · \(store.trip?.profile.travelers ?? 1) 人").font(.caption2).foregroundStyle(Palette.muted);Spacer();Button("调整当天",systemImage:"slider.horizontal.3"){adjusting=true}.font(.caption.bold())}
                         if overview.busy {ProgressView("正在查询真实步行路线…").font(.caption).accessibilityIdentifier("home-walking-loading")}
                         else if let route=overview.route {
                             Label("步行约 \(Int(route.meters.rounded())) 米 · \(Int(ceil(route.seconds/60))) 分钟",systemImage:"figure.walk").font(.caption.bold()).accessibilityIdentifier("home-walking-summary")
+                            if store.mapProvider == .apple,!day.legs.allSatisfy({$0.source.contains("Apple")}){Text("行程时间尚未校准 · 打开步行路线可更新").font(.caption2).foregroundStyle(Palette.muted)}
                             Text("道路路线 · 不含景点停留、休息和未知排队时间").font(.caption2).foregroundStyle(Palette.muted)
                         } else if let message=overview.message {
                             Text(store.language.display(message)).font(.caption).foregroundStyle(Palette.muted).fixedSize(horizontal:false,vertical:true)
@@ -490,7 +500,7 @@ struct HomeView: View {
                         } else {Text("当前为站点顺序示意，尚未取得道路路线。").font(.caption2).foregroundStyle(Palette.muted)}
                         if homeInfo{ScrollView(.horizontal,showsIndicators:false){Text("起点 → "+day.stops.enumerated().map{"\($0.offset+1). \($0.element.name)"}.joined(separator:" → ")+" → 返回").font(.caption2)}.accessibilityLabel("当天游览顺序")}
                         if let previous=store.lastAdjustment,previous.id==store.trip?.id {Button("撤销上次调整"){Task{if await store.undoLastAdjustment(){undoMessage="已恢复上次安排"}}}.font(.caption).disabled(store.busy)}
-                        if let undoMessage{Text(undoMessage).font(.caption).foregroundStyle(Palette.green)}
+                        if let undoMessage,store.lastAdjustment==nil{Text(undoMessage).font(.caption).foregroundStyle(Palette.green)}
                     }
                     if homeInfo || store.trip == nil {HStack(alignment:.top){
                         VStack(alignment:.leading,spacing:5){Text(store.trip == nil ? "开始你的悉尼旅行":"第 \(store.dayIndex+1) 天 · 当天概况").font(.headline).foregroundStyle(Palette.ink);if let day=store.currentDay{Text(store.language.text("{0} 站 · {1} 步 · A${2} · {3} 返回",String(day.stops.count),day.estimatedSteps.formatted(),String(Int(day.estimatedCost)),day.finishTime)).font(.caption).foregroundStyle(Palette.muted)}}
@@ -500,7 +510,7 @@ struct HomeView: View {
                     }
                     if homeInfo,let day=store.currentDay{HomeTransportStrip(day:day,overview:overview,onPlan:{journey=true},onRetry:{overview.load(day,provider:store.mapProvider)})}
                     if homeInfo,let trip=store.trip {
-                        ScrollView{VStack(alignment:.leading,spacing:12){
+                        VStack(alignment:.leading,spacing:12){
                             WeatherCard(weather:store.currentWeather,compact:true)
                             PreparationTrail{details=true}
                             Button("交通路线规划"){journey=true}.font(.subheadline.bold())
@@ -508,8 +518,9 @@ struct HomeView: View {
                                 ScrollView(.horizontal,showsIndicators:false){Text("起 · \(day.start.name) → "+day.stops.enumerated().map{"\($0.offset+1) · \($0.element.name) \($0.element.arrival)"}.joined(separator:" → ")+" → 终 · \(day.end.name)").font(.caption)}.accessibilityLabel("行程站点顺序")
                                 if trip.mode != "live",store.mapProvider == .osm || store.mapProvider == .apple{Button(overview.busy ? "正在取得步行路线…":overview.summary){overview.load(day,provider:store.mapProvider)}.font(.caption.bold()).disabled(overview.busy || overview.route != nil);if let message=overview.message{Text(message).font(.caption).foregroundStyle(Palette.muted)}}
                             }
-                        }}.frame(maxHeight:220).accessibilityIdentifier("home-extra-info")
+                        }.accessibilityIdentifier("home-extra-info")
                     }
+                    }}.frame(maxHeight:homeInfo ? 350:230)
                     HStack(spacing:10){
                         if store.trip != nil && homeInfo{Button{details=true}label:{Text("行程说明").font(.subheadline.bold()).frame(maxWidth:.infinity).padding(.vertical,12).background(Palette.mint,in:RoundedRectangle(cornerRadius:13))}}
                         if let trip=store.trip {TripNavigationAction(day:store.currentDay,mode:trip.mode){navigation=true}}else{PrimaryButton(title:"开始规划"){store.newTrip()}}
