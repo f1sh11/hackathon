@@ -4,6 +4,15 @@ import MapKit
 @testable import SydneyBuddy
 
 @MainActor final class ScheduleTests:XCTestCase {
+    func testPoiToolboxRemovalPersistsAndAllowsAddingAgain() throws {
+        let toolbox=PoiToolbox.shared;let original=toolbox.places
+        defer{toolbox.places=original;if let data=try? JSONEncoder().encode(original){UserDefaults.standard.set(data,forKey:"poi-toolbox")}}
+        let point=ScheduleCandidate(id:"toolbox-toggle-test",name:"Test",category:"美食",indoor:false,visitMinutes:30,cost:0,lat:-33.86,lng:151.21,reason:"Test",source:"Overture Maps")
+        toolbox.add(point);toolbox.add(point);XCTAssertEqual(toolbox.places.filter{$0.id==point.id}.count,1)
+        toolbox.remove(point.id);XCTAssertFalse(toolbox.places.contains{$0.id==point.id})
+        let saved=try JSONDecoder().decode([ScheduleCandidate].self,from:UserDefaults.standard.data(forKey:"poi-toolbox")!)
+        XCTAssertFalse(saved.contains{$0.id==point.id});toolbox.add(point);XCTAssertTrue(toolbox.places.contains{$0.id==point.id})
+    }
     func testAppStartsOnTripsAndLanguagePersistsWithoutChangingTrip() throws {
         let defaults=UserDefaults.standard;let previous=defaults.string(forKey:"appLanguage")
         defer{if let previous{defaults.set(previous,forKey:"appLanguage")}else{defaults.removeObject(forKey:"appLanguage")}}

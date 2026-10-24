@@ -68,7 +68,7 @@ internal fun toolboxMinute(y:Float,scale:Float,first:Int,start:Int,end:Int):Int?
                 TextButton(onClick={discover=true},contentPadding=PaddingValues(0.dp)){Text("地圖找地點",fontSize=11.sp)}
                 Text("依推薦排序\n按住 ☰ 拖到日期切換\n再拖入右側時段",fontSize=10.sp,color=Color.Gray)
                 Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(10.dp)) {
-                    state.array("candidates").objects().forEachIndexed{i,p->key(p.getString("id")) {
+                    state.array("candidates").objects().filter{p->p.optString("source") !in listOf("OpenStreetMap","Apple Maps","Overture Maps") || c.store.poiToolbox.any{it.optString("id")==p.optString("id")}}.forEachIndexed{i,p->key(p.getString("id")) {
                         val id=p.getString("id");val locked=state.array("days").objects().flatMap{it.array("activities").objects()}.any{it.optString("placeId")==id&&it.optBoolean("locked")};var grip by remember{mutableStateOf(Offset.Zero)}
                         Column(Modifier.fillMaxWidth().background(Color.White,RoundedCornerShape(13.dp)).border(1.dp,Green.copy(alpha=.12f),RoundedCornerShape(13.dp)).padding(8.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
                             Text("%02d".format(i+1),fontSize=10.sp,color=Green,fontWeight=FontWeight.Bold)
@@ -98,14 +98,16 @@ internal fun toolboxMinute(y:Float,scale:Float,first:Int,start:Int,end:Int):Int?
         dragging?.let{p->Text(p.optString("name")+"\n"+(minute?.let{"放到 %02d:%02d".format(it/60,it%60)} ?: "拖至右側時間軸"),Modifier.offset(x=((pointer.x-origin.x)/density-60).dp,y=((pointer.y-origin.y)/density-50).dp).width(140.dp).zIndex(20f).background(Mint,RoundedCornerShape(12.dp)).border(1.dp,Green,RoundedCornerShape(12.dp)).padding(10.dp),fontSize=11.sp)}
     }
     if(discover)PoiDiscoveryDialog(c.store,onDismiss={discover=false},onAdd={c.store.addPoi(it);c.importPlaces(listOf(it))})
-    detail?.let{p->SchedulePlaceDetail(p){detail=null}}
+    detail?.let{p->SchedulePlaceDetail(p,c.store){detail=null}}
 }
-@Composable private fun SchedulePlaceDetail(p:JSONObject,onDismiss:()->Unit) {
+@Composable internal fun SchedulePlaceDetail(p:JSONObject,store:BuddyStore,onDismiss:()->Unit) {
     fun time(n:Int)="%02d:%02d".format(n/60,n%60)
     AlertDialog(onDismissRequest=onDismiss,title={Text(ui("景點介紹"))},text={Column(Modifier.heightIn(max=480.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(14.dp)) {
         Text(p.optString("name"),fontSize=21.sp,fontWeight=FontWeight.Bold)
         Text(p.optString("category")+" · "+if(p.optBoolean("indoor"))"室內"else "戶外",color=Color.Gray)
         Text(p.optString("description").takeIf{it.isNotBlank()} ?: "此草案尚未附上景點介紹，可重新試算以更新資料。")
+        PlaceMedia(p,store)
+        PlaceContact(p)
         Text("為你推薦",fontWeight=FontWeight.Bold);Text(p.optString("reason"))
         Text("建議停留 ${p.optInt("visitMinutes")} 分鐘\n"+if(p.optString("source") in listOf("OpenStreetMap","Apple Maps","Overture Maps"))"費用與排隊時間未知"else "規劃預留 A$${p.optInt("cost")} · 排隊時間未知")
         if(p.optString("openingHoursText").isNotBlank())Small("OSM 營業時間標記："+p.optString("openingHoursText"))

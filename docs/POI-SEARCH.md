@@ -95,3 +95,11 @@ OSM 地點費用未知，數值 0 僅表示尚未預留，**不是免費**；工
 - 切換底圖本身不重新查 POI；輸入搜尋、切換分類的行為維持不變。畫面標明「地點資料：OpenStreetMap」，切 Apple / Google 底圖並未改串它們的 Places 服務。先前 Overpass 連線限制仍在。
 
 驗證：iOS 33 項測試通過，包含實際 MapKit 加／移 OSM 圖層、保留地點標記及鏡頭位置；Android 27 項單元測試、15 項畫面互動測試與 Lint 通過，包含共用供應器切換、未配置 Google 提示與不重查 POI。iOS 模擬器已實際切換 Apple 底圖，並確認關閉搜尋回首頁、再次開啟後仍為 Apple Maps。Google SDK 編譯通過，但本次沒有驗證具有效金鑰的線上 Google 圖磚。
+
+### 商家卡片、工具箱及媒體
+
+- 點擊卡片名稱、介紹或「詳細介紹」只開啟介紹頁；只有右下角「＋工具箱」會收藏。再次點「移出工具箱」會取消收藏並儲存狀態，不刪除已排入的行程。
+- 搜尋頁與行程工具箱共用介紹頁。地址／電話／網站仍使用原始 POI 資料。
+- 「載入附近照片」才會呼叫 `POST /poi/media`，後端向 Wikimedia Commons 查詢座標附近 100 m 的最多 8 張照片，六小時快取；只接受 Wikimedia HTTPS 圖片與授權頁，保留作者與授權。這些是附近實景，不能當成已核實的店內照；無照片與服務錯誤分開提示。
+- iOS 可按鈕載入 Apple Look Around（Google 底圖下不自動混用）；覆蓋由 Apple 決定。兩平台另提供外部 Mapillary 附近街景入口，沒有宣稱每個商家都有全景，也不自動呼叫 Google 付費服務。
+- 參考：[Commons API](https://commons.wikimedia.org/wiki/Commons:API/MediaWiki)、[Apple Look Around](https://developer.apple.com/documentation/mapkit/mklookaroundscenerequest)。

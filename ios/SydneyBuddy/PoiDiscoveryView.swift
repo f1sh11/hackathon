@@ -7,6 +7,7 @@ import CryptoKit
     static let shared=PoiToolbox()
     @Published var places:[ScheduleCandidate]
     private init(){places=(UserDefaults.standard.data(forKey:"poi-toolbox").flatMap{try? JSONDecoder().decode([ScheduleCandidate].self,from:$0)}) ?? []}
+    func remove(_ id:String){places.removeAll{$0.id==id};if let data=try? JSONEncoder().encode(places){UserDefaults.standard.set(data,forKey:"poi-toolbox")}}
     func add(_ p:ScheduleCandidate){guard !places.contains(where:{$0.id==p.id}) else{return};places.append(p);if let data=try? JSONEncoder().encode(places){UserDefaults.standard.set(data,forKey:"poi-toolbox")}}
 }
 @MainActor enum ApplePoiProvider {
@@ -44,7 +45,7 @@ import CryptoKit
             guard seen.insert(id).inserted else{return nil}
             let address=[item.placemark.thoroughfare,item.placemark.locality,item.placemark.postalCode].compactMap{$0}.joined(separator:", ")
             // A facility keyword match is not proof of a verified public restroom.
-            return ScheduleCandidate(id:id,name:name,category:category=="food" ? "美食":category=="facilities" ? "設施":"風景",indoor:false,visitMinutes:category=="food" ? 45:category=="facilities" ? 10:60,cost:0,lat:point.latitude,lng:point.longitude,reason:"Apple Maps 地點搜尋",description:address.isEmpty ? "Apple Maps 未提供詳細介紹。":address,note:"Apple Maps 地點；費用、排隊與營業時間未知。設施用途及開放情況請另行確認。",source:"Apple Maps",poiKind:category=="food" ? "restaurant":category=="facilities" ? "facility":"attraction",openingHoursText:"")
+            return ScheduleCandidate(id:id,name:name,category:category=="food" ? "美食":category=="facilities" ? "設施":"風景",indoor:false,visitMinutes:category=="food" ? 45:category=="facilities" ? 10:60,cost:0,lat:point.latitude,lng:point.longitude,reason:"Apple Maps 地點搜尋",description:address.isEmpty ? "Apple Maps 未提供詳細介紹。":address,note:"Apple Maps 地點；費用、排隊與營業時間未知。設施用途及開放情況請另行確認。",source:"Apple Maps",poiKind:category=="food" ? "restaurant":category=="facilities" ? "facility":"attraction",openingHoursText:"",website:item.url?.absoluteString,phone:item.phoneNumber,address:address)
         }
     }
 }
@@ -109,7 +110,7 @@ import CryptoKit
     @Environment(\.dismiss) var dismiss
     @StateObject private var model=PoiSearchModel()
     @State private var detail:ScheduleCandidate?
-    @State private var added=Set<String>()
+    @ObservedObject private var toolbox=PoiToolbox.shared
     @State private var zoom:Double=14
     private var visiblePlaces:[ScheduleCandidate] {model.provider==store.mapProvider ? model.places:[]}
     var body:some View {
@@ -139,10 +140,14 @@ import CryptoKit
                     if visiblePlaces.isEmpty && !model.busy && model.error==nil && model.hasSearched {Text("此範圍沒有符合的地點。可清空名稱、切換分類，或移動地圖後重新搜尋。").font(.caption)}
                     ForEach(visiblePlaces.sorted{a,b in a.id==model.selected && b.id != model.selected}) {p in
                         VStack(alignment:.leading,spacing:7) {
-                            Label(p.name,systemImage:p.category=="美食" ? "fork.knife":p.category=="設施" ? "figure.stand":"mappin.and.ellipse").font(.subheadline.bold()).foregroundStyle(p.category=="美食" ? .orange:Palette.green)
-                            Text(p.description ?? "介紹未提供").font(.caption).lineLimit(2)
+                            Button{detail=p}label:{VStack(alignment:.leading,spacing:7){
+                                Label(p.name,systemImage:p.category=="美食" ? "fork.knife":p.category=="設施" ? "figure.stand":"mappin.and.ellipse").font(.subheadline.bold()).foregroundStyle(p.category=="美食" ? .orange:Palette.green)
+                                Text(p.description ?? "介紹未提供").font(.caption).lineLimit(2).foregroundStyle(.primary)
+                            }.frame(maxWidth:.infinity,alignment:.leading).contentShape(Rectangle())}.buttonStyle(.borderless).accessibilityIdentifier("poi-detail-"+p.id)
                             HStack {Button("詳細介紹"){detail=p};Spacer();if p.source == "Google Places" {Text("Google 地點暫不匯入本機示例時間軸").font(.caption2)}
-                                else {Button(added.contains(p.id)||PoiToolbox.shared.places.contains(where:{$0.id==p.id}) ? "已加入":"＋工具箱"){onAdd(p);added.insert(p.id)}.disabled(added.contains(p.id)||PoiToolbox.shared.places.contains(where:{$0.id==p.id}))}}.font(.caption)
+                                else {Button(toolbox.places.contains(where:{$0.id==p.id}) ? "移出工具箱":"＋工具箱"){
+                                    if toolbox.places.contains(where:{$0.id==p.id}){toolbox.remove(p.id)}else{toolbox.add(p);onAdd(p)}
+                                }.accessibilityIdentifier("poi-toggle-"+p.id)}}.font(.caption).buttonStyle(.borderless)
                         }.listRowBackground(p.id==model.selected ? Palette.mint:Color.white)
                     }
                 }.listStyle(.plain)
@@ -210,5 +215,67 @@ private struct PoiGoogleMap:UIViewRepresentable {
         context.coordinator.parent=self;let key=places.map(\.id).joined(separator:",")
         guard key != context.coordinator.key else{return};context.coordinator.key=key;map.clear()
         for point in places{let marker=GMSMarker(position:CLLocationCoordinate2D(latitude:point.lat,longitude:point.lng));marker.title=point.name;marker.userData=point.id;marker.icon=GMSMarker.markerImage(with:point.category=="美食" ? .systemOrange:.systemTeal);marker.map=map}
+    }
+}
+
+private struct PlacePhoto:Decodable,Identifiable {
+    var url:String;var pageUrl:String;var title:String;var artist:String;var license:String
+    var id:String {pageUrl}
+}
+struct PlaceMediaView:View {
+    var candidate:ScheduleCandidate
+    @State private var photos:[PlacePhoto]=[]
+    @State private var loading=false
+    @State private var message:String?
+    @State private var scene:MKLookAroundScene?
+    @State private var panoramaLoading=false
+    @State private var panoramaMessage:String?
+    @EnvironmentObject var store:AppStore
+    var body:some View {
+        VStack(alignment:.leading,spacing:12){
+            Text("照片與街景").font(.headline)
+            Text("附近 100 公尺的實景照片，並非已核實的商家或店內照片。").font(.caption).foregroundStyle(Palette.muted)
+            Button(photos.isEmpty ? "載入附近照片":"重新載入照片"){Task{await loadPhotos()}}.disabled(loading)
+            if loading{ProgressView()}
+            if let message{Text(LocalizedStringKey(message)).font(.caption)}
+            ScrollView(.horizontal){HStack(alignment:.top,spacing:12){ForEach(photos){photo in
+                VStack(alignment:.leading,spacing:5){
+                    AsyncImage(url:URL(string:photo.url)){phase in
+                        switch phase{case .success(let image):image.resizable().scaledToFill();case .failure:Text("照片無法載入");default:ProgressView()}
+                    }.frame(width:260,height:170).clipped().clipShape(RoundedRectangle(cornerRadius:12))
+                    Text(photo.title).font(.caption).lineLimit(2)
+                    Text(photo.artist+" · "+photo.license).font(.caption2).lineLimit(3)
+                    if let url=URL(string:photo.pageUrl){Link("照片來源與授權",destination:url).font(.caption)}
+                }.frame(width:260,alignment:.leading)
+            }}}
+            if store.mapProvider != .google {
+                Button("預覽街景（Apple Look Around）"){Task{
+                    panoramaLoading=true;panoramaMessage=nil
+                    do{scene=try await MKLookAroundSceneRequest(coordinate:CLLocationCoordinate2D(latitude:candidate.lat,longitude:candidate.lng)).scene
+                        if scene==nil{panoramaMessage="此位置尚無可用街景。"}
+                    }catch{panoramaMessage="街景暫時無法載入，請稍後重試。"}
+                    panoramaLoading=false
+                }}.disabled(panoramaLoading)
+                if panoramaLoading{ProgressView()}
+                if let scene{LookAroundPreview(initialScene:scene).frame(height:210).clipShape(RoundedRectangle(cornerRadius:12))}
+                if let panoramaMessage{Text(LocalizedStringKey(panoramaMessage)).font(.caption)}
+            }
+            Link("開啟附近街景（外部地圖）",destination:URL(string:"https://www.mapillary.com/app/?lat=\(candidate.lat)&lng=\(candidate.lng)&z=17")!).font(.caption)
+            Text("街景覆蓋由服務提供者決定；未必有此商家的全景。").font(.caption).foregroundStyle(Palette.muted)
+        }.task(id:candidate.id){photos=[];message=nil;scene=nil;panoramaMessage=nil}
+    }
+    @MainActor private func loadPhotos() async {
+        loading=true;message=nil
+        defer{loading=false}
+        do{
+            var request=URLRequest(url:URL(string:"http://127.0.0.1:8787/poi/media")!)
+            request.httpMethod="POST";request.timeoutInterval=22;request.setValue("application/json",forHTTPHeaderField:"Content-Type")
+            request.httpBody=try JSONSerialization.data(withJSONObject:["lat":candidate.lat,"lng":candidate.lng])
+            let (data,response)=try await URLSession.shared.data(for:request)
+            guard (response as? HTTPURLResponse)?.statusCode==200 else{throw URLError(.badServerResponse)}
+            struct Media:Decodable{var photos:[PlacePhoto]}
+            photos=try JSONDecoder().decode(Media.self,from:data).photos
+            if photos.isEmpty{message="附近尚無可用的開放照片。"}
+        }catch{message="照片暫時無法載入，請稍後重試。"}
     }
 }

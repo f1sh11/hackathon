@@ -233,16 +233,20 @@ class ScheduleEditorTest {
         val inst=InstrumentationRegistry.getInstrumentation();lateinit var store:BuddyStore;var added:JSONObject?=null
         rule.runOnIdle{store=BuddyStore(inst.targetContext.applicationContext as Application)}
         val point=JSONObject().put("id","overture:00000000-0000-4000-8000-000000000001").put("name","Test Cafe").put("lat",-33.86).put("lng",151.21).put("category","美食").put("description","Overture recorded cafe description").put("note","費用未知").put("source","Overture Maps").put("sourceRelease","2026-10-21.0").put("website","https://example.com")
-        rule.runOnIdle{store.chooseMapProvider(MapProvider.OSM)}
+        rule.runOnIdle{store.chooseMapProvider(MapProvider.OSM);store.removePoi(point.getString("id"))}
         rule.setContent{MaterialTheme{PoiDiscoveryDialog(store,onDismiss={},requester={JSONObject().put("places",org.json.JSONArray().put(point)).put("source","Overture Maps / local snapshot").put("attribution","Overture Maps Foundation").put("metadata",JSONObject().put("release","2026-10-21.0"))},onAdd={added=it})}}
         rule.onNodeWithText("搜尋").performClick()
         rule.waitUntil(5000){rule.onAllNodesWithText("Test Cafe",substring=true).fetchSemanticsNodes().isNotEmpty()}
         rule.onNodeWithText("地點資料：Overture Maps / local snapshot").assertIsDisplayed()
-        rule.onNodeWithText("詳細介紹").performClick()
+        rule.onNodeWithText("🍴 Test Cafe").performClick()
         rule.onAllNodesWithText("Overture recorded cafe description").onLast().assertIsDisplayed()
+        rule.runOnIdle{assertNull(added);assertFalse(store.poiToolbox.any{it.optString("id")==point.optString("id")})}
         rule.onAllNodesWithText("完成").onLast().performClick()
         rule.onNodeWithText("＋工具箱").performClick()
         rule.runOnIdle{assertEquals("overture:00000000-0000-4000-8000-000000000001",added?.optString("id"))}
+        rule.onNodeWithText("移出工具箱").performClick()
+        rule.runOnIdle{assertFalse(store.poiToolbox.any{it.optString("id")==point.optString("id")})}
+        rule.onNodeWithText("＋工具箱").assertExists()
     }
     @Test fun toolboxIntroductionsShowDescriptionWithoutChangingSchedule() {
         val c=setup();val before=c.state!!.array("days").toString()
