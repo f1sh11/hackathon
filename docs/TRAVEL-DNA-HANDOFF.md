@@ -41,7 +41,7 @@ The server supplies identity, dimension, `source=user_statement`, `status=awaiti
 
 Session responses retain the old mobile fields and add `travelDna`, `tripContext`, `planningFields`, `pendingPreferences`, `tripPreferences`, `missingImportantFields`, `dnaCompleted` and `memoryWarning`.
 
-`planningFields` derives supported route inputs from confirmed and current explicit preferences. Raw trip context remains separate; an explicit trip value wins over a habitual default. Remaining rich preferences are forwarded as contextual notes. The existing planner does not yet enforce every new dimension quantitatively.
+`planningFields` derives supported route inputs from confirmed and current explicit preferences. Raw trip context remains separate; an explicit trip value wins over a habitual default. Preference notes are derived at read time, so editing or revoking memory cannot leave an old preference copied into the trip. The review panel and direct-generation path use the same effective fields. Remaining rich preferences are forwarded as contextual notes. The existing planner does not yet enforce every new dimension quantitatively.
 
 - `POST /pet/sessions/{id}/memory`: existing free-text consent remains compatible; structured requests add `candidateId`, `consent`, `dismiss` and `expectedConflicts`.
 - Conflicting values for the same key and condition show previous values. The user must confirm against the current memory IDs. A stale confirmation is rejected until the session is refreshed.
@@ -55,7 +55,7 @@ See [the exact event table](KOALA-ANIMATION-INTEGRATION.md). All 10 actions and 
 
 ## Verification and review
 
-Local validation: backend compiles, 180 tests pass after integrating main at `0094707`, and official H-MEM conformance passes 13/13. HTTP integration tests ran with a temporary PGlite PostgreSQL socket server in serial mode; the standard repository CI uses native PostgreSQL. Added tests cover a natural zero-question reply, unknown answers, the sunrise exception, trip vs long-term scope, inferred claims, conflict confirmation, stale sessions, updates/revocation and real Node H-MEM candidate/long-term isolation.
+Local validation: backend compiles, 183 tests pass after integrating main at `0094707`, and official H-MEM conformance passes 13/13. HTTP integration tests ran with a temporary PGlite PostgreSQL socket server in serial mode; the standard repository CI uses native PostgreSQL. Added tests cover a natural zero-question reply, unknown answers, the sunrise exception, trip vs long-term scope, inferred claims, conflict confirmation, stale sessions, updates/revocation and real Node H-MEM candidate/long-term isolation.
 
 Every runtime PNG has verified dimensions and alpha; Swift syntax parses. Native build and simulator results must be taken from GitHub Actions, not inferred from these local checks. NVIDIA conversational quality still requires a real configured model session; fake-model tests verify the protocol and guards, not the wording a live model will choose.
 

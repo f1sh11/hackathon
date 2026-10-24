@@ -149,13 +149,13 @@ public static class PetEndpoints
         if(candidate.Status!="awaiting_confirmation")return; // repeated taps/retries are idempotent
         if(input.Bool("dismiss")){candidate.Status="rejected";return;}
         if(!input.Bool("consent")) {
-            candidate.Status="trip_only";candidate.Scope="trip";TravelProfiling.AppendTripNote(session,candidate);return;
+            candidate.Status="trip_only";candidate.Scope="trip";return;
         }
         var current=await records.ListAsync(ct);TravelProfiling.Refresh(session,current);
         var alreadySaved=session.ConfirmedDna.FirstOrDefault(x=>x.Key==candidate.Key && x.Condition==candidate.Condition && x.Value==candidate.Value);
         if(alreadySaved is not null) {
             candidate.Status="confirmed";candidate.Scope="long_term";candidate.MemoryId=alreadySaved.MemoryId;
-            TravelProfiling.AppendTripNote(session,candidate);return;
+            return;
         }
         var expected=(input.Array("expectedConflicts") ?? new JsonArray()).Select(x=>x?.GetValue<string>() ?? "").Order().ToArray();
         if(!expected.SequenceEqual(candidate.ConflictingMemoryIds))throw new ServiceException("长期偏好刚有变化，请刷新对话，查看旧值后再确认替换。");
@@ -167,7 +167,7 @@ public static class PetEndpoints
             ? await preferences.UpdateAsync(candidate.ConflictingMemoryIds[0],payload,ct)
             : await preferences.SaveAsync(payload,ct);
         candidate.Status="confirmed";candidate.Scope="long_term";candidate.MemoryId=saved.Str("id");
-        TravelProfiling.AppendTripNote(session,candidate);
+
         TravelProfiling.Refresh(session,await records.ListAsync(ct));
     }
 

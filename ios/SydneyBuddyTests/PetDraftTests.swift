@@ -232,4 +232,14 @@ final class PetDraftTests:XCTestCase {
         XCTAssertEqual(event.session?.pendingMemory,"喜欢艺术")
         XCTAssertEqual(event.session?.messages.first?.text,"喜欢艺术")
     }
+    func testRecalledWalkingLimitSurvivesTheRequirementsReviewInput() throws {
+        let raw=["destination":"悉尼","date":"2026-11-01","days":"2","budget":"100","budgetCurrency":"AUD","budgetBasis":"perPersonPerDay","travelers":"1"]
+        var effective=raw;effective["pace"]="约5000步";effective["notes"]="怕晒，需要安排阴凉的休息点"
+        let session=PetSession(id:"test",messages:[],fields:raw,pendingMemory:"",nextField:"",question:"",options:[],completed:7,total:7,planningFields:effective)
+        let reviewed=try TravelRequirements.readyProfile(session.effectiveFields,personal:UserTravelProfile())
+        XCTAssertEqual(reviewed.maxSteps,5000)
+        XCTAssertTrue(reviewed.request?.contains("阴凉")==true)
+        XCTAssertNil(session.fields["pace"])
+    }
+
 }

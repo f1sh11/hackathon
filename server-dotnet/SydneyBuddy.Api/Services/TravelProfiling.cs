@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 
 namespace SydneyBuddy.Api;
 
@@ -54,6 +55,7 @@ confirmedPreferences 是当前有效的已确认记忆，pendingPreferences 只�
 
     public static void Refresh(PetSession session, JsonArray records)
     {
+        RemoveCopiedPreferenceNotes(session);
         session.ConfirmedDna = records.OfType<JsonObject>().Select(record =>
         {
             var fact=Read(record.Object("profile")?.Object("travelDna"));
@@ -81,7 +83,7 @@ confirmedPreferences 是当前有效的已确认记忆，pendingPreferences 只�
             if(scope=="long_term" && new[]{"这次","本次","这趟","for this trip"}.Any(x=>message.Contains(x,StringComparison.OrdinalIgnoreCase)) &&
                 !new[]{"平时","一般","总是","习惯","讨厌","每次","以后","通常","usually","always","hate"}.Any(x=>evidence.Contains(x,StringComparison.OrdinalIgnoreCase)))scope="trip";
             var condition=item.Str("condition").Trim();if(condition.Length>150)continue;
-            if(session.Preferences.Any(x=>x.Key==key && x.Condition==condition && x.Value==value && x.Status is not ("superseded" or "revoked")))continue;
+            if(session.Preferences.Any(x=>x.Key==key && x.Condition==condition && x.Value==value && x.Scope==scope && x.Status is "awaiting_confirmation" or "trip_only" or "confirmed"))continue;
             if(scope=="long_term" && session.ConfirmedDna.Any(x=>x.Key==key && x.Condition==condition && x.Value==value))continue;
             foreach(var old in session.Preferences.Where(x=>x.Key==key && x.Condition==condition && x.Scope==scope && x.Status is "awaiting_confirmation" or "trip_only"))old.Status="superseded";
             var fact=new TravelPreference {Key=key,Dimension=definition.Dimension,Value=value,Condition=condition,Scope=scope,
@@ -90,7 +92,6 @@ confirmedPreferences 是当前有效的已确认记忆，pendingPreferences 只�
             SetConflicts(fact,session.ConfirmedDna);session.Preferences.Add(fact);
             if(scope=="long_term")session.DnaCompleted=false;
             added.Add(JsonSerializer.SerializeToNode(fact,JsonExtensions.Options));
-            if(scope=="trip")AppendTripNote(session,fact);
         }
         // Keep a bounded audit in the session; H-MEM has its own ledger.
         session.Preferences=session.Preferences.TakeLast(150).ToList();
@@ -118,17 +119,22 @@ confirmedPreferences 是当前有效的已确认记忆，pendingPreferences 只�
         } catch(JsonException){return null;}
     }
 
-    public static void AppendTripNote(PetSession session,TravelPreference fact)
+    // Migrate sessions written by the initial implementation. Structured preferences
+    // are derived at read time; they must never survive revocation as raw trip notes.
+    private static void RemoveCopiedPreferenceNotes(PetSession session)
     {
-        var note=Label(fact);var existing=session.Fields.GetValueOrDefault("notes","");
-        var replaced=session.Preferences.Where(x=>x.Id!=fact.Id && x.Key==fact.Key && x.Condition==fact.Condition).Select(Label).ToHashSet();
-        existing=string.Join("；",existing.Split('；').Where(x=>!replaced.Contains(x)));
-        if(!existing.Contains(note,StringComparison.Ordinal))session.Fields["notes"]=string.Join("；",new[]{existing,note}.Where(x=>x.Length>0));
+        if(!session.Fields.TryGetValue("notes",out var notes))return;
+        foreach(var fact in session.Preferences.Where(x=>Keys.ContainsKey(x.Key))) {
+            var pattern="(?:^|；)"+Regex.Escape(Label(fact))+"(?=；|$)";
+            notes=Regex.Replace(notes,pattern,"");
+        }
+        notes=Regex.Replace(notes,"；{2,}","；").Trim('；');
+        if(notes.Length==0)session.Fields.Remove("notes");else session.Fields["notes"]=notes;
     }
     public static Dictionary<string,string> PlanningFields(PetSession session)
     {
         var fields=new Dictionary<string,string>(session.Fields);
-        var active=session.ConfirmedDna.Concat(session.Preferences.Where(x=>x.Status is "awaiting_confirmation" or "trip_only" && x.Source!="ai_inference"))
+        var active=session.ConfirmedDna.Concat(session.Preferences.Where(x=>x.Status=="trip_only" || x.Status=="awaiting_confirmation" && x.Source!="ai_inference"))
             .GroupBy(x=>(x.Key,x.Condition)).Select(x=>x.Last()).ToArray();
         var notes=new List<string>();
         foreach(var fact in active) {

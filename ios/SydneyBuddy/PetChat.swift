@@ -5,6 +5,7 @@ struct PetSession: Codable {
     var id: String; var messages: [PetMessage]; var fields: [String:String]; var pendingMemory: String
     var nextField: String; var question: String; var options: [String]; var completed: Int; var total: Int
     var dnaCompleted:Bool? = nil;var planningFields:[String:String]? = nil;var travelDna:[TravelPreference]? = nil;var pendingPreferences:[TravelPreference]? = nil;var tripPreferences:[TravelPreference]? = nil;var memoryWarning:String? = nil
+    var effectiveFields:[String:String] {planningFields ?? fields}
 }
 struct PetEvent: Decodable { var type: String; var text: String?; var error: String?; var session: PetSession? }
 let petFields: [(String,String)] = [("destination","目的地"),("date","出发日期 YYYY-MM-DD"),("days","旅行天数"),("companions","同行伙伴"),("budget","预算金额"),("interests","这次想玩什么"),("pace","旅行节奏"),("notes","补充要求")]
@@ -215,7 +216,7 @@ struct PetChatView:View {
         VStack(spacing:0) {
             HStack {
                 Button(onboarding ? "返回我的行程":"返回") {
-                    if onboarding{store.returnToTrips(draft:chat.session?.fields ?? store.pendingTripFields)}else{dismiss()}
+                    if onboarding{store.returnToTrips(draft:chat.session?.planningFields ?? chat.session?.fields ?? store.pendingTripFields)}else{dismiss()}
                 }.font(.subheadline.bold()).accessibilityIdentifier("chat-back")
                 Spacer()
                 if !onboarding && !draftScope,let trip=store.trip{Text(trip.profile.date).font(.caption).foregroundStyle(Palette.muted)}
@@ -271,7 +272,7 @@ struct PetChatView:View {
             HStack {
                 Button("我的记忆"){memories=true}
                 Spacer()
-                Button("旅行需求摘要"){fields=chat.session?.fields ?? [:];editingRequirements=false;assumptionsConfirmed=false;review=true}.fontWeight(.bold)
+                Button("旅行需求摘要"){fields=liveFields;editingRequirements=false;assumptionsConfirmed=false;review=true}.fontWeight(.bold)
                 Menu{Button(chat.choices ? "收起快捷填写":"展开快捷填写"){chat.mode(!chat.choices)};Button("清空本次对话",role:.destructive){clearing=true}}label:{Image(systemName:"ellipsis.circle")}
             }.font(.subheadline).padding(20).disabled(chat.busy)
         }.background(Palette.cream).foregroundStyle(Palette.ink)
@@ -299,6 +300,9 @@ struct PetChatView:View {
             if (onboarding || draftScope),let value{store.pendingTripFields=chat.session?.planningFields ?? value}
             if value != nil{assumptionsConfirmed=false}
             if canPlanDirectly{composing=false}
+        }
+        .onChange(of:chat.session?.planningFields){_,value in
+            if (onboarding || draftScope),let value{store.pendingTripFields=value;assumptionsConfirmed=false}
         }
         .sheet(isPresented:$choosingDestination){destinationIdeas}
         .sheet(isPresented:$memories){PetMemoryView(chat:chat)}
@@ -339,7 +343,7 @@ struct PetChatView:View {
             }}.disabled(chat.busy)
         }.navigationTitle("修改本次需求").navigationBarTitleDisplayMode(.inline).toolbar{Button("取消"){editingBackpack=nil}}.tint(Palette.green)}
     }
-    private var liveFields:[String:String]{chat.session?.planningFields ?? chat.session?.fields ?? [:]}
+    private var liveFields:[String:String]{chat.session?.effectiveFields ?? [:]}
     private var directProfile:TripProfile? {
         guard (onboarding || draftScope),(!conversationOnly || onboarding) else{return nil}
         return try? TravelRequirements.readyProfile(liveFields,personal:store.pendingPersonalProfile)

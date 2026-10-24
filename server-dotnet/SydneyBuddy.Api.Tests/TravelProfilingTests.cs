@@ -57,6 +57,30 @@ public sealed class TravelProfilingUnitTests
         Assert.Equal(12,TravelProfiling.Keys.Values.Select(x=>x.Dimension).Distinct().Count());
         Assert.DoesNotContain("normal_start_time",PetQuestions.Required);Assert.DoesNotContain("nap_preference",PetQuestions.Required);
     }
+    [Fact]
+    public void RepeatingATripPreferenceAsAFutureHabitCreatesAConfirmationCandidate()
+    {
+        var session=new PetSession();const string trip="这次我想晚起";const string habit="以后我一般都想晚起";
+        TravelProfiling.Apply(session,new JsonObject{["preferences"]=new JsonArray(Claim("normal_start_time","late",trip,"trip"))},trip,"trip-message");
+        TravelProfiling.Apply(session,new JsonObject{["preferences"]=new JsonArray(Claim("normal_start_time","late",habit))},habit,"habit-message");
+        var candidate=Assert.Single(session.Preferences,x=>x.Status=="awaiting_confirmation");
+        Assert.Equal("long_term",candidate.Scope);Assert.Equal("habit-message",candidate.SourceMessageId);Assert.Empty(session.ConfirmedDna);
+    }
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void RevokedOrEditedMemoryCannotSurviveAsCopiedTripNotes(bool edited)
+    {
+        var previous=new TravelPreference{Key="daily_steps",Dimension="fitness",Value="5000",Status="confirmed",MemoryId="old"};
+        var session=new PetSession{Preferences=[previous]};session.Fields["notes"]="饭点要准时；"+TravelProfiling.Label(previous);
+        var records=new JsonArray();
+        if(edited)records.Add(new JsonObject{["id"]="new",["profile"]=new JsonObject{["travelDna"]=JsonSerializer.SerializeToNode(new TravelPreference{Key="daily_steps",Value="7000"},JsonExtensions.Options)}});
+        TravelProfiling.Refresh(session,records);
+        Assert.Equal("饭点要准时",session.Fields["notes"]);Assert.Equal("revoked",previous.Status);
+        var planned=TravelProfiling.PlanningFields(session);Assert.DoesNotContain("5000",JsonSerializer.Serialize(planned));
+        if(edited)Assert.Equal("约7000步",planned["pace"]);
+        else Assert.False(planned.ContainsKey("pace"));
+    }
 }
 
 [Trait("Category","Integration")]
