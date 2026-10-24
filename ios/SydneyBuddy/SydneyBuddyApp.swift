@@ -34,15 +34,14 @@ struct PrimaryButton: View {
 }
 struct Robot:View {
     var size:CGFloat=130
-    var body:some View {PetAvatar().scaleEffect(size/104).frame(width:size,height:size*1.04)}
+    var body:some View {PetAvatar(animated:false).scaleEffect(size/104).frame(width:size,height:size*1.04)}
 }
 struct RootView: View {
     @EnvironmentObject var store: AppStore
     var body: some View {
         ZStack {
             Palette.cream.ignoresSafeArea()
-            if store.showPersonalPreferences { PersonalPreferencesView() }
-            else if store.showOnboarding { NavigationStack{PetChatView(onboarding:true)} }
+            if store.showPersonalPreferences || store.showOnboarding { NavigationStack{PetChatView(onboarding:true)} }
             else {
                 TabView(selection:$store.tab) {
                     TripsView().tabItem { Label(store.language.text("行程"),systemImage:"suitcase.rolling.fill") }.tag(1)
@@ -52,8 +51,11 @@ struct RootView: View {
                 }.tint(Palette.green).modifier(CompactTabs())
             }
             if store.busy {
-                ZStack { Color.black.opacity(0.15).ignoresSafeArea(); VStack(spacing:14) { PetAvatar(mood:.thinking); ProgressView(); Text(LocalizedStringKey(store.operationTitle)).font(.headline); Text(LocalizedStringKey(store.operationDetail)).font(.caption).foregroundStyle(Palette.muted);if store.travelTask?.status=="generating" {VStack(alignment:.leading,spacing:6){ForEach(Array(["整理旅行需求","安排当天活动","校验并保存"].enumerated()),id:\.offset){i,label in Label(label,systemImage:i<store.planningStage ? "checkmark.circle.fill":i==store.planningStage ? "circle.inset.filled":"circle").foregroundStyle(i<=store.planningStage ? Palette.green:Palette.muted).font(.caption)}}};if store.canCancelOperation{Button("取消生成"){store.cancelPendingGeneration()}.buttonStyle(.bordered)} }.padding(30).background(Palette.cream,in:RoundedRectangle(cornerRadius:28)) }
+                ZStack { Color.black.opacity(0.15).ignoresSafeArea(); VStack(spacing:14) { PetAvatar(mood:.thinking,cue:store.koalaWork); ProgressView(); Text(LocalizedStringKey(store.operationTitle)).font(.headline); Text(LocalizedStringKey(store.operationDetail)).font(.caption).foregroundStyle(Palette.muted);if store.travelTask?.status=="generating" {VStack(alignment:.leading,spacing:6){ForEach(Array(["整理旅行需求","安排当天活动","校验并保存"].enumerated()),id:\.offset){i,label in Label(label,systemImage:i<store.planningStage ? "checkmark.circle.fill":i==store.planningStage ? "circle.inset.filled":"circle").foregroundStyle(i<=store.planningStage ? Palette.green:Palette.muted).font(.caption)}}};if store.canCancelOperation{Button("取消生成"){store.cancelPendingGeneration()}.buttonStyle(.bordered)} }.padding(30).background(Palette.cream,in:RoundedRectangle(cornerRadius:28)) }
             }
+        }
+        .overlay(alignment:.bottom) {
+            if let cue=store.koalaFeedback {KoalaFeedbackBanner(cue:cue){if store.koalaFeedback?.id==cue.id{store.koalaFeedback=nil}}.padding(.bottom,80)}
         }
         .sheet(isPresented:Binding(get:{store.proposal != nil},set:{if !$0 {store.proposal=nil}})) { ProposalView() }
         .alert("需要留意",isPresented:Binding(get:{store.errorMessage != nil},set:{if !$0 {store.errorMessage=nil}})) { Button("知道了",role:.cancel) {} } message: { Text(store.errorMessage ?? "") }

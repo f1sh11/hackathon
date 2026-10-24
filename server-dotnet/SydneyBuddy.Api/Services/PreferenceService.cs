@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Nodes;
 
 namespace SydneyBuddy.Api;
@@ -15,12 +16,15 @@ public sealed class PreferenceService(IMemoryService memory, MemoryRepository re
         var summary = input.Str("summary");
         if (string.IsNullOrWhiteSpace(summary)) throw new ServiceException("请填写要记住的偏好。");
         if (summary.Length > 500) summary = summary[..500];
-        var record = await memory.RunAsync("add", new JsonObject { ["content"] = "travel preference Sydney: " + summary }, ct);
+        var dna=TravelProfiling.Read(profile.Object("travelDna"));
+        if(dna is not null) {dna.Status="confirmed";dna.Scope="long_term";}
+        var dnaJson=JsonSerializer.SerializeToNode(dna,JsonExtensions.Options);
+        var record = await memory.RunAsync("add", new JsonObject { ["content"] = "travel preference: " + summary, ["travelDna"]=dnaJson?.DeepClone() }, ct);
         var saved = new JsonObject
         {
             ["id"] = record.Str("id"), ["summary"] = summary,
-            ["profile"] = new JsonObject { ["interests"] = profile.Array("interests")?.DeepClone() ?? new JsonArray(), ["maxSteps"] = profile.Int("maxSteps", 10000), ["habits"]=profile.Object("habits")?.DeepClone() },
-            ["provenance"] = new JsonObject { ["source"] = "user_confirmed", ["createdAt"] = DateTimeOffset.UtcNow.ToString("O") },
+            ["profile"] = new JsonObject { ["interests"] = profile.Array("interests")?.DeepClone() ?? new JsonArray(), ["maxSteps"] = profile.Int("maxSteps", 10000), ["habits"]=profile.Object("habits")?.DeepClone(), ["travelDna"]=dnaJson?.DeepClone() },
+            ["provenance"] = new JsonObject { ["source"] = "user_confirmed", ["createdAt"] = DateTimeOffset.UtcNow.ToString("O"), ["extractionSource"]=dna?.Source ?? "manual", ["confidence"]=dna?.Confidence ?? 1, ["sourceMessageId"]=dna?.SourceMessageId ?? "" },
             ["scope"] = "local_only", ["consent"] = true
         };
         try { await records.SaveAsync(saved, ct); }

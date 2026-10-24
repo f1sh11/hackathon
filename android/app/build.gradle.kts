@@ -23,6 +23,7 @@ android {
         buildConfigField("boolean", "MAPS_CONFIGURED", mapsKey.isNotBlank().toString())
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
+    sourceSets.getByName("main").assets.srcDir("../../assets")
     sourceSets.getByName("androidTest").assets.srcDir("../../tests/fixtures")
     buildFeatures { compose = true; buildConfig = true }
     compileOptions { isCoreLibraryDesugaringEnabled = true; sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }

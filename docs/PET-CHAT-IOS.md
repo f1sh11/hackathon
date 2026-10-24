@@ -1,6 +1,6 @@
 # iOS Buddy 宠物对话与记忆
 
-本分支基于 `feat/personalized-schedule-editor`，仅更新 iOS 和共用 .NET 后端。Android 界面未改动。
+当前默认入口已改为自然聊天，支持结构化 Travel DNA、候选偏好确认与白色考拉动画。当前协议和验收范围见 [工程交接](TRAVEL-DNA-HANDOFF.md)；下方保留较早版本的分阶段说明，旧的默认问卷流程不再作为首次入口。
 
 ## 使用
 

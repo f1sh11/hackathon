@@ -37,5 +37,7 @@ jobs:
         run: dotnet build server-dotnet/SydneyBuddy.Api.Tests/SydneyBuddy.Api.Tests.csproj --configuration Release --no-restore
       - name: Backend unit and HTTP compatibility tests
         run: dotnet test server-dotnet/SydneyBuddy.Api.Tests/SydneyBuddy.Api.Tests.csproj --configuration Release --no-build
+      - name: Koala runtime asset integrity
+        run: python3 scripts/validate_koala_assets.py
       - name: Official H-MEM conformance
         run: HMEM_IMPL="$PWD/server/vendor/hmem/src/index.ts" node --experimental-transform-types server/vendor/hmem/conformance/runner.ts

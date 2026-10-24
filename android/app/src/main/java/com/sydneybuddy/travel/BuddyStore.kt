@@ -25,6 +25,10 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
     var health by mutableStateOf<JSONObject?>(null); private set
     var error by mutableStateOf<String?>(null)
     var notice by mutableStateOf<String?>(null)
+    internal var koalaEvent by mutableStateOf<Pair<KoalaEvent,String>?>(null)
+    internal fun showKoala(event:KoalaEvent){koalaEvent=event to UUID.randomUUID().toString()}
+    fun markKoalaWelcome(){prefs.edit().putBoolean("koala.welcome.seen",true).apply()}
+    val needsKoalaWelcome:Boolean get()=!prefs.getBoolean("koala.welcome.seen",false) && !prefs.getBoolean("onboarded",false)
     var busy by mutableStateOf(false); private set
     var weather by mutableStateOf<JSONObject?>(null); private set
     var online by mutableStateOf(false)
@@ -79,7 +83,7 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
                 is java.net.SocketTimeoutException -> "服务请求超时，请稍后重试。原行程未修改。"
                 else -> e.message ?: "操作未完成，请重试。"
             } }
-            finally { busy = false }
+            finally { busy = false;if(koalaEvent?.first==KoalaEvent.PlanningStarted || koalaEvent?.first==KoalaEvent.OptimizationStarted)koalaEvent=null }
         }
     }
     private suspend fun load() {
@@ -116,8 +120,10 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
         operation {
             source.put("request", message).put("mode", if (!online) "demo" else if (health?.optBoolean("googleConfigured") == true) "live" else "assisted")
             if (rain) source.put("weatherOverride", "rain") else source.remove("weatherOverride")
+            showKoala(KoalaEvent.PlanningStarted)
             val result = JSONObject(request("plan", "POST", source))
             proposal = Proposal(result, target, revision)
+            if(result.array("days").objects().any{it.optDouble("estimatedCost")>source.optDouble("budget")})showKoala(KoalaEvent.BudgetRisk)
         }
     }
     suspend fun scheduleRequest(body:JSONObject)=JSONObject(request("schedule/editor","POST",body))
@@ -135,6 +141,7 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
             val accepted = JSONObject(request("trips", "POST", savePayload(pending)))
             select(accepted); profile = Profile.from(accepted.getJSONObject("profile")); rememberProfile()
             proposal = null; onboarding = false; tab = 0
+            showKoala(KoalaEvent.TripSaved)
             prefs.edit().putBoolean("onboarded", true).apply()
             load()
         }
@@ -157,7 +164,7 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
     fun refreshWeather() = operation {
         val source = trip?.getJSONObject("profile") ?: profile.json()
         weather = JSONObject(request("weather", "POST", source))
-        if (weather?.optString("status") == "ok") mark("weather")
+        if (weather?.optString("status") == "ok") {mark("weather");if(weather?.optBoolean("rainy")==true)showKoala(KoalaEvent.WeatherRisk)}
     }
     fun saveMemory(consent: Boolean) {
         if (!consent) return
@@ -165,7 +172,7 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
         operation {
             request("memories", "POST", JSONObject().put("consent", true).put("profile", source)
                 .put("summary", "喜欢${source.array("interests").strings().joinToString("、")}，每天步数偏好约 ${source.optInt("maxSteps")} 步"))
-            load(); notice = "偏好已保存到电脑本机"
+            showKoala(KoalaEvent.PreferenceConfirmed);load(); notice = "偏好已保存到电脑本机"
         }
     }
     fun deleteMemory(value: JSONObject) = operation { request("memories/${value.getString("id")}", "DELETE"); load() }

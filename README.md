@@ -1,6 +1,6 @@
 # Sydney Buddy · 悉尼旅行 Agent
 
-**原生 iOS（SwiftUI）、Android（Kotlin + Jetpack Compose）与 ASP.NET Core（C# / .NET 10）后端，通过 EF Core 和 PostgreSQL 保存行程与偏好。** 单题引导收集旅行偏好，NVIDIA Nemotron 推荐候选地点，程序独立检查路线约束，再由用户确认保存。底图支持 OpenStreetMap / Apple / Google，在线地点、行程路线与天气可使用 Google Maps Platform，逐段步行导航采用 Ferrostar + Valhalla；授权偏好检索使用官方 Meterless H-MEM 引擎。
+**原生 iOS（SwiftUI）、Android（Kotlin + Jetpack Compose）与 ASP.NET Core（C# / .NET 10）后端，通过 EF Core 和 PostgreSQL 保存行程与偏好。** 考拉自然对话收集 Travel DNA，用户确认长期偏好，NVIDIA Nemotron 推荐候选地点，程序独立检查路线约束，再由用户确认保存。底图支持 OpenStreetMap / Apple / Google，在线地点、行程路线与天气可使用 Google Maps Platform，逐段步行导航采用 Ferrostar + Valhalla；授权偏好检索使用官方 Meterless H-MEM 引擎。
 
 当前维护原生 iOS、Android 及其共用的 C# API。React 网页客户端与独立的旧版 React/.NET 原型已移除。Android 与保留的 SwiftUI iOS 客户端继续使用原接口、JSON 字段和 `8787` 端口。旧 Python 代码与 SQLite 文件保留供对照和回退；新后端不运行 Python，也不会自动导入旧 SQLite 数据。**当前仍为本机单用户原型，未部署线上服务，也未提交 HackOS。**
 
@@ -491,3 +491,6 @@ OpenStreetMap 底圖的商家／景點搜尋預設改讀取本機 Overture Place
 ## iOS 宠物对话（本分支）
 
 新增宠物首次引导、文字 AI 对话/点选回答切换、旅行草稿恢复和长期偏好确认管理。仅 iOS 界面更新，Android 保持原版。详见 [使用与记忆说明](docs/PET-CHAT-IOS.md)。
+
+
+最新旅行画像与考拉互动实现见 [Travel DNA 工程交接](docs/TRAVEL-DNA-HANDOFF.md) 和 [动画事件契约](docs/KOALA-ANIMATION-INTEGRATION.md)。

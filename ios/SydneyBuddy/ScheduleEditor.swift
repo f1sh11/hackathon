@@ -208,7 +208,7 @@ struct ScheduleRadarView:View {
                                 Spacer();Image(systemName:"pencil").foregroundStyle(Palette.green)
                             }.padding(16).background(.white,in:RoundedRectangle(cornerRadius:16))}.buttonStyle(.plain).foregroundStyle(Palette.ink).accessibilityLabel("编辑活动："+activity.name)
                         }
-                        if model.busy {ProgressView("更新交通与等待时间…").font(.caption)}
+                        if model.busy {HStack{PetAvatar(cue:KoalaCue(event:.optimizationStarted,id:"schedule-recompute"));ProgressView("更新交通与等待时间…").font(.caption)}}
                         ForEach(state.issues.filter{$0.day==model.dayIndex || $0.day == -1}) {issue in Label(issue.message,systemImage:issue.blocking ? "exclamationmark.triangle.fill":"info.circle").font(.caption).foregroundStyle(issue.blocking ? .red:.orange)}
                         HStack{Button("撤销上一步"){model.undo()};Spacer();Button("偏好与住宿"){settingsSheet=true}}.font(.subheadline)
                         DisclosureGroup("查看步数、预算与交通余量"){summary(day,state)}.font(.subheadline)

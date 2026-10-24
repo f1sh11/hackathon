@@ -184,7 +184,7 @@ public sealed class PetConversationTests(ApiFixture fixture):IClassFixture<ApiFi
         Assert.Equal("墨尔本",chatResult.Object("fields").Str("destination"));
         Assert.Equal("艺术",chatResult.Object("fields").Str("interests"));
         Assert.Equal("喜欢艺术和慢节奏",chatResult.Str("pendingMemory"));
-        Assert.Equal("confused",chatResult.Array("messages")!.Last()!.Str("mood"));
+        Assert.Equal("relaxed",chatResult.Array("messages")!.Last()!.Str("mood"));
         Assert.Empty((await client.GetFromJsonAsync<JsonArray>("/memories"))!);
         var local=await client.PostAsJsonAsync($"/pet/sessions/{id}/memory",new {consent=false});local.EnsureSuccessStatusCode();
         Assert.Empty((await client.GetFromJsonAsync<JsonArray>("/memories"))!);
