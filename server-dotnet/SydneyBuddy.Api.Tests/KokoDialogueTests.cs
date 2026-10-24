@@ -116,6 +116,14 @@ public sealed class KokoDialogueUnitTests
         Assert.NotNull(s.Dialogue.Inspiration);Assert.DoesNotContain("怎么称呼",s.Messages.Last().Text);
         KokoDialogue.Enable(s,new(){["profilingVersion"]=2});Assert.Equal(5,s.Messages.Count);
     }
+    [Fact]
+    public void UpgradingAnEmptyLegacyDraftReplacesItsWelcomeInsteadOfIntroducingTwice()
+    {
+        var s=new PetSession{Messages=[new("old-welcome","assistant","嗨，我是 Buddy")],Fields=new(){["budget"]="80"}};
+        KokoDialogue.Enable(s,new(){["profilingVersion"]=2});
+        var hello=Assert.Single(s.Messages);Assert.Contains("Koko",hello.Text);Assert.DoesNotContain("Buddy",hello.Text);
+        Assert.Equal(3,hello.QuickReplies!.Length);Assert.Equal("80",s.Fields["budget"]);Assert.Equal(0,s.Dialogue!.ResponseCount);
+    }
     internal static JsonObject Selection(PetMessage message,PetQuickReply option)=>new(){["message"]=option.Text,["optionId"]=option.Id,["questionId"]=message.Id};
 }
 

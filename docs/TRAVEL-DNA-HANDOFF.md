@@ -28,7 +28,7 @@ The inspiration card shows the current ideas, explicit known preferences and dim
 
 This slice does not claim that every v2 inference boundary is formally verified by a classifier. The extraction prompt states those limits and contextual clicks have additional server guards; live NVIDIA wording and the full product acceptance scenario still need a configured model run. Android's conversational profiling UI remains a later slice. The spec's richer consent/persistence metadata and activity-specific promotion into long-term memory are not new APIs in this slice.
 
-V2 validation adds four-button end-to-end HTTP scenarios, stop-asking shortcuts, stale-option/idempotency checks, contextual provenance and legacy-draft upgrades. All 198 backend tests pass locally. Native iOS tests additionally cover restored inspiration, unknown formal fields, in-place upgrade and nickname reuse without simulated preference seeding. The iOS workflow also runs on pushes to this draft feature branch, so simulator validation does not depend on merging main.
+V2 validation adds four-button end-to-end HTTP scenarios, stop-asking shortcuts, stale-option/idempotency checks, contextual provenance and legacy-draft upgrades. All 199 backend tests pass locally. Native iOS tests additionally cover restored inspiration, unknown formal fields, in-place upgrade and nickname reuse without simulated preference seeding. The iOS workflow also runs on pushes to this draft feature branch, so simulator validation does not depend on merging main.
 
 ## Responsibility map and data flow
 

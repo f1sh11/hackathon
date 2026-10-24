@@ -53,6 +53,8 @@ nickname、ideas、quickReplies 都不能来自产品文档里的模拟用户。
         }
         var returning=input.Bool("hasMetKoko") || name.Length>0;
         if(returning)session.Dialogue.Phase="exploring";
+        // A legacy empty draft only contains the old welcome. Replace it rather than introducing twice.
+        if(session.Messages.All(x=>x.Role=="assistant"))session.Messages.Clear();
         var greeting=returning
             ? (name.Length>0 ? $"{name}，咱们开始构想这趟旅行吧。先留一段自由探索，还是围绕一个最想体验的事展开？":"咱们开始构想新一趟旅行吧。先留一段自由探索，还是围绕一个最想体验的事展开？")
             : "嗨，我叫 Koko，是你的旅行向导。怎么称呼你？也可以先跳过。";
