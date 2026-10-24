@@ -331,3 +331,21 @@
 "Google Places 未提供獨立飲水點分類；請切換開源資料搜尋。" = "Google Places has no dedicated drinking-water filter. Switch to open data to search.";
 "飯店旅館" = "Hotels";
 "青年旅館" = "Hostels";
+
+"搜尋名稱、景點或日期" = "Search trips, places or dates";
+
+"清除搜尋" = "Clear search";
+
+"旅遊月曆" = "Trip calendar";
+
+"顯示全部" = "Show all";
+
+"圓點表示當天有行程；點選日期篩選" = "Dots mark trip dates. Tap a date to filter.";
+
+"找不到符合的行程" = "No matching trips";
+
+"上個月" = "Previous month";
+
+"下個月" = "Next month";
+
+"{0} 天" = "{0} days";

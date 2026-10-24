@@ -4,6 +4,16 @@ import MapKit
 @testable import SydneyBuddy
 
 @MainActor final class ScheduleTests:XCTestCase {
+    func testTripLibraryFiltersEveryTravelDayAndSearchesNames() throws {
+        var trip=try fixture();trip.title="Old Sydney adventure"
+        XCTAssertTrue(TripLibrary.matches(trip,query:"sYDney",date:nil))
+        XCTAssertTrue(TripLibrary.matches(trip,query:"  ",date:trip.days.last!.date))
+        XCTAssertTrue(TripLibrary.matches(trip,query:trip.days[0].stops[0].name,date:trip.days[0].date))
+        XCTAssertFalse(TripLibrary.matches(trip,query:"Sydney",date:"1999-01-01"))
+        XCTAssertFalse(TripLibrary.matches(trip,query:"no-such-place",date:nil))
+        trip.days=[]
+        XCTAssertEqual(TripLibrary.dates(trip),[trip.profile.date])
+    }
     func testDiscoverySubcategoriesRetainParentAndUseExactSearchFilter() async throws {
         XCTAssertEqual(PoiDiscoveryCategory.details.count,12)
         XCTAssertEqual(PoiDiscoveryCategory.parent("cafes"),"food")
