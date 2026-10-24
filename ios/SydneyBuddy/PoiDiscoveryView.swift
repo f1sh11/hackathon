@@ -109,64 +109,167 @@ import CryptoKit
     var onAdd:(ScheduleCandidate)->Void = {PoiToolbox.shared.add($0)}
     @EnvironmentObject var store:AppStore
     @Environment(\.dismiss) var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @StateObject private var model=PoiSearchModel()
     @State private var detail:ScheduleCandidate?
     @ObservedObject private var toolbox=PoiToolbox.shared
     @State private var zoom:Double=14
+    @State private var expanded=false
+    @State private var areaChanged=false
+    @FocusState private var searching:Bool
     private var visiblePlaces:[ScheduleCandidate] {model.provider==store.mapProvider ? model.places:[]}
+    private var orderedPlaces:[ScheduleCandidate] {visiblePlaces.sorted{a,b in a.id==model.selected && b.id != model.selected}}
     var body:some View {
         NavigationStack {
-            VStack(spacing:10) {
-                HStack {TextField("搜尋附近地點名稱（可留空）",text:$model.query).textFieldStyle(.roundedBorder).onSubmit{model.search()};Button("搜尋"){model.search()}.disabled(model.busy)}.padding(.horizontal)
-                Picker("地點分類",selection:$model.category){Text("景點").tag("sights");Text("餐飲").tag("food");Text("生活設施").tag("facilities")}.pickerStyle(.segmented).padding(.horizontal)
-                HStack{Picker("底圖",selection:$store.mapProvider){ForEach(MapProvider.allCases){Text($0.label).tag($0)}}.pickerStyle(.menu);Spacer();Text(store.language.text("地點資料：{0}",store.language.text(model.source))).font(.caption2).foregroundStyle(Palette.muted)}.padding(.horizontal)
-                Group {
-                    switch store.mapProvider {
-                    case .apple,.osm:
-                        PoiNativeMap(places:visiblePlaces,osm:store.mapProvider == .osm,center:model.center,zoom:zoom,onCamera:{model.center=$0;zoom=$1},onSelect:{model.selected=$0})
-                    case .google:
-                        if SydneyBuddyApp.mapReady{PoiGoogleMap(places:visiblePlaces,center:model.center,zoom:zoom,onCamera:{model.center=$0;zoom=$1},onSelect:{model.selected=$0})}
-                        else{Text("Google 地圖尚未設定金鑰，請選擇其他底圖。").font(.caption).padding()}
-                    case .schematic:
-                        Text("離線示意圖沒有街道底圖，請切換聯網底圖來移動搜尋範圍。").font(.caption).padding()
+var body: some View {
+    NavigationStack {
+        GeometryReader { geo in
+            ZStack(alignment: .top) {
+                map.ignoresSafeArea(edges: .bottom)
+                VStack(spacing: 10) {
+                    HStack(spacing: 10) {
+                        HStack {
+                            Image(systemName: "magnifyingglass").foregroundStyle(Palette.muted)
+                            TextField("想去哪里？", text: $model.query)
+                                .focused($searching)
+                                .submitLabel(.search)
+                                .onSubmit { search() }
+                            if !model.query.isEmpty {
+                                Button {
+                                    model.query = ""
+                                    search()
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                }
+                                .accessibilityLabel("清空搜索")
+                            }
+                            Button("搜索") { search() }
+                                .font(.subheadline.bold())
+                                .disabled(model.busy)
+                        }
+                        .padding(13)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
+
+                        Menu {
+                            Picker("地图来源", selection: $store.mapProvider) {
+                                ForEach(MapProvider.allCases) { Text($0.label).tag($0) }
+                            }
+                        } label: {
+                            Image(systemName: "square.3.layers.3d")
+                                .frame(width: 46, height: 46)
+                                .background(.regularMaterial, in: Circle())
+                        }
+                        .accessibilityLabel("切换地图来源")
                     }
-                }.frame(height:embedded ? 350 : 250).accessibilityIdentifier("poi-map-"+store.mapProvider.rawValue)
-                Text(LocalizedStringKey(store.mapProvider == .google ? "Google Places · 按搜尋才查詢 · 附近 1.5 km":"切換分類自動搜尋 · 移動地圖後按搜尋 · 附近 1.5 km")).font(.caption2).foregroundStyle(Palette.muted)
-                if model.busy {ProgressView("正在搜尋附近地點…")}
-                if let error=model.error {
-                    VStack(spacing:6){Text(error).font(.caption).foregroundStyle(.red);Text("地圖底圖仍可顯示；地點清單尚未取得，並非附近沒有地點。").font(.caption2).foregroundStyle(Palette.muted);Button("重新搜尋"){model.search()}}
-                        .padding(.horizontal).accessibilityIdentifier("poi-search-error")
-                }
-                List {
-                    if visiblePlaces.isEmpty && !model.busy && model.error==nil && model.hasSearched {Text("此範圍沒有符合的地點。可清空名稱、切換分類，或移動地圖後重新搜尋。").font(.caption)}
-                    ForEach(visiblePlaces.sorted{a,b in a.id==model.selected && b.id != model.selected}) {p in
-                        VStack(alignment:.leading,spacing:7) {
-                            Button{detail=p}label:{VStack(alignment:.leading,spacing:7){
-                                Label(p.name,systemImage:p.category=="美食" ? "fork.knife":p.category=="設施" ? "figure.stand":"mappin.and.ellipse").font(.subheadline.bold()).foregroundStyle(p.category=="美食" ? .orange:Palette.green)
-                                Text(p.description ?? "介紹未提供").font(.caption).lineLimit(2).foregroundStyle(.primary)
-                            }.frame(maxWidth:.infinity,alignment:.leading).contentShape(Rectangle())}.buttonStyle(.borderless).accessibilityIdentifier("poi-detail-"+p.id)
-                            HStack {Button("詳細介紹"){detail=p};Spacer();if p.source == "Google Places" {Text("Google 地點暫不匯入本機示例時間軸").font(.caption2)}
-                                else {Button(toolbox.places.contains(where:{$0.id==p.id}) ? "移出工具箱":"＋工具箱"){
-                                    if toolbox.places.contains(where:{$0.id==p.id}){toolbox.remove(p.id)}else{toolbox.add(p);onAdd(p)}
-                                }.accessibilityIdentifier("poi-toggle-"+p.id)}}.font(.caption).buttonStyle(.borderless)
-                        }.listRowBackground(p.id==model.selected ? Palette.mint:Color.white)
+
+                    Picker("地点分类", selection: $model.category) {
+                        Text("景点").tag("sights")
+                        Text("餐饮").tag("food")
+                        Text("生活设施").tag("facilities")
                     }
-                }.listStyle(.plain)
-                if store.mapProvider == .osm {
-                    VStack(spacing:3){
-                        Link("地圖 © OpenStreetMap contributors · ODbL",destination:URL(string:"https://www.openstreetmap.org/copyright")!)
-                        Link(model.attribution,destination:URL(string:model.attribution.contains("OpenStreetMap") ? "https://www.openstreetmap.org/copyright":"https://docs.overturemaps.org/attribution/")!)
-                        if let version=model.dataVersion{Text(store.language.text("本機地點資料快照：{0}",version))}
-                    }.font(.caption2)
+                    .pickerStyle(.segmented)
+                    .padding(6)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+
+                    if areaChanged {
+                        Button {
+                            search()
+                        } label: {
+                            Label("搜索此区域", systemImage: "arrow.clockwise")
+                                .font(.subheadline.bold())
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 10)
+                                .background(.regularMaterial, in: Capsule())
+                        }
+                        .disabled(model.busy)
+                    }
                 }
-                else if !model.attribution.isEmpty {Text(model.attribution).font(.caption2).foregroundStyle(Palette.muted)}
-            }.navigationTitle(embedded ? "探索目的地" : "搜尋地圖地點").navigationBarTitleDisplayMode(.inline).toolbar{if !embedded{Button("完成"){dismiss()}}}
-        }.sheet(item:$detail){SchedulePlaceDetail(candidate:$0)}
-            .onAppear{model.language=store.language == .english ? "en":store.language == .simplified ? "zh-CN":"zh-TW";if let viewport=store.mapViewport{model.center=CLLocationCoordinate2D(latitude:viewport.lat,longitude:viewport.lng)};model.configure(store.mapProvider,googleMapConfigured:SydneyBuddyApp.mapConfigured)}
-            .onChange(of:store.mapProvider){_,provider in detail=nil;model.configure(provider,googleMapConfigured:SydneyBuddyApp.mapConfigured)}
-            .onChange(of:model.category){_,_ in if store.mapProvider == .google{model.configure(.google,googleMapConfigured:SydneyBuddyApp.mapConfigured)}else{model.search()}}
-            .onDisappear{model.stop()}
+                .padding(.horizontal, 16)
+                .padding(.top, 10)
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if !searching { results(height: panelHeight(geo.size.height)) }
+            }
+        }
+        .background(Palette.cream)
+        .navigationTitle("探索目的地")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if !embedded {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("完成") { dismiss() }
+                }
+            }
+        }
     }
+    .tint(Palette.green)
+    .sheet(item: $detail) { SchedulePlaceDetail(candidate: $0) }
+    .onAppear {
+        model.language = store.language == .english ? "en" : store.language == .simplified ? "zh-CN" : "zh-TW"
+        if let viewport = store.mapViewport {
+            model.center = CLLocationCoordinate2D(latitude: viewport.lat, longitude: viewport.lng)
+        }
+        model.configure(store.mapProvider, googleMapConfigured: SydneyBuddyApp.mapConfigured)
+    }
+    .onChange(of: store.mapProvider) { _, provider in
+        detail = nil
+        areaChanged = false
+        model.configure(provider, googleMapConfigured: SydneyBuddyApp.mapConfigured)
+    }
+    .onChange(of: model.category) { _, _ in
+        searching = false
+        areaChanged = false
+        if store.mapProvider == .google {
+            model.configure(.google, googleMapConfigured: SydneyBuddyApp.mapConfigured)
+        } else {
+            model.search()
+        }
+    }
+    .onChange(of: model.selected) { _, id in
+        if id != nil {
+            searching = false
+            expanded = true
+        }
+    }
+    .onDisappear { model.stop() }
+}
+    }
+    private func panelHeight(_ height:CGFloat)->CGFloat {max(180,height*(expanded ? 0.65:0.36))}
+    @ViewBuilder private var map:some View {
+        switch store.mapProvider {
+        case .apple,.osm:PoiNativeMap(places:visiblePlaces,osm:store.mapProvider == .osm,center:model.center,zoom:zoom,onCamera:{model.center=$0;zoom=$1;areaChanged=true},onSelect:{model.selected=$0}).accessibilityIdentifier("poi-map-"+store.mapProvider.rawValue)
+        case .google:
+            if SydneyBuddyApp.mapReady{PoiGoogleMap(places:visiblePlaces,center:model.center,zoom:zoom,onCamera:{model.center=$0;zoom=$1;areaChanged=true},onSelect:{model.selected=$0})}
+            else{ContentUnavailableView("地图尚未配置",systemImage:"map",description:Text("请切换到 Apple Maps 或 OpenStreetMap。"))}
+        case .schematic:ContentUnavailableView("请选择在线底图",systemImage:"map",description:Text("示意图不支持地点搜索。"))
+        }
+    }
+    private func results(height:CGFloat)->some View {
+        VStack(spacing:0){
+            Button{togglePanel()}label:{VStack(spacing:10){Capsule().fill(Palette.muted.opacity(0.35)).frame(width:36,height:4);HStack{Text(LocalizedStringKey(model.busy ? "正在寻找好去处…":"附近地点")).font(.headline);Text("\(visiblePlaces.count)").font(.caption).foregroundStyle(Palette.muted);Spacer();Image(systemName:expanded ? "chevron.down":"chevron.up").font(.caption.bold())}}.padding(.horizontal,20).padding(.top,10).padding(.bottom,12)}.buttonStyle(.plain).accessibilityLabel(expanded ? "收起地点列表":"展开地点列表")
+                .gesture(DragGesture(minimumDistance:15).onEnded{value in if abs(value.translation.height)>20{expanded=value.translation.height<0}})
+            if model.busy{ProgressView().padding(12)}
+            if let error=model.error{ScrollView{VStack(spacing:10){Text("暂时没找到地点资料").font(.headline);Text(error).font(.caption).foregroundStyle(Palette.muted);Button("重新搜索"){search()}}.padding(20)}}
+            else if !model.busy && visiblePlaces.isEmpty {ContentUnavailableView("换个地方看看",systemImage:"magnifyingglass",description:Text("移动地图后点“搜索此区域”，或换一个关键词。"))}
+            else{ScrollViewReader{proxy in ScrollView{LazyVStack(spacing:0){ForEach(orderedPlaces){p in placeRow(p).id(p.id);Divider().padding(.leading,68)}}}.onChange(of:model.selected){_,id in if let id{proxy.scrollTo(id,anchor:.top)}}}}
+            attribution.padding(.horizontal,16).padding(.vertical,6)
+        }.frame(height:height).frame(maxWidth:.infinity).background(Palette.cream,in:UnevenRoundedRectangle(topLeadingRadius:24,topTrailingRadius:24)).shadow(color:.black.opacity(0.08),radius:12,y:-3)
+    }
+    private func placeRow(_ p:ScheduleCandidate)->some View {
+        HStack(alignment:.top,spacing:12){
+            Image(systemName:p.category=="美食" ? "fork.knife":p.category=="設施" ? "figure.stand":"mappin.and.ellipse").font(.title3).foregroundStyle(Palette.green).frame(width:38,height:44).background(Palette.mint,in:RoundedRectangle(cornerRadius:12))
+            Button{model.selected=p.id;detail=p}label:{VStack(alignment:.leading,spacing:5){Text(p.name).font(.subheadline.bold()).multilineTextAlignment(.leading);Text(p.description ?? "点击查看地点详情").font(.caption).foregroundStyle(Palette.muted).lineLimit(2)}.frame(maxWidth:.infinity,alignment:.leading)}.buttonStyle(.plain).accessibilityLabel("查看地点："+p.name)
+            if p.source != "Google Places"{Button{onAdd(p);added.insert(p.id)}label:{Image(systemName:isAdded(p) ? "checkmark":"plus").font(.headline).frame(width:44,height:44).background(.white,in:Circle())}.disabled(isAdded(p)).accessibilityLabel(isAdded(p) ? "已加入工具箱":"加入工具箱："+p.name)}
+        }.padding(.horizontal,16).padding(.vertical,12).background(model.selected==p.id ? Palette.mint.opacity(0.5):.clear)
+    }
+    @ViewBuilder private var attribution:some View {
+        if store.mapProvider == .osm {
+            HStack{Link("© OpenStreetMap contributors",destination:URL(string:"https://www.openstreetmap.org/copyright")!);Spacer();Link(model.attribution,destination:URL(string:model.attribution.contains("OpenStreetMap") ? "https://www.openstreetmap.org/copyright":"https://docs.overturemaps.org/attribution/")!).lineLimit(1)}.font(.caption2).foregroundStyle(Palette.muted)
+        } else{Text(model.attribution).font(.caption2).foregroundStyle(Palette.muted)}
+    }
+    private func isAdded(_ p:ScheduleCandidate)->Bool {added.contains(p.id)||PoiToolbox.shared.places.contains{$0.id==p.id}}
+    private func search(){searching=false;areaChanged=false;model.search()}
+    private func togglePanel(){withAnimation(reduceMotion ? nil:.easeInOut(duration:0.2)){expanded.toggle()}}
 }
 private final class PoiPin:NSObject,MKAnnotation {
     let point:ScheduleCandidate

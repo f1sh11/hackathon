@@ -61,6 +61,8 @@ struct Trip: Codable, Identifiable {
 }
 struct Memory: Codable, Identifiable {
     var id: String; var summary: String; var profile: MemoryProfile
+    var provenance:Provenance? = nil
+    struct Provenance:Codable {var createdAt:String}
     struct MemoryProfile: Codable { var interests: [String]; var maxSteps: Int }
 }
 struct Health: Codable { var navigationConfigured: Bool?; var paidServicesAllowed: Bool?; var status: String; var nvidiaConfigured: Bool; var googleConfigured: Bool; var iosMapConfigured: Bool; var model: String }
@@ -82,6 +84,11 @@ struct Expense: Codable, Identifiable {
     @Published var weatherBusy = false
     @Published var refreshedWeather: WeatherInfo?
     @Published var busy = false
+    @Published var canCancelOperation=false
+    private var planningTask:Task<Void,Never>?
+    var loader:(URLRequest) async throws -> (Data,URLResponse) = {try await URLSession.shared.data(for:$0)}
+    @Published var operationTitle="正在准备行程…"
+    @Published var operationDetail="请稍等，完成后会自动显示结果。"
     @Published var errorMessage: String?
     @Published var health: Health?
     @Published var mapProvider = MapProvider(rawValue: UserDefaults.standard.string(forKey:"mapProvider") ?? "") ?? .osm {
@@ -106,7 +113,7 @@ struct Expense: Codable, Identifiable {
     func api<T: Decodable>(_ path: String, method: String = "GET", body: Data? = nil) async throws -> T {
         var req = URLRequest(url: base.appendingPathComponent(path)); req.httpMethod = method; req.httpBody = body
         req.setValue("application/json", forHTTPHeaderField: "Content-Type"); req.timeoutInterval = 240
-        let (data,response) = try await URLSession.shared.data(for: req)
+        let (data,response) = try await loader(req)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
             let e = (try? JSONSerialization.jsonObject(with:data)) as? [String:Any]
             throw NSError(domain:"SydneyBuddy",code:1,userInfo:[NSLocalizedDescriptionKey:e?["error"] as? String ?? "服务暂不可用，请检查本机服务。"])
@@ -137,6 +144,7 @@ struct Expense: Codable, Identifiable {
     func generate(_ message: String = "", rain: Bool = false, profileOverride:TripProfile? = nil) async {
         guard !busy else { return }; busy = true; defer { busy = false }
         do {
+            operationTitle="正在调整行程…";operationDetail="检查兴趣、时间、预算和步数。"
             var p = profileOverride ?? trip?.profile ?? profile
             p.request = message
             p.weatherOverride = nil
@@ -157,16 +165,20 @@ struct Expense: Codable, Identifiable {
         }
         guard !busy else{return};busy=true;defer{busy=false}
         do {
+            operationTitle="正在生成旅行路线…";operationDetail="根据兴趣、活动预算和步数安排行程。"
             var p=profile;p.request=request;p.weatherOverride=nil
             var raw=try JSONSerialization.jsonObject(with:JSONEncoder().encode(p)) as! [String:Any]
             raw["mode"]=live ? (health?.googleConfigured == true ? "live" : "assisted") : "demo"
             var planned:Trip=try await api("plan",method:"POST",body:JSONSerialization.data(withJSONObject:raw))
+            try Task.checkCancellation()
+            canCancelOperation=false
             planned.id=nil;planned.revision=nil
+            operationTitle="正在保存到我的行程…";operationDetail="保存后可以查看地图、编辑日程和导航。"
             let body:[String:Any]=["trip":try JSONSerialization.jsonObject(with:JSONEncoder().encode(planned)),"expectedRevision":0]
             let accepted:Trip=try await api("trips",method:"POST",body:JSONSerialization.data(withJSONObject:body))
             finishAcceptedTrip(accepted,consumeDraft:true)
             await reload()
-        } catch {errorMessage=error.localizedDescription}
+        } catch {if !Task.isCancelled{errorMessage=error.localizedDescription}}
     }
     private func finishAcceptedTrip(_ accepted:Trip, consumeDraft:Bool=false) {
         if (showOnboarding || consumeDraft),let id=accepted.id,let session=UserDefaults.standard.string(forKey:"petSession.draft") {
@@ -180,6 +192,7 @@ struct Expense: Codable, Identifiable {
         guard var p = proposal else { return }
         busy = true; defer { busy = false }
         do {
+            operationTitle="正在保存行程…";operationDetail="保存成功后返回你的行程。"
             p.id = trip?.id; p.revision = trip?.revision
             let raw: [String:Any] = ["trip":try JSONSerialization.jsonObject(with:JSONEncoder().encode(p)),"expectedRevision":p.revision ?? 0]
             let accepted: Trip = try await api("trips",method:"POST",body:JSONSerialization.data(withJSONObject:raw))
@@ -199,6 +212,15 @@ struct Expense: Codable, Identifiable {
         self.profile=profile;pendingTripFields=fields;trip=nil;proposal=nil
         showOnboarding=false;UserDefaults.standard.set(true,forKey:"onboarded");tab=1
     }
+    func startGeneratingPendingTrip() {
+        guard planningTask==nil,!busy else{return}
+        canCancelOperation=true
+        planningTask=Task {
+            defer{planningTask=nil;canCancelOperation=false}
+            await generatePendingTrip()
+        }
+    }
+    func cancelPendingGeneration(){if canCancelOperation{planningTask?.cancel()}}
     func generatePendingTrip() async {
         guard !pendingTripFields.isEmpty else{return}
         do {

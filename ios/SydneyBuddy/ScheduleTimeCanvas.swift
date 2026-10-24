@@ -105,12 +105,14 @@ struct ScheduleTimeCanvas:View {
         let color:Color=a.kind=="meal" ? .blue:Palette.green
         return HStack(spacing:4) {
             VStack(alignment:.leading,spacing:5) {
-                Text(a.name).font(.system(size:height<70 ? 10:12,weight:.bold)).lineLimit(height<70 ? 1:2)
+                Text(a.name).font(.system(size:height<70 ? 12:14,weight:.bold)).lineLimit(height<70 ? 1:2)
                 if height>=70 {Text("\(clock(value.start+(a.queueMinutes ?? 0)))–\(clock(value.start+(a.queueMinutes ?? 0)+value.duration)) · \(value.duration) 分").font(.caption.monospacedDigit())}
                 if height>=120 {Label(a.label,systemImage:a.kind=="meal" ? "fork.knife":"mappin.and.ellipse").font(.caption);if a.kind=="attraction" && a.queueMinutes==nil{Text("排隊時間未知，尚未計入").font(.caption2)}}
             }.frame(maxWidth:.infinity,alignment:.leading).contentShape(Rectangle()).onTapGesture{onEdit(a)}
             Text(a.locked==true ? "🔒":"☰").frame(width:24,height:max(20,height-4)).contentShape(Rectangle()).highPriorityGesture(gesture(a,0)).accessibilityLabel("拖動活動排序").accessibilityIdentifier("schedule-move-\(a.id)")
         }.padding(.horizontal,7).frame(height:height).background(color.opacity(0.17),in:RoundedRectangle(cornerRadius:12)).overlay(RoundedRectangle(cornerRadius:12).stroke(color,lineWidth:dragging==a.id ? 2:1))
+        .accessibilityElement(children:.combine)
+        .accessibilityAction(named:Text("编辑活动")){onEdit(a)}
         .overlay(alignment:.topLeading){if a.locked != true{handle(a,part:-1,label:"拉上緣調整").padding(.leading,4).offset(y:-12)}}
         .overlay(alignment:.bottomTrailing){if a.locked != true{handle(a,part:1,label:"拉下緣調整").padding(.trailing,26).offset(y:12)}}
     }

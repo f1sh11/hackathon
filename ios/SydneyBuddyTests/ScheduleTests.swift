@@ -72,6 +72,22 @@ import MapKit
         XCTAssertTrue(rows.contains{$0.transport.contains("TEST") && $0.transport.contains("公车")})
         XCTAssertEqual(rows.count,plan.legs.count)
     }
+    func testOpeningLegacyRouteAndRestoringDoNotReselectOrReschedule() async throws {
+        var trip=try fixture();trip.schedule=nil
+        let before=try JSONSerialization.jsonObject(with:JSONEncoder().encode(trip)) as! NSDictionary
+        let model=ScheduleEditorModel();var calls=0
+        model.loader={_ in calls+=1;throw URLError(.notConnectedToInternet)}
+        model.prepare(trip)
+        try await Task.sleep(nanoseconds:100_000_000)
+        XCTAssertEqual(calls,0);XCTAssertFalse(model.busy)
+        XCTAssertEqual(try JSONSerialization.jsonObject(with:JSONEncoder().encode(model.trip!)) as! NSDictionary,before)
+        XCTAssertEqual(model.state!.days.flatMap(\.activities).map(\.name),trip.days.flatMap(\.stops).map(\.name))
+        XCTAssertEqual(model.state!.days.map(\.estimatedCost),trip.days.map(\.estimatedCost))
+        XCTAssertEqual(model.state!.days.flatMap(\.activities).map(\.arrival),trip.days.flatMap(\.stops).map(\.arrival))
+        model.restore();XCTAssertEqual(calls,0)
+        XCTAssertEqual(try JSONSerialization.jsonObject(with:JSONEncoder().encode(model.trip!)) as! NSDictionary,before)
+        XCTAssertNil(model.trip!.schedule)
+    }
     func testCompactHomeRendersSavedTripWithoutChangingIt() async throws {
         let store=AppStore();let original=store.mapProvider;defer{store.mapProvider=original};store.mapProvider = .schematic;store.trip=try fixture()
         let before=store.trip!.days.flatMap(\.stops).map(\.id)

@@ -32,6 +32,23 @@ struct ScheduleState:Codable {
     var version:Int;var settings:ScheduleSettings;var days:[ScheduleDay];var candidates:[ScheduleCandidate];var issues:[ScheduleIssue]
     var totalCost:Double;var rainy:Bool;var source:String;var radar:[ScheduleRadar]
 }
+extension ScheduleState {
+    /// Adapt an existing route for display only. Opening/closing/restoring never reschedules it.
+    static func preserving(_ trip:Trip) -> ScheduleState {
+        func minute(_ time:String)->Int {let parts=time.split(separator:":").compactMap{Int($0)};return parts.count==2 ? parts[0]*60+parts[1] : trip.profile.startMinute}
+        let settings=ScheduleSettings(pace:"balanced",timeLimit:180,restroomInterval:120,mealCost:25,dailyBudget:trip.profile.budget,totalBudget:trip.profile.budget*Double(trip.days.count),maxSteps:trip.profile.maxSteps,luggage:false)
+        let days=trip.days.map { day in
+            let activities=day.stops.enumerated().map { i,stop in
+                ScheduleActivity(id:stop.id,placeId:stop.id,kind:"attraction",name:stop.name,lat:stop.lat,lng:stop.lng,duration:stop.visitMinutes,cost:stop.cost,queueMinutes:nil,queueSource:"未知",arrival:stop.arrival,departure:stop.departure,scheduledStart:minute(stop.arrival),travelMinutes:day.legs.indices.contains(i) ? day.legs[i].minutes : 0,indoor:stop.indoor,hoursVerified:stop.hoursVerified)
+            }
+            let transport=day.legs.reduce(0){$0+$1.minutes}
+            return ScheduleDay(date:day.date,startMinute:trip.profile.startMinute,endMinute:trip.profile.endMinute,start:day.start,end:day.end,stay:ScheduleStay(name:day.end.name,lat:day.end.lat,lng:day.end.lng,cost:0,confirmed:false,checkIn:900,checkOut:660),activities:activities,transportMinutes:transport,queueMinutes:0,timeUsed:transport,timeRemaining:180-transport,unknownQueue:!activities.isEmpty,estimatedSteps:day.estimatedSteps,estimatedCost:day.estimatedCost,finishTime:day.finishTime)
+        }
+        var seen=Set<String>()
+        let candidates=trip.days.flatMap(\.stops).filter{seen.insert($0.id).inserted}.map{stop in ScheduleCandidate(id:stop.id,name:stop.name,category:stop.category,indoor:stop.indoor,visitMinutes:stop.visitMinutes,cost:stop.cost,lat:stop.lat,lng:stop.lng,reason:"原行程地点",note:stop.note)}
+        return ScheduleState(version:0,settings:settings,days:days,candidates:candidates,issues:[],totalCost:trip.days.reduce(0){$0+$1.estimatedCost},rainy:trip.weather.rainy,source:"原行程 · 地点、顺序、时间与预算保持不变；修改或重新建议时才试算。",radar:[])
+    }
+}
 @MainActor final class ScheduleEditorModel:ObservableObject {
     @Published var trip:Trip?;@Published var state:ScheduleState?;@Published var busy=false;@Published var error:String?
     @Published var notice:String?;@Published var dayIndex=0;@Published var dirty=false
@@ -40,7 +57,21 @@ struct ScheduleState:Codable {
     private var lastNotice:String?
     private var history:[Trip]=[];private var job:Task<Void,Never>?;private var generation=0
     var seed:Trip?
-    func prepare(_ value:Trip) {guard seed == nil else{return};seed=value;trip=value;state=value.schedule;if state == nil {recompute(regenerate:true)}}
+    func prepare(_ value:Trip) {guard seed == nil else{return};seed=value;trip=value;state=value.schedule ?? ScheduleState.preserving(value)}
+    func loadCatalog() async {
+        guard seed?.schedule == nil else{return}
+        let token=generation
+        do {
+            var request=URLRequest(url:URL(string:"http://127.0.0.1:8787/catalog")!);request.timeoutInterval=15
+            let (data,response)=try await loader(request)
+            guard !Task.isCancelled,token==generation,(response as? HTTPURLResponse)?.statusCode==200 else{return}
+            struct Entry:Decodable {var id:String;var name:String;var category:String;var indoor:Bool;var visitMinutes:Int;var cost:Double;var lat:Double;var lng:Double;var note:String}
+            let places=try JSONDecoder().decode([Entry].self,from:data)
+            guard var state else{return}
+            for p in places where !state.candidates.contains(where:{$0.id==p.id}) {state.candidates.append(ScheduleCandidate(id:p.id,name:p.name,category:p.category,indoor:p.indoor,visitMinutes:p.visitMinutes,cost:p.cost,lat:p.lat,lng:p.lng,reason:"可添加的候选地点",note:p.note))}
+            self.state=state
+        } catch { /* Candidate discovery is optional; the saved route remains fully available. */ }
+    }
     func recompute(regenerate:Bool=false) {
         guard let trip else{return}
         job?.cancel();generation+=1;let token=generation;busy=true;dirty=true
@@ -68,7 +99,7 @@ struct ScheduleState:Codable {
         }catch {busy=false;self.error=error.localizedDescription}
     }
     func edit(_ change:(inout ScheduleState)->Void) {
-        guard var value=state else{return};if var snapshot=pendingSnapshot ?? trip {if pendingSnapshot == nil {snapshot.schedule=value};history.append(snapshot);if history.count>25{history.removeFirst()}};pendingSnapshot=nil
+        guard var value=state else{return};if var snapshot=pendingSnapshot ?? trip {if pendingSnapshot == nil && snapshot.schedule != nil {snapshot.schedule=value};history.append(snapshot);if history.count>25{history.removeFirst()}};pendingSnapshot=nil
         change(&value);state=value;recompute()
     }
     func retime(_ id:String,start:Int,duration:Int) {
@@ -89,8 +120,8 @@ struct ScheduleState:Codable {
         edit {let a=$0.days[dayIndex].activities.remove(at:source);$0.days[dayIndex].activities.insert(a,at:min(dest,$0.days[dayIndex].activities.count))}
     }
     func move(_ id:String,by offset:Int) {guard let index=state?.days[dayIndex].activities.firstIndex(where:{$0.id==id}),let count=state?.days[dayIndex].activities.count,index+offset>=0,index+offset<count else{return};edit{$0.days[dayIndex].activities.swapAt(index,index+offset)}}
-    func undo(){guard let previous=history.popLast() else{return};job?.cancel();trip=previous;state=previous.schedule;recompute()}
-    func restore(){guard let seed else{return};job?.cancel();history=[];trip=seed;state=seed.schedule;recompute(regenerate:state == nil)}
+    func undo(){guard let previous=history.popLast() else{return};job?.cancel();generation+=1;trip=previous;state=previous.schedule ?? ScheduleState.preserving(previous);busy=false;dirty=false;error=nil;notice=nil}
+    func restore(){guard let seed else{return};job?.cancel();generation+=1;history=[];trip=seed;state=seed.schedule ?? ScheduleState.preserving(seed);busy=false;dirty=false;error=nil;notice=nil}
     func stop(){job?.cancel();generation+=1;busy=false}
     func toggleMust(_ candidate:ScheduleCandidate) {
         guard var trip else{return}
@@ -184,7 +215,7 @@ struct ScheduleRadarView:View {
             .toolbar {ToolbarItem(placement:.topBarLeading){Button("取消"){model.stop();store.proposal=nil}}}
             .safeAreaInset(edge:.bottom){Button("確認並保存"){saveWarning=true}.buttonStyle(.borderedProminent).tint(Palette.green).disabled(model.busy || model.dirty || model.state == nil || model.state?.issues.contains(where:\.blocking)==true).padding().frame(maxWidth:.infinity).background(Palette.cream)}
         }
-        .task {if let trip=store.proposal {model.prepare(trip)}}
+        .task {if let trip=store.proposal {model.prepare(trip);await model.loadCatalog()}}
         .onDisappear{model.stop()}
         .sheet(isPresented:$candidateSheet){candidates}
         .sheet(isPresented:$settingsSheet){ScheduleSettingsView(model:model)}

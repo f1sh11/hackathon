@@ -8,6 +8,12 @@ namespace SydneyBuddy.Api.Tests;
 [Trait("Category","Integration")]
 public sealed class PetConversationTests(ApiFixture fixture):IClassFixture<ApiFixture>
 {
+    [Theory]
+    [InlineData("relaxed","relaxed")]
+    [InlineData("excited","excited")]
+    [InlineData("angry","curious")]
+    [InlineData("","curious")]
+    public void ReplyEmotionOnlyAcceptsSafeKnownStates(string input,string expected)=>Assert.Equal(expected,PetEmotion.Normalize(input));
     [Fact]
     public async Task OptionsAndChatShareStateSurviveRestartAndNeverLeakTripIntoNewSession()
     {
@@ -19,11 +25,12 @@ public sealed class PetConversationTests(ApiFixture fixture):IClassFixture<ApiFi
         var fixedResult=await Turn(client,id,turn);Assert.Equal("墨尔本",fixedResult.Object("fields").Str("destination"));
         var before=fixedResult.Array("messages")!.Count;
         var duplicate=await Turn(client,id,turn);Assert.Equal(before,duplicate.Array("messages")!.Count);
-        fake.Response=JsonNode.Parse("""{"reply":"艺术和慢节奏，收到啦。想玩几天？","fields":{"interests":"艺术","pace":"慢悠悠"},"memorySuggestion":"喜欢艺术和慢节奏"}""")!.AsObject();
+        fake.Response=JsonNode.Parse("""{"reply":"艺术和慢节奏，收到啦。想玩几天？","fields":{"interests":"艺术","pace":"慢悠悠"},"memorySuggestion":"喜欢艺术和慢节奏","mood":"relaxed"}""")!.AsObject();
         var chatResult=await Turn(client,id,new {message="我喜欢艺术和慢节奏",requestId=Guid.NewGuid().ToString()});
         Assert.Equal("墨尔本",chatResult.Object("fields").Str("destination"));
         Assert.Equal("艺术",chatResult.Object("fields").Str("interests"));
         Assert.Equal("喜欢艺术和慢节奏",chatResult.Str("pendingMemory"));
+        Assert.Equal("relaxed",chatResult.Array("messages")!.Last()!.Str("mood"));
         Assert.Empty((await client.GetFromJsonAsync<JsonArray>("/memories"))!);
         var local=await client.PostAsJsonAsync($"/pet/sessions/{id}/memory",new {consent=false});local.EnsureSuccessStatusCode();
         Assert.Empty((await client.GetFromJsonAsync<JsonArray>("/memories"))!);

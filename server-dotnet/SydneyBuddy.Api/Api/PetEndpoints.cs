@@ -59,7 +59,7 @@ public static class PetEndpoints
             if(s.CompletedRequests.Contains(requestId)){await Emit(new{type="done",session=PetQuestions.View(s)});return;}
             try
             {
-                var field=input.Str("field");string reply;
+                var field=input.Str("field");string reply;var mood="curious";
                 if(field.Length>0)
                 {
                     if(!PetQuestions.Keys.Contains(field))throw new ServiceException("未知的旅行字段。");
@@ -74,6 +74,7 @@ public static class PetEndpoints
                     var records=await memories.ListAsync(ctx.RequestAborted);
                     var confirmed=new JsonArray(records.Select(x=>(JsonNode?)JsonValue.Create(x.Str("summary"))).ToArray());
                     var result=await model.RespondAsync(s,message,confirmed,text=>Emit(new{type="reply",text}),ctx.RequestAborted);
+                    mood=PetEmotion.Normalize(result.Str("mood"));
                     var changes=result.Object("fields")??new();
                     // Do not let model-filled unknown placeholders skip unanswered questions.
                     foreach(var key in PetQuestions.Keys)
@@ -84,7 +85,7 @@ public static class PetEndpoints
                         reply+="\n"+PetQuestions.Question(PetQuestions.Next(s));
                     var suggestion=result.Str("memorySuggestion");if(suggestion.Length>0)s.PendingMemory=suggestion[..Math.Min(500,suggestion.Length)];
                 }
-                s.Messages.Add(new(requestId,"user",message));s.Messages.Add(new(Guid.NewGuid().ToString("N"),"assistant",reply));
+                s.Messages.Add(new(requestId,"user",message));s.Messages.Add(new(Guid.NewGuid().ToString("N"),"assistant",reply,mood));
                 if(s.Messages.Count>100)s.Messages=s.Messages.TakeLast(100).ToList();
                 s.CompletedRequests.Add(requestId);if(s.CompletedRequests.Count>100)s.CompletedRequests.RemoveAt(0);
                 store.Save(s);await Emit(new{type="done",session=PetQuestions.View(s)});
