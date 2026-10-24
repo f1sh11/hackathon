@@ -2,6 +2,17 @@ import XCTest
 @testable import SydneyBuddy
 
 final class PetDraftTests:XCTestCase {
+    func testHalfDayChoiceChangesOnlyTemporaryTimeWindowAndBudgetKeepsBasis() throws {
+        let personal=UserTravelProfile(dailySteps:5000,rhythm:"轻松随意",interests:["自然"])
+        var fields=["destination":"悉尼","date":"2026-10-25","days":"3","travelers":"2","budget":"600","budgetCurrency":"AUD","budgetBasis":"groupTrip","dayStyle":"halfDay"]
+        let half=try TravelRequirements.readyProfile(fields,personal:personal)
+        XCTAssertEqual(half.endMinute,900);XCTAssertEqual(half.budget,100)
+        XCTAssertTrue(half.activityBudgetSummary.contains("全体全程"));XCTAssertTrue(half.activityBudgetSummary.contains("600"))
+        fields["dayStyle"]="fullDay"
+        XCTAssertEqual(try TravelRequirements.readyProfile(fields,personal:personal).endMinute,1080)
+        XCTAssertEqual(personal.dailySteps,5000)
+    }
+
     func testCustomValuesAndFifteenDayBoundary() throws {
         var values=fields;values["days"]="15";values["pace"]="自定义（约8000步）";values["budget"]="125.50"
         let profile=try PetTripDraft.profile(values)
