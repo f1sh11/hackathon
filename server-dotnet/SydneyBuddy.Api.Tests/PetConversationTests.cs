@@ -8,6 +8,18 @@ namespace SydneyBuddy.Api.Tests;
 [Trait("Category","Integration")]
 public sealed class PetConversationTests(ApiFixture fixture):IClassFixture<ApiFixture>
 {
+    [Theory]
+    [InlineData("这次想去歌剧院，不去博物馆。", "歌剧院", "博物馆")]
+    [InlineData("想逛岩石区，不参观博物馆。", "岩石区", "博物馆")]
+    public void OrdinaryWantAndAvoidPhrasesSurviveMissingModelFields(string message,string wanted,string avoided)
+    {
+        var fields=new JsonObject();PetExplicitFacts.Apply(message,fields);
+        Assert.Equal(wanted,fields.Str("mustDo"));Assert.Equal(avoided,fields.Str("avoid"));
+        var negative=new JsonObject();PetExplicitFacts.Apply("不想去歌剧院。",negative);
+        Assert.Null(negative["mustDo"]);Assert.Equal("歌剧院",negative.Str("avoid"));
+        var city=new JsonObject();PetExplicitFacts.Apply("这次想去悉尼，玩2天。",city);Assert.Null(city["mustDo"]);Assert.Equal("悉尼",city.Str("destination"));
+        var unknown=new JsonObject();PetExplicitFacts.Apply("还没想去哪里，想去歌剧院或者海边。",unknown);Assert.Null(unknown["mustDo"]);
+    }
     [Fact]
     public void TravelFactsCannotSmuggleUnstatedHabitsIntoKokoTripFields()
     {

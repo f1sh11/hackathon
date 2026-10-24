@@ -22,6 +22,70 @@ public sealed class KokoDialogueUnitTests
         Assert.Equal(3,reply.QuickReplies!.Length);Assert.Empty(s.Dialogue.Nickname);
     }
     [Fact]
+    public void AlternativeChangesIdeasWithoutChangingFactsAndAcceptanceIsTripOnly()
+    {
+        var s=new PetSession();KokoDialogue.Enable(s,new(){["profilingVersion"]=2});
+        var first=KokoDialogue.DirectResponse(s,"换个思路吧",null)!;
+        KokoDialogue.CompleteTurn(s,first,first.Str("reply"),"curious");
+        var ideas=s.Dialogue!.Ideas.ToArray();Assert.Empty(s.Fields);
+        var second=KokoDialogue.DirectResponse(s,"换个思路吧",null)!;
+        var reply=KokoDialogue.CompleteTurn(s,second,second.Str("reply"),"curious");
+        Assert.NotEqual(ideas,s.Dialogue.Ideas);Assert.Empty(s.Fields);
+        var accept=Assert.Single(reply.QuickReplies!,x=>x.Intent=="accept_direction");
+        var accepted=KokoDialogue.DirectResponse(s,accept.Text,accept)!;
+        var next=KokoDialogue.CompleteTurn(s,accepted,accepted.Str("reply"),"curious");
+        Assert.Equal("文化、艺术",s.Fields["interests"]);Assert.Empty(s.Preferences);Assert.Empty(s.ConfirmedDna);
+        Assert.Contains(next.QuickReplies!,x=>x.Intent=="choose_sydney");Assert.False(s.DnaCompleted);
+        Assert.False(s.Dialogue.Inspiration!.PlacesVerified);
+    }
+    [Fact]
+    public void BudgetQuestionClearsOnlyAmountAndOffersExplicitAmountsWithScope()
+    {
+        var s=new PetSession();KokoDialogue.Enable(s,new(){["profilingVersion"]=2});
+        PetQuestions.Apply(s,new(){["destination"]="悉尼",["date"]="2026-10-25",["days"]="2",["travelers"]="2",["budget"]="400",["budgetCurrency"]="AUD",["budgetBasis"]="groupTrip"});
+        var result=KokoDialogue.DirectResponse(s,"预算还没想好，能先选个大概范围吗？",null)!;
+        var reply=KokoDialogue.CompleteTurn(s,result,result.Str("reply"),"curious");
+        Assert.False(s.Fields.ContainsKey("budget"));Assert.Equal("groupTrip",s.Fields["budgetBasis"]);Assert.Equal("2",s.Fields["travelers"]);
+        Assert.Contains("原预算先不采用",reply.Text);Assert.Contains(reply.QuickReplies!,x=>x.Intent=="budget_120");
+        var option=reply.QuickReplies!.Single(x=>x.Intent=="budget_120");
+        result=KokoDialogue.DirectResponse(s,option.Text,option)!;
+        KokoDialogue.CompleteTurn(s,result,result.Str("reply"),"curious");
+        Assert.Equal("120",s.Fields["budget"]);Assert.Equal("perPersonPerDay",s.Fields["budgetBasis"]);Assert.Equal("AUD",s.Fields["budgetCurrency"]);
+        Assert.Equal("",KokoDialogue.NextNeed(s));Assert.Empty(s.Preferences);
+    }
+    [Fact]
+    public void FreeTextTripFactsAdvanceImmediatelyWithoutFourInterviewTurns()
+    {
+        var s=new PetSession();KokoDialogue.Enable(s,new(){["profilingVersion"]=2});s.Fields["destination"]="悉尼";
+        var reply=KokoDialogue.CompleteTurn(s,new(),"还想选哪种玩法？","curious");
+        Assert.NotNull(s.Dialogue!.Inspiration);Assert.Contains(reply.QuickReplies!,x=>x.Intent=="details_time");
+        Assert.Contains("出发日期",reply.Text);Assert.DoesNotContain("哪种玩法",reply.Text);Assert.False(s.Fields.ContainsKey("date"));
+    }
+    [Fact]
+    public void DeferredDateKeepsUnknownAndMovesOnToPeopleAndBudget()
+    {
+        var s=new PetSession();KokoDialogue.Enable(s,new(){["profilingVersion"]=2});s.Fields["destination"]="悉尼";
+        var result=KokoDialogue.DirectResponse(s,"日期还没定",new PetQuickReply("defer","日期还没定","defer_time"))!;
+        var reply=KokoDialogue.CompleteTurn(s,result,result.Str("reply"),"curious");
+        Assert.False(s.Fields.ContainsKey("date"));Assert.Contains(reply.QuickReplies!,x=>x.Intent=="people_1");
+        s.Fields["travelers"]="1";Assert.Equal("budget",KokoDialogue.NextNeed(s));
+        s.Fields["budget"]="120";s.Fields["budgetCurrency"]="AUD";s.Fields["budgetBasis"]="perPersonPerDay";
+        Assert.Equal("time",KokoDialogue.NextNeed(s));
+    }
+    [Fact]
+    public void UnsupportedCityAndPartialUpdatesKeepAnActionableNextStep()
+    {
+        var s=new PetSession();KokoDialogue.Enable(s,new(){["profilingVersion"]=2});
+        PetQuestions.Apply(s,new(){["destination"]="墨尔本",["date"]="2026-10-25",["days"]="2"});
+        KokoDialogue.DetailsUpdated(s,new(){["destination"]="墨尔本"});
+        Assert.Contains("只支持悉尼",s.Messages.Last().Text);Assert.Contains(s.Messages.Last().QuickReplies!,x=>x.Intent=="keep_draft");
+        var choice=s.Messages.Last().QuickReplies!.Single(x=>x.Intent=="choose_sydney");
+        var result=KokoDialogue.DirectResponse(s,choice.Text,choice)!;
+        var reply=KokoDialogue.CompleteTurn(s,result,result.Str("reply"),"curious");
+        Assert.Equal("2026-10-25",s.Fields["date"]);Assert.Equal("2",s.Fields["days"]);
+        Assert.Contains(reply.QuickReplies!,x=>x.Intent=="people_2");
+    }
+    [Fact]
     public void OnlyExplicitNicknameIsReusedAndReturningUserIsNotIntroducedAgain()
     {
         var s=new PetSession();KokoDialogue.Enable(s,new(){["profilingVersion"]=2});
@@ -141,7 +205,7 @@ public sealed class KokoDialogueApiTests(ApiFixture fixture):IClassFixture<ApiFi
             return Task.FromResult(new JsonObject{["reply"]=text,["ideas"]=new JsonArray(Calls==1 ? "如果路线上有适合的展览，可以顺路看看。":"顺路看看展览，再留一段坐下来吃东西的时间；场所待核实。"),
                 ["quickReplies"]=new JsonArray(new JsonObject{["text"]="顺路再去"},new JsonObject{["text"]="这次想专程去看看"},new JsonObject{["text"]="换个想法吧",["intent"]="skip"}),
                 ["preferences"]=new JsonArray(TravelProfilingUnitTests.Claim("interests","顺路看看展览",message)),
-                ["fields"]=new JsonObject{["pace"]="5000",["date"]="2026-11-01"}});
+                ["fields"]=session.CurrentChoice is null ? new JsonObject():new JsonObject{["pace"]="5000",["date"]="2026-11-01"}});
         }
     }
     private static async Task<JsonObject> Create(HttpClient c)=>(await (await c.PostAsJsonAsync("pet/sessions",new{profilingVersion=2})).Content.ReadFromJsonAsync<JsonObject>())!;
@@ -156,12 +220,13 @@ public sealed class KokoDialogueApiTests(ApiFixture fixture):IClassFixture<ApiFi
         return new(){["message"]=option.Str("text"),["questionId"]=question.Str("id"),["optionId"]=option.Str("id"),["requestId"]=requestId ?? Guid.NewGuid().ToString()};
     }
     [Fact]
-    public async Task FourButtonResponsesEndInDraftWithBoundChoiceEvidenceAndNoInventedFacts()
+    public async Task FourMixedResponsesEndInDraftWithBoundChoiceEvidenceAndNoInventedFacts()
     {
         var model=new Model();using var factory=fixture.CreateFactory().WithWebHostBuilder(b=>b.ConfigureServices(s=>{s.RemoveAll<IPetModel>();s.AddSingleton<IPetModel>(model);}));
         using var client=factory.CreateClient();var s=await Create(client);var id=s.Str("id");
         for(var i=0;i<4;i++) {
-            var evt=await Turn(client,id,Click(s));Assert.Equal("done",evt.Str("type"));s=evt.Object("session")!;
+            var input=i==1 ? new JsonObject{["message"]="这次我想看看展览",["requestId"]=Guid.NewGuid().ToString()}:Click(s);
+            var evt=await Turn(client,id,input);Assert.Equal("done",evt.Str("type"));s=evt.Object("session")!;
             Assert.Equal(i+1,s.Object("dialogue")!.Int("responseCount"));Assert.Equal(3,s.Array("messages")!.Last()!.Array("quickReplies")!.Count);
         }
         Assert.Equal(3,model.Calls);Assert.Equal("inspiration",s.Object("dialogue")!.Str("phase"));Assert.NotNull(model.SeenChoice);
@@ -169,7 +234,29 @@ public sealed class KokoDialogueApiTests(ApiFixture fixture):IClassFixture<ApiFi
         Assert.Contains("场所待核实",s.Object("dialogue")!.Object("inspiration")!.Array("ideas")![0]!.GetValue<string>());
         var choice=Assert.Single(s.Array("messages")!.Where(x=>x!.Str("role")=="user" && x.Object("choice")?.Str("questionText").Contains("展览")==true).Take(1));
         Assert.Equal("顺路再去",choice!.Object("choice")!.Str("optionText"));
-        Assert.All(s.Array("tripPreferences")!,p=>{Assert.Equal("activity",p!.Str("scope"));Assert.Equal("contextual_choice",p.Str("source"));Assert.NotNull(p.Object("choice"));});
+        Assert.All(s.Array("tripPreferences")!.Where(p=>p!.Str("source")=="contextual_choice"),p=>{Assert.Equal("activity",p!.Str("scope"));Assert.Equal("contextual_choice",p.Str("source"));Assert.NotNull(p.Object("choice"));});
+    }
+    [Fact]
+    public async Task SavedDetailRefreshesQuestionAndButtonsWithoutRepeatingKnownFacts()
+    {
+        var model=new Model();using var factory=fixture.CreateFactory().WithWebHostBuilder(b=>b.ConfigureServices(s=>{s.RemoveAll<IPetModel>();s.AddSingleton<IPetModel>(model);}));
+        using var client=factory.CreateClient();var s=await Create(client);var id=s.Str("id");
+        s=(await Turn(client,id,Click(s))).Object("session")!;
+        s=(await Turn(client,id,Click(s))).Object("session")!; // accepted nature
+        s=(await Turn(client,id,Click(s))).Object("session")!; // Sydney
+        Assert.Equal("悉尼",s.Object("fields")!.Str("destination"));
+        var patch=await client.PatchAsJsonAsync($"pet/sessions/{id}",new{fields=new{date="2026-10-25",days="2"}});
+        patch.EnsureSuccessStatusCode();s=(await patch.Content.ReadFromJsonAsync<JsonObject>())!;
+        Assert.Contains("几个人",s.Array("messages")!.Last()!.Str("text"));
+        s=(await Turn(client,id,Click(s,1))).Object("session")!; // two people
+        Assert.Equal("2",s.Object("fields")!.Str("travelers"));
+        s=(await Turn(client,id,Click(s,1))).Object("session")!; // 120 AUD/person/day
+        Assert.Equal("120",s.Object("fields")!.Str("budget"));Assert.Equal("perPersonPerDay",s.Object("fields")!.Str("budgetBasis"));
+        Assert.Equal(0,model.Calls);Assert.Empty(s.Array("travelDna")!);
+        s=(await Turn(client,id,new(){["message"]="预算还没想好，能先选个大概范围吗？",["requestId"]=Guid.NewGuid().ToString()})).Object("session")!;
+        Assert.False(s.Object("fields")!.ContainsKey("budget"));Assert.Contains("原预算先不采用",s.Array("messages")!.Last()!.Str("text"));
+        s=(await Turn(client,id,Click(s))).Object("session")!;
+        Assert.Equal("60",s.Object("fields")!.Str("budget"));Assert.Equal("2026-10-25",s.Object("fields")!.Str("date"));Assert.Equal(0,model.Calls);
     }
     [Fact]
     public async Task ClickRetryIsIdempotentButReusingOldButtonAsNewResponseIsRejected()

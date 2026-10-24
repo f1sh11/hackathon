@@ -213,11 +213,14 @@ struct PetSpeechBubble:View {
     }
 }
 
+private struct TripDetailRoute:Identifiable {let id:Int}
+
 struct PetChatView:View {
     @EnvironmentObject var store:AppStore
     @StateObject private var chat=PetChatStore()
     @State private var message=""
     @State private var review=false
+    @State private var detailRoute:TripDetailRoute?
     @State private var memories=false
     @State private var clearing=false
     @State private var fields:[String:String]=[:]
@@ -268,7 +271,7 @@ struct PetChatView:View {
                         }
                         if let warning=chat.session?.memoryWarning,!warning.isEmpty{Text(warning).font(.caption).foregroundStyle(Palette.muted)}
                         if let session=chat.session,session.dnaCompleted != true,(session.pendingPreferences ?? []).isEmpty,(session.travelDna ?? []).contains(where:{$0.status=="confirmed"}) {
-                            Button("这些就是我的 Travel DNA"){Task{await chat.completeDna();if chat.error==nil{store.showPersonalPreferences=false;UserDefaults.standard.set(true,forKey:"personalPreferences.v2.completed")}}}.buttonStyle(.borderedProminent).tint(Palette.green).disabled(chat.busy).accessibilityIdentifier("complete-travel-dna")
+                            Button("完成旅行习惯整理"){Task{await chat.completeDna();if chat.error==nil{store.showPersonalPreferences=false;UserDefaults.standard.set(true,forKey:"personalPreferences.v2.completed")}}}.buttonStyle(.borderedProminent).tint(Palette.green).disabled(chat.busy).accessibilityIdentifier("complete-travel-dna")
                         }
                         if let s=chat.session,!s.pendingMemory.isEmpty {
                             VStack(alignment:.leading,spacing:10){Text("以后也这样安排，好吗？").font(.headline);Text(s.pendingMemory);HStack{Button("以后都记住"){Task{await chat.decideMemory(true)}}.buttonStyle(.borderedProminent);Button("仅限这次"){Task{await chat.decideMemory(false)}}.buttonStyle(.bordered)}}.padding(16).background(Palette.mint,in:RoundedRectangle(cornerRadius:20)).disabled(chat.busy)
@@ -279,26 +282,29 @@ struct PetChatView:View {
                     }.padding(20)
                 }.onChange(of:chat.streaming){_,_ in proxy.scrollTo("bottom",anchor:.bottom)}.onChange(of:chat.session?.messages.count){_,_ in proxy.scrollTo("bottom",anchor:.bottom)}
             }
-            if let session=chat.session,!session.contextualReplies.isEmpty {
+            if let issue=generationIssue {
+                VStack(alignment:.leading,spacing:6) {
+                    Label("暂时还不能生成",systemImage:"info.circle.fill").font(.subheadline.bold())
+                    Text(issue).font(.caption).fixedSize(horizontal:false,vertical:true)
+                    Button("修改相关资料"){composing=false;detailRoute=TripDetailRoute(id:correctionStage)}.font(.subheadline.bold())
+                }.padding(12).frame(maxWidth:.infinity,alignment:.leading).background(Palette.mint,in:RoundedRectangle(cornerRadius:14)).padding(.horizontal,20).accessibilityIdentifier("chat-generation-issue")
+            }
+            if let session=chat.session,!session.contextualReplies.isEmpty,!canPlanDirectly {
                 KokoQuickReplies(replies:session.contextualReplies,busy:chat.busy){reply in
                     switch reply.intent {
                     case "compose_name":message="叫我";composing=true
-                    case "details":fields=liveFields;editingRequirements=false;assumptionsConfirmed=false;review=true
+                    case "details":composing=false;detailRoute=TripDetailRoute(id:-1)
+                    case "details_destination":composing=false;detailRoute=TripDetailRoute(id:0)
+                    case "details_time":composing=false;detailRoute=TripDetailRoute(id:1)
+                    case "details_people":composing=false;detailRoute=TripDetailRoute(id:2)
+                    case "details_budget":composing=false;detailRoute=TripDetailRoute(id:3)
+                    case "keep_draft":if onboarding{store.returnToTrips(draft:liveFields)}else{dismiss()}
+                    case "compose_idea":composing=true
                     default:composing=false;Task{await chat.send(reply.text,reply:reply)}
                     }
                 }
-            } else if !canPlanDirectly,let blocker=directPlanningBlocker {
-                VStack(alignment:.leading,spacing:10){
-                    Label(TravelRequirements.known(liveFields["destination"]) && !TravelRequirements.supportedDestination(liveFields["destination"]) ? "当前还需确认目的地":"还有一件事需要确认",systemImage:"exclamationmark.bubble.fill").font(.subheadline.bold()).foregroundStyle(Palette.ink)
-                    Text(blocker).font(.caption).foregroundStyle(Palette.muted).fixedSize(horizontal:false,vertical:true)
-                    if TravelRequirements.known(liveFields["destination"]),!TravelRequirements.supportedDestination(liveFields["destination"]) {
-                        PrimaryButton(title:"改为悉尼，继续规划",symbol:"map"){Task{await chat.send("改为悉尼，保留其他旅行需求",field:"destination",value:"悉尼")}}
-                    } else if let currency=liveFields["budgetCurrency"],TravelRequirements.known(currency),currency != "AUD" {
-                        PrimaryButton(title:"重新填写澳元活动预算",symbol:"pencil"){Task{await chat.update(["budget":"","budgetCurrency":"AUD","budgetCoverage":"activities"])}}
-                    } else {PrimaryButton(title:"补充旅行需求",symbol:"pencil"){fields=liveFields;review=true}}
-                    Button("先保留，稍后继续"){if onboarding{store.returnToTrips(draft:liveFields)}else{dismiss()}}.font(.caption).frame(maxWidth:.infinity,minHeight:32)
-                }.padding(14).background(Palette.mint.opacity(0.6),in:RoundedRectangle(cornerRadius:18)).padding(.horizontal,20).disabled(chat.busy || store.busy).accessibilityIdentifier("chat-current-status")
-            } else if (chat.choices || chat.session?.dialogue == nil),!canPlanDirectly,let session=chat.session,!session.nextField.isEmpty {quickAnswers(session)}
+            }
+            if chat.session?.dialogue==nil,!canPlanDirectly,let session=chat.session,!session.nextField.isEmpty{quickAnswers(session)}
             if canPlanDirectly {
                 PrimaryButton(title:onboarding || draftScope ? "生成行程":"按这些信息调整行程",symbol:"sparkles"){composing=false;fields=liveFields;assumptionsConfirmed=true;Task{await preparePlan()}}
                     .disabled(chat.busy || store.busy || !message.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty).padding(.horizontal,20).padding(.top,8).accessibilityIdentifier("chat-generate")
@@ -312,8 +318,8 @@ struct PetChatView:View {
             HStack {
                 Button("我的记忆"){memories=true}
                 Spacer()
-                Button("旅行需求摘要"){fields=liveFields;editingRequirements=false;assumptionsConfirmed=false;review=true}.fontWeight(.bold)
-                Menu{Button(chat.choices ? "收起快捷填写":"展开快捷填写"){chat.mode(!chat.choices)};Button("清空本次对话",role:.destructive){clearing=true}}label:{Image(systemName:"ellipsis.circle")}
+                Button("旅行资料"){composing=false;detailRoute=TripDetailRoute(id:-1)}.fontWeight(.bold)
+                Menu{Button("查看全部资料"){fields=liveFields;editingRequirements=false;review=true};if chat.session?.dialogue==nil{Button(chat.choices ? "收起快捷填写":"展开快捷填写"){chat.mode(!chat.choices)}};Button("清空本次对话",role:.destructive){clearing=true}}label:{Image(systemName:"ellipsis.circle")}
             }.font(.subheadline).padding(20).disabled(chat.busy)
         }.background(Palette.cream).foregroundStyle(Palette.ink)
     }
@@ -345,6 +351,10 @@ struct PetChatView:View {
             if (onboarding || draftScope),let value{store.pendingTripFields=value;assumptionsConfirmed=false}
         }
         .sheet(isPresented:$choosingDestination){destinationIdeas}
+        .sheet(item:$detailRoute){route in
+            if route.id>=0 {GuidedTripDetails(fields:liveFields,startStage:route.id,single:true,save:{delta in await chat.update(delta);return chat.error})}
+            else{TripDetailsSummary(fields:liveFields,save:{delta in await chat.update(delta);return chat.error})}
+        }
         .sheet(isPresented:$memories){PetMemoryView(chat:chat)}
         .confirmationDialog("清空本次对话和旅行草稿？已保存行程与长期偏好保留。",isPresented:$clearing,titleVisibility:.visible){Button("清空",role:.destructive){Task{await chat.clear();if chat.error==nil{message=""}}}}
     }
@@ -357,7 +367,7 @@ struct PetChatView:View {
     private let backpackItems=[("destination","📍 目的地"),("date","🗓 出发日期"),("days","🌤 天数"),("travelers","👥 人数"),("budget","💰 活动预算"),("origin","🏠 每日起点"),("interests","🎒 本次兴趣"),("mustDo","⭐ 必去"),("avoid","🌿 避开安排")]
     private var backpack:some View {
         VStack(alignment:.leading,spacing:8){
-            Button{withAnimation{backpackOpen.toggle()}}label:{HStack{Label("这次的小背包",systemImage:"backpack.fill").font(.subheadline.bold());Spacer();Text(backpackOpen ? "收起":"点开修改").font(.caption);Image(systemName:backpackOpen ? "chevron.up":"chevron.down").font(.caption)}}
+            Button{composing=false;detailRoute=TripDetailRoute(id:-1)}label:{HStack{Label("这次的小背包",systemImage:"backpack.fill").font(.subheadline.bold());Spacer();Text("补充 / 修改").font(.caption);Image(systemName:"chevron.right").font(.caption)}}
             if backpackOpen{ScrollView(.horizontal,showsIndicators:false){HStack{ForEach(backpackItems,id:\.0){key,title in
                 Button{backpackValues=liveFields;if key=="budget",liveFields["budgetCurrency"] != "AUD"{backpackValues["budget"]=""};editingBackpack=key}label:{VStack(alignment:.leading,spacing:3){Text(title).font(.caption2);Text(TravelRequirements.known(liveFields[key]) ? TravelRequirements.optionTitle(liveFields[key]!,field:key):"待确认").font(.caption.bold()).lineLimit(1)}.padding(9).background(.white,in:RoundedRectangle(cornerRadius:12))}.accessibilityLabel("修改"+title)
             }}}}else{Text(TripDraftSummary(fields:liveFields).title+" · "+TripDraftSummary(fields:liveFields).subtitle).font(.caption).foregroundStyle(Palette.muted).lineLimit(1)}
@@ -390,6 +400,15 @@ struct PetChatView:View {
         return try? PetTripDraft.profile(liveFields,base:store.trip?.profile ?? store.profile)
     }
     private var canPlanDirectly:Bool{directProfile != nil}
+    private var generationIssue:String? {
+        guard chat.session != nil,!canPlanDirectly else{return nil}
+        if TravelRequirements.known(liveFields["destination"]),!TravelRequirements.supportedDestination(liveFields["destination"]){return "资料已保存。目前仅支持悉尼路线；你可以修改城市，或返回我的行程保留草稿。"}
+        if TravelRequirements.known(liveFields["budgetCurrency"]),liveFields["budgetCurrency"] != "AUD"{return "预算已保留，当前路线需要确认 AUD 活动预算，不会自动换算汇率。"}
+        if liveFields["budgetCoverage"]=="totalTravel"{return "这笔钱包含住宿或交通，需要先单独确认活动预算，才能生成路线。"}
+        if TravelRequirements.missingFields(liveFields).isEmpty{return directPlanningBlocker}
+        return nil
+    }
+    private var correctionStage:Int {GuidedTripDetails.correctionStage(liveFields)}
     private var directPlanningBlocker:String? {
         guard (!conversationOnly || onboarding),(onboarding || draftScope),let session=chat.session else{return nil}
         let missing=TravelRequirements.missingFields(liveFields)
@@ -421,7 +440,7 @@ struct PetChatView:View {
     }
     private var directPlanningCard:some View {
         VStack(alignment:.leading,spacing:8){
-            HStack{Label("旅行需求已齐",systemImage:"checkmark.circle.fill").font(.subheadline.bold()).foregroundStyle(Palette.green);Spacer();Button("修改小背包"){if onboarding || draftScope{backpackOpen=true}else{fields=liveFields;editingRequirements=true;assumptionsConfirmed=false;review=true}}.font(.caption)}
+            HStack{Label("旅行需求已齐",systemImage:"checkmark.circle.fill").font(.subheadline.bold()).foregroundStyle(Palette.green);Spacer();Button("修改资料"){detailRoute=TripDetailRoute(id:-1)}.font(.caption)}
             Text(TripDraftSummary(fields:liveFields).title+" · "+(liveFields["date"] ?? "")).font(.caption)
             Text("活动预算："+(liveFields["budget"] ?? "待确认")+" "+(liveFields["budgetCurrency"] ?? "")+" · "+TravelRequirements.optionTitle(liveFields["budgetBasis"] ?? "",field:"budgetBasis")).font(.caption)
             if let profile=directProfile{

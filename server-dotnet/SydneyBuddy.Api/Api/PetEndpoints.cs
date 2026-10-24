@@ -24,7 +24,7 @@ public static class PetEndpoints
         routes.MapPatch("/pet/sessions/{id}",async(string id,HttpContext ctx,PetSessionStore store)=>
         {
             var input=await RequestJson.ReadAsync(ctx);await store.Gate.WaitAsync(ctx.RequestAborted);
-            try{var s=store.Load(id);PetQuestions.Apply(s,input.Object("fields")??new());KokoDialogue.Enable(s,input);store.Save(s);return Results.Json(PetQuestions.View(s));}finally{store.Gate.Release();}
+            try{var s=store.Load(id);PetQuestions.Apply(s,input.Object("fields")??new());KokoDialogue.Enable(s,input);KokoDialogue.DetailsUpdated(s,input.Object("fields")??new());store.Save(s);return Results.Json(PetQuestions.View(s));}finally{store.Gate.Release();}
         });
         routes.MapPost("/pet/sessions/{id}/memory",async(string id,HttpContext ctx,PetSessionStore store,PreferenceService preferences,MemoryRepository records,IMemoryService memory)=>
         {

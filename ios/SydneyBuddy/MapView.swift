@@ -442,7 +442,7 @@ struct HomeView: View {
     @State var poiSearch=false
     @State private var showInsights=false
     @State private var homeInfo=false
-    @State private var panelHeight:CGFloat=320
+    @State private var panelHeight:CGFloat=110
     @State var chat=false
     @State var details=false
     @State private var adjusting=false
@@ -470,9 +470,10 @@ struct HomeView: View {
                 VStack(alignment:.leading,spacing:10){
                     if store.trip != nil {
                         Button{withAnimation(.spring(response:0.3)){homeInfo.toggle()}}label:{
-                            VStack(spacing:5){Capsule().fill(Palette.muted.opacity(0.35)).frame(width:34,height:4);Text(homeInfo ? "收起当天行程":"查看当天行程").font(.caption.weight(.medium))}.frame(maxWidth:.infinity).padding(.vertical,4)
+                            VStack(spacing:5){Capsule().fill(Palette.muted.opacity(0.35)).frame(width:34,height:4);HStack{Text(homeInfo ? "收起当天行程":"第 \(store.dayIndex+1) 天 · \(store.currentDay?.stops.count ?? 0) 个地点");Spacer();Text(homeInfo ? "收起":"展开行程");Image(systemName:homeInfo ? "chevron.down":"chevron.up")}.font(.caption.weight(.medium))}.frame(maxWidth:.infinity).padding(.vertical,4)
                         }.accessibilityIdentifier("home-info-toggle").gesture(DragGesture(minimumDistance:12).onEnded{value in withAnimation{if value.translation.height < -12{homeInfo=true}else if value.translation.height > 12{homeInfo=false}}})
                     }
+                    if homeInfo || store.trip == nil {
                     Button{showInsights=true}label:{Label(store.insightsBusy ? "正在更新旅遊資訊…" : store.insights?.traffic.summary ?? "交通・人潮・費用",systemImage:"info.circle").font(.caption).lineLimit(1)}.accessibilityIdentifier("travel-insights-open")
                     ScrollView {VStack(alignment:.leading,spacing:10){
                     if let day=store.currentDay {
@@ -520,18 +521,32 @@ struct HomeView: View {
                             }
                         }.accessibilityIdentifier("home-extra-info")
                     }
-                    }}.frame(maxHeight:homeInfo ? 350:230)
+                    }}.frame(maxHeight:220)
                     HStack(spacing:10){
                         if store.trip != nil && homeInfo{Button{details=true}label:{Text("行程说明").font(.subheadline.bold()).frame(maxWidth:.infinity).padding(.vertical,12).background(Palette.mint,in:RoundedRectangle(cornerRadius:13))}}
                         if let trip=store.trip {TripNavigationAction(day:store.currentDay,mode:trip.mode){navigation=true}}else{PrimaryButton(title:"开始规划"){store.newTrip()}}
                     }
                     HStack(spacing:4){Text(LocalizedStringKey(store.mapProvider.label)).fontWeight(.medium);if store.mapProvider == .osm{Link("© OpenStreetMap contributors",destination:URL(string:"https://www.openstreetmap.org/copyright")!)};Spacer(minLength:0);Text(LocalizedStringKey(store.trip?.mode=="live" ? (store.mapProvider == .google ? "Google 路線":"需 Google 底圖"):store.mapProvider == .schematic ? "離線示意":overview.route==nil ? "顺序示意 · 非导航":"已規劃路線"))}.font(.system(size:9)).foregroundStyle(Palette.muted).lineLimit(1).minimumScaleFactor(0.8)
+                    } else {
+                        HStack(spacing:12) {
+                            VStack(alignment:.leading,spacing:4) {
+                                if let route=overview.route {
+                                    Label("\(Int(route.meters.rounded())) 米 · \(Int(ceil(route.seconds/60))) 分钟",systemImage:"figure.walk").font(.subheadline.bold()).accessibilityIdentifier("home-walking-summary")
+                                } else {Text(overview.busy ? "步行路线查询中…":"当天路线").font(.subheadline.bold())}
+                                Text(store.currentDay?.stops.map(\.name).joined(separator:" → ") ?? "").font(.caption).foregroundStyle(Palette.muted).lineLimit(1)
+                            }
+                            Spacer(minLength:0)
+                            if store.currentDay?.stops.isEmpty == false {
+                                Button{if store.trip?.mode != "live",store.mapProvider != .apple,!TripNavigationAvailability.canNavigate(configured:store.health?.navigationConfigured,mode:store.trip?.mode ?? "demo"){store.mapProvider = .apple};navigation=true}label:{Label("步行路线",systemImage:"arrow.triangle.turn.up.right.diamond.fill").font(.caption.bold()).padding(.horizontal,12).padding(.vertical,10).background(Palette.green,in:Capsule()).foregroundStyle(.white)}.accessibilityIdentifier("trip-walking-route")
+                            }
+                        }.accessibilityIdentifier("home-compact-route")
+                    }
                 }.padding(16).background(.white,in:RoundedRectangle(cornerRadius:24)).background(GeometryReader{geo in Color.clear.preference(key:TripPanelHeight.self,value:geo.size.height)}).shadow(color:Palette.ink.opacity(0.08),radius:12,y:4)
             }.padding(.horizontal,18).padding(.top,10).padding(.bottom,10).tint(Palette.green)
         }.task(id:mapSceneKey(store.currentDay)+"|"+store.mapProvider.rawValue+"|"+(store.trip?.mode ?? "")) {if let day=store.currentDay{overview.loadHome(day,provider:store.mapProvider,contentSource:store.trip?.mode == "live" ? "google":"open")}}
         .sheet(isPresented:$adjusting){if let trip=store.trip{TripAdjustmentView(original:trip,dayIndex:store.dayIndex)}}
         .onPreferenceChange(TripPanelHeight.self){value in if abs(value-panelHeight)>8{panelHeight=value}}
-        .onChange(of:store.dayIndex){_,_ in store.selectedStopID=nil}
+        .onChange(of:store.dayIndex){_,_ in store.selectedStopID=nil;withAnimation{homeInfo=false}}
         .onChange(of:store.selectedStopID){_,value in if value != nil{withAnimation{homeInfo=false}}}
         .task(id:(store.trip?.id ?? "")+store.travelDataSource.rawValue){if store.trip != nil{await store.refreshWeather()}}
         .task(id:mapSceneKey(store.currentDay)+"|"+store.travelDataSource.rawValue+"|"+store.mapProvider.rawValue){await store.refreshInsights()}

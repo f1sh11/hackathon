@@ -2,6 +2,22 @@ import XCTest
 @testable import SydneyBuddy
 
 final class KokoDialogueTests:XCTestCase {
+    func testGuidedDetailsResumesAtMissingGroupWithoutMutatingDraft() {
+        var fields=["destination":"悉尼","date":"2026-10-25","days":"15"]
+        XCTAssertEqual(GuidedTripDetails.firstMissing(fields),2)
+        fields["travelers"]="2"
+        XCTAssertEqual(GuidedTripDetails.firstMissing(fields),3)
+        fields["days"]="16"
+        XCTAssertEqual(GuidedTripDetails.firstMissing(fields),1)
+        fields["days"]="2";fields["date"]="2026-02-30"
+        XCTAssertEqual(GuidedTripDetails.firstMissing(fields),1)
+        fields["destination"]="未确定"
+        XCTAssertEqual(GuidedTripDetails.firstMissing(fields),0)
+        XCTAssertNil(fields["budget"])
+        XCTAssertEqual(GuidedTripDetails.correctionStage(["destination":"悉尼","budgetCurrency":"CNY"]),3)
+        XCTAssertEqual(GuidedTripDetails.correctionStage(["destination":"悉尼","budgetCoverage":"totalTravel"]),3)
+        XCTAssertEqual(GuidedTripDetails.correctionStage(["destination":"墨尔本","budgetCurrency":"CNY"]),0)
+    }
     private func session(inspiration:Bool=false)->PetSession {
         let reply=PetQuickReply(id:"route-choice",text:"顺路再去",intent:"respond")
         let message=PetMessage(id:"scene-1",role:"assistant",text:"如果路线上有合适的展览，咱们顺路看看？",quickReplies:[reply])

@@ -194,11 +194,12 @@ public static class PetExplicitFacts
             var values=System.Text.RegularExpressions.Regex.Matches(message,pattern)
                 .Where(m=>!System.Text.RegularExpressions.Regex.IsMatch(message[..m.Index],@"(?:不是|没有|无需|不用|不需要|不必|不)\s*$"))
                 .Select(m=>System.Text.RegularExpressions.Regex.Split(m.Groups[1].Value,"但是|不过|但")[0].Trim())
-                .Where(v=>v.Length is >0 and <=120).Distinct().ToArray();
+                .Where(v=>v.Length is >0 and <=120)
+                .Where(v=>key!="mustDo" || !System.Text.RegularExpressions.Regex.IsMatch(v,@"哪|什么|不确定|未确定|待定|或者|或|随便|都行|^(?:悉尼|Sydney)(?:旅行|旅游|玩\s*[0-9一二两三四五六七八九十]+\s*天)?$",System.Text.RegularExpressions.RegexOptions.IgnoreCase)).Distinct().ToArray();
             if(values.Length>0)fields[key]=string.Join("、",values);
         }
-        Extract("mustDo",@"(?:必须去|一定要去|特别想去|必去(?:地点)?(?:是|：|:)?)\s*([^，,。；;！？\n]+)");
-        Extract("avoid",@"(?:必须避开|需要避开|不想(?:去|逛|参观)|不要(?:去|逛|参观)|避免(?:去|逛|参观)|避开)\s*([^，,。；;！？\n]+)");
+        Extract("mustDo",@"(?:必须去|一定要去|特别想去|想去|想逛|想参观|必去(?:地点)?(?:是|：|:)?)\s*([^，,。；;！？\n]+)");
+        Extract("avoid",@"(?:必须避开|需要避开|不去|不逛|不参观|不想(?:去|逛|参观)|不要(?:去|逛|参观)|避免(?:去|逛|参观)|避开)\s*([^，,。；;！？\n]+)");
         // Keep unambiguous travel facts even when the conversational model omits fields.
         if(System.Text.RegularExpressions.Regex.IsMatch(message,@"(?:去|目的地(?:是|：|:)?)\s*(?:悉尼|Sydney)(?=[，,。\s]|$)",System.Text.RegularExpressions.RegexOptions.IgnoreCase) &&
             !System.Text.RegularExpressions.Regex.IsMatch(message,@"(?:不去|不要去|不想去|不是)\s*(?:悉尼|Sydney)",System.Text.RegularExpressions.RegexOptions.IgnoreCase))fields["destination"]="悉尼";

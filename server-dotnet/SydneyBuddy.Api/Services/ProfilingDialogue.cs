@@ -15,6 +15,10 @@ public sealed class ProfilingDialogue
     public string Phase { get; set; } = "introducing";
     public string Nickname { get; set; } = "";
     public string[] Ideas { get; set; } = [];
+    public int IdeaRevision { get; set; }
+    public string ProposedDirection { get; set; } = "";
+    public string RequestedField {get;set;}="";
+    public string SelectedDirection { get; set; } = "";
     public TravelInspiration? Inspiration { get; set; }
 }
 
@@ -56,7 +60,7 @@ nickname、ideas、quickReplies 都不能来自产品文档里的模拟用户。
         // A legacy empty draft only contains the old welcome. Replace it rather than introducing twice.
         if(session.Messages.All(x=>x.Role=="assistant"))session.Messages.Clear();
         var greeting=returning
-            ? (name.Length>0 ? $"{name}，咱们开始构想这趟旅行吧。先留一段自由探索，还是围绕一个最想体验的事展开？":"咱们开始构想新一趟旅行吧。先留一段自由探索，还是围绕一个最想体验的事展开？")
+            ? (name.Length>0 ? $"{name}，咱们先挑一种玩法：绿意慢走，还是城市故事？你也可以自己说。":"咱们先挑一种玩法：绿意慢走，还是城市故事？你也可以自己说。")
             : "嗨，我叫 Koko，是你的旅行向导。怎么称呼你？也可以先跳过。";
         session.Messages.Add(new(Guid.NewGuid().ToString("N"),"assistant",greeting,"greeting",returning ? ExplorationReplies():NameReplies()));
     }
@@ -81,8 +85,29 @@ nickname、ideas、quickReplies 都不能来自产品文档里的模拟用户。
     public static JsonObject? DirectResponse(PetSession s,string text,PetQuickReply? choice)
     {
         if(s.Dialogue is not {} d)return null;
-        if(choice?.Intent=="draft" || Expedite(text))return new(){["reply"]="先用已有的线索构想一版，未知的资料可以之后一起补。",["readyForDraft"]=true};
-        if(choice?.Intent=="keep")return new(){["reply"]="这个方向留在这次草案里了。想调整哪一段，随时告诉我。"};
+        if(choice?.Intent=="choose_sydney") {s.Fields["destination"]="悉尼";return StepResult(s,"那就去悉尼，其他资料都留着。", "destination");}
+        if(choice?.Intent is "people_1" or "people_2") {s.Fields["travelers"]=choice.Intent[^1..];return StepResult(s,"同行人数收好啦。", "travelers");}
+        if(choice?.Intent is "budget_60" or "budget_120") {
+            s.Fields["budget"]=choice.Intent[7..];s.Fields["budgetCurrency"]="AUD";s.Fields["budgetBasis"]="perPersonPerDay";s.Fields["budgetCoverage"]="activities";d.RequestedField="";
+            return StepResult(s,"这次按每人每天 "+s.Fields["budget"]+" AUD 活动预算来安排，不含住宿、交通和全部餐饮。", "budget");
+        }
+        if(choice?.Intent=="defer_time") {s.Fields.Remove("date");d.RequestedField="time";return StepResult(s,"日期先留空，我不会替你确定。草稿会保留，准备生成时再选日期。", "time");}
+        if(BudgetQuestion(text)) {
+            s.Fields.Remove("budget");d.RequestedField="budget";
+            return new(){["reply"]="原预算先不采用。可以先选每人每天 60 或 120 AUD 作为活动预算，再自由调整；这只是预算档位，不代表已核实的花费。住宿、交通和全部餐饮另计。",["readyForDraft"]=true,["followTripStep"]=true};
+        }
+        if(choice?.Intent=="change_direction" || text is "换个思路吧" or "换个想法吧" or "换一组想法") {
+            var current=Array.IndexOf(DirectionKeys,d.ProposedDirection);
+            return Propose(s,DirectionKeys[(current+1+DirectionKeys.Length)%DirectionKeys.Length],false);
+        }
+        if(choice?.Intent is "direction_nature" or "direction_culture" or "direction_food")return Propose(s,choice.Intent[10..],true);
+        if(choice?.Intent=="accept_direction")return Propose(s,d.ProposedDirection.Length>0 ? d.ProposedDirection:DefaultDirection(s),true);
+        if(choice?.Intent=="keep")return d.ProposedDirection.Length>0 ? Propose(s,d.ProposedDirection,true):Propose(s,DefaultDirection(s),false);
+        if(choice?.Intent=="draft" || Expedite(text)) {
+            if(d.Ideas.Length==0){var proposed=Propose(s,DefaultDirection(s),false);proposed["reply"]="先给你一版「"+DirectionTitle(d.ProposedDirection)+"」方向，具体资料可以接着补。";return proposed;}
+            return new(){["reply"]="先用已有的线索构想一版，未知的资料可以之后一起补。",["readyForDraft"]=true};
+        }
+        if(text=="留一段自由探索")return Propose(s,"nature",false);
         var match=Regex.Match(text,@"^(?:叫我|我叫|称呼我)\s*([^,，。!！？\r\n]{1,24})[。！!]?$");
         // A single name in direct response to the optional name question is explicit evidence.
         var shortName=d.Phase=="introducing" && choice is null && Regex.IsMatch(text,@"^[A-Za-z][A-Za-z'’-]{0,23}$") &&
@@ -92,8 +117,8 @@ nickname、ideas、quickReplies 都不能来自产品文档里的模拟用户。
         else if(shortName)d.Nickname=text;
         if(d.Phase!="introducing")return null;
         if(choice?.Intent is not ("skip_name" or "use_alias") && !match.Success && !shortName)return null;
-        return new(){["reply"]=(d.Nickname.Length>0 ? $"{d.Nickname}，咱们先找一点这趟旅行的灵感。":"咱们先找一点这趟旅行的灵感。")+"留一段自由探索，还是围绕一个最想体验的事展开？",
-            ["quickReplies"]=new JsonArray(new JsonObject{["text"]="留一段自由探索"},new JsonObject{["text"]="美食或城市故事"},new JsonObject{["text"]="先看看你的想法",["intent"]="draft"})};
+        return new(){["reply"]=(d.Nickname.Length>0 ? $"{d.Nickname}，咱们先找一点这趟旅行的灵感。":"咱们先找一点这趟旅行的灵感。")+"先挑一种玩法：绿意慢走，还是城市故事？也可以换一组。",
+            ["offerDirections"]=true};
     }
 
     public static PetMessage CompleteTurn(PetSession s,JsonObject result,string reply,string mood)
@@ -104,38 +129,95 @@ nickname、ideas、quickReplies 都不能来自产品文档里的模拟用户。
         var ideas=(result.Array("ideas") ?? new JsonArray()).OfType<JsonValue>()
             .Select(x=>x.TryGetValue<string>(out var t) ? t.Trim():"").Where(x=>x.Length is >0 and <=240).Distinct().Take(3).ToArray();
         if(ideas.Length>0)d.Ideas=ideas;
-        var finish=d.Inspiration is not null || d.ResponseCount>=MaximumResponses || result.Bool("readyForDraft");
+        var hasTripFacts=s.Fields.Any(x=>PetQuestions.Required.Contains(x.Key) && PetQuestions.Known(x.Value));
+        var finish=d.Inspiration is not null || d.ResponseCount>=MaximumResponses || result.Bool("readyForDraft") || hasTripFacts;
         PetQuickReply[] options;
         if(finish) {
             Finish(s,d.Ideas);
             // The fourth answer ends the initial interview even when the model asks another question.
-            if(initial)reply="先把这趟的方向摆出来了。下面是可以一起调整的灵感，具体场所、时间和费用等资料齐了再核实。";
-            options=DraftReplies();
+            if(initial && !result.Bool("directionChanged") && !result.Bool("followTripStep")) {
+                if(hasTripFacts){if(string.IsNullOrWhiteSpace(reply) || reply.Contains('？') || reply.Contains('?'))reply="这次的旅行资料先收好啦。";reply+="\n"+StepQuestion(s);}
+                else reply="先把这趟的方向摆出来了。下面是可以一起调整的灵感，具体场所、时间和费用等资料齐了再核实。";
+            }
+            options=DraftReplies(s);
         } else {
             d.Phase="exploring";
             var proposed=(result.Array("quickReplies") ?? new JsonArray()).OfType<JsonObject>().Take(4)
                 .Where(x=>x.Str("text").Length is >0 and <=45)
                 .Select(x=>new PetQuickReply(Guid.NewGuid().ToString("N"),x.Str("text"),x.Str("intent") is "draft" or "skip" ? x.Str("intent"):"respond"))
                 .DistinctBy(x=>x.Text).ToArray();
-            if(proposed.Length is >=3 and <=4 && proposed.Any(x=>x.Intent is "skip" or "draft"))options=proposed;
+            if(result.Bool("offerDirections"))options=ExplorationReplies();
+            else if(proposed.Length is >=3 and <=4 && proposed.Any(x=>x.Intent is "skip" or "draft"))options=proposed;
             else {
                 // Safe generic reactions bind to the actual proposal; no unrelated field questionnaire.
                 options=[Reply("就按这个想法试试"),Reply("换个想法吧","skip"),Reply("先看已有的草案","draft")];
                 if(string.IsNullOrWhiteSpace(reply))reply="咱们先留一段可以随心逛逛的时间，再围绕你最想体验的事串起来？";
             }
         }
+        if(result.Bool("followTripStep")){reply=result.Str("reply");options=DraftReplies(s);}
+        else if(finish && result.Bool("directionChanged") && d.SelectedDirection==d.ProposedDirection)reply+="\n"+StepQuestion(s);
         return new(Guid.NewGuid().ToString("N"),"assistant",reply,mood,options);
     }
 
     private static void Finish(PetSession s,string[] ideas)
     {
         var d=s.Dialogue!;d.Phase="inspiration";
-        if(ideas.Length==0)ideas=["先留一段自由探索，再挑一件最期待的体验串成路线；具体方向还可以调整。"];
+        if(ideas.Length==0){d.ProposedDirection=DefaultDirection(s);ideas=DirectionIdeas(s,d.ProposedDirection);}
         d.Ideas=ideas;
-        d.Inspiration=new(PetQuestions.Known(s.Fields.GetValueOrDefault("destination")) ? s.Fields["destination"]+" · 旅行灵感":"目的地待定 · 旅行灵感",ideas);
+        d.Inspiration=new(PetQuestions.Known(s.Fields.GetValueOrDefault("destination")) ? s.Fields["destination"]+" · "+DirectionTitle(d.ProposedDirection):"目的地待定 · "+DirectionTitle(d.ProposedDirection),ideas);
     }
     private static PetQuickReply Reply(string text,string intent="respond")=>new(Guid.NewGuid().ToString("N"),text,intent);
     private static PetQuickReply[] NameReplies()=>[Reply("先跳过称呼","skip_name"),Reply("叫我旅行搭子","use_alias"),Reply("我来写个称呼","compose_name")];
-    private static PetQuickReply[] ExplorationReplies()=>[Reply("留一段自由探索"),Reply("美食或城市故事"),Reply("先看看你的想法","draft")];
-    private static PetQuickReply[] DraftReplies()=>[Reply("先保留这个方向","keep"),Reply("换个思路吧"),Reply("补充出行资料","details")];
+    private static PetQuickReply[] ExplorationReplies()=>[Reply("绿意慢走","direction_nature"),Reply("城市故事","direction_culture"),Reply("换一组想法","change_direction")];
+    public static bool BudgetQuestion(string message)=>message.Contains("预算") && !Regex.IsMatch(message,@"\d") && Regex.IsMatch(message,"没想好|不确定|大概范围|推荐|建议");
+    public static string NextNeed(PetSession s) {
+        if(s.Dialogue?.RequestedField=="budget" && !PetQuestions.Answered(s,"budget"))return "budget";
+        if(!PetQuestions.Answered(s,"destination"))return "destination";
+        if(s.Dialogue?.RequestedField!="time" && (!PetQuestions.Answered(s,"date") || !PetQuestions.Answered(s,"days")))return "time";
+        if(!PetQuestions.Answered(s,"travelers"))return "travelers";
+        if(!PetQuestions.Answered(s,"budget") || !PetQuestions.Answered(s,"budgetCurrency") || !PetQuestions.Answered(s,"budgetBasis"))return "budget";
+        if(!PetQuestions.Answered(s,"date") || !PetQuestions.Answered(s,"days"))return "time";
+        return "";
+    }
+    private static string StepQuestion(PetSession s)=>NextNeed(s) switch {
+        "destination"=>PetQuestions.UnsupportedDestination(s) ? "资料会保留。目前只支持悉尼路线，可以改选悉尼或先保存草稿。":"这次想去哪个城市？目前可以生成悉尼路线，也能先保存其他城市的想法。",
+        "time"=>"接下来选出发日期和天数，最多 15 天；没定日期也可以先保留草稿。",
+        "travelers"=>"这次一共几个人？记得包括自己呀。",
+        "budget"=>"活动预算可以选 60 / 120 AUD 每人每天，或自定义金额与范围；住宿、交通和全部餐饮另计。",
+        _=>"资料准备齐啦！可以直接生成行程，也可以继续聊或单独修改。"
+    };
+    private static JsonObject StepResult(PetSession s,string text,string focus)=>new(){["reply"]=text+"\n"+StepQuestion(s),["readyForDraft"]=true,["followTripStep"]=true};
+    public static void DetailsUpdated(PetSession s,JsonObject changes) {
+        if(s.Dialogue is null || !changes.Any(x=>PetQuestions.Required.Contains(x.Key) || new[]{"budgetCoverage","origin","mustDo","avoid","companionNeeds"}.Contains(x.Key)))return;
+        if(PetQuestions.Answered(s,"budget"))s.Dialogue.RequestedField="";
+        if(s.Dialogue.Inspiration is null)Finish(s,[]);
+        var labels=new Dictionary<string,string>{{"destination","目的地"},{"date","日期"},{"days","天数"},{"travelers","人数"},{"budget","预算"},{"origin","出发地点"},{"mustDo","必去安排"},{"avoid","避开安排"},{"companionNeeds","同行需要"}};
+        var names=string.Join("、",labels.Where(x=>changes.ContainsKey(x.Key)).Select(x=>x.Value));
+        var text=(names.Length>0 ? names+"收好啦。":"旅行资料已更新。")+"\n"+StepQuestion(s);
+        s.Messages.Add(new(Guid.NewGuid().ToString("N"),"assistant",text,"curious",DraftReplies(s)));
+        if(s.Messages.Count>100)s.Messages=s.Messages.TakeLast(100).ToList();
+    }
+    private static PetQuickReply[] DraftReplies(PetSession? s=null) {
+        if(s is null)return [Reply("补充出行资料","details"),Reply("再换个玩法","change_direction"),Reply("我想自己说","compose_idea")];
+        if(s.Dialogue is {} d && d.ProposedDirection.Length>0 && d.SelectedDirection!=d.ProposedDirection && d.RequestedField.Length==0 && !s.Fields.Keys.Any(PetQuestions.Required.Contains))return [Reply("就选这个方向","accept_direction"),Reply("换个玩法","change_direction"),Reply("我想自己说","compose_idea")];
+        return NextNeed(s) switch {
+            "destination"=>PetQuestions.UnsupportedDestination(s) ? [Reply("改选悉尼","choose_sydney"),Reply("修改城市","details_destination"),Reply("保留草稿","keep_draft")]:[Reply("选悉尼","choose_sydney"),Reply("其他城市","details_destination"),Reply("我想自己说","compose_idea")],
+            "time"=>[Reply("选日期和天数","details_time"),Reply("日期还没定","defer_time"),Reply("我想自己说","compose_idea")],
+            "travelers"=>[Reply("1 人","people_1"),Reply("2 人","people_2"),Reply("其他人数","details_people")],
+            "budget"=>[Reply("60 AUD / 人 / 天","budget_60"),Reply("120 AUD / 人 / 天","budget_120"),Reply("自定义预算","details_budget")],
+            _=>[Reply("修改旅行资料","details"),Reply("再换个玩法","change_direction"),Reply("我想自己说","compose_idea")]
+        };
+    }
+    private static readonly string[] DirectionKeys=["nature","culture","food"];
+    private static string DefaultDirection(PetSession s)=>s.Fields.GetValueOrDefault("interests","").Contains("文化") || s.Fields.GetValueOrDefault("interests","").Contains("艺术") ? "culture":s.Fields.GetValueOrDefault("interests","").Contains("美食") ? "food":"nature";
+    private static string DirectionTitle(string key)=>key switch {"nature"=>"绿意慢走","culture"=>"城市故事","food"=>"街区逛吃",_=>"旅行灵感"};
+    private static string[] DirectionIdeas(PetSession s,string key)=>key switch {
+        "culture"=>["先逛一段有故事的街区，看看建筑和当地生活；实际街区之后核实。",s.Fields.GetValueOrDefault("avoid","").Contains("博物馆") ? "避开博物馆，把另一段时间留给街景、小店和休息。":"如果有合适的展览或文化场所，挑一处慢慢看，再留一段休息；开放时间待核实。"],
+        "food"=>["挑一个餐饮集中的街区边逛边吃，具体店铺、营业和价格之后核实。","把用餐和附近的小店串在一起，中间留休息，不为打卡来回赶路。"],
+        _=>["如果目的地有合适的公园、绿道或海边，先留一段轻松散步；具体地点之后核实。","走累了就找个方便休息的地方，下午留给附近的街景，不把一天排满。"]};
+    private static JsonObject Propose(PetSession s,string key,bool accepted) {
+        var d=s.Dialogue!;d.ProposedDirection=key;d.IdeaRevision++;d.Ideas=DirectionIdeas(s,key);
+        if(accepted){d.SelectedDirection=key;s.Fields["interests"]=key switch {"culture"=>"文化、艺术","food"=>"美食、城市",_=>"自然、风景"};}
+        return new(){["reply"]=accepted ? "那这次就按「"+DirectionTitle(key)+"」来准备。这个玩法只用于这次旅行。":"换个具体方向：「"+DirectionTitle(key)+"」。"+d.Ideas[0]+"这个玩法怎么样？",["ideas"]=new JsonArray(d.Ideas.Select(x=>(JsonNode?)JsonValue.Create(x)).ToArray()),["readyForDraft"]=true,["directionChanged"]=true};
+    }
 }

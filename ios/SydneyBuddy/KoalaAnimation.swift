@@ -117,7 +117,7 @@ struct PetAvatar:View {
             else {Image(systemName:"leaf.circle.fill").resizable().scaledToFit().foregroundStyle(Palette.green)}
         }.frame(width:108,height:116)
         .overlay(alignment:.bottomTrailing) {
-            if animated,let symbol=interactionSymbol {Image(systemName:symbol).font(.system(size:11,weight:.semibold)).foregroundStyle(Palette.coral).padding(6).background(Palette.cream,in:Circle()).offset(x:-3,y:-5)}
+            if animated,let symbol=interactionSymbol {Image(systemName:symbol).font(.system(size:11,weight:.semibold)).foregroundStyle(Palette.green).padding(6).background(Palette.cream,in:Circle()).offset(x:-3,y:-5)}
         }
         .accessibilityElement(children:.ignore).accessibilityLabel("旅行伙伴 Koko，"+interactionLabel)
         .onAppear{player.request(cue?.action ?? KoalaAction.forMood(mood),token:cue?.id ?? "mood:"+mood.rawValue)}

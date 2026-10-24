@@ -14,19 +14,19 @@ import GoogleMaps
         return GMSServices.provideAPIKey(key)
     }()
     var body: some Scene {
-        WindowGroup { RootView().environmentObject(store).tint(Palette.coral).preferredColorScheme(.light).task { await store.reload() } }
+        WindowGroup { RootView().environmentObject(store).tint(Palette.green).preferredColorScheme(.light).task { await store.reload() } }
     }
 }
 
 enum Palette {
     static let coral = Color(red:188.0/255.0,green:60.0/255.0,blue:85.0/255.0)
     static let blush = Color(red:252.0/255.0,green:228.0/255.0,blue:232.0/255.0)
-    static let ink = Color(red:61.0/255.0,green:49.0/255.0,blue:56.0/255.0)
-    static let cream = Color(red:1,green:248.0/255.0,blue:245.0/255.0)
-    static let muted = Color(red:117.0/255.0,green:102.0/255.0,blue:109.0/255.0)
-    // Compatibility names let existing screens adopt the koala brand together.
-    static let green = coral
-    static let mint = blush
+    static let ink = Color(red:0.10,green:0.22,blue:0.19)
+    static let cream = Color(red:0.98,green:0.97,blue:0.94)
+    static let muted = Color(red:0.42,green:0.49,blue:0.45)
+    // App controls retain the established green theme; coral belongs to the mascot.
+    static let green = Color(red:0.05,green:0.51,blue:0.37)
+    static let mint = Color(red:0.86,green:0.95,blue:0.88)
 }
 
 struct PrimaryButton: View {
