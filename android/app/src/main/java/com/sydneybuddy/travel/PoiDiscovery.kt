@@ -44,8 +44,8 @@ internal fun poiActivityKind(p:JSONObject):String=if(p.optString("source")!="Ope
     LaunchedEffect(category){search()}
     Dialog(onDismissRequest=onDismiss,properties=DialogProperties(usePlatformDefaultWidth=false)) {
         Surface(Modifier.fillMaxSize()) {Column(Modifier.fillMaxSize().systemBarsPadding().padding(12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment=Alignment.CenterVertically){Text("搜尋地圖地點",Modifier.weight(1f),style=MaterialTheme.typography.titleMedium);TextButton(onClick=onDismiss){Text("完成")}}
-            Row(verticalAlignment=Alignment.CenterVertically){OutlinedTextField(query,{query=it},Modifier.weight(1f),placeholder={Text("地點名稱（可留空）")},singleLine=true);TextButton(onClick=::search,enabled=!busy){Text("搜尋")}}
+            Row(verticalAlignment=Alignment.CenterVertically){Text(ui("搜尋地圖地點"),Modifier.weight(1f),style=MaterialTheme.typography.titleMedium);TextButton(onClick=onDismiss){Text(ui("完成"))}}
+            Row(verticalAlignment=Alignment.CenterVertically){OutlinedTextField(query,{query=it},Modifier.weight(1f),placeholder={Text("地點名稱（可留空）")},singleLine=true);TextButton(onClick=::search,enabled=!busy){Text(ui("搜尋"))}}
             Row{listOf("sights" to "景點","food" to "餐飲","facilities" to "生活設施").forEach{(id,label)->TextButton(onClick={category=id}){Text((if(id==category)"✓ "else "")+label)}}}
             Row{MapProvider.entries.forEach{provider->FilterChip(selected=store.mapProvider==provider,onClick={store.chooseMapProvider(provider)},label={Text(provider.label,fontSize=10.sp)})}}
             Small("地點資料：OpenStreetMap")
@@ -68,7 +68,7 @@ internal fun poiActivityKind(p:JSONObject):String=if(p.optString("source")!="Ope
             TextButton(onClick={uri.openUri("https://www.openstreetmap.org/copyright")}){Text("地點資料 © OpenStreetMap contributors · ODbL",fontSize=10.sp)}
         }}
     }
-    detail?.let{p->AlertDialog(onDismissRequest={detail=null},title={Text(p.optString("name"))},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)){Text(p.optString("description"));Text("OSM 營業時間標記："+p.optString("openingHoursText").ifBlank{"未知"});Text(p.optString("note"))}},confirmButton={TextButton(onClick={detail=null}){Text("完成")}})}
+    detail?.let{p->AlertDialog(onDismissRequest={detail=null},title={Text(p.optString("name"))},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)){Text(p.optString("description"));Text("OSM 營業時間標記："+p.optString("openingHoursText").ifBlank{"未知"});Text(p.optString("note"))}},confirmButton={TextButton(onClick={detail=null}){Text(ui("完成"))}})}
 }
 @Composable private fun PoiOsmMap(places:List<JSONObject>,onCenter:(Pair<Double,Double>)->Unit,onSelect:(String)->Unit,modifier:Modifier,initialCenter:Pair<Double,Double>,initialZoom:Double,onZoom:(Double)->Unit) {
     val context=LocalContext.current;val lifecycle=LocalLifecycleOwner.current.lifecycle

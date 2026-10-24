@@ -1,0 +1,882 @@
+{
+  "{0} · {1} {2} 分": {
+    "en": "{0} · {1} {2} min",
+    "zh-Hans": "{0} · {1} {2} 分",
+    "zh-Hant": "{0} · {1} {2} 分"
+  },
+  "{0} · {1} 天": {
+    "en": "{0} · {1} days",
+    "zh-Hans": "{0} · {1} 天",
+    "zh-Hant": "{0} · {1} 天"
+  },
+  "{0} · {1} 天 · {2} 个地点": {
+    "en": "{0} · {1} days · {2} places",
+    "zh-Hans": "{0} · {1} 天 · {2} 个地点",
+    "zh-Hant": "{0} · {1} 天 · {2} 個地點"
+  },
+  "{0} 分 · 交通預估": {
+    "en": "{0} min · travel estimate",
+    "zh-Hans": "{0} 分 · 交通预估",
+    "zh-Hant": "{0} 分 · 交通預估"
+  },
+  "{0} 站 · {1} 步 · A${2} · {3} 返回": {
+    "en": "{0} stops · {1} steps · A${2} · back at {3}",
+    "zh-Hans": "{0} 站 · {1} 步 · A${2} · {3} 返回",
+    "zh-Hant": "{0} 站 · {1} 步 · A${2} · {3} 返回"
+  },
+  "Android 地图：{0}": {
+    "en": "Android map: {0}",
+    "zh-Hans": "Android 地图：{0}",
+    "zh-Hant": "Android 地圖：{0}"
+  },
+  "Google iOS 地图": {
+    "en": "Google iOS map",
+    "zh-Hans": "Google iOS 地图",
+    "zh-Hant": "Google iOS 地圖"
+  },
+  "Google 地图尚未配置密钥，可选择 OpenStreetMap。": {
+    "en": "Google Maps has no API key. Choose OpenStreetMap.",
+    "zh-Hans": "Google 地图尚未配置密钥，可选择 OpenStreetMap。",
+    "zh-Hant": "Google 地圖尚未設定金鑰，可選擇 OpenStreetMap。"
+  },
+  "Google 地图未配置密钥，请选择 OpenStreetMap 或 Apple Maps。": {
+    "en": "Google Maps has no API key. Choose OpenStreetMap or Apple Maps.",
+    "zh-Hans": "Google 地图未配置密钥，请选择 OpenStreetMap 或 Apple Maps。",
+    "zh-Hant": "Google 地圖尚未設定金鑰，請選擇 OpenStreetMap 或 Apple Maps。"
+  },
+  "Google 地点与路线": {
+    "en": "Google places and routes",
+    "zh-Hans": "Google 地点与路线",
+    "zh-Hant": "Google 地點與路線"
+  },
+  "Google 服务端：{0}": {
+    "en": "Google server: {0}",
+    "zh-Hans": "Google 服务端：{0}",
+    "zh-Hant": "Google 伺服器：{0}"
+  },
+  "Google 路線": {
+    "en": "Google route",
+    "zh-Hans": "Google 路线",
+    "zh-Hant": "Google 路線"
+  },
+  "Nemotron · 示例地点": {
+    "en": "Nemotron · sample places",
+    "zh-Hans": "Nemotron · 示例地点",
+    "zh-Hant": "Nemotron · 範例地點"
+  },
+  "Nemotron 推荐 · 示例地点、天气与路线": {
+    "en": "Nemotron suggestions · sample places, weather and routes",
+    "zh-Hans": "Nemotron 推荐 · 示例地点、天气与路线",
+    "zh-Hant": "Nemotron 推薦 · 範例地點、天氣與路線"
+  },
+  "一起调整行程": {
+    "en": "Adjust your trip",
+    "zh-Hans": "一起调整行程",
+    "zh-Hant": "一起調整行程"
+  },
+  "下一次旅行的默认设置": {
+    "en": "Defaults for your next trip",
+    "zh-Hans": "下一次旅行的默认设置",
+    "zh-Hant": "下一次旅行的預設設定"
+  },
+  "下一站，去发现": {
+    "en": "Where to next?",
+    "zh-Hans": "下一站，去发现",
+    "zh-Hant": "下一站，去發現"
+  },
+  "下一站，去发现。每次冒险都值得收藏。": {
+    "en": "Discover your next adventure. Keep every trip.",
+    "zh-Hans": "下一站，去发现。每次冒险都值得收藏。",
+    "zh-Hant": "下一站，去發現。每次冒險都值得收藏。"
+  },
+  "下雨了": {
+    "en": "It's raining",
+    "zh-Hans": "下雨了",
+    "zh-Hant": "下雨了"
+  },
+  "中央车站": {
+    "en": "Central Station",
+    "zh-Hans": "中央车站",
+    "zh-Hant": "中央車站"
+  },
+  "交通方式": {
+    "en": "Transport",
+    "zh-Hans": "交通方式",
+    "zh-Hant": "交通方式"
+  },
+  "交通路线规划": {
+    "en": "Plan transport",
+    "zh-Hans": "交通路线规划",
+    "zh-Hant": "交通路線規劃"
+  },
+  "交通路線": {
+    "en": "Transport route",
+    "zh-Hans": "交通路线",
+    "zh-Hant": "交通路線"
+  },
+  "仅保存本机旅行偏好": {
+    "en": "Save travel preferences on this device",
+    "zh-Hans": "仅保存本机旅行偏好",
+    "zh-Hant": "僅儲存本機旅遊偏好"
+  },
+  "介面語言": {
+    "en": "App language",
+    "zh-Hans": "介面语言",
+    "zh-Hant": "介面語言"
+  },
+  "你好，旅行家": {
+    "en": "Hello, traveller",
+    "zh-Hans": "你好，旅行家",
+    "zh-Hant": "你好，旅行家"
+  },
+  "使用在线推荐": {
+    "en": "Use online recommendations",
+    "zh-Hans": "使用在线推荐",
+    "zh-Hant": "使用線上推薦"
+  },
+  "使用在线服务": {
+    "en": "Use online services",
+    "zh-Hans": "使用在线服务",
+    "zh-Hant": "使用線上服務"
+  },
+  "保存兴趣和步数偏好，供以后规划选择使用。可随时从检索中撤回；本机审计记录保留操作历史。不保存位置轨迹、照片或私人聊天。": {
+    "en": "Save interests and step preferences for future planning. You can withdraw them from retrieval; local audit history remains. Location tracks, photos and private chats are not saved.",
+    "zh-Hans": "保存兴趣和步数偏好，供以后规划选择使用。可随时从检索中撤回；本机审计记录保留操作历史。不保存位置轨迹、照片或私人聊天。",
+    "zh-Hant": "儲存興趣與步數偏好，供之後規劃使用。可隨時撤回檢索；本機稽核紀錄會保留操作歷史。不儲存位置軌跡、照片或私人聊天。"
+  },
+  "保存消费": {
+    "en": "Save expense",
+    "zh-Hans": "保存消费",
+    "zh-Hant": "儲存消費"
+  },
+  "僅顯示站點": {
+    "en": "Stops only",
+    "zh-Hans": "仅显示站点",
+    "zh-Hant": "僅顯示站點"
+  },
+  "儲存": {
+    "en": "Save",
+    "zh-Hans": "储存",
+    "zh-Hant": "儲存"
+  },
+  "全天行程顺序": {
+    "en": "Full-day itinerary",
+    "zh-Hans": "全天行程顺序",
+    "zh-Hant": "全天行程順序"
+  },
+  "公车": {
+    "en": "Bus",
+    "zh-Hans": "公车",
+    "zh-Hant": "公車"
+  },
+  "关于这个版本": {
+    "en": "About this version",
+    "zh-Hans": "关于这个版本",
+    "zh-Hant": "關於這個版本"
+  },
+  "关闭": {
+    "en": "Close",
+    "zh-Hans": "关闭",
+    "zh-Hant": "關閉"
+  },
+  "关闭地图": {
+    "en": "Close map",
+    "zh-Hans": "关闭地图",
+    "zh-Hant": "關閉地圖"
+  },
+  "出发地点": {
+    "en": "Starting point",
+    "zh-Hans": "出发地点",
+    "zh-Hant": "出發地點"
+  },
+  "切换后，交通规划会预选对应路线服务，需点查询才取得新路线。NSW 资料可另选；Google 仍需启用服务。": {
+    "en": "The selected map chooses its matching routing service. Supported walking previews load automatically; search separately for other transport. Google requires configuration.",
+    "zh-Hans": "切换后，交通规划会预选对应路线服务，需点查询才取得新路线。NSW 资料可另选；Google 仍需启用服务。",
+    "zh-Hant": "切換後會預選對應的路線服務。首頁自動載入支援的步行路線，其他交通方式請另外查詢；Google 仍需啟用服務。"
+  },
+  "创建你的第一份悉尼旅行计划": {
+    "en": "Create your first Sydney trip",
+    "zh-Hans": "创建你的第一份悉尼旅行计划",
+    "zh-Hant": "建立你的第一份雪梨旅遊計畫"
+  },
+  "删除": {
+    "en": "Delete",
+    "zh-Hans": "删除",
+    "zh-Hant": "刪除"
+  },
+  "删除行程": {
+    "en": "Delete trip",
+    "zh-Hans": "删除行程",
+    "zh-Hant": "刪除行程"
+  },
+  "刷新天气": {
+    "en": "Refresh weather",
+    "zh-Hans": "刷新天气",
+    "zh-Hant": "重新整理天氣"
+  },
+  "刷新行程": {
+    "en": "Refresh trips",
+    "zh-Hans": "刷新行程",
+    "zh-Hant": "重新整理行程"
+  },
+  "刷新连接状态": {
+    "en": "Refresh connection",
+    "zh-Hans": "刷新连接状态",
+    "zh-Hant": "重新整理連線狀態"
+  },
+  "加入工具箱": {
+    "en": "Add to toolbox",
+    "zh-Hans": "加入工具箱",
+    "zh-Hant": "加入工具箱"
+  },
+  "午餐": {
+    "en": "Lunch",
+    "zh-Hans": "午餐",
+    "zh-Hant": "午餐"
+  },
+  "参与人数：{0}": {
+    "en": "People: {0}",
+    "zh-Hans": "参与人数：{0}",
+    "zh-Hant": "參與人數：{0}"
+  },
+  "取消": {
+    "en": "Cancel",
+    "zh-Hans": "取消",
+    "zh-Hant": "取消"
+  },
+  "可撤回检索；本机审计历史仍保留。不保存位置轨迹、照片或私人聊天。": {
+    "en": "Retrieval consent can be withdrawn; local audit history remains. Location tracks, photos and private chats are not saved.",
+    "zh-Hans": "可撤回检索；本机审计历史仍保留。不保存位置轨迹、照片或私人聊天。",
+    "zh-Hant": "可撤回檢索，本機稽核歷史仍保留。不儲存位置軌跡、照片或私人聊天。"
+  },
+  "同一位置": {
+    "en": "Same location",
+    "zh-Hans": "同一位置",
+    "zh-Hant": "同一位置"
+  },
+  "同意在电脑本机保存兴趣和步数偏好": {
+    "en": "Allow interests and step preferences to be saved on the local server",
+    "zh-Hans": "同意在电脑本机保存兴趣和步数偏好",
+    "zh-Hant": "同意在電腦本機儲存興趣與步數偏好"
+  },
+  "后端已禁止付费服务，当前可使用演示模式。": {
+    "en": "Paid services are disabled on the server. Demo mode is available.",
+    "zh-Hans": "后端已禁止付费服务，当前可使用演示模式。",
+    "zh-Hant": "後端已停用付費服務，目前可使用示範模式。"
+  },
+  "在线数据规划": {
+    "en": "Online trip",
+    "zh-Hans": "在线数据规划",
+    "zh-Hant": "線上資料規劃"
+  },
+  "在线模式会将本次旅行的偏好、起终点和日期发送给 Google、NVIDIA 及天气服务。不要输入私人住址或敏感信息。密钥在电脑本地设置页配置。": {
+    "en": "Online mode sends trip preferences, endpoints and dates to Google, NVIDIA and the weather service. Avoid private addresses or sensitive details. Configure API keys on the local server.",
+    "zh-Hans": "在线模式会将本次旅行的偏好、起终点和日期发送给 Google、NVIDIA 及天气服务。不要输入私人住址或敏感信息。密钥在电脑本地设置页配置。",
+    "zh-Hant": "線上模式會將本次旅行偏好、起終點與日期傳送給 Google、NVIDIA 及天氣服務。請勿輸入私人住址或敏感資訊。金鑰在電腦本機設定頁配置。"
+  },
+  "在线规划 · 以各项来源和警告为准": {
+    "en": "Online plan · check sources and warnings",
+    "zh-Hans": "在线规划 · 以各项来源和警告为准",
+    "zh-Hant": "線上規劃 · 請留意各項來源與警告"
+  },
+  "地图": {
+    "en": "Map",
+    "zh-Hans": "地图",
+    "zh-Hant": "地圖"
+  },
+  "地图底图": {
+    "en": "Map provider",
+    "zh-Hans": "地图底图",
+    "zh-Hant": "地圖底圖"
+  },
+  "地图来源": {
+    "en": "Map source",
+    "zh-Hans": "地图来源",
+    "zh-Hant": "地圖來源"
+  },
+  "地圖": {
+    "en": "Map",
+    "zh-Hans": "地图",
+    "zh-Hant": "地圖"
+  },
+  "地铁": {
+    "en": "Metro",
+    "zh-Hans": "地铁",
+    "zh-Hant": "地鐵"
+  },
+  "大眾運輸": {
+    "en": "Public transport",
+    "zh-Hans": "大众运输",
+    "zh-Hant": "大眾運輸"
+  },
+  "天数": {
+    "en": "Days",
+    "zh-Hans": "天数",
+    "zh-Hant": "天數"
+  },
+  "好的": {
+    "en": "OK",
+    "zh-Hans": "好的",
+    "zh-Hant": "好的"
+  },
+  "完成": {
+    "en": "Done",
+    "zh-Hans": "完成",
+    "zh-Hant": "完成"
+  },
+  "密钥已配置": {
+    "en": "API key configured",
+    "zh-Hans": "密钥已配置",
+    "zh-Hant": "金鑰已設定"
+  },
+  "少走一点": {
+    "en": "Less walking",
+    "zh-Hans": "少走一点",
+    "zh-Hant": "少走一點"
+  },
+  "尚未查询": {
+    "en": "Not loaded",
+    "zh-Hans": "尚未查询",
+    "zh-Hant": "尚未查詢"
+  },
+  "尚未查询道路路线 · 仅显示站点": {
+    "en": "Road route not loaded · showing stops",
+    "zh-Hans": "尚未查询道路路线 · 仅显示站点",
+    "zh-Hant": "尚未查詢道路路線 · 僅顯示站點"
+  },
+  "展开地图": {
+    "en": "Expand map",
+    "zh-Hans": "展开地图",
+    "zh-Hant": "展開地圖"
+  },
+  "已加入工具箱": {
+    "en": "Added to toolbox",
+    "zh-Hans": "已加入工具箱",
+    "zh-Hant": "已加入工具箱"
+  },
+  "已規劃路線": {
+    "en": "Route ready",
+    "zh-Hans": "已规划路线",
+    "zh-Hant": "已規劃路線"
+  },
+  "已连接": {
+    "en": "Connected",
+    "zh-Hans": "已连接",
+    "zh-Hant": "已連線"
+  },
+  "已配置": {
+    "en": "Configured",
+    "zh-Hans": "已配置",
+    "zh-Hant": "已設定"
+  },
+  "已配置不代表在线调用成功；实际结果以来源和错误提示为准。": {
+    "en": "Configuration does not guarantee a successful request. Check the returned source and any error.",
+    "zh-Hans": "已配置不代表在线调用成功；实际结果以来源和错误提示为准。",
+    "zh-Hant": "已設定不代表線上呼叫成功，請以實際來源與錯誤提示為準。"
+  },
+  "帮我调整": {
+    "en": "Adjust my trip",
+    "zh-Hans": "帮我调整",
+    "zh-Hant": "幫我調整"
+  },
+  "底图切换不会重新规划或调用后端。OSM 需联网加载图砖；离线示意图不请求图砖。": {
+    "en": "Switching maps loads supported walking previews. OSM tiles require a connection; the offline overview does not request tiles.",
+    "zh-Hans": "底图切换不会重新规划或调用后端。OSM 需联网加载图砖；离线示意图不请求图砖。",
+    "zh-Hant": "切換底圖會載入支援的步行預覽。OSM 圖磚需要網路；離線示意圖不請求圖磚。"
+  },
+  "开车": {
+    "en": "Drive",
+    "zh-Hans": "开车",
+    "zh-Hant": "開車"
+  },
+  "当前已保存行程的调整请到“问 AI”。": {
+    "en": "Use Ask AI to adjust saved trips.",
+    "zh-Hans": "当前已保存行程的调整请到“问 AI”。",
+    "zh-Hant": "已儲存的行程請到「問 AI」調整。"
+  },
+  "当前行程的参数在“问 AI”中调整；这里用于新行程。": {
+    "en": "Adjust your current trip in Ask AI. These defaults apply to new trips.",
+    "zh-Hans": "当前行程的参数在“问 AI”中调整；这里用于新行程。",
+    "zh-Hant": "目前行程請到「問 AI」調整；這裡的設定用於新行程。"
+  },
+  "待配置": {
+    "en": "Not configured",
+    "zh-Hans": "待配置",
+    "zh-Hant": "待設定"
+  },
+  "悉尼 · {0}": {
+    "en": "Sydney · {0}",
+    "zh-Hans": "悉尼 · {0}",
+    "zh-Hant": "雪梨 · {0}"
+  },
+  "悉尼天气": {
+    "en": "Sydney weather",
+    "zh-Hans": "悉尼天气",
+    "zh-Hant": "雪梨天氣"
+  },
+  "我同意保存的偏好": {
+    "en": "Saved preferences",
+    "zh-Hans": "我同意保存的偏好",
+    "zh-Hant": "我同意儲存的偏好"
+  },
+  "我的": {
+    "en": "Profile",
+    "zh-Hans": "我的",
+    "zh-Hant": "我的"
+  },
+  "我的 Buddy": {
+    "en": "My Buddy",
+    "zh-Hans": "我的 Buddy",
+    "zh-Hant": "我的 Buddy"
+  },
+  "我的行程": {
+    "en": "My trips",
+    "zh-Hans": "我的行程",
+    "zh-Hant": "我的行程"
+  },
+  "把花费也安排明白": {
+    "en": "Keep track of your spending",
+    "zh-Hans": "把花费也安排明白",
+    "zh-Hant": "把花費也安排明白"
+  },
+  "按自己的节奏，发现悉尼": {
+    "en": "Discover Sydney at your own pace",
+    "zh-Hans": "按自己的节奏，发现悉尼",
+    "zh-Hant": "按自己的節奏，發現雪梨"
+  },
+  "推薦景點": {
+    "en": "Suggested places",
+    "zh-Hans": "推荐景点",
+    "zh-Hant": "推薦景點"
+  },
+  "搜尋": {
+    "en": "Search",
+    "zh-Hans": "搜寻",
+    "zh-Hant": "搜尋"
+  },
+  "搜尋地圖地點": {
+    "en": "Search places on the map",
+    "zh-Hans": "搜寻地图地点",
+    "zh-Hant": "搜尋地圖地點"
+  },
+  "搜尋地點": {
+    "en": "Search places",
+    "zh-Hans": "搜寻地点",
+    "zh-Hant": "搜尋地點"
+  },
+  "搜尋景點、餐廳與設施": {
+    "en": "Search places, food and facilities",
+    "zh-Hans": "搜寻景点、餐厅与设施",
+    "zh-Hant": "搜尋景點、餐廳與設施"
+  },
+  "搜索": {
+    "en": "Search",
+    "zh-Hans": "搜索",
+    "zh-Hant": "搜尋"
+  },
+  "搜索地图地点": {
+    "en": "Search places on the map",
+    "zh-Hans": "搜索地图地点",
+    "zh-Hant": "搜尋地圖地點"
+  },
+  "撤回偏好": {
+    "en": "Withdraw preferences",
+    "zh-Hans": "撤回偏好",
+    "zh-Hant": "撤回偏好"
+  },
+  "收起": {
+    "en": "Collapse",
+    "zh-Hans": "收起",
+    "zh-Hant": "收起"
+  },
+  "新增": {
+    "en": "Add",
+    "zh-Hans": "新增",
+    "zh-Hant": "新增"
+  },
+  "新建": {
+    "en": "New trip",
+    "zh-Hans": "新建",
+    "zh-Hant": "新增"
+  },
+  "旅行小账本": {
+    "en": "Travel expenses",
+    "zh-Hans": "旅行小账本",
+    "zh-Hant": "旅行小帳本"
+  },
+  "显示步行路线": {
+    "en": "Show walking route",
+    "zh-Hans": "显示步行路线",
+    "zh-Hant": "顯示步行路線"
+  },
+  "景點": {
+    "en": "Sights",
+    "zh-Hans": "景点",
+    "zh-Hant": "景點"
+  },
+  "景點介紹": {
+    "en": "About this place",
+    "zh-Hans": "景点介绍",
+    "zh-Hant": "景點介紹"
+  },
+  "景點名稱與已儲存的行程內容保留原始語言。": {
+    "en": "Place names and saved trip content keep their original language.",
+    "zh-Hans": "景点名称与已储存的行程内容保留原始语言。",
+    "zh-Hant": "景點名稱與已儲存的行程內容保留原始語言。"
+  },
+  "景點工具箱": {
+    "en": "Place toolbox",
+    "zh-Hans": "景点工具箱",
+    "zh-Hant": "景點工具箱"
+  },
+  "服务连接": {
+    "en": "Service connection",
+    "zh-Hans": "服务连接",
+    "zh-Hant": "服務連線"
+  },
+  "未连接": {
+    "en": "Disconnected",
+    "zh-Hans": "未连接",
+    "zh-Hant": "未連線"
+  },
+  "未配置，选择后将提示配置": {
+    "en": "Not configured; select for setup details",
+    "zh-Hans": "未配置，选择后将提示配置",
+    "zh-Hant": "尚未設定，選擇後會顯示設定提示"
+  },
+  "本机规划服务": {
+    "en": "Local planning service",
+    "zh-Hans": "本机规划服务",
+    "zh-Hant": "本機規劃服務"
+  },
+  "本机账本 · AUD · 记录与均分，不执行转账": {
+    "en": "Local ledger · AUD · records and splits costs, no transfers",
+    "zh-Hans": "本机账本 · AUD · 记录与均分，不执行转账",
+    "zh-Hant": "本機帳本 · AUD · 記錄與均分，不執行轉帳"
+  },
+  "查看地图": {
+    "en": "View map",
+    "zh-Hans": "查看地图",
+    "zh-Hant": "查看地圖"
+  },
+  "查看路线": {
+    "en": "View route",
+    "zh-Hans": "查看路线",
+    "zh-Hant": "查看路線"
+  },
+  "正在載入道路路線…": {
+    "en": "Loading road route…",
+    "zh-Hans": "正在载入道路路线…",
+    "zh-Hant": "正在載入道路路線…"
+  },
+  "步数偏好：{0}": {
+    "en": "Preferred daily steps: {0}",
+    "zh-Hans": "步数偏好：{0}",
+    "zh-Hant": "步數偏好：{0}"
+  },
+  "步行": {
+    "en": "Walk",
+    "zh-Hans": "步行",
+    "zh-Hant": "步行"
+  },
+  "每次冒险都值得收藏": {
+    "en": "Every adventure is worth saving",
+    "zh-Hans": "每次冒险都值得收藏",
+    "zh-Hant": "每次冒險都值得收藏"
+  },
+  "沿道路步行路线 · 不含景点停留时间": {
+    "en": "Walking route · excludes time at stops",
+    "zh-Hans": "沿道路步行路线 · 不含景点停留时间",
+    "zh-Hant": "沿道路步行路線 · 不含景點停留時間"
+  },
+  "消费": {
+    "en": "Expense",
+    "zh-Hans": "消费",
+    "zh-Hant": "消費"
+  },
+  "消费记录": {
+    "en": "Expense history",
+    "zh-Hans": "消费记录",
+    "zh-Hant": "消費紀錄"
+  },
+  "渡轮": {
+    "en": "Ferry",
+    "zh-Hans": "渡轮",
+    "zh-Hant": "渡輪"
+  },
+  "準備出發": {
+    "en": "Ready to go",
+    "zh-Hans": "准备出发",
+    "zh-Hant": "準備出發"
+  },
+  "演示模式使用明确标记的示例数据；在线模式仅在服务成功返回后生成方案。尚未包含多人同步、自动预订、支付及后台定位。Cursor 与 Zetaris 按你的要求暂缓。": {
+    "en": "Demo mode uses labelled sample data. Online plans require a successful service response. Shared syncing, automatic bookings, payments and background location are not included.",
+    "zh-Hans": "演示模式使用明确标记的示例数据；在线模式仅在服务成功返回后生成方案。尚未包含多人同步、自动预订、支付及后台定位。Cursor 与 Zetaris 按你的要求暂缓。",
+    "zh-Hant": "示範模式使用標示的範例資料；線上模式僅在服務成功回傳後產生方案。目前尚未包含多人同步、自動預訂、付款及背景定位。"
+  },
+  "演示行程": {
+    "en": "Demo trip",
+    "zh-Hans": "演示行程",
+    "zh-Hant": "示範行程"
+  },
+  "演示行程 · 示例数据": {
+    "en": "Demo trip · sample data",
+    "zh-Hans": "演示行程 · 示例数据",
+    "zh-Hant": "示範行程 · 範例資料"
+  },
+  "火车": {
+    "en": "Train",
+    "zh-Hans": "火车",
+    "zh-Hant": "火車"
+  },
+  "环形码头": {
+    "en": "Circular Quay",
+    "zh-Hans": "环形码头",
+    "zh-Hant": "環形碼頭"
+  },
+  "生活設施": {
+    "en": "Facilities",
+    "zh-Hans": "生活设施",
+    "zh-Hant": "生活設施"
+  },
+  "用于下次规划": {
+    "en": "Use for the next trip",
+    "zh-Hans": "用于下次规划",
+    "zh-Hant": "用於下次規劃"
+  },
+  "电脑规划服务：{0}": {
+    "en": "Local planning service: {0}",
+    "zh-Hans": "电脑规划服务：{0}",
+    "zh-Hant": "電腦規劃服務：{0}"
+  },
+  "看天气": {
+    "en": "Check weather",
+    "zh-Hans": "看天气",
+    "zh-Hant": "看天氣"
+  },
+  "看路线": {
+    "en": "Check route",
+    "zh-Hans": "看路线",
+    "zh-Hant": "看路線"
+  },
+  "知道了": {
+    "en": "Got it",
+    "zh-Hans": "知道了",
+    "zh-Hant": "知道了"
+  },
+  "确认删除？": {
+    "en": "Delete this item?",
+    "zh-Hans": "确认删除？",
+    "zh-Hant": "確認刪除？"
+  },
+  "确认并保存": {
+    "en": "Confirm and save",
+    "zh-Hans": "确认并保存",
+    "zh-Hant": "確認並儲存"
+  },
+  "离线示意图": {
+    "en": "Offline overview",
+    "zh-Hans": "离线示意图",
+    "zh-Hant": "離線示意圖"
+  },
+  "移除": {
+    "en": "Remove",
+    "zh-Hans": "移除",
+    "zh-Hant": "移除"
+  },
+  "第 {0} 天": {
+    "en": "Day {0}",
+    "zh-Hans": "第 {0} 天",
+    "zh-Hant": "第 {0} 天"
+  },
+  "編輯行程": {
+    "en": "Edit itinerary",
+    "zh-Hans": "编辑行程",
+    "zh-Hant": "編輯行程"
+  },
+  "行李备好": {
+    "en": "Pack bags",
+    "zh-Hans": "行李备好",
+    "zh-Hant": "行李備妥"
+  },
+  "行程": {
+    "en": "Trips",
+    "zh-Hans": "行程",
+    "zh-Hant": "行程"
+  },
+  "行程編輯": {
+    "en": "Edit itinerary",
+    "zh-Hans": "行程编辑",
+    "zh-Hant": "行程編輯"
+  },
+  "行程草案": {
+    "en": "Trip draft",
+    "zh-Hans": "行程草案",
+    "zh-Hant": "行程草案"
+  },
+  "記帳": {
+    "en": "Expenses",
+    "zh-Hans": "记帐",
+    "zh-Hant": "記帳"
+  },
+  "记一笔": {
+    "en": "Add expense",
+    "zh-Hans": "记一笔",
+    "zh-Hant": "記一筆"
+  },
+  "记住当前偏好": {
+    "en": "Remember preferences",
+    "zh-Hans": "记住当前偏好",
+    "zh-Hant": "記住目前偏好"
+  },
+  "记账": {
+    "en": "Expenses",
+    "zh-Hans": "记账",
+    "zh-Hant": "記帳"
+  },
+  "設定": {
+    "en": "Settings",
+    "zh-Hans": "设定",
+    "zh-Hant": "設定"
+  },
+  "試用 3 天時間軸": {
+    "en": "Try a 3-day timeline",
+    "zh-Hans": "试用 3 天时间轴",
+    "zh-Hant": "試用 3 天時間軸"
+  },
+  "語言切換後立即生效，並保存在這台裝置。": {
+    "en": "Changes apply immediately and are saved on this device.",
+    "zh-Hans": "语言切换后立即生效，并保存在这台装置。",
+    "zh-Hant": "語言切換後立即生效，並保存在這台裝置。"
+  },
+  "语言": {
+    "en": "Language",
+    "zh-Hans": "语言",
+    "zh-Hant": "語言"
+  },
+  "请输入有效金额": {
+    "en": "Enter a valid amount",
+    "zh-Hans": "请输入有效金额",
+    "zh-Hant": "請輸入有效金額"
+  },
+  "路线详情": {
+    "en": "Route details",
+    "zh-Hans": "路线详情",
+    "zh-Hant": "路線詳情"
+  },
+  "轻轨": {
+    "en": "Light rail",
+    "zh-Hans": "轻轨",
+    "zh-Hant": "輕軌"
+  },
+  "返回": {
+    "en": "Back",
+    "zh-Hans": "返回",
+    "zh-Hant": "返回"
+  },
+  "返回地点": {
+    "en": "Return point",
+    "zh-Hans": "返回地点",
+    "zh-Hant": "返回地點"
+  },
+  "还没有保存的行程。": {
+    "en": "No saved trips yet.",
+    "zh-Hans": "还没有保存的行程。",
+    "zh-Hant": "還沒有儲存的行程。"
+  },
+  "还没有行程": {
+    "en": "No trips yet",
+    "zh-Hans": "还没有行程",
+    "zh-Hant": "還沒有行程"
+  },
+  "还没有记录，先享受这段旅程吧。": {
+    "en": "No expenses yet. Enjoy your trip!",
+    "zh-Hans": "还没有记录，先享受这段旅程吧。",
+    "zh-Hant": "還沒有紀錄，先享受這段旅程吧。"
+  },
+  "这次没有完成": {
+    "en": "Could not complete",
+    "zh-Hans": "这次没有完成",
+    "zh-Hant": "這次沒有完成"
+  },
+  "这次的小冒险": {
+    "en": "Your adventure",
+    "zh-Hans": "这次的小冒险",
+    "zh-Hant": "這次的小冒險"
+  },
+  "遇到不能整除的金额，余下的分按成员顺序分配，合计始终等于原始金额。此版本未关联成员账户或多人同步。": {
+    "en": "Remainder cents are assigned in member order so the total stays correct. Member accounts and shared syncing are not connected.",
+    "zh-Hans": "遇到不能整除的金额，余下的分按成员顺序分配，合计始终等于原始金额。此版本未关联成员账户或多人同步。",
+    "zh-Hant": "無法整除的金額會依成員順序分配餘額，合計保持不變。目前尚未連結成員帳戶或多人同步。"
+  },
+  "選擇交通方式以規劃路線": {
+    "en": "Choose transport to plan a route",
+    "zh-Hans": "选择交通方式以规划路线",
+    "zh-Hant": "選擇交通方式以規劃路線"
+  },
+  "重新查询": {
+    "en": "Search again",
+    "zh-Hans": "重新查询",
+    "zh-Hant": "重新查詢"
+  },
+  "重試": {
+    "en": "Retry",
+    "zh-Hans": "重试",
+    "zh-Hant": "重試"
+  },
+  "金额（AUD）": {
+    "en": "Amount (AUD)",
+    "zh-Hans": "金额（AUD）",
+    "zh-Hant": "金額（AUD）"
+  },
+  "问 AI": {
+    "en": "Ask AI",
+    "zh-Hans": "问 AI",
+    "zh-Hant": "問 AI"
+  },
+  "開始你的悉尼旅行": {
+    "en": "Start your Sydney trip",
+    "zh-Hans": "开始你的悉尼旅行",
+    "zh-Hant": "開始你的雪梨旅行"
+  },
+  "開始導航": {
+    "en": "Start navigation",
+    "zh-Hans": "开始导航",
+    "zh-Hant": "開始導航"
+  },
+  "開始規劃": {
+    "en": "Plan a trip",
+    "zh-Hans": "开始规划",
+    "zh-Hant": "開始規劃"
+  },
+  "離線示意": {
+    "en": "Offline overview",
+    "zh-Hans": "离线示意",
+    "zh-Hant": "離線示意"
+  },
+  "需 Google 底圖": {
+    "en": "Google map required",
+    "zh-Hans": "需 Google 底图",
+    "zh-Hant": "需 Google 底圖"
+  },
+  "需要留意": {
+    "en": "Please note",
+    "zh-Hans": "需要留意",
+    "zh-Hant": "需要留意"
+  },
+  "项目": {
+    "en": "Item",
+    "zh-Hans": "项目",
+    "zh-Hant": "項目"
+  },
+  "顯示步行路線": {
+    "en": "Show walking route",
+    "zh-Hans": "显示步行路线",
+    "zh-Hant": "顯示步行路線"
+  },
+  "餐飲": {
+    "en": "Food",
+    "zh-Hans": "餐饮",
+    "zh-Hant": "餐飲"
+  }
+}

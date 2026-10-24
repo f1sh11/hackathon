@@ -51,6 +51,35 @@ class ScheduleEditorTest {
         File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null),"schedule-android-test.png").outputStream().use{image.compress(Bitmap.CompressFormat.PNG,100,it)};image.recycle()
         c.stop()
     }
+    @Test fun languageSwitchUpdatesSettingsAndTabsAndPersistsWithoutChangingTrip() {
+        val inst=InstrumentationRegistry.getInstrumentation();lateinit var store:BuddyStore
+        rule.runOnIdle{store=BuddyStore(inst.targetContext.applicationContext as Application)}
+        rule.waitUntil(15000){!store.busy}
+        val original=store.language;val trip=fixture().put("id","language-test")
+        assertEquals(1,store.tab)
+        rule.runOnIdle{store.select(trip);store.chooseLanguage(AppLanguage.SIMPLIFIED)}
+        val before=store.trip.toString()
+        rule.setContent{MaterialTheme{CompositionLocalProvider(LocalAppLanguage provides store.language){
+            androidx.compose.foundation.layout.Column {
+                androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.weight(1f)){SettingsScreen(store){}}
+                IosNavigation(store)
+            }
+        }}}
+        try {
+            rule.onNodeWithTag("language-en").performScrollTo().performClick()
+            rule.onNodeWithText("Language",useUnmergedTree=true).assertExists()
+            val trips=rule.onNodeWithText("Trips").fetchSemanticsNode().boundsInRoot
+            val map=rule.onNodeWithText("Map").fetchSemanticsNode().boundsInRoot
+            assertTrue(trips.left<map.left)
+            assertEquals("en",inst.targetContext.getSharedPreferences("buddy",0).getString("appLanguage",null))
+            val catalog=JSONObject(inst.targetContext.assets.open("ui-localizations.json").bufferedReader().use{it.readText()})
+            assertEquals("Day 3",translated(catalog,AppLanguage.ENGLISH,"第 {0} 天","3"))
+            assertEquals("Custom place",translated(catalog,AppLanguage.ENGLISH,"Custom place"))
+            rule.onNodeWithTag("language-zh-Hant").performScrollTo().performClick()
+            rule.onNodeWithText("語言",useUnmergedTree=true).assertExists()
+            assertEquals(before,store.trip.toString())
+        }finally{rule.runOnIdle{store.chooseLanguage(original)}}
+    }
     @Test fun mapHomeAutomaticallyLoadsRouteAndExposesActualModes() {
         val inst=InstrumentationRegistry.getInstrumentation();lateinit var store:BuddyStore;var calls=0
         rule.runOnIdle{store=BuddyStore(inst.targetContext.applicationContext as Application)}

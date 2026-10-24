@@ -28,7 +28,7 @@ enum Palette {
 struct PrimaryButton: View {
     var title: String; var symbol = "arrow.right"; var action: () -> Void
     var body: some View {
-        Button(action:action) { HStack { Spacer(); Text(title).fontWeight(.bold); Image(systemName:symbol); Spacer() }.padding(.vertical,18) }
+        Button(action:action) { HStack { Spacer(); Text(LocalizedStringKey(title)).fontWeight(.bold); Image(systemName:symbol); Spacer() }.padding(.vertical,18) }
             .buttonStyle(BuddyPressStyle()).foregroundStyle(.white).background(Palette.green,in:RoundedRectangle(cornerRadius:22)).padding(.bottom,5).background(Palette.ink,in:RoundedRectangle(cornerRadius:22)).accessibilityLabel(title)
     }
 }
@@ -60,10 +60,10 @@ struct RootView: View {
             if store.showOnboarding { OnboardingView() }
             else {
                 TabView(selection:$store.tab) {
-                    HomeView().tabItem { Label("地图",systemImage:"map.fill") }.tag(0)
-                    TripsView().tabItem { Label("行程",systemImage:"suitcase.rolling.fill") }.tag(1)
-                    JournalView().tabItem { Label("记账",systemImage:"creditcard.fill") }.tag(2)
-                    SettingsView().tabItem { Label("我的",systemImage:"person.crop.circle") }.tag(3)
+                    TripsView().tabItem { Label(store.language.text("行程"),systemImage:"suitcase.rolling.fill") }.tag(1)
+                    HomeView().tabItem { Label(store.language.text("地图"),systemImage:"map.fill") }.tag(0)
+                    JournalView().tabItem { Label(store.language.text("记账"),systemImage:"creditcard.fill") }.tag(2)
+                    SettingsView().tabItem { Label(store.language.text("我的"),systemImage:"person.crop.circle") }.tag(3)
                 }.tint(Palette.green).modifier(CompactTabs())
             }
             if store.busy {
@@ -72,6 +72,7 @@ struct RootView: View {
         }
         .sheet(isPresented:Binding(get:{store.proposal != nil},set:{if !$0 {store.proposal=nil}})) { ProposalView() }
         .alert("需要留意",isPresented:Binding(get:{store.errorMessage != nil},set:{if !$0 {store.errorMessage=nil}})) { Button("知道了",role:.cancel) {} } message: { Text(store.errorMessage ?? "") }
+        .environment(\.locale,Locale(identifier:store.language.rawValue))
     }
 }
 struct OnboardingView: View {

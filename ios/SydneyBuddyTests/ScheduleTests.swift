@@ -4,6 +4,20 @@ import MapKit
 @testable import SydneyBuddy
 
 @MainActor final class ScheduleTests:XCTestCase {
+    func testAppStartsOnTripsAndLanguagePersistsWithoutChangingTrip() throws {
+        let defaults=UserDefaults.standard;let previous=defaults.string(forKey:"appLanguage")
+        defer{if let previous{defaults.set(previous,forKey:"appLanguage")}else{defaults.removeObject(forKey:"appLanguage")}}
+        let store=AppStore();XCTAssertEqual(store.tab,1)
+        store.trip=try fixture();let ids=store.trip!.days.flatMap(\.stops).map(\.id)
+        store.language = .english
+        XCTAssertEqual(AppStore().language,.english)
+        XCTAssertEqual(AppLanguage.english.text("地图"),"Map")
+        XCTAssertEqual(AppLanguage.traditional.text("地图"),"地圖")
+        XCTAssertEqual(AppLanguage.simplified.text("地图"),"地图")
+        XCTAssertEqual(AppLanguage.english.text("第 {0} 天","3"),"Day 3")
+        XCTAssertEqual(AppLanguage.english.text("Custom place"),"Custom place")
+        XCTAssertEqual(store.trip!.days.flatMap(\.stops).map(\.id),ids)
+    }
     func testHomeAutoLoadsWalkingRouteOnceAndDoesNotAutoCallGoogle() async throws {
         let day=try fixture().days[0];let routeData=try Data(contentsOf:Bundle(for:Self.self).url(forResource:"walking-sydney",withExtension:"json")!)
         let overview=ItineraryOverview();var calls=0

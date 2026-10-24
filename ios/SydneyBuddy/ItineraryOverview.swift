@@ -193,14 +193,15 @@ func overviewTransportLegs(_ day:DayPlan,route:OverviewRoute?,plan:JourneyPlan?)
 }
 struct HomeTransportStrip:View {
     var day:DayPlan;@ObservedObject var overview:ItineraryOverview
+    @EnvironmentObject var store:AppStore
     var onPlan:()->Void;var onRetry:()->Void
     var body:some View {
         VStack(alignment:.leading,spacing:6){
-            HStack{Button(action:onPlan){Label("交通方式",systemImage:"arrow.triangle.swap").font(.caption.bold())};Spacer();if overview.route != nil{Text("\(Int(ceil((overview.route?.seconds ?? 0)/60))) 分 · 交通預估").font(.caption2).foregroundStyle(Palette.muted)}}
+            HStack{Button(action:onPlan){Label("交通方式",systemImage:"arrow.triangle.swap").font(.caption.bold())};Spacer();if overview.route != nil{Text(store.language.text("{0} 分 · 交通預估",String(Int(ceil((overview.route?.seconds ?? 0)/60))))).font(.caption2).foregroundStyle(Palette.muted)}}
             if overview.busy{ProgressView("正在載入道路路線…").font(.caption)}
             else if overview.route != nil{
                 ScrollView(.horizontal,showsIndicators:false){HStack(spacing:6){ForEach(overviewTransportLegs(day,route:overview.route,plan:overview.plan)){leg in
-                    VStack(alignment:.leading,spacing:4){Label("\(leg.label) · \(leg.transport) \(leg.minutes) 分",systemImage:transportSymbol(leg.mode)).font(.caption.bold()).lineLimit(1);Text(leg.from+" → "+leg.to).font(.system(size:10)).lineLimit(1)}.padding(8).frame(maxWidth:220,alignment:.leading).background(Palette.mint.opacity(0.65),in:RoundedRectangle(cornerRadius:10))
+                    VStack(alignment:.leading,spacing:4){Label(store.language.text("{0} · {1} {2} 分",leg.label,store.language.text(leg.transport),String(leg.minutes)),systemImage:transportSymbol(leg.mode)).font(.caption.bold()).lineLimit(1);Text(leg.from+" → "+leg.to).font(.system(size:10)).lineLimit(1)}.padding(8).frame(maxWidth:220,alignment:.leading).background(Palette.mint.opacity(0.65),in:RoundedRectangle(cornerRadius:10))
                 }}}.accessibilityIdentifier("home-transport-legs")
             }else if let message=overview.message{
                 HStack(alignment:.top){Text(message).font(.caption2).foregroundStyle(.red);Spacer();Button("重試",action:onRetry).font(.caption.bold())}.accessibilityIdentifier("home-route-error")

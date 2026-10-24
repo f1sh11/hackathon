@@ -64,7 +64,7 @@ internal fun toolboxMinute(y:Float,scale:Float,first:Int,start:Int,end:Int):Int?
     Box(Modifier.fillMaxWidth().height(600.dp).testTag("schedule-workbench").onGloballyPositioned{origin=it.positionInRoot()}) {
         Row(Modifier.fillMaxSize(),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
             Column(Modifier.fillMaxWidth(.34f),verticalArrangement=Arrangement.spacedBy(6.dp)) {
-                Text("景點工具箱",fontSize=13.sp,fontWeight=FontWeight.Bold)
+                Text(ui("景點工具箱"),fontSize=13.sp,fontWeight=FontWeight.Bold)
                 TextButton(onClick={discover=true},contentPadding=PaddingValues(0.dp)){Text("地圖找地點",fontSize=11.sp)}
                 Text("依推薦排序\n按住 ☰ 拖到日期切換\n再拖入右側時段",fontSize=10.sp,color=Color.Gray)
                 Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(10.dp)) {
@@ -102,7 +102,7 @@ internal fun toolboxMinute(y:Float,scale:Float,first:Int,start:Int,end:Int):Int?
 }
 @Composable private fun SchedulePlaceDetail(p:JSONObject,onDismiss:()->Unit) {
     fun time(n:Int)="%02d:%02d".format(n/60,n%60)
-    AlertDialog(onDismissRequest=onDismiss,title={Text("景點介紹")},text={Column(Modifier.heightIn(max=480.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(14.dp)) {
+    AlertDialog(onDismissRequest=onDismiss,title={Text(ui("景點介紹"))},text={Column(Modifier.heightIn(max=480.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(14.dp)) {
         Text(p.optString("name"),fontSize=21.sp,fontWeight=FontWeight.Bold)
         Text(p.optString("category")+" · "+if(p.optBoolean("indoor"))"室內"else "戶外",color=Color.Gray)
         Text(p.optString("description").takeIf{it.isNotBlank()} ?: "此草案尚未附上景點介紹，可重新試算以更新資料。")
@@ -112,5 +112,5 @@ internal fun toolboxMinute(y:Float,scale:Float,first:Int,start:Int,end:Int):Int?
         if(!p.isNull("openMinute")&&!p.isNull("closeMinute"))Text("示範開放時段 ${time(p.optInt("openMinute"))}–${time(p.optInt("closeMinute"))}")
         if(p.optString("note").isNotBlank())Small(p.optString("note"))
         Small(if(p.optString("source")=="OpenStreetMap")"資料來源：© OpenStreetMap contributors · 社群資料，費用及營業資訊未確認。"else "本機景點資料；費用與開放時間是規劃示例，出發前請確認當日資訊。")
-    }},confirmButton={TextButton(onClick=onDismiss){Text("完成")}})
+    }},confirmButton={TextButton(onClick=onDismiss){Text(ui("完成"))}})
 }

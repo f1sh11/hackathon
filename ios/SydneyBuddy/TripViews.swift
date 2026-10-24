@@ -91,12 +91,12 @@ struct TripsView:View {
                             ZStack(alignment:.bottomLeading){LinearGradient(colors:[Palette.mint,Color(red:0.68,green:0.85,blue:0.90)],startPoint:.bottomLeading,endPoint:.topTrailing);Image(systemName:"sailboat.fill").font(.system(size:80)).foregroundStyle(.white).frame(maxWidth:.infinity,alignment:.trailing).padding(22);Text("SYDNEY").font(.system(size:25,weight:.black,design:.rounded)).tracking(4).foregroundStyle(Palette.green).padding(22)}.frame(height:145).clipShape(RoundedRectangle(cornerRadius:20))
                             HStack {VStack(alignment:.leading,spacing:7){Text(t.title).font(.headline);Text("\(t.profile.date) · \(t.days.count) 天 · \(t.days.flatMap(\.stops).count) 个地点").font(.caption).foregroundStyle(Palette.muted)};Spacer();Image(systemName:"arrow.up.right").foregroundStyle(Palette.green)}
                             }}.buttonStyle(.plain).accessibilityLabel("編輯行程："+t.title).accessibilityIdentifier("edit-trip-"+(t.id ?? "draft"))
-                            HStack {Button{navigationTrip=t}label:{Label("開始導航",systemImage:"location.fill")}.font(.subheadline.bold()).tint(Palette.green).accessibilityIdentifier("navigate-trip-"+(t.id ?? "draft"));Button("查看地图"){store.trip=t;store.dayIndex=0;store.tab=0}.font(.subheadline.bold()).tint(Palette.green);Spacer();Text(t.mode=="live" ? "在线数据规划" : (t.mode=="assisted" ? "Nemotron · 示例地点" : "演示行程")).font(.caption2).foregroundStyle(Palette.muted);Menu{Button("删除行程",role:.destructive){Task{await store.deleteTrip(t)}}}label:{Image(systemName:"ellipsis").padding(8)}}
+                            HStack {Button{navigationTrip=t}label:{Label("開始導航",systemImage:"location.fill")}.font(.subheadline.bold()).tint(Palette.green).accessibilityIdentifier("navigate-trip-"+(t.id ?? "draft"));Button("查看地图"){store.trip=t;store.dayIndex=0;store.tab=0}.font(.subheadline.bold()).tint(Palette.green);Spacer();Text(LocalizedStringKey(t.mode=="live" ? "在线数据规划" : (t.mode=="assisted" ? "Nemotron · 示例地点" : "演示行程"))).font(.caption2).foregroundStyle(Palette.muted);Menu{Button("删除行程",role:.destructive){Task{await store.deleteTrip(t)}}}label:{Image(systemName:"ellipsis").padding(8)}}
                         }.padding(18).background(.white,in:RoundedRectangle(cornerRadius:26))
                     }
                     HStack{Robot(size:70);Text("不必赶路，\n按自己的节奏出发。").font(.headline).foregroundStyle(Palette.ink)}.padding(.vertical,10)
                 }.padding(24)
-            }.background(Palette.cream).navigationTitle("我的行程").refreshable{await store.reload()}
+            }.background(Palette.cream).navigationTitle(store.language.text("我的行程")).refreshable{await store.reload()}
         }.fullScreenCover(item:$navigationTrip){trip in SavedTripNavigationView(trip:trip)}
     }
 }

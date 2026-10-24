@@ -86,7 +86,10 @@ struct Expense: Codable, Identifiable {
     }
     var mapViewport: MapViewport?
     @Published var live = false
-    @Published var tab = 0
+    @Published var language = AppLanguage(rawValue:UserDefaults.standard.string(forKey:"appLanguage") ?? "") ?? .traditional {
+        didSet {UserDefaults.standard.set(language.rawValue,forKey:"appLanguage")}
+    }
+    @Published var tab = 1
     @Published var dayIndex = 0
     @Published var expenses: [Expense] = [] { didSet { saveExpenses() } }
     @Published var showOnboarding = !UserDefaults.standard.bool(forKey: "onboarded")

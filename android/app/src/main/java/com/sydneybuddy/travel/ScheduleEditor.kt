@@ -154,12 +154,12 @@ private fun kindLabel(kind:String)=when(kind){"meal"->"用餐";"restroom"->"廁�
             TextButton(onClick={controller.edit{it.put("rainy",!it.optBoolean("rainy"))}}){Text(if(state.optBoolean("rainy"))"切回晴天示例" else "測試下雨影響")}
             TextButton(onClick={controller.request(true)}){Text("依目前偏好重新建議（重選活動）")}
             Action("確認並保存",!controller.busy&&!controller.dirty&&!state.array("issues").objects().any{it.optBoolean("blocking")}){confirm=true}
-        }else {if(controller.busy)Text("建立首版多日行程…")else TextButton(onClick={controller.request(true)}){Text("重試")}}
+        }else {if(controller.busy)Text("建立首版多日行程…")else TextButton(onClick={controller.request(true)}){Text(ui("重試"))}}
         TextButton(onClick={controller.stop();store.cancelProposal()}){Text("取消草案")}
     }
-    controller.notice?.let{text->AlertDialog(onDismissRequest={controller.notice=null},title={Text("需要留意")},text={Text(text)},confirmButton={TextButton(onClick={controller.notice=null}){Text("繼續調整")}})}
-    controller.error?.let{text->AlertDialog(onDismissRequest={controller.error=null},title={Text("試算未完成")},text={Text(text)},confirmButton={TextButton(onClick={controller.error=null;controller.request()}){Text("重試")}},dismissButton={TextButton(onClick={controller.error=null}){Text("保留草案")}})}
-    if(confirm)AlertDialog(onDismissRequest={confirm=false},text={Text("保存目前草案？估算及待確認資料會一併保存。")},confirmButton={TextButton(onClick={confirm=false;store.applyScheduleDraft(controller.trip);store.accept()}){Text("確認保存")}},dismissButton={TextButton(onClick={confirm=false}){Text("取消")}})
+    controller.notice?.let{text->AlertDialog(onDismissRequest={controller.notice=null},title={Text(ui("需要留意"))},text={Text(text)},confirmButton={TextButton(onClick={controller.notice=null}){Text("繼續調整")}})}
+    controller.error?.let{text->AlertDialog(onDismissRequest={controller.error=null},title={Text("試算未完成")},text={Text(text)},confirmButton={TextButton(onClick={controller.error=null;controller.request()}){Text(ui("重試"))}},dismissButton={TextButton(onClick={controller.error=null}){Text("保留草案")}})}
+    if(confirm)AlertDialog(onDismissRequest={confirm=false},text={Text("保存目前草案？估算及待確認資料會一併保存。")},confirmButton={TextButton(onClick={confirm=false;store.applyScheduleDraft(controller.trip);store.accept()}){Text("確認保存")}},dismissButton={TextButton(onClick={confirm=false}){Text(ui("取消"))}})
     if(candidates&&state!=null)ScheduleCandidates(controller){candidates=false}
     if(settings&&state!=null)ScheduleSettingsDialog(controller){settings=false}
     editing?.let{a->ScheduleActivityDialog(a,state!!.array("days").length(),controller.dayIndex,onDismiss={editing=null},onDelete={controller.edit{s->val d=s.array("days").getJSONObject(controller.dayIndex);d.put("activities",JSONArray(d.array("activities").objects().filterNot{it.optString("id")==a.optString("id")}))};editing=null}){updated,target->controller.edit{s->val source=s.array("days").getJSONObject(controller.dayIndex);val list=source.array("activities").objects();if(target==controller.dayIndex)source.put("activities",JSONArray(list.map{if(it.optString("id")==updated.optString("id"))updated else it}))else{source.put("activities",JSONArray(list.filterNot{it.optString("id")==updated.optString("id")}));s.array("days").getJSONObject(target).array("activities").put(updated)}};editing=null}}
@@ -173,7 +173,7 @@ private fun kindLabel(kind:String)=when(kind){"meal"->"用餐";"restroom"->"廁�
         state.array("candidates").objects().forEach{p->Row(verticalAlignment=Alignment.CenterVertically){Checkbox(checked=p.optString("id") in selected,onCheckedChange={checked->if(checked)c.add(p)else c.edit{s->s.array("days").objects().forEach{d->d.put("activities",JSONArray(d.array("activities").objects().filterNot{it.optString("placeId")==p.optString("id")}))}}});Column{Text(p.optString("name"));Small(p.optString("reason"));Small("A$${p.optDouble("cost")} · 遊覽 ${p.optInt("visitMinutes")} 分 · 排隊未知");TextButton(onClick={c.toggleMust(p)}){Text(if(p.optString("id") in c.trip.getJSONObject("profile").array("mustVisit").strings())"★ 必去"else "☆ 設為必去")}}}}
         HorizontalDivider();Text("新增生活站點（地點待確認）")
         listOf("meal","restroom","rest","bag-drop","bag-pickup").forEach{kind->TextButton(onClick={c.edit{s->val day=s.array("days").getJSONObject(c.dayIndex);val point=day.getJSONObject("start");day.array("activities").put(JSONObject().put("id",UUID.randomUUID().toString()).put("kind",kind).put("name",kindLabel(kind)+" · 待確認").put("lat",point.getDouble("lat")).put("lng",point.getDouble("lng")).put("duration",if(kind=="meal")45 else 10).put("cost",if(kind=="meal")s.getJSONObject("settings").optDouble("mealCost")else 0))}}){Text("＋${kindLabel(kind)}")}}
-    }},confirmButton={TextButton(onClick=onDismiss){Text("完成")}})
+    }},confirmButton={TextButton(onClick=onDismiss){Text(ui("完成"))}})
 }
 @Composable private fun ScheduleSettingsDialog(c:ScheduleController,onDismiss:()->Unit) {
     val original=c.state!!
@@ -196,7 +196,7 @@ private fun kindLabel(kind:String)=when(kind){"meal"->"用餐";"restroom"->"廁�
         values.put("pace",pace).put("luggage",luggage)
         stays.forEachIndexed{i,stay->for(key in listOf("name","lat","lng","cost","checkIn","checkOut")){val v=fields["$i:$key"]!!;stay.put(key,if(key=="name")v else if(key in listOf("checkIn","checkOut"))scheduleTimeMinute(v)else v.toDouble())}}
         c.edit{s->s.put("settings",values);stays.forEachIndexed{i,stay->s.array("days").getJSONObject(i).put("stay",stay).put("startMinute",scheduleTimeMinute(fields["$i:startMinute"]!!)).put("endMinute",scheduleTimeMinute(fields["$i:endMinute"]!!))}};onDismiss()
-    }.onFailure{invalid=true}}){Text("套用")}},dismissButton={TextButton(onClick=onDismiss){Text("取消")}})
+    }.onFailure{invalid=true}}){Text("套用")}},dismissButton={TextButton(onClick=onDismiss){Text(ui("取消"))}})
 }
 @Composable private fun ScheduleActivityDialog(original:JSONObject,days:Int,currentDay:Int,onDismiss:()->Unit,onDelete:()->Unit={},onSave:(JSONObject,Int)->Unit) {
     val fields=remember{mutableStateMapOf<String,String>().apply{for(key in listOf("name","duration","lat","lng","cost","queueMinutes","openMinute","closeMinute"))put(key,if(key=="queueMinutes"&&original.isNull(key))"" else if(key in listOf("openMinute","closeMinute"))scheduleTimeLabel(original.optInt(key,if(key=="closeMinute")1440 else 0)) else original.optString(key))}}
@@ -220,7 +220,7 @@ private fun kindLabel(kind:String)=when(kind){"meal"->"用餐";"restroom"->"廁�
         if(original.optString("kind")=="attraction"){if(fields["queueMinutes"].isNullOrBlank())a.remove("queueMinutes")else a.put("queueMinutes",fields["queueMinutes"]!!.toInt())}
         else for(key in listOf("name","lat","lng","cost","openMinute","closeMinute")){val v=fields[key]!!;a.put(key,if(key=="name")v else if(key in listOf("openMinute","closeMinute"))scheduleTimeMinute(v)else v.toDouble())}
         onSave(a,target)
-    }.onFailure{invalid=true}}){Text("套用")}},dismissButton={TextButton(onClick=onDismiss){Text("取消")}})
+    }.onFailure{invalid=true}}){Text("套用")}},dismissButton={TextButton(onClick=onDismiss){Text(ui("取消"))}})
 }
 
 

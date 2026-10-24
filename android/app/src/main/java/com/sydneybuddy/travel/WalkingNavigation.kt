@@ -204,7 +204,7 @@ internal fun walkingConfig()=NavigationControllerConfig(WaypointAdvanceMode.Wayp
             if(nav.active) window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             onDispose {window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)}
         }
-        Scaffold(topBar={TopAppBar(title={Text("逐段导航")},actions={TextButton(onClick=onClose){Text("关闭")}})}) { padding ->
+        Scaffold(topBar={TopAppBar(title={Text("逐段导航")},actions={TextButton(onClick=onClose){Text(ui("关闭"))}})}) { padding ->
             Column(Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),verticalArrangement=Arrangement.spacedBy(14.dp)) {
                 Small("導航日期："+day.optString("date"))
                 Text("第 ${nav.progress.leg+1} / ${nav.count} 段 · 步行",style=MaterialTheme.typography.titleMedium)
@@ -247,5 +247,5 @@ internal fun walkingConfig()=NavigationControllerConfig(WaypointAdvanceMode.Wayp
             }
         }
     }
-    if(reset) AlertDialog(onDismissRequest={reset=false},title={Text("重置今天的导航进度？")},confirmButton={TextButton(onClick={nav.reset();reset=false}){Text("重置")}},dismissButton={TextButton(onClick={reset=false}){Text("取消")}})
+    if(reset) AlertDialog(onDismissRequest={reset=false},title={Text("重置今天的导航进度？")},confirmButton={TextButton(onClick={nav.reset();reset=false}){Text("重置")}},dismissButton={TextButton(onClick={reset=false}){Text(ui("取消"))}})
 }

@@ -28,7 +28,9 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
     var busy by mutableStateOf(false); private set
     var weather by mutableStateOf<JSONObject?>(null); private set
     var online by mutableStateOf(false)
-    var tab by mutableStateOf(0)
+    var language by mutableStateOf(AppLanguage.fromStored(prefs.getString("appLanguage",null)));private set
+    fun chooseLanguage(value:AppLanguage){language=value;prefs.edit().putString("appLanguage",value.code).apply()}
+    var tab by mutableStateOf(1)
     var dayIndex by mutableStateOf(0)
     var onboarding by mutableStateOf(!prefs.getBoolean("onboarded", false))
     var preparations by mutableStateOf(prefs.getStringSet("preparations", emptySet())!!.toSet()); private set

@@ -12,7 +12,10 @@ for p in sorted((root/'SydneyBuddy').glob('*.swift')):
  source_refs.append(f);build_refs.append(obj('build'+p.name,{'isa':'PBXBuildFile','fileRef':f}))
 configfile=obj('base',{'isa':'PBXFileReference','lastKnownFileType':'text.xcconfig','path':'Config/Base.xcconfig','sourceTree':'<group>'})
 plist=obj('plist',{'isa':'PBXFileReference','lastKnownFileType':'text.plist.xml','path':'Config/Info.plist','sourceTree':'<group>'})
-sourcegroup=obj('sourcegroup',{'isa':'PBXGroup','children':source_refs,'path':'SydneyBuddy','sourceTree':'<group>'})
+localrefs=[obj('local'+lang,{'isa':'PBXFileReference','lastKnownFileType':'text.plist.strings','name':lang,'path':lang+'.lproj/Localizable.strings','sourceTree':'<group>'}) for lang in ['en','zh-Hans','zh-Hant']]
+localgroup=obj('localgroup',{'isa':'PBXVariantGroup','children':localrefs,'name':'Localizable.strings','sourceTree':'<group>'})
+source_refs.append(localgroup)
+sourcegroup=obj('sourcegroup' ,{'isa':'PBXGroup','children':source_refs,'path':'SydneyBuddy','sourceTree':'<group>'})
 product=obj('app',{'isa':'PBXFileReference','explicitFileType':'wrapper.application','path':'SydneyBuddy.app','sourceTree':'BUILT_PRODUCTS_DIR'})
 products=obj('products',{'isa':'PBXGroup','children':[product],'name':'Products','sourceTree':'<group>'})
 main=obj('main',{'isa':'PBXGroup','children':[sourcegroup,configfile,plist,products],'sourceTree':'<group>'})
@@ -24,7 +27,7 @@ navprod=obj('ferrostarproduct',{'isa':'XCSwiftPackageProductDependency','package
 navframework=obj('ferrostarbuild',{'isa':'PBXBuildFile','productRef':navprod})
 sources=obj('sources',{'isa':'PBXSourcesBuildPhase','buildActionMask':2147483647,'files':build_refs,'runOnlyForDeploymentPostprocessing':0})
 frameworks=obj('frameworks',{'isa':'PBXFrameworksBuildPhase','buildActionMask':2147483647,'files':[framework,navframework],'runOnlyForDeploymentPostprocessing':0})
-resources=obj('resources',{'isa':'PBXResourcesBuildPhase','buildActionMask':2147483647,'files':[],'runOnlyForDeploymentPostprocessing':0})
+resources=obj('resources',{'isa':'PBXResourcesBuildPhase','buildActionMask':2147483647,'files':[obj('buildlocal',{'isa':'PBXBuildFile','fileRef':localgroup})],'runOnlyForDeploymentPostprocessing':0})
 def configs(prefix,base,settings):
  configs=[]
  for name in ['Debug','Release']:
@@ -50,7 +53,7 @@ objects[uid('projectDebug')]['buildSettings']['ONLY_ACTIVE_ARCH']='YES'
 proxy=obj('testproxy',{'isa':'PBXContainerItemProxy','containerPortal':uid('project'),'proxyType':1,'remoteGlobalIDString':target,'remoteInfo':'SydneyBuddy'})
 dependency=obj('testdependency',{'isa':'PBXTargetDependency','target':target,'targetProxy':proxy})
 testtarget=obj('testtarget',{'isa':'PBXNativeTarget','name':'SydneyBuddyTests','productName':'SydneyBuddyTests','productType':'com.apple.product-type.bundle.unit-test','productReference':testproduct,'buildConfigurationList':testconfig,'buildPhases':[testsources,testframeworks,testresources],'buildRules':[],'dependencies':[dependency],'packageProductDependencies':[navprod]})
-project=obj('project',{'isa':'PBXProject','attributes':{'LastUpgradeCheck':'2700'},'buildConfigurationList':projconfig,'compatibilityVersion':'Xcode 14.0','developmentRegion':'zh-Hans','hasScannedForEncodings':0,'knownRegions':['en','zh-Hans','Base'],'mainGroup':main,'packageReferences':[pkg,navpkg],'productRefGroup':products,'projectDirPath':'','projectRoot':'','targets':[target,testtarget]})
+project=obj('project',{'isa':'PBXProject','attributes':{'LastUpgradeCheck':'2700'},'buildConfigurationList':projconfig,'compatibilityVersion':'Xcode 14.0','developmentRegion':'zh-Hans','hasScannedForEncodings':0,'knownRegions':['en','zh-Hans','zh-Hant','Base'],'mainGroup':main,'packageReferences':[pkg,navpkg],'productRefGroup':products,'projectDirPath':'','projectRoot':'','targets':[target,testtarget]})
 def encode(v,indent=0):
  if isinstance(v,dict):return '{\n'+''.join('  '*(indent+1)+k+' = '+encode(val,indent+1)+';\n' for k,val in v.items())+'  '*indent+'}'
  if isinstance(v,list):return '('+', '.join(encode(x,indent) for x in v)+')'
