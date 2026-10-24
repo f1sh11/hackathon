@@ -18,6 +18,14 @@ class MapProviderFlowTest {
         if(scroll) node.performScrollTo()
         node.performClick()
     }
+    @Test fun travelDataSourcePersistsWithoutChangingMapOrTrip() {
+        var original="direct";var provider=MapProvider.OSM;var trip:String?=null
+        rule.activityRule.scenario.onActivity{activity->val store=ViewModelProvider(activity)[BuddyStore::class.java];original=store.travelDataSource;provider=store.mapProvider;trip=store.trip?.toString();store.chooseTravelDataSource("zetaris")}
+        rule.activityRule.scenario.recreate()
+        rule.activityRule.scenario.onActivity{activity->val store=ViewModelProvider(activity)[BuddyStore::class.java];assertEquals("zetaris",store.travelDataSource);assertEquals(provider,store.mapProvider);assertEquals(trip,store.trip?.toString());store.chooseTravelDataSource("direct")}
+        rule.activityRule.scenario.recreate()
+        rule.activityRule.scenario.onActivity{activity->val store=ViewModelProvider(activity)[BuddyStore::class.java];assertEquals("direct",store.travelDataSource);store.chooseTravelDataSource(original)}
+    }
     @Test fun providerSwitchPersistsAndDoesNotChangeSavedTrip() {
         rule.waitUntil(30000) {rule.onAllNodesWithText("Buddy 正在处理",substring=true).fetchSemanticsNodes().isEmpty()}
         var before:String?=null

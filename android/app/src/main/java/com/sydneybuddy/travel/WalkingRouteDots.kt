@@ -31,7 +31,7 @@ internal fun walkingRouteDots(points:List<Pair<Double,Double>>,spacingMeters:Dou
 }
 
 /** Geometry and mode are part of identity: equal vertex counts do not imply the same route. */
-internal data class OsmRouteScene(val day:String,val overview:OverviewRoute?,val sections:List<JourneyMapSection>)
+internal data class OsmRouteScene(val day:String,val overview:OverviewRoute?,val sections:List<JourneyMapSection>,val insights:String="")
 
 /** Logical screen units keep the route legible across density and device sizes. */
 internal data class WalkingDotStyle(val radius:Float,val halo:Float,val spacing:Double)

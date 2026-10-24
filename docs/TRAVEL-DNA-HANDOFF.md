@@ -2,9 +2,9 @@
 
 ## Outcome and baseline
 
-Inspected `main` at `39a7399` (24 October 2026, Sydney time). The app already had native iOS/Android, .NET 10, PostgreSQL, planning, maps, weather, saved itineraries and an iOS pet chat. H-MEM was present, but chat preferences were mostly free-text summaries. The animation branch contained a manifest without its media. A complete simulation/optimization skill and Zetaris integration were not present.
+Inspected `main` at `39a7399` (24 October 2026, Sydney time). The app already had native iOS/Android, .NET 10, PostgreSQL, planning, maps, weather, saved itineraries and an iOS pet chat. H-MEM was present, but chat preferences were mostly free-text summaries. The animation branch contained a manifest without its media. At that original baseline, a complete simulation/optimization skill and Zetaris integration were not present. Latest main at `6f07790` is now integrated into this feature branch, including the Apple Maps flow, Zetaris travel/insight providers and Node 26 H-MEM compatibility repair.
 
-This slice implements natural-conversation profiling, candidate/consent/conflict handling and real koala asset playback. No database migration or new application service is required. PostgreSQL continues storing preference JSON; the official vendored H-MEM code is unchanged.
+This slice implements natural-conversation profiling, candidate/consent/conflict handling and real koala asset playback. No database migration or new application service is required. PostgreSQL continues storing preference JSON; the official vendored H-MEM logic is retained, with main’s documented Node 26 constructor compatibility patch (see `server/vendor/hmem/UPSTREAM.md`).
 
 ## What removed the questionnaire effect
 
@@ -28,7 +28,7 @@ The inspiration card shows the current ideas, explicit known preferences and dim
 
 This slice does not claim that every v2 inference boundary is formally verified by a classifier. The extraction prompt states those limits and contextual clicks have additional server guards; live NVIDIA wording and the full product acceptance scenario still need a configured model run. Android's conversational profiling UI remains a later slice. The spec's richer consent/persistence metadata and activity-specific promotion into long-term memory are not new APIs in this slice.
 
-V2 validation adds four-button end-to-end HTTP scenarios, stop-asking shortcuts, stale-option/idempotency checks, contextual provenance and legacy-draft upgrades. All 199 backend tests pass locally. Native iOS tests additionally cover restored inspiration, unknown formal fields, in-place upgrade and nickname reuse without simulated preference seeding. The iOS workflow also runs on pushes to this draft feature branch, so simulator validation does not depend on merging main.
+V2 validation adds four-button end-to-end HTTP scenarios, stop-asking shortcuts, stale-option/idempotency checks, contextual provenance and legacy-draft upgrades. After synchronizing main at `6f07790`, all 232 backend tests and 26 Zetaris tool tests pass locally. Native iOS tests additionally cover restored inspiration, unknown formal fields, in-place upgrade and nickname reuse without simulated preference seeding. The iOS workflow also runs on pushes to this draft feature branch, so simulator validation does not depend on merging main.
 
 ## Responsibility map and data flow
 
@@ -73,7 +73,7 @@ See [the exact event table](KOALA-ANIMATION-INTEGRATION.md). All 10 actions and 
 
 ## Verification and review
 
-Local validation: backend compiles, 183 tests pass after integrating main at `0094707`, and official H-MEM conformance passes 13/13. HTTP integration tests ran with a temporary PGlite PostgreSQL socket server in serial mode; the standard repository CI uses native PostgreSQL. Added tests cover a natural zero-question reply, unknown answers, the sunrise exception, trip vs long-term scope, inferred claims, conflict confirmation, stale sessions, updates/revocation and real Node H-MEM candidate/long-term isolation.
+Local validation: backend compiles and 232 tests pass after integrating main at `6f07790`; all 26 Zetaris Python tool tests pass. Official H-MEM conformance passed 13/13 before the merge and is rechecked by branch CI against main’s compatibility patch. HTTP integration tests ran with a temporary PGlite PostgreSQL socket server in serial mode; the standard repository CI uses native PostgreSQL. Added tests cover a natural zero-question reply, unknown answers, the sunrise exception, trip vs long-term scope, inferred claims, conflict confirmation, stale sessions, updates/revocation and real Node H-MEM candidate/long-term isolation.
 
 Every runtime PNG has verified dimensions and alpha; Swift syntax parses. Native build and simulator results must be taken from GitHub Actions, not inferred from these local checks. NVIDIA conversational quality still requires a real configured model session; fake-model tests verify the protocol and guards, not the wording a live model will choose.
 

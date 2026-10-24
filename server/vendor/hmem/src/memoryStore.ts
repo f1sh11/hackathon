@@ -1,3 +1,4 @@
+// Sydney Buddy compatibility patch (2026-10-24): explicit fields for native Node type stripping.
 // Tiered memory store with enrichment (AGENTS.md sections 2, 3, 5).
 // A record with no source is rejected by construction. Enrichment runs on
 // every add: domain classification, namespace, entity extraction (cap 10),
@@ -40,12 +41,19 @@ export class MemoryStoreService {
   private seq = 0;
   private stateFile?: string;
 
+  private clock: () => number;
+  private ledger: TrustLedgerService;
+  private actor: string;
+
   constructor(
-    private clock: () => number,
-    private ledger: TrustLedgerService,
-    private actor: string,
+    clock: () => number,
+    ledger: TrustLedgerService,
+    actor: string,
     persistDir?: string
   ) {
+    this.clock = clock;
+    this.ledger = ledger;
+    this.actor = actor;
     if (persistDir) {
       fs.mkdirSync(persistDir, { recursive: true });
       this.stateFile = path.join(persistDir, "state.json");

@@ -1,3 +1,4 @@
+// Sydney Buddy compatibility patch (2026-10-24): explicit fields for native Node type stripping.
 // Dreaming (AGENTS.md section 7): constructive synthesis with a human
 // approval boundary. Proposals are NEVER auto-materialized; only approve()
 // turns one into durable memory, with derivedFrom lineage.
@@ -12,12 +13,21 @@ export class DreamingService {
   private proposals = new Map<string, DreamProposal>();
   private seq = 0;
 
+  private store: MemoryStoreService;
+  private ledger: TrustLedgerService;
+  private clock: () => number;
+  private actor: string;
+
   constructor(
-    private store: MemoryStoreService,
-    private ledger: TrustLedgerService,
-    private clock: () => number,
-    private actor: string
-  ) {}
+    store: MemoryStoreService,
+    ledger: TrustLedgerService,
+    clock: () => number,
+    actor: string
+  ) {
+    this.store = store;
+    this.ledger = ledger;
+    this.clock = clock;
+    this.actor = actor;}
 
   // Multi-signal relatedness: content similarity, tag overlap, shared domain/type, entity overlap.
   private relatedness(a: MemoryRecord, b: MemoryRecord): number {

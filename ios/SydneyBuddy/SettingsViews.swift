@@ -48,6 +48,7 @@ struct SettingsView:View {
                         ForEach(store.memories){memory in HStack(alignment:.top){Text(memory.summary).font(.subheadline);Spacer();Button("删除",role:.destructive){deletingMemory=memory}.font(.subheadline).frame(minHeight:44)}}
                     }
                 }
+                travelDataSection
                 Section("设置") {
                     Picker("界面语言",selection:$store.language){ForEach(AppLanguage.allCases){language in Text(verbatim:language.label).tag(language)}}.accessibilityIdentifier("app-language-picker")
                 }
@@ -59,7 +60,7 @@ struct SettingsView:View {
                     DisclosureGroup("高级设置与开发测试") {
                         Group {
                     Picker("地图来源",selection:$store.mapProvider) {
-                        ForEach(MapProvider.allCases) { source in Text(LocalizedStringKey(source.label)).tag(source) }
+                        ForEach(store.availableMapProviders) { source in Text(LocalizedStringKey(source.label)).tag(source) }
                     }
                     Text("切换后，交通规划会预选对应路线服务，需点查询才取得新路线。NSW 资料可另选；Google 仍需启用服务。").font(.caption).foregroundStyle(Palette.muted)
                     if store.mapProvider == .google && !SydneyBuddyApp.mapConfigured {
@@ -84,6 +85,15 @@ struct SettingsView:View {
             .sheet(isPresented:$editingPersonalPreferences){PersonalPreferencesView(editing:true)}
             .confirmationDialog("删除这条长期偏好？以后的旅行将不再参考它。",isPresented:Binding(get:{deletingMemory != nil},set:{if !$0{deletingMemory=nil}}),titleVisibility:.visible){Button("删除偏好",role:.destructive){if let memory=deletingMemory{Task{await store.deleteMemory(memory);deletingMemory=nil}}}}
         }
+    }
+    private var travelDataSection:some View {
+        Section("旅遊資料來源") {
+            Picker("資料取得方式",selection:$store.travelDataSource){ForEach(TravelDataSource.allCases){route in Text(LocalizedStringKey(route.label)).tag(route)}}.accessibilityIdentifier("travel-data-source")
+            Text("店家、景點、天氣與地圖設定可切換來源；底圖與導航仍由地圖服務提供。").font(.caption).foregroundStyle(Palette.muted)
+            Text("Zetaris 連線失敗時可手動切回直接來源。").font(.caption)
+            if let status=store.dataConnection{Text(status).font(.caption).accessibilityIdentifier("travel-data-status")}
+            Button("檢查資料連線"){Task{await store.reloadTravelData()}}
+        }.task(id:store.travelDataSource){await store.reloadTravelData()}
     }
     func status(_ name:String,ready:Bool)->some View {HStack{Text(LocalizedStringKey(name));Spacer();Label(LocalizedStringKey(ready ? "已配置" : "待配置"),systemImage:ready ? "checkmark.circle.fill" : "circle.dashed").font(.caption).foregroundStyle(ready ? Palette.green : Palette.muted)}}
 }

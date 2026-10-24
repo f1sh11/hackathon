@@ -24,7 +24,7 @@ public sealed class TravelPreference
     public string[] PreviousValues { get; set; } = [];
 }
 
-/// Application-owned schema and consent gate around the unmodified H-MEM engine.
+/// Application-owned schema and consent gate around the reference H-MEM engine.
 public static class TravelProfiling
 {
     public static readonly Dictionary<string, (string Dimension, string Label)> Keys = new()

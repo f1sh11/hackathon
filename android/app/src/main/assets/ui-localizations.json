@@ -1063,5 +1063,150 @@
     "en": "Preview street view (Apple Look Around)",
     "zh-Hans": "预览街景（Apple Look Around）",
     "zh-Hant": "預覽街景（Apple Look Around）"
+  },
+  "Zetaris 連線失敗時可手動切回直接來源。": {
+    "en": "If Zetaris is unavailable, switch back to direct sources.",
+    "zh-Hans": "Zetaris 连接失败时可手动切回直接来源。",
+    "zh-Hant": "Zetaris 連線失敗時可手動切回直接來源。"
+  },
+  "店家、景點、天氣與地圖設定可切換來源；底圖與導航仍由地圖服務提供。": {
+    "en": "Switch sources for places, weather and map settings. Map services still render maps and navigation.",
+    "zh-Hans": "商家、景点、天气与地图设置可切换来源；底图与导航仍由地图服务提供。",
+    "zh-Hant": "店家、景點、天氣與地圖設定可切換來源；底圖與導航仍由地圖服務提供。"
+  },
+  "旅遊資料來源": {
+    "en": "Travel data source",
+    "zh-Hans": "旅游资料来源",
+    "zh-Hant": "旅遊資料來源"
+  },
+  "檢查資料連線": {
+    "en": "Check data connection",
+    "zh-Hans": "检查资料连接",
+    "zh-Hant": "檢查資料連線"
+  },
+  "直接來源": {
+    "en": "Direct sources",
+    "zh-Hans": "直接来源",
+    "zh-Hant": "直接來源"
+  },
+  "資料來源已連線 · {0} 個行程景點": {
+    "en": "Connected · {0} itinerary places",
+    "zh-Hans": "资料来源已连接 · {0} 个行程景点",
+    "zh-Hant": "資料來源已連線 · {0} 個行程景點"
+  },
+  "資料取得方式": {
+    "en": "Data access",
+    "zh-Hans": "资料获取方式",
+    "zh-Hant": "資料取得方式"
+  },
+  "透過 Zetaris": {
+    "en": "Via Zetaris",
+    "zh-Hans": "通过 Zetaris",
+    "zh-Hant": "透過 Zetaris"
+  },
+  "私房景點": {
+    "en": "Hidden gems",
+    "zh-Hans": "私房景点",
+    "zh-Hant": "私房景點"
+  },
+  "社群探索候選 · 附近 5 km · 非熱門度評分": {
+    "en": "Community discoveries · within 5 km · popularity unverified",
+    "zh-Hans": "社区探索候选 · 附近 5 km · 非热门度评分",
+    "zh-Hant": "社群探索候選 · 附近 5 km · 非熱門度評分"
+  },
+  "如何到達": {
+    "en": "Getting there",
+    "zh-Hans": "如何到达",
+    "zh-Hant": "如何到達"
+  },
+  "來源未提供到達方式，請先查詢導航。": {
+    "en": "No access directions provided. Check navigation first.",
+    "zh-Hans": "来源未提供到达方式，请先查询导航。",
+    "zh-Hant": "來源未提供到達方式，請先查詢導航。"
+  },
+  "社群到達說明並非即時交通班次，出發前請確認。": {
+    "en": "Community directions are not live transit information. Verify before departure.",
+    "zh-Hans": "社区到达说明并非实时交通班次，出发前请确认。",
+    "zh-Hant": "社群到達說明並非即時交通班次，出發前請確認。"
+  },
+  "社群指南與版本來源": {
+    "en": "Community guide and source revision",
+    "zh-Hans": "社区指南与版本来源",
+    "zh-Hant": "社群指南與版本來源"
+  },
+  "文字授權": {
+    "en": "Text license",
+    "zh-Hans": "文字授权",
+    "zh-Hant": "文字授權"
+  },
+  "社群介紹與評論": {
+    "en": "Community guide and reviews",
+    "zh-Hans": "社区介绍与评论",
+    "zh-Hant": "社群介紹與評論"
+  },
+  "此來源未提供旅客評論或評分。": {
+    "en": "This source provides no traveller reviews or ratings.",
+    "zh-Hans": "此来源未提供旅客评论或评分。",
+    "zh-Hant": "此來源未提供旅客評論或評分。"
+  },
+  "社群照片保留作者與授權；附近照片不代表已確認拍攝此景點。": {
+    "en": "Photos retain author credits and licenses. Nearby photos may show a different place.",
+    "zh-Hans": "社区照片保留作者与授权；附近照片不代表已确认拍摄此景点。",
+    "zh-Hant": "社群照片保留作者與授權；附近照片不代表已確認拍攝此景點。"
+  },
+  "附近照片，景點配對未確認": {
+    "en": "Nearby photo; place match unverified",
+    "zh-Hans": "附近照片，景点配对未确认",
+    "zh-Hant": "附近照片，景點配對未確認"
+  },
+  "天氣尚未查詢": {
+    "en": "Weather not checked yet",
+    "zh-Hans": "天气尚未查询",
+    "zh-Hant": "天氣尚未查詢"
+  },
+  "正在查詢即時天氣…": {
+    "en": "Checking live weather…",
+    "zh-Hans": "正在查询实时天气…",
+    "zh-Hant": "正在查詢即時天氣…"
+  },
+  "即時天氣查詢失敗，請重試。": {
+    "en": "Live weather unavailable. Please retry.",
+    "zh-Hans": "实时天气查询失败，请重试。",
+    "zh-Hant": "即時天氣查詢失敗，請重試。"
+  },
+  "全部": {
+    "en": "All",
+    "zh-Hans": "全部",
+    "zh-Hant": "全部"
+  },
+  "住宿": {
+    "en": "Stays",
+    "zh-Hans": "住宿",
+    "zh-Hant": "住宿"
+  },
+  "店家": {
+    "en": "Shops",
+    "zh-Hans": "店家",
+    "zh-Hant": "店家"
+  },
+  "地點資料來源": {
+    "en": "Place data source",
+    "zh-Hans": "地点资料来源",
+    "zh-Hant": "地點資料來源"
+  },
+  "全部分類 · 附近 5 km · 資料限已匯入區域": {
+    "en": "All categories · within 5 km · imported areas only",
+    "zh-Hans": "全部分类 · 附近 5 km · 资料限已导入区域",
+    "zh-Hant": "全部分類 · 附近 5 km · 資料限已匯入區域"
+  },
+  "已顯示部分結果，請輸入名稱或縮小分類。": {
+    "en": "Showing some results. Enter a name or choose a category.",
+    "zh-Hans": "已显示部分结果，请输入名称或缩小分类。",
+    "zh-Hant": "已顯示部分結果，請輸入名稱或縮小分類。"
+  },
+  "整合已匯入的雪梨地點；底圖原生標記可能不同。探索候選不代表已確認冷門；房價、營業狀態與評論未即時核實。": {
+    "en": "Imported Sydney places combined. Native map labels may differ. Popularity, room prices, opening status and reviews are unverified.",
+    "zh-Hans": "整合已导入的悉尼地点；底图原生标记可能不同。探索候选不代表已确认冷门；房价、营业状态与评论未实时核实。",
+    "zh-Hant": "整合已匯入的雪梨地點；底圖原生標記可能不同。探索候選不代表已確認冷門；房價、營業狀態與評論未即時核實。"
   }
 }

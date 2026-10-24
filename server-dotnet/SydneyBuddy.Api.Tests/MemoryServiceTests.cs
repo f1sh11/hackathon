@@ -2,7 +2,7 @@ using System.Text.Json.Nodes;
 
 namespace SydneyBuddy.Api.Tests;
 
-/// <summary>通过真实 Node 引擎验证授权记忆生命周期；uses the unchanged official H-MEM implementation.</summary>
+/// <summary>通过真实 Node 引擎验证授权记忆生命周期；uses the official H-MEM engine with the documented Node compatibility patch.</summary>
 public sealed class MemoryServiceTests
 {
     [Fact]

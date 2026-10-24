@@ -37,3 +37,15 @@ infra/poi/data/
 
 # Private pet conversations and journey drafts
 server/.pet-sessions/
+
+# Public-data staging exports and private Zetaris distribution/config
+infra/zetaris/data/
+infra/zetaris/.env.local
+infra/zetaris/platform/
+
+# Generated public migration archives (never include target credentials)
+infra/zetaris/bundles/
+infra/zetaris/migration/*.local.*
+
+# Local Zetaris JDBC tooling environment
+.venv-zetaris/

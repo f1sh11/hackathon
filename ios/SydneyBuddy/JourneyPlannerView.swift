@@ -3,12 +3,14 @@ import MapKit
 import Combine
 
 struct JourneyCoordinate: Codable {let lat:Double;let lng:Double;var coordinate:CLLocationCoordinate2D{.init(latitude:lat,longitude:lng)}}
+struct WalkingDirection:Codable,Identifiable {var id:Int;var text:String;var meters:Double}
 struct JourneyStep: Codable, Identifiable {
     var id:String {"\(mode)|\(from)|\(departureTime)"}
     let mode:String;let line:String?;let headsign:String?;let from:String;let to:String
     let departureTime:String;let arrivalTime:String;let realtime:Bool;let stopCount:Int?
     let meters:Double;let seconds:Double;let waitSeconds:Double;let platform:String?;let agency:String?
     let geometry:[JourneyCoordinate]
+    var walkingDirections:[WalkingDirection]? = nil
     var title:String {transportLabel(mode)+(mode == "walk" || mode == "drive" ? "" : " · "+(line?.isEmpty == false ? line! : "路线号码未提供"))}
 }
 struct JourneyLeg: Codable, Identifiable {
@@ -201,13 +203,22 @@ struct JourneyPlannerView:View {
         var legs:[JourneyLeg]=[]
         for i in modes.indices {
             try Task.checkCancellation()
+            if CLLocation(latitude:coordinates[i].latitude,longitude:coordinates[i].longitude).distance(from:CLLocation(latitude:coordinates[i+1].latitude,longitude:coordinates[i+1].longitude))<1 {
+                let stay=i<day.stops.count ? Double(day.stops[i].visitMinutes*60):0
+                let geometry=[coordinates[i],coordinates[i+1]].map{JourneyCoordinate(lat:$0.latitude,lng:$0.longitude)}
+                let step=JourneyStep(mode:modes[i],line:nil,headsign:nil,from:names[i],to:names[i+1],departureTime:formatter.string(from:cursor),arrivalTime:formatter.string(from:cursor),realtime:false,stopCount:nil,meters:0,seconds:0,waitSeconds:0,platform:nil,agency:nil,geometry:geometry,walkingDirections:[WalkingDirection(id:0,text:"同一位置，无需步行",meters:0)])
+                legs.append(JourneyLeg(index:i,mode:modes[i],from:names[i],to:names[i+1],departureTime:formatter.string(from:cursor),arrivalTime:formatter.string(from:cursor),staySeconds:stay,steps:[step]));cursor=cursor.addingTimeInterval(stay);continue
+            }
             let request=MKDirections.Request()
             request.source=MKMapItem(placemark:MKPlacemark(coordinate:coordinates[i]))
             request.destination=MKMapItem(placemark:MKPlacemark(coordinate:coordinates[i+1]))
             request.transportType=modes[i] == "walk" ? .walking : .automobile
             request.departureDate=cursor
             let directions=MKDirections(request:request)
-            let response=try await withTaskCancellationHandler(operation:{try await directions.calculate()},onCancel:{directions.cancel()})
+            let timeout=Task{@MainActor in try await Task.sleep(nanoseconds:20_000_000_000);directions.cancel()}
+            let response:MKDirections.Response
+            do {response=try await withTaskCancellationHandler(operation:{try await directions.calculate()},onCancel:{directions.cancel()});timeout.cancel()}
+            catch {timeout.cancel();throw error}
             try Task.checkCancellation()
             guard let route=response.routes.first, route.polyline.pointCount>1 else {throw URLError(.cannotParseResponse)}
             let points=route.polyline.points()
@@ -216,7 +227,8 @@ struct JourneyPlannerView:View {
             }
             let arrival=cursor.addingTimeInterval(route.expectedTravelTime)
             let stay=i<day.stops.count ? Double(day.stops[i].visitMinutes*60) : 0
-            let step=JourneyStep(mode:modes[i],line:nil,headsign:nil,from:names[i],to:names[i+1],departureTime:formatter.string(from:cursor),arrivalTime:formatter.string(from:arrival),realtime:false,stopCount:nil,meters:route.distance,seconds:route.expectedTravelTime,waitSeconds:0,platform:nil,agency:nil,geometry:geometry)
+            let instructions=route.steps.enumerated().filter{!$0.element.instructions.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty}.map{WalkingDirection(id:$0.offset,text:$0.element.instructions,meters:$0.element.distance)}
+            let step=JourneyStep(mode:modes[i],line:nil,headsign:nil,from:names[i],to:names[i+1],departureTime:formatter.string(from:cursor),arrivalTime:formatter.string(from:arrival),realtime:false,stopCount:nil,meters:route.distance,seconds:route.expectedTravelTime,waitSeconds:0,platform:nil,agency:nil,geometry:geometry,walkingDirections:instructions)
             legs.append(JourneyLeg(index:i,mode:modes[i],from:names[i],to:names[i+1],departureTime:formatter.string(from:cursor),arrivalTime:formatter.string(from:arrival),staySeconds:stay,steps:[step]))
             cursor=arrival.addingTimeInterval(stay)
         }
@@ -230,5 +242,64 @@ struct JourneyPlannerView:View {
         let start=MKMapItem(placemark:MKPlacemark(coordinate:points[i]));start.name=names[i]
         let end=MKMapItem(placemark:MKPlacemark(coordinate:points[i+1]));end.name=names[i+1]
         MKMapItem.openMaps(with:[start,end],launchOptions:[MKLaunchOptionsDirectionsModeKey:MKLaunchOptionsDirectionsModeTransit])
+    }
+}
+
+
+/// Read-only Apple walking preview: no external-app handoff and no live-navigation claim.
+struct AppleTripWalkingView:View {
+    let trip:Trip
+    private let initialDay:Int
+    private let initialPlan:JourneyPlan?
+    private let onPlan:((JourneyPlan,DayPlan)->Void)?
+    @EnvironmentObject private var store:AppStore
+    @Environment(\.dismiss) private var dismiss
+    @StateObject private var overview=ItineraryOverview()
+    @State private var dayIndex:Int
+    init(trip:Trip,initialDay:Int=0,initialPlan:JourneyPlan?=nil,onPlan:((JourneyPlan,DayPlan)->Void)?=nil) {
+        self.trip=trip;self.onPlan=onPlan;let index=trip.days.indices.contains(initialDay) ? initialDay:0
+        self.initialDay=index;self.initialPlan=initialPlan?.source=="Apple Maps / MapKit" && initialPlan?.legs.flatMap(\.steps).allSatisfy({$0.mode=="walk"})==true ? initialPlan:nil;_dayIndex=State(initialValue:index)
+    }
+    private var day:DayPlan? {trip.days.indices.contains(dayIndex) ? trip.days[dayIndex]:nil}
+    var body:some View {
+        NavigationStack{ScrollView{VStack(alignment:.leading,spacing:16){
+            if trip.days.count>1 {
+                Picker("查看哪一天",selection:$dayIndex){ForEach(trip.days.indices,id:\.self){Text("第 \($0+1) 天").tag($0)}}.pickerStyle(.segmented).accessibilityIdentifier("apple-walking-day")
+            }
+            if let day {
+                Text(day.date+" · 步行路线预览").font(.subheadline.bold())
+                NativeRouteMap(day:day,overview:overview.route,expanded:false,bottomInset:28,provider:.apple,viewport:nil,onViewport:{_ in},sections:overview.plan?.sections ?? []).frame(height:300).clipShape(RoundedRectangle(cornerRadius:20)).accessibilityIdentifier("apple-walking-map")
+                if day.stops.isEmpty{Text("当天为自由安排，先在行程中添加地点。").foregroundStyle(Palette.muted)}
+                else if overview.busy {ProgressView("Apple 正在查询当天步行路线…").accessibilityIdentifier("apple-walking-loading")}
+                else if let plan=overview.plan {
+                    Label("约 \(Int(plan.meters.rounded())) 米 · 步行 \(Int(ceil(plan.travelSeconds/60))) 分钟",systemImage:"figure.walk").font(.headline).accessibilityIdentifier("apple-walking-summary")
+                    Text("Apple Maps 真实道路路线；不含景点停留、休息和未知排队时间。路线预览不会自动跟随位置或播报。").font(.caption).foregroundStyle(Palette.muted)
+                    ForEach(plan.legs){leg in
+                        DisclosureGroup {
+                            let directions=leg.steps.flatMap{$0.walkingDirections ?? []}
+                            if directions.isEmpty {Text("此段暂未提供分步文字，请参考地图路线。").font(.caption)}
+                            ForEach(Array(directions.enumerated()),id:\.offset){_,instruction in
+                                HStack(alignment:.top){Text(instruction.text).font(.subheadline);Spacer();if instruction.meters>0{Text("\(Int(instruction.meters.rounded())) 米").font(.caption).foregroundStyle(Palette.muted)}}.padding(.vertical,5)
+                            }
+                        } label:{VStack(alignment:.leading,spacing:4){Text("\(leg.index+1). "+leg.from+" → "+leg.to).font(.subheadline.bold());Text("\(Int(leg.steps.reduce(0){$0+$1.meters}.rounded())) 米 · 约 \(Int(ceil(leg.steps.reduce(0){$0+$1.seconds}/60))) 分钟").font(.caption).foregroundStyle(Palette.muted)}}.padding(14).background(.white,in:RoundedRectangle(cornerRadius:16))
+                    }
+                } else if let error=overview.message {
+                    Label(store.language.display(error),systemImage:"exclamationmark.circle").font(.subheadline).foregroundStyle(Palette.muted).accessibilityIdentifier("apple-walking-error")
+                    Button("重试步行路线"){overview.load(day,provider:.apple)}.buttonStyle(.borderedProminent).accessibilityIdentifier("apple-walking-retry")
+                }
+                if overview.plan != nil {Button("重新查询路线"){overview.clear();overview.load(day,provider:.apple)}.font(.subheadline)}
+                Text("路线来源：Apple Maps / MapKit · 原行程安排保持不变").font(.caption2).foregroundStyle(Palette.muted)
+            }
+        }.padding(18)}.background(Palette.cream).navigationTitle("App 内步行路线").navigationBarTitleDisplayMode(.inline).toolbar{Button("关闭"){dismiss()}}.tint(Palette.green)}
+        .task(id:day.map{mapSceneKey($0)} ?? "empty"){
+            overview.clear()
+            guard let day,!day.stops.isEmpty else{return}
+            if dayIndex==initialDay,let initialPlan{overview.accept(initialPlan,day:day)}else{overview.load(day,provider:.apple)}
+        }
+        .onDisappear{
+            store.dayIndex=dayIndex;store.selectedStopID=nil
+            if let day,let plan=overview.plan{onPlan?(plan,day)}
+            overview.cancel()
+        }
     }
 }

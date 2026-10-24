@@ -1,0 +1,14 @@
+{
+  "traffic": {
+    "table": "traffic_nsw",
+    "endpoint": "https://data.livetraffic.com/traffic/hazards/incident-open.json",
+    "source": "Live Traffic NSW",
+    "scope": "NSW incident feed; not live speeds or ETA"
+  },
+  "prices": {
+    "table": "fees_sydney",
+    "endpoint": "https://overpass-api.de/api/interpreter?data=%5Bout%3Ajson%5D%5Btimeout%3A15%5D%3Bnwr%5B%22charge%22%5D%28-33.90%2C151.18%2C-33.82%2C151.25%29%3Bout+center+tags+500%3B",
+    "source": "OpenStreetMap",
+    "scope": "Sydney bounding box; charge tags are indicative, not menu totals"
+  }
+}

@@ -118,10 +118,11 @@ public static class PetEndpoints
                     // Do not let model-filled unknown placeholders skip unanswered questions.
                     foreach(var key in PetQuestions.Keys)
                         if(changes.Str(key) is "未确定" or "未知" or "未提供" or "unknown") changes.Remove(key);
-                    PetExplicitFacts.Apply(message,changes);
+                    var explicitFacts=new JsonObject();PetExplicitFacts.Apply(message,explicitFacts);
+                    foreach(var fact in explicitFacts)changes[fact.Key]=fact.Value?.DeepClone();
                     foreach(var uncertain in (s.CurrentChoice is null ? result.Array("needsClarification"):null) ?? new JsonArray()) {
                         var key=uncertain?.GetValue<string>() ?? "";
-                        if(PetQuestions.Required.Contains(key)){s.Fields.Remove(key);changes.Remove(key);}
+                        if(PetQuestions.Required.Contains(key) && !explicitFacts.ContainsKey(key)){s.Fields.Remove(key);changes.Remove(key);}
                     }
                     if(changes.ContainsKey("budgetCurrency") && s.Fields.TryGetValue("budgetCurrency",out var previousCurrency) && PetQuestions.Known(previousCurrency) && previousCurrency!=changes.Str("budgetCurrency") && !changes.ContainsKey("budget"))s.Fields.Remove("budget");
                     PetQuestions.Apply(s,changes);reply=result.Str("reply");

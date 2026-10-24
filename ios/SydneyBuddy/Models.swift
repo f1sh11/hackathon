@@ -1,6 +1,28 @@
 import Foundation
 import CoreLocation
 
+enum TravelDataSource:String,CaseIterable,Identifiable {
+    case direct,zetaris
+    var id:String {rawValue}
+    var label:String {self == .direct ? "直接來源":"透過 Zetaris"}
+    static var current:Self {Self(rawValue:UserDefaults.standard.string(forKey:"travelDataSource") ?? "") ?? .direct}
+    func apply(to request:inout URLRequest){request.setValue(rawValue,forHTTPHeaderField:"X-Travel-Data-Source")}
+}
+struct TravelMapLayer:Decodable,Identifiable {var id:String;var name:String}
+struct TravelMapConfiguration:Decodable {var dataSource:String;var layers:[TravelMapLayer]}
+struct TravelDataStatus:Decodable {var dataSource:String;var status:String;var catalogCount:Int}
+
+struct TravelInsights:Decodable {
+    var dataSource:String;var fetchedAt:String;var scope:String;var traffic:InsightTraffic;var places:[InsightPlace];var attribution:String;var pricePlaces:[InsightMarker]?
+}
+struct InsightTraffic:Decodable {var status:String;var summary:String;var source:String;var items:[InsightMarker]}
+struct InsightMarker:Decodable,Identifiable {var id:String;var lat:Double;var lng:Double;var title:String;var summary:String;var source:String;var kind:String?}
+struct InsightPlace:Decodable,Identifiable {var id:String;var name:String;var price:InsightPrice;var crowd:InsightCrowd;var googleFallback:String}
+struct InsightCrowd:Decodable {var status:String;var summary:String}
+struct InsightPrice:Decodable {var status:String;var summary:String;var source:String;var scope:String?;var sourceUrl:String?;var range:InsightPriceRange?}
+struct InsightPriceRange:Decodable {var startPrice:InsightMoney?;var endPrice:InsightMoney?}
+struct InsightMoney:Decodable {var currencyCode:String?;var units:String?;var nanos:Int?;var label:String {"\(currencyCode ?? "") \(units ?? "0")"}}
+
 struct Coordinate: Codable, Hashable {
     var name: String
     var lat: Double
@@ -28,6 +50,7 @@ struct TripProfile: Codable {
     var energy:String? = nil
     var rhythm:String? = nil
     var queueTolerance:String? = nil
+    var dayStyle:String? = nil
     var mustVisit: [String] = []
     var start = Coordinate.quay
     var end = Coordinate.quay
@@ -158,6 +181,26 @@ struct TravelPlanningTask:Codable {
     }
     @Published var memories: [Memory] = []
     @Published var profile = TripProfile()
+    @Published var insights:TravelInsights?
+    @Published var insightsBusy=false
+    @Published var insightsError:String?
+    private var insightGeneration=UUID()
+    func refreshInsights(places requested:[[String:Any]]?=nil) async {
+        let generation=UUID();insightGeneration=generation;insightsBusy=true;insights=nil;insightsError=nil
+        let selected=travelDataSource;let provider=mapProvider;let scene=mapSceneKey(currentDay)
+        let stops=currentDay?.stops ?? []
+        var places:[[String:Any]]=stops.prefix(28).map{["id":$0.id,"name":$0.name,"lat":$0.lat,"lng":$0.lng]}
+        let start=currentDay?.start ?? profile.start
+        places.insert(["id":"start","name":start.name,"lat":start.lat,"lng":start.lng],at:0)
+        if let requested {places=Array(requested.prefix(30))}
+        do {
+            let body:[String:Any]=["places":places,"date":currentDay?.date ?? profile.date,"mapProvider":provider.rawValue]
+            let response:TravelInsights=try await api("data/insights",method:"POST",body:JSONSerialization.data(withJSONObject:body))
+            guard generation==insightGeneration,selected==travelDataSource,provider==mapProvider,scene==mapSceneKey(currentDay) else{return}
+            insights=response
+        }catch{if generation==insightGeneration{insightsError="交通、人潮與費用暫時無法更新，請重試。"}}
+        if generation==insightGeneration{insightsBusy=false}
+    }
     @Published var weatherBusy = false
     @Published var refreshedWeather: WeatherInfo?
     @Published var busy = false
@@ -171,12 +214,26 @@ struct TravelPlanningTask:Codable {
     @Published var operationDetail="请稍等，完成后会自动显示结果。"
     @Published var errorMessage: String?
     @Published var health: Health?
-    @Published var mapProvider = MapProvider(rawValue: UserDefaults.standard.string(forKey:"mapProvider") ?? "") ?? .osm {
+    @Published var mapProvider = MapProvider.preferred() {
         didSet { UserDefaults.standard.set(mapProvider.rawValue,forKey:"mapProvider") }
+    }
+    @Published var travelDataSource=TravelDataSource.current {
+        didSet{UserDefaults.standard.set(travelDataSource.rawValue,forKey:"travelDataSource");refreshedWeather=nil;insights=nil;dataConnection=nil;mapLayerIDs=nil}
+    }
+    @Published var dataConnection:String?
+    @Published var mapLayerIDs:Set<String>?
+    var availableMapProviders:[MapProvider] {MapProvider.allCases.filter{mapLayerIDs?.contains($0.rawValue) ?? true}}
+    func reloadTravelData() async {
+        let selected=travelDataSource
+        do{let maps:TravelMapConfiguration=try await api("data/map-layers");let status:TravelDataStatus=try await api("data/status")
+            guard selected==travelDataSource else{return}
+            guard maps.dataSource==selected.rawValue,status.dataSource==selected.rawValue,!maps.layers.isEmpty else{throw URLError(.cannotParseResponse)}
+            mapLayerIDs=Set(maps.layers.map(\.id));dataConnection=language.text("資料來源已連線 · {0} 個行程景點",String(status.catalogCount))
+        }catch{if selected==travelDataSource{dataConnection=error.localizedDescription}}
     }
     var mapViewport: MapViewport?
     @Published var live = false
-    @Published var language = AppLanguage(rawValue:UserDefaults.standard.string(forKey:"appLanguage") ?? "") ?? .traditional {
+    @Published var language = AppLanguage(rawValue:UserDefaults.standard.string(forKey:"appLanguage") ?? "") ?? .simplified {
         didSet {UserDefaults.standard.set(language.rawValue,forKey:"appLanguage")}
     }
     @Published var tab = 1
@@ -194,12 +251,14 @@ struct TravelPlanningTask:Codable {
     func saveExpenses() { if let data = try? JSONEncoder().encode(expenses) { UserDefaults.standard.set(data,forKey:"expenses") } }
     func api<T: Decodable>(_ path: String, method: String = "GET", body: Data? = nil) async throws -> T {
         var req = URLRequest(url: base.appendingPathComponent(path)); req.httpMethod = method; req.httpBody = body
+        let selected=travelDataSource;selected.apply(to:&req);if path=="weather"{req.cachePolicy = .reloadIgnoringLocalCacheData}
         req.setValue("application/json", forHTTPHeaderField: "Content-Type"); req.timeoutInterval = 240
         let (data,response) = try await loader(req)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
             let e = (try? JSONSerialization.jsonObject(with:data)) as? [String:Any]
             throw NSError(domain:"SydneyBuddy",code:1,userInfo:[NSLocalizedDescriptionKey:e?["error"] as? String ?? "服务暂不可用，请检查本机服务。"])
         }
+        if ["weather","plan","catalog","data/map-layers","data/status","data/insights"].contains(path),selected != travelDataSource {throw CancellationError()}
         return try JSONDecoder().decode(T.self, from: data)
     }
     func reload() async {
@@ -214,14 +273,14 @@ struct TravelPlanningTask:Codable {
         else if !preparations.contains(key) { preparations.append(key) }
         UserDefaults.standard.set(preparations,forKey:"preparations")
     }
+    var currentWeather:WeatherInfo {refreshedWeather ?? WeatherInfo(summary:"天氣尚未查詢",rainy:false,source:travelDataSource == .zetaris ? "Open-Meteo / Zetaris":"Open-Meteo / direct",status:"unavailable")}
     func refreshWeather() async {
-        guard health?.paidServicesAllowed == true else { errorMessage="后端已禁止付费服务，无法刷新实时天气。"; return }
-        guard !weatherBusy else { return }; weatherBusy = true; defer { weatherBusy = false }
+        guard !weatherBusy else { return }; weatherBusy = true; refreshedWeather=WeatherInfo(summary:"正在查詢即時天氣…",rainy:false,source:travelDataSource == .zetaris ? "Open-Meteo / Zetaris":"Open-Meteo / direct",status:"loading"); defer { weatherBusy = false }
         do {
             refreshedWeather = try await api("weather",method:"POST",body:JSONEncoder().encode(trip?.profile ?? profile))
             if refreshedWeather?.status == "ok" { markPrepared("weather");if refreshedWeather?.rainy==true{koalaFeedback=KoalaCue(event:.weatherRisk)} }
         }
-        catch { errorMessage = error.localizedDescription }
+        catch { refreshedWeather=WeatherInfo(summary:"即時天氣查詢失敗，請重試。",rainy:false,source:travelDataSource == .zetaris ? "Open-Meteo / Zetaris":"Open-Meteo / direct",status:"unavailable");errorMessage = error.localizedDescription }
     }
     func generate(_ message: String = "", rain: Bool = false, profileOverride:TripProfile? = nil) async {
         guard !busy else { return }; busy = true;koalaWork=KoalaCue(event:.planningStarted); defer { busy = false;koalaWork=nil }
@@ -391,9 +450,31 @@ struct TravelPlanningTask:Codable {
         do { let _: [String:Bool] = try await api("memories/"+memory.id,method:"DELETE");if memory.id==UserDefaults.standard.string(forKey:"personalProfile.memoryID"){personalProfile=UserTravelProfile();UserDefaults.standard.removeObject(forKey:"personalProfile.memoryID")}; await reload() }
         catch { errorMessage = error.localizedDescription }
     }
-    func deleteTrip(_ value: Trip) async {
-        guard let id = value.id else { return }
-        do { let _: [String:Bool] = try await api("trips/"+id,method:"DELETE"); if trip?.id==id { trip=nil }; await reload() }
-        catch { errorMessage=error.localizedDescription }
+    @discardableResult func deleteTrip(_ value: Trip) async -> Bool {
+        guard let id=value.id else{return false}
+        do {
+            let _: [String:Bool] = try await api("trips/"+id,method:"DELETE")
+            saved.removeAll{$0.id==id}
+            if trip?.id==id{trip=nil;selectedStopID=nil}
+            if tripToOpen?.id==id{tripToOpen=nil}
+            if lastAdjustment?.id==id{lastAdjustment=nil}
+            return true
+        }catch{errorMessage=error.localizedDescription;return false}
+    }
+}
+
+// Display the same per-person activity-cost basis at every stage.
+extension TripProfile {
+    var activityBudgetSummary:String {
+        guard let amount=budgetAmount,let basis=budgetBasis else{return "每人每天活动预算 A$\(Int(budget))"}
+        let label=TravelRequirements.budgetBases.first{$0.0==basis}?.1 ?? "每人每天"
+        return "\(label)活动预算 A$\(amount.formatted(.number.precision(.fractionLength(0...2))))"
+    }
+}
+extension DayPlan {
+    var buddySummary:String {
+        if freeTime == true || stops.isEmpty{return "🐨 这天先留给你自由安排：候选地点暂时无法满足约束，可以自己补充喜欢的地方。"}
+        let hour=Int(finishTime.split(separator:":").first ?? "24") ?? 24
+        return "🐨 今天安排 \(stops.count) 站，约 \(estimatedSteps.formatted()) 步。"+(hour<15 ? "景点集中在上午，\(finishTime) 后自由活动；想逛久一点可以调整。":"按顺序慢慢逛，点活动就能在地图上找到它。")
     }
 }

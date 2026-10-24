@@ -44,7 +44,6 @@ public sealed class MemoryService(ProjectPaths paths) : IMemoryService
                 StandardErrorEncoding = Encoding.UTF8,
                 CreateNoWindow = true
             };
-            start.ArgumentList.Add("--experimental-transform-types");
             start.ArgumentList.Add(Path.Combine(paths.ServerDirectory, "hmem_bridge.ts"));
             using var process = new Process { StartInfo = start };
             try
@@ -53,7 +52,7 @@ public sealed class MemoryService(ProjectPaths paths) : IMemoryService
             }
             catch (Win32Exception)
             {
-                throw new ServiceException("H-MEM 需要 Node.js 24，请安装后重试");
+                throw new ServiceException("H-MEM 需要 Node.js 24 或更新版本，请安装后重试");
             }
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(15));
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, deadline.Token);

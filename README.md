@@ -17,7 +17,7 @@
 
 ## 本机启动：PostgreSQL + .NET API
 
-需要 **.NET 10 SDK**、**Node.js 24** 和 **Docker / Docker Compose**。Node 仅用于官方 Meterless H-MEM 引擎；HTTP API、规划与天气逻辑由 C# 运行。
+需要 **.NET 10 SDK**、**Node.js 24 或更新版本** 和 **Docker / Docker Compose**。Node 仅用于官方 Meterless H-MEM 引擎；HTTP API、规划与天气逻辑由 C# 运行。
 
 在包含本次迁移的仓库根目录运行：
 
@@ -68,7 +68,7 @@ Android 仍连接 `http://127.0.0.1:8787`。Debug 允许本机 HTTP，Release �
 
 ## 保留的 iOS 客户端
 
-需要 macOS、Xcode（iOS 17+ SDK/模拟器）、.NET 10 SDK 和 Node.js 24。先启动 PostgreSQL 和 .NET API，再打开 `ios/SydneyBuddy.xcodeproj`，运行 `SydneyBuddy` scheme。首次 Xcode 构建需联网下载 Google Maps SDK 与 Ferrostar 导航核心。
+需要 macOS、Xcode（iOS 17+ SDK/模拟器）、.NET 10 SDK 和 Node.js 24 或更新版本。先启动 PostgreSQL 和 .NET API，再打开 `ios/SydneyBuddy.xcodeproj`，运行 `SydneyBuddy` scheme。首次 Xcode 构建需联网下载 Google Maps SDK 与 Ferrostar 导航核心。
 
 同机模拟器继续连接 `127.0.0.1:8787`；iPhone 真机不能用其自身的回环地址访问电脑。iOS 地图密钥更改后需要重新构建。原 [iOS 验证记录](docs/VERIFICATION.md) 是迁移前的历史记录，不能替代新版验证。
 
@@ -195,7 +195,7 @@ sh gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArg
 | `GOOGLE_IOS_KEY` | 保留的 iOS 客户端地图 SDK 配置 |
 | Android `MAPS_API_KEY` | 仅写入 `android/local.properties` 的 Android 地图 SDK 密钥 |
 | `Navigation__ValhallaUrl` | 可选，步行导航路由服务地址；默认未开启，配置后重启后端 |
-| `NODE_BINARY` | 可选，Node 24 可执行文件路径；默认从 PATH 查找 |
+| `NODE_BINARY` | 可选，Node 24 或更新版本可执行文件路径；默认从 PATH 查找 |
 | `SYDNEYBUDDY_ROOT` | 可选，仓库根目录绝对路径，自动定位失败时设置 |
 
 API 密钥也可通过本机 `/setup` 页面保存。模板见 [.secrets.example.json](.secrets.example.json) 和 [Secrets.example.xcconfig](ios/Config/Secrets.example.xcconfig)。单独设置 iOS 环境变量不会自动生成客户端构建配置；应通过设置页或手动填写 xcconfig。
@@ -240,7 +240,7 @@ dotnet build server-dotnet/SydneyBuddy.Api.Tests/SydneyBuddy.Api.Tests.csproj --
 dotnet test server-dotnet/SydneyBuddy.Api.Tests/SydneyBuddy.Api.Tests.csproj --no-build
 # macOS / Linux：官方 H-MEM conformance
 HMEM_IMPL="$PWD/server/vendor/hmem/src/index.ts" \
-  node --experimental-transform-types server/vendor/hmem/conformance/runner.ts
+  node server/vendor/hmem/conformance/runner.ts
 ```
 
 后端集成测试在上述 PostgreSQL 连接中创建专属随机 schema，完成后清理；连接用户需要创建 schema 的权限。详细说明见 [迁移说明](docs/ASPNET-MIGRATION.md)。GitHub Actions 启动 PostgreSQL 服务，使用 .NET 10 构建与测试，运行 H-MEM 检查。Android 继续使用原构建工作流。自动测试不调用付费 API。迁移后的测试结果以当前 CI 和迁移说明为准；原 Python / Android / iOS 版本的成功记录不能直接作为新版在线或真机验收结果。
@@ -276,7 +276,7 @@ flowchart TD
     API --> Preferences["PreferenceService · 偏好保存与撤回"]
     Preferences --> Repositories
     Preferences --> Memory
-    Memory --> Bridge["Node 24 · hmem_bridge.ts"]
+    Memory --> Bridge["Node 24+ · hmem_bridge.ts"]
     Bridge --> HMEM["官方 H-MEM · 本机记忆与审计文件"]
 ```
 
@@ -428,7 +428,7 @@ server-dotnet/
 - 花费、步数和停留时间为估算；没有住宿、全部餐饮、实时票价、排队、坡度或无障碍模型。
 - 没有多人账户、共享同步、支付、订票、酒店预订、航班追踪或后台 GPS。PostgreSQL 支持存储，并不自动提供用户隔离或云端同步。
 - H-MEM 为本机单用户，撤回后不再检索，但审计历史保留；未启用自动 dreaming / sleep。
-- 原 Python 版本有 NVIDIA NIM 和 H-MEM 验证记录；迁移后的真实在线功能需使用本机配置重新验收。Cursor、Zetaris 按团队原要求暂缓，Nightshift 未接入；不声称满足全部赛事要求。见 [参赛清单](docs/submission-checklist.md)。
+- 原 Python 版本有 NVIDIA NIM 和 H-MEM 验证记录；迁移后的真实在线功能需使用本机配置重新验收。Cursor、Nightshift 未接入；Zetaris 已完成本機公開資料整合試驗；不声称满足全部赛事要求。见 [参赛清单](docs/submission-checklist.md)。
 - `docs/` 中既有截图与视频描述迁移前版本；当前原生客户端与 .NET 后端以代码和测试结果为准。
 
 ## 来源与许可
@@ -494,3 +494,15 @@ OpenStreetMap 底圖的商家／景點搜尋預設改讀取本機 Overture Place
 
 
 最新旅行画像与考拉互动实现见 [Travel DNA 工程交接](docs/TRAVEL-DNA-HANDOFF.md) 和 [动画事件契约](docs/KOALA-ANIMATION-INTEGRATION.md)。
+
+### Zetaris 本機資料整合試驗
+
+本機公開資料來源與資料匯出／驗證工具請見 [infra/zetaris/README.md](infra/zetaris/README.md)。真正 Zetaris 已在本機啟動，五張公開旅遊資料 view 已註冊並通過 JDBC 查詢驗證；iOS／Android 可在「我的 → 旅遊資料來源」切換直接來源或 Zetaris，支援商家、候選景點目錄、私房景點、即時天氣與底圖設定。天氣由 Zetaris 原生 REST 表每次呼叫 Open-Meteo，不保存預報快照；社群景點包保存座標、到達介紹及逐張照片來源／授權，尚無旅客評論資料。底圖渲染與導航仍由既有服務提供。查詢快取及重啟步驟見該說明。
+
+地圖搜尋已整合「全部、景點、私房景點、餐飲、住宿、店家、生活設施」，Zetaris 模式合併 Overture／OSM／Wikivoyage，地圖標記與清單來自同一組結果，可看介紹及加入工具箱。OSM 另有 5,318 筆公開資料（含 207 筆住宿與 1,992 筆店家），更新與測試見上述 Zetaris 說明。
+
+### Zetaris 搬到 AWS
+
+公開資料的一鍵打包、校驗及 AWS 匯入步驟，請看 [Zetaris 搬移工具](infra/zetaris/migration/README.md)。
+
+Zetaris 平台的本機安裝／快速啟動、AWS managed cluster 建立及停止方式，請看 [服務啟動教學](infra/zetaris/migration/SERVICE-STARTUP.md)。
