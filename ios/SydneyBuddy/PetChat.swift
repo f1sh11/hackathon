@@ -173,11 +173,11 @@ struct PetChatView:View {
             if onboarding,let session=chat.session,session.nextField.isEmpty {
                 VStack(spacing:8) {
                     Text("回答完成，准备出发啦！").font(.headline)
-                    PrimaryButton(title:"生成行程并打开地图",symbol:"map.fill") {
+                    PrimaryButton(title:"保存偏好，去我的行程",symbol:"map.fill") {
                         fields=session.fields
-                        Task{await preparePlan(openMap:true)}
+                        Task{await preparePlan()}
                     }.disabled(chat.busy || store.busy)
-                    Text("按当前规划设置生成并保存，你仍可在地图中调整。").font(.caption2).foregroundStyle(Palette.muted)
+                    Text("先收好偏好，再到我的行程生成路线。").font(.caption2).foregroundStyle(Palette.muted)
                 }.padding(.horizontal,20).padding(.vertical,12)
             }
             if !chat.choices {
@@ -207,21 +207,22 @@ struct PetChatView:View {
                     Text("目前支持生成悉尼 1–3 天的路线。其他目的地可先保存资料。未确定的日期、天数和预算请补齐；预算为每人每日活动费用。").font(.caption)}
                 Section {
                     Button("保存修改"){Task{await chat.update(fields);if chat.error==nil{review=false}}}.disabled(chat.busy)
-                    if !conversationOnly { Button(onboarding ? "生成行程并打开地图" : "用这些信息调整行程"){Task{await preparePlan(openMap:onboarding)}}.disabled(chat.busy || store.busy) }
+                    if !conversationOnly { Button(onboarding ? "保存偏好，去我的行程" : "用这些信息调整行程"){Task{await preparePlan()}}.disabled(chat.busy || store.busy) }
                 }
                 if let error=chat.error{Text(error).foregroundStyle(.red)}
             }.navigationTitle("检查旅行信息").toolbar{Button("完成"){review=false}}
         }
     }
-    private func preparePlan(openMap:Bool=false) async {
+    private func preparePlan() async {
         await chat.update(fields);guard chat.error==nil else{return}
         let profile:TripProfile
         do {profile=try PetTripDraft.profile(fields,base:onboarding ? TripProfile() : (store.trip?.profile ?? store.profile))}
         catch {chat.error=error.localizedDescription;review=true;return}
         let request=petFields.map{label in "\(label.1)：\(fields[label.0] ?? "未确定")"}.joined(separator:"；")
         review=false
-        if !onboarding{dismiss()}
-        await store.generateFromPet(profile,request:request,openMap:openMap)
+        if onboarding {store.completePetPreferences(profile,fields:fields);return}
+        dismiss()
+        await store.generateFromPet(profile,request:request)
     }
 }
 
@@ -307,7 +308,7 @@ struct PetWelcomeView: View {
                 }.padding(.horizontal,26).padding(.bottom,24)
             }.scrollDismissesKeyboard(.interactively)
             VStack(spacing:14) {
-                PrimaryButton(title:step==5 ? "带我出发" : "就这样，继续",symbol:step==5 ? "map.fill" : "arrow.right") { Task{await advance()} }.disabled(working || !loaded)
+                PrimaryButton(title:step==5 ? "保存偏好，去我的行程" : "就这样，继续",symbol:step==5 ? "suitcase.rolling.fill" : "arrow.right") { Task{await advance()} }.disabled(working || !loaded)
                 if step<5 {
                     HStack {
                         Button("先用推荐选项"){Task{await advance()}}.font(.caption).foregroundStyle(Palette.muted)
@@ -315,7 +316,7 @@ struct PetWelcomeView: View {
                         Button { Task{await openChat()} } label:{Label("我想自己说",systemImage:"bubble.left.and.bubble.right")}.font(.subheadline.bold())
                     }.disabled(working || !loaded)
                 } else {
-                    Text(store.live ? "生成后自动打开地图，随时可以调整。" : "当前使用示例路线，生成后自动打开地图。 ").font(.caption).foregroundStyle(Palette.muted)
+                    Text("先保存这次旅行偏好，到“我的行程”再生成路线。").font(.caption).foregroundStyle(Palette.muted)
                 }
             }.padding(.horizontal,26).padding(.top,12).padding(.bottom,18).background(Palette.cream)
         }.background(Palette.cream).foregroundStyle(Palette.ink)
@@ -366,8 +367,7 @@ struct PetWelcomeView: View {
             do {
                 let profile=try PetTripDraft.profile(values)
                 await chat.update(values);guard chat.error==nil else{return}
-                let request=petFields.map{"\($0.1)：\(values[$0.0] ?? "")"}.joined(separator:"；")
-                await store.generateFromPet(profile,request:request,openMap:true)
+                store.completePetPreferences(profile,fields:values)
             } catch {problem=error.localizedDescription}
         } else {
             await chat.update(values);guard chat.error==nil else{return}

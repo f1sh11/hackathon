@@ -74,6 +74,9 @@ struct Expense: Codable, Identifiable {
     @Published var trip: Trip? { didSet { refreshedWeather = nil } }
     @Published var proposal: Trip?
     @Published var saved: [Trip] = []
+    @Published var pendingTripFields: [String:String] = UserDefaults.standard.dictionary(forKey:"pendingTripFields") as? [String:String] ?? [:] {
+        didSet {UserDefaults.standard.set(pendingTripFields,forKey:"pendingTripFields")}
+    }
     @Published var memories: [Memory] = []
     @Published var profile = TripProfile()
     @Published var weatherBusy = false
@@ -111,7 +114,7 @@ struct Expense: Codable, Identifiable {
         return try JSONDecoder().decode(T.self, from: data)
     }
     func reload() async {
-        do { health = try await api("health"); saved = try await api("trips"); saved.sort { $0.createdAt > $1.createdAt }; if trip == nil && !showOnboarding { trip = saved.first }; memories = try await api("memories") }
+        do { health = try await api("health"); saved = try await api("trips"); saved.sort { $0.createdAt > $1.createdAt }; if trip == nil && !showOnboarding && pendingTripFields.isEmpty { trip = saved.first }; memories = try await api("memories") }
         catch { errorMessage = "无法连接本机服务。请在电脑启动 Sydney Buddy 服务后重试。" }
     }
     func prepared(_ name: String) -> Bool { preparations.contains((trip?.id ?? "draft")+":"+name) }
@@ -146,8 +149,8 @@ struct Expense: Codable, Identifiable {
             agentText = result.explanation
         } catch { errorMessage = error.localizedDescription }
     }
-    func generateFromPet(_ profile:TripProfile, request:String, openMap:Bool=false) async {
-        guard openMap && showOnboarding else {
+    func generateFromPet(_ profile:TripProfile, request:String, saveImmediately:Bool=false) async {
+        guard saveImmediately && (showOnboarding || !pendingTripFields.isEmpty) else {
             self.profile=profile
             await generate(request,profileOverride:profile)
             return
@@ -161,16 +164,17 @@ struct Expense: Codable, Identifiable {
             planned.id=nil;planned.revision=nil
             let body:[String:Any]=["trip":try JSONSerialization.jsonObject(with:JSONEncoder().encode(planned)),"expectedRevision":0]
             let accepted:Trip=try await api("trips",method:"POST",body:JSONSerialization.data(withJSONObject:body))
-            finishAcceptedTrip(accepted)
+            finishAcceptedTrip(accepted,consumeDraft:true)
             await reload()
         } catch {errorMessage=error.localizedDescription}
     }
-    private func finishAcceptedTrip(_ accepted:Trip) {
-        if showOnboarding,let id=accepted.id,let session=UserDefaults.standard.string(forKey:"petSession.draft") {
+    private func finishAcceptedTrip(_ accepted:Trip, consumeDraft:Bool=false) {
+        if (showOnboarding || consumeDraft),let id=accepted.id,let session=UserDefaults.standard.string(forKey:"petSession.draft") {
             UserDefaults.standard.set(session,forKey:"petSession."+id);UserDefaults.standard.removeObject(forKey:"petSession.draft")
         }
         trip=accepted;profile=accepted.profile;proposal=nil;dayIndex=0
-        showOnboarding=false;UserDefaults.standard.set(true,forKey:"onboarded");tab=0
+        if showOnboarding || consumeDraft {pendingTripFields=[:]}
+        showOnboarding=false;UserDefaults.standard.set(true,forKey:"onboarded");tab=1
     }
     func acceptProposal() async {
         guard var p = proposal else { return }
@@ -190,6 +194,18 @@ struct Expense: Codable, Identifiable {
             let result:Trip=try await api("plan",method:"POST",body:JSONSerialization.data(withJSONObject:raw))
             trip=nil;proposal=result
         }catch{errorMessage=error.localizedDescription}
+    }
+    func completePetPreferences(_ profile:TripProfile, fields:[String:String]) {
+        self.profile=profile;pendingTripFields=fields;trip=nil;proposal=nil
+        showOnboarding=false;UserDefaults.standard.set(true,forKey:"onboarded");tab=1
+    }
+    func generatePendingTrip() async {
+        guard !pendingTripFields.isEmpty else{return}
+        do {
+            let profile=try PetTripDraft.profile(pendingTripFields)
+            let request=petFields.map{"\($0.1)：\(pendingTripFields[$0.0] ?? "")"}.joined(separator:"；")
+            await generateFromPet(profile,request:request,saveImmediately:true)
+        } catch {errorMessage=error.localizedDescription}
     }
     func newTrip() { UserDefaults.standard.set(false,forKey:"onboarded"); UserDefaults.standard.removeObject(forKey:"petSession.draft"); let prefs = profile; trip = nil; proposal = nil; profile = TripProfile(); profile.interests = prefs.interests; profile.maxSteps = prefs.maxSteps; showOnboarding = true }
     func saveMemory() async {

@@ -61,7 +61,7 @@ struct RootView: View {
             else {
                 TabView(selection:$store.tab) {
                     TripsView().tabItem { Label(store.language.text("行程"),systemImage:"suitcase.rolling.fill") }.tag(1)
-                    HomeView().tabItem { Label(store.language.text("地图"),systemImage:"map.fill") }.tag(0)
+                    PoiDiscoveryView(embedded:true).tabItem { Label(store.language.text("地图"),systemImage:"map.fill") }.tag(0)
                     JournalView().tabItem { Label(store.language.text("记账"),systemImage:"creditcard.fill") }.tag(2)
                     SettingsView().tabItem { Label(store.language.text("我的"),systemImage:"person.crop.circle") }.tag(3)
                 }.tint(Palette.green).modifier(CompactTabs())

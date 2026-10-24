@@ -3,6 +3,22 @@ import XCTest
 
 final class PetDraftTests:XCTestCase {
     private var fields:[String:String] {["destination":"悉尼","date":"2026-11-01","days":"2","budget":"100","pace":"每天最多5000步","interests":"艺术和美食"]}
+    @MainActor func testCompletingPreferencesOpensTripsWithoutPlanningAndRestoresDraft() throws {
+        let defaults=UserDefaults.standard
+        let keys=["pendingTripFields","onboarded"]
+        let previous=keys.map{defaults.object(forKey:$0)}
+        defer{for (key,value) in zip(keys,previous){if let value{defaults.set(value,forKey:key)}else{defaults.removeObject(forKey:key)}}}
+        let store=AppStore()
+        store.completePetPreferences(try PetTripDraft.profile(fields),fields:fields)
+        XCTAssertFalse(store.showOnboarding)
+        XCTAssertEqual(store.tab,1)
+        XCTAssertNil(store.trip)
+        XCTAssertNil(store.proposal)
+        XCTAssertEqual(store.pendingTripFields,fields)
+        let restored=AppStore()
+        XCTAssertEqual(restored.pendingTripFields,fields)
+        XCTAssertFalse(restored.showOnboarding)
+    }
     func testTripReviewPreservesExplicitWalkingLimitAndBudget() throws {
         let profile=try PetTripDraft.profile(fields)
         XCTAssertEqual(profile.maxSteps,5000);XCTAssertEqual(profile.budget,100);XCTAssertEqual(profile.days,2)
