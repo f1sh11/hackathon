@@ -8,6 +8,8 @@ public static class MemoryEndpoints
         routes.MapGet("/memories", async (MemoryRepository records, CancellationToken ct) => Results.Json(await records.ListAsync(ct)));
         routes.MapPost("/memories", async (HttpContext context, PreferenceService preferences) =>
             Results.Json(await preferences.SaveAsync(await RequestJson.ReadAsync(context), context.RequestAborted)));
+        routes.MapPut("/memories/{id}", async (string id, HttpContext context, PreferenceService preferences) =>
+            Results.Json(await preferences.UpdateAsync(id, await RequestJson.ReadAsync(context), context.RequestAborted)));
         routes.MapDelete("/memories/{id}", async (string id, PreferenceService preferences, CancellationToken ct) =>
         {
             await preferences.DeleteAsync(id, ct);

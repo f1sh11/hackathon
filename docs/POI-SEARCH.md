@@ -1,10 +1,20 @@
 # 地點搜尋與景點工具箱
 
+## Overture 本機搜尋（2026-10-24）
+
+已在 `feat/personalized-schedule-editor` 將開源搜尋的預設供應器替換為 Overture Places 區域快照。iOS／Android 會依後端回應顯示實際資料來源與 release，保留獨立的 OpenStreetMap 底圖歸屬。Overpass 僅保留為開發者明確設定的舊供應器，不自動回退。
+
+本機已匯入 5,968 筆真實雪梨市中心地點；來源版本 `2026-10-21.0`，範圍 `[151.18, -33.90, 151.24, -33.84]`。首次啟動新機器需下載匯入，詳見 [匯入與資料限制](../infra/poi/README.md)。本機搜尋沒有公共 API 速率冷卻；超出資料覆蓋或資料檔缺失會明確報錯。價格、排隊、營業與座標精確性維持未驗證。
+
+實際本機 API 搜尋：`cafe` 回傳 80 筆附近餐飲（達上限）、`Opera` 回傳 10 筆景點、設施回傳 8 筆公共廁所；不存在的名稱回傳空清單。iOS 已實際開啟 Dorchester Cafe 的地址、電話、官方網站連結與來源版本，不是使用假商家填入清單。
+
+以下來源切換功能仍適用；較早的 Overpass 固定來源／連線失敗紀錄保留作為歷史。
+
 ## 現行來源切換（2026-10-24）
 
 | 底圖 | 地點搜尋 | 查詢時機 |
 |---|---|---|
-| OpenStreetMap | 本機 `/poi/search` → Overpass | 開啟／換分類自動搜尋，移動地圖後手動搜尋 |
+| OpenStreetMap | 本機 `/poi/search` → Overture Places 區域快照（預設） | 開啟／換分類自動搜尋，移動地圖後手動搜尋 |
 | Apple Maps（iOS） | 裝置上的 `MKLocalSearch`／`MKLocalPointsOfInterestRequest` | 開啟／換分類自動搜尋，直接向 Apple 查詢，不走 OSM |
 | Google Maps | 本機 `/poi/search` 的 `provider=google` → Google Places Nearby／Text Search | 切換時清除舊結果，按搜尋後才查詢 |
 | 離線示意 | 不提供商家搜尋 | 不呼叫任何地點服務 |

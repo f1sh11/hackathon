@@ -20,11 +20,11 @@ struct ScheduleDay:Codable,Identifiable {
     var unknownQueue:Bool;var estimatedSteps:Int;var estimatedCost:Double;var finishTime:String
     var id:String {date}
 }
-struct ScheduleCandidate:Codable,Identifiable {var id:String;var name:String;var category:String;var indoor:Bool;var visitMinutes:Int;var cost:Double;var lat:Double;var lng:Double;var reason:String;var description:String?;var note:String?;var openMinute:Int?;var closeMinute:Int?;var source:String?;var poiKind:String?;var openingHoursText:String?}
+struct ScheduleCandidate:Codable,Identifiable {var id:String;var name:String;var category:String;var indoor:Bool;var visitMinutes:Int;var cost:Double;var lat:Double;var lng:Double;var reason:String;var description:String?;var note:String?;var openMinute:Int?;var closeMinute:Int?;var source:String?;var poiKind:String?;var openingHoursText:String?;var website:String?;var phone:String?;var address:String?;var sourceRelease:String?}
 extension ScheduleCandidate {
-    var importedPoi:Bool {source=="OpenStreetMap" || source=="Apple Maps"}
+    var importedPoi:Bool {source=="OpenStreetMap" || source=="Apple Maps" || source=="Overture Maps"}
 
-    var activityKind:String {guard source=="OpenStreetMap" || source=="Apple Maps" else{return "attraction"};return poiKind=="toilets" ? "restroom":poiKind=="drinking_water" ? "rest":category=="美食" ? "meal":"attraction"}
+    var activityKind:String {guard source=="OpenStreetMap" || source=="Apple Maps" || source=="Overture Maps" else{return "attraction"};return poiKind=="toilets" ? "restroom":poiKind=="drinking_water" ? "rest":category=="美食" ? "meal":"attraction"}
 }
 struct ScheduleIssue:Codable,Identifiable {var code:String;var message:String;var day:Int;var activityId:String?;var blocking:Bool;var id:String {code+message+(activityId ?? "")}}
 struct ScheduleRadar:Codable {var name:String;var value:Double}

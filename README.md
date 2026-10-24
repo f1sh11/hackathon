@@ -473,7 +473,7 @@ iOS 的首頁與全天地圖共用交通面板的成功規劃結果；Apple / OS
 
 入口為「行程 → 試用 3 天時間軸」，或已保存 demo 行程的「編輯時間軸」。住宿／設施為待確認佔位、排隊未知、交通為估算；這版不聲稱已取得真實設施、房價、排隊或即時天氣資料。完整功能、API、檔案與限制見 [時間軸說明](docs/SCHEDULE-EDITOR.md)，產品目標見 [修改規劃書](docs/PERSONALIZED-TRAVEL-PLAN.md)。
 
-行程編輯器目前提供左右分欄景點工具箱、拖放指定時段、右側固定日期列與景點介紹；地圖首頁依底圖選擇地點搜尋：OSM 使用 Overpass，iOS Apple Maps 使用原生 MapKit，Google Maps 使用 Google Places（需設定及允許付費服務，手動查詢）。OSM／Apple 地點可收藏至工具箱；Google 結果目前限搜尋畫面，不匯入本機示例時間軸。搜尋來源、公共服務限制與開發位置見 [開源地點搜尋說明](docs/POI-SEARCH.md)。
+行程編輯器目前提供左右分欄景點工具箱、拖放指定時段、右側固定日期列與景點介紹；地圖首頁依底圖選擇地點搜尋：OSM 預設使用本機 Overture Places 快照，iOS Apple Maps 使用原生 MapKit，Google Maps 使用 Google Places（需設定及允許付費服務，手動查詢）。Overture／OSM／Apple 地點可收藏至工具箱；Google 結果目前限搜尋畫面，不匯入本機示例時間軸。搜尋來源、公共服務限制與開發位置見 [開源地點搜尋說明](docs/POI-SEARCH.md)。
 
 ### 介面語言與首頁
 
@@ -481,3 +481,13 @@ iOS 的首頁與全天地圖共用交通面板的成功規劃結果；Apple / OS
 - 在「我的 → 語言」選擇繁體中文、簡體中文或 English，立即套用並保存在裝置；不改變已儲存行程或重新呼叫規劃服務。預設使用繁體中文。
 - 目前翻譯涵蓋主要導覽、設定頁、行程列表、地圖常用操作與交通摘要；尚未收錄的細部文案、後端回傳內容、使用者輸入及景點名稱保留原文。地圖圖磚與第三方導航提示的語言由資料來源決定。
 - 共用翻譯來源為 `shared/localization/ui.json`。編輯後執行 `python3 scripts/generate_localizations.py`，產生 iOS `.strings` 與 Android 資源；新增 Swift 檔案或重建專案時執行 `python3 scripts/generate_project.py`。
+
+### 開源商家搜尋改用 Overture
+
+OpenStreetMap 底圖的商家／景點搜尋預設改讀取本機 Overture Places，避免公共 Overpass 連線失敗。目前已下載雪梨市中心 5,968 筆真實地點；名稱搜尋、分類、附近距離、電話／地址／網站及工具箱匯入已接上。資料是 `2026-10-21.0` 的區域快照，不代表即時營業或已驗證座標。
+
+資料檔不放進 Git；新機器請依 [Overture 匯入與設定](infra/poi/README.md) 執行 `scripts/import_overture_places.py`。Apple Maps 仍用 Apple 搜尋，Google Maps 仍需原本的服務設定。
+
+## iOS 宠物对话（本分支）
+
+新增宠物首次引导、文字 AI 对话/点选回答切换、旅行草稿恢复和长期偏好确认管理。仅 iOS 界面更新，Android 保持原版。详见 [使用与记忆说明](docs/PET-CHAT-IOS.md)。

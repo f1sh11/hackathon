@@ -32,6 +32,8 @@ public static class DependencyInjection
         services.AddHttpClient<IExternalJsonClient, ExternalJsonClient>(client => client.Timeout = Timeout.InfiniteTimeSpan);
         services.AddSingleton<IMemoryService, MemoryService>();
         services.AddScoped<PreferenceService>();
+        services.AddSingleton<PetSessionStore>();
+        services.AddHttpClient<IPetModel, PetModel>(client => client.Timeout = Timeout.InfiniteTimeSpan).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         services.AddScoped<WeatherService>();
         services.AddMemoryCache();
         services.AddSingleton<CatalogCache>();
@@ -42,7 +44,9 @@ public static class DependencyInjection
         services.AddScoped<RouteScheduler>();
         services.AddScoped<Planner>();
         services.AddScoped<ScheduleEditorService>();
-        services.AddHttpClient<IPoiProvider,OsmPoiProvider>(client=>client.Timeout=TimeSpan.FromSeconds(25)).ConfigurePrimaryHttpMessageHandler(()=>new HttpClientHandler{AllowAutoRedirect=false});
+        services.AddHttpClient<OsmPoiProvider>(client=>client.Timeout=TimeSpan.FromSeconds(25)).ConfigurePrimaryHttpMessageHandler(()=>new HttpClientHandler{AllowAutoRedirect=false});
+        services.AddSingleton<OverturePoiProvider>();
+        services.AddScoped<IPoiProvider>(p=>p.GetRequiredService<IConfiguration>()["Poi:OpenProvider"]=="overpass" ? p.GetRequiredService<OsmPoiProvider>() : p.GetRequiredService<OverturePoiProvider>());
         services.AddScoped<GooglePoiProvider>();
         services.AddScoped<PoiService>();
         return services;

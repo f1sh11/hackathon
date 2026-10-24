@@ -9,6 +9,7 @@ public static class ApiEndpoints
         routes.MapPlanningEndpoints();
         routes.MapTripEndpoints();
         routes.MapMemoryEndpoints();
+        routes.MapPetEndpoints();
         routes.MapSettingsEndpoints();
     }
 }

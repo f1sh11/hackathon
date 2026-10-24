@@ -115,7 +115,7 @@ public sealed class ScheduleEditorService(PlaceCatalog catalog)
                 var id=a.Str("id");if(id.Length is <1 or >120||!ids.Add(id))throw new ServiceException("活動 ID 無效或重複。");
                 var kind=a.Str("kind");if(kind is not("attraction" or "meal" or "restroom" or "rest" or "bag-drop" or "bag-pickup" or "stay" or "checkout"))throw new ServiceException("活動類型不合法。");
                 JsonObject point;
-                if(kind=="attraction"||(a.Str("placeId").StartsWith("osm:")||a.Str("placeId").StartsWith("apple:"))){
+                if(kind=="attraction"||(a.Str("placeId").StartsWith("osm:")||a.Str("placeId").StartsWith("apple:")||a.Str("placeId").StartsWith("overture:"))){
                     point=places.FirstOrDefault(p=>p.Str("id")==a.Str("placeId"))??throw new ServiceException("景點不在目錄。");
                     if(!selected.Add(point.Str("id")))throw new ServiceException("同一景點不能重複排入多天。");
                     if(PoiService.IsImported(point)) {if(kind!=PoiService.ActivityKind(point))throw new ServiceException("地點活動類型不一致。");Issue("poi-unknown",point.Str("name")+(kind!="attraction"&&a.Number("cost")>0?"的費用為使用者預留，營業時間仍未知。":"的費用與營業時間未知，預算未包含此地點費用。"),id);}
