@@ -1248,5 +1248,80 @@
     "en": "Name was not saved. Please try again.",
     "zh-Hans": "名称未保存，请重试。",
     "zh-Hant": "名稱未儲存，請重試。"
+  },
+  "細分類": {
+    "en": "Subcategories",
+    "zh-Hans": "细分类",
+    "zh-Hant": "細分類"
+  },
+  "餐廳": {
+    "en": "Restaurants",
+    "zh-Hans": "餐厅",
+    "zh-Hant": "餐廳"
+  },
+  "咖啡廳": {
+    "en": "Cafes",
+    "zh-Hans": "咖啡厅",
+    "zh-Hant": "咖啡廳"
+  },
+  "甜點烘焙": {
+    "en": "Bakeries & desserts",
+    "zh-Hans": "甜点烘焙",
+    "zh-Hant": "甜點烘焙"
+  },
+  "酒吧夜生活": {
+    "en": "Bars & nightlife",
+    "zh-Hans": "酒吧夜生活",
+    "zh-Hant": "酒吧夜生活"
+  },
+  "博物館": {
+    "en": "Museums",
+    "zh-Hans": "博物馆",
+    "zh-Hant": "博物館"
+  },
+  "公園綠地": {
+    "en": "Parks & gardens",
+    "zh-Hans": "公园绿地",
+    "zh-Hant": "公園綠地"
+  },
+  "海灘": {
+    "en": "Beaches",
+    "zh-Hans": "海滩",
+    "zh-Hant": "海灘"
+  },
+  "超市雜貨": {
+    "en": "Groceries",
+    "zh-Hans": "超市杂货",
+    "zh-Hant": "超市雜貨"
+  },
+  "廁所": {
+    "en": "Toilets",
+    "zh-Hans": "厕所",
+    "zh-Hant": "廁所"
+  },
+  "飲水點": {
+    "en": "Drinking water",
+    "zh-Hans": "饮水点",
+    "zh-Hant": "飲水點"
+  },
+  "Apple Maps 未提供獨立飲水點分類；請切換開源資料搜尋。": {
+    "en": "Apple Maps has no dedicated drinking-water filter. Switch to open data to search.",
+    "zh-Hans": "Apple Maps 未提供独立饮水点分类；请切换开源资料搜索。",
+    "zh-Hant": "Apple Maps 未提供獨立飲水點分類；請切換開源資料搜尋。"
+  },
+  "Google Places 未提供獨立飲水點分類；請切換開源資料搜尋。": {
+    "en": "Google Places has no dedicated drinking-water filter. Switch to open data to search.",
+    "zh-Hans": "Google Places 未提供独立饮水点分类；请切换开源资料搜索。",
+    "zh-Hant": "Google Places 未提供獨立飲水點分類；請切換開源資料搜尋。"
+  },
+  "飯店旅館": {
+    "en": "Hotels",
+    "zh-Hans": "酒店旅馆",
+    "zh-Hant": "飯店旅館"
+  },
+  "青年旅館": {
+    "en": "Hostels",
+    "zh-Hans": "青年旅舍",
+    "zh-Hant": "青年旅館"
   }
 }

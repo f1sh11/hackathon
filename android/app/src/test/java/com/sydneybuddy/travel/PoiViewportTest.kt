@@ -4,6 +4,13 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class PoiViewportTest {
+    @Test fun subcategoriesRetainTheirParentAndExposeAllOptions(){
+        assertEquals(12,PoiDiscoveryCategory.details.size)
+        assertEquals("food",PoiDiscoveryCategory.parent("cafes"))
+        assertEquals(listOf("toilets","drinking_water"),PoiDiscoveryCategory.filters("toilets").map{it.first})
+        assertEquals(12,PoiDiscoveryCategory.filters("all").size)
+    }
+
     @Test fun ignoresIdleCallbacksAndSmallJitterButAcceptsPanningAndZoom() {
         val point=PoiViewport(-33.865,151.212,15.0)
         assertFalse(point.differs(point))

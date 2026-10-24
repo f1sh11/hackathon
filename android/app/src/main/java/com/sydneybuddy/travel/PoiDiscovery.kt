@@ -36,6 +36,12 @@ import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.annotations.MarkerOptions
 import org.maplibre.android.annotations.IconFactory
 
+internal object PoiDiscoveryCategory {
+    val groups=listOf("all" to "全部","sights" to "景點","gems" to "私房景點","food" to "餐飲","lodging" to "住宿","shops" to "店家","facilities" to "生活設施")
+    val details=listOf(Triple("restaurants","餐廳","food"),Triple("cafes","咖啡廳","food"),Triple("bakeries","甜點烘焙","food"),Triple("bars","酒吧夜生活","food"),Triple("museums","博物館","sights"),Triple("parks","公園綠地","sights"),Triple("beaches","海灘","sights"),Triple("hotels","飯店旅館","lodging"),Triple("hostels","青年旅館","lodging"),Triple("supermarkets","超市雜貨","shops"),Triple("toilets","廁所","facilities"),Triple("drinking_water","飲水點","facilities"))
+    fun parent(id:String)=details.firstOrNull{it.first==id}?.third ?: id
+    fun filters(id:String)=details.filter{parent(id)=="all"||it.third==parent(id)}
+}
 /** Camera idle is deduplicated before the network debounce, so marker updates never re-query. */
 internal data class PoiViewport(val lat:Double,val lng:Double,val zoom:Double) {
     val radius:Int get()=(156543.03392*kotlin.math.cos(Math.toRadians(lat))/Math.pow(2.0,zoom)*420).toInt().coerceIn(500,5000)
@@ -114,13 +120,20 @@ internal fun poiActivityKind(p:JSONObject):String=if(p.optString("source") !in l
     LaunchedEffect(category,store.mapProvider,store.travelDataSource){
         cameraRequest=null
         searchJob?.cancel();places=emptyList();selected=null;detail=null;error=null;busy=false;hasSearched=false;resultProvider=null;attribution="";dataVersion=""
-        if(category=="gems"||store.mapProvider==MapProvider.OSM||store.travelDataSource=="zetaris")search()
+        if(store.mapProvider!=MapProvider.SCHEMATIC)search()
     }
     Dialog(onDismissRequest=onDismiss,properties=DialogProperties(usePlatformDefaultWidth=false)) {
         Surface(Modifier.fillMaxSize()) {Column(Modifier.fillMaxSize().systemBarsPadding().padding(12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment=Alignment.CenterVertically){Text(ui("搜尋地圖地點"),Modifier.weight(1f),style=MaterialTheme.typography.titleMedium);TextButton(onClick=onDismiss){Text(ui("完成"))}}
             Row(verticalAlignment=Alignment.CenterVertically){OutlinedTextField(query,{query=it},Modifier.weight(1f),placeholder={Text(ui("地點名稱（可留空）"))},singleLine=true);TextButton(onClick=::search,enabled=!busy){Text(ui("搜尋"))}}
-            Row(Modifier.horizontalScroll(rememberScrollState())){listOf("all" to "全部","sights" to "景點","gems" to "私房景點","food" to "餐飲","lodging" to "住宿","shops" to "店家","facilities" to "生活設施").forEach{(id,label)->TextButton(onClick={category=id}){Text((if(id==category)"✓ "else "")+ui(label))}}}
+            Row(Modifier.horizontalScroll(rememberScrollState())){PoiDiscoveryCategory.groups.forEach{(id,label)->TextButton(onClick={category=id}){Text((if(id==PoiDiscoveryCategory.parent(category))"✓ "else "")+ui(label))}}}
+            if(PoiDiscoveryCategory.filters(category).isNotEmpty())Row(verticalAlignment=Alignment.CenterVertically){
+                Small(ui("細分類"))
+                Row(Modifier.horizontalScroll(rememberScrollState())){
+                    if(PoiDiscoveryCategory.parent(category)!="all")FilterChip(selected=category==PoiDiscoveryCategory.parent(category),onClick={category=PoiDiscoveryCategory.parent(category)},label={Text(ui("全部"))})
+                    PoiDiscoveryCategory.filters(category).forEach{(id,label,_)->FilterChip(selected=category==id,onClick={category=id},label={Text(ui(label))},modifier=Modifier.testTag("poi-category-"+id))}
+                }
+            }
             Row{MapProvider.entries.filter{store.mapLayerIds?.contains(it.name.lowercase()) ?: true}.forEach{provider->FilterChip(selected=store.mapProvider==provider,onClick={store.chooseMapProvider(provider)},label={Text(provider.label,fontSize=10.sp)})}}
             Small(ui("地點資料：{0}",ui(source)))
             TextButton(onClick={
@@ -135,7 +148,7 @@ internal fun poiActivityKind(p:JSONObject):String=if(p.optString("source") !in l
                 MapProvider.SCHEMATIC->Box(Modifier.fillMaxWidth().height(230.dp),contentAlignment=Alignment.Center){Text(ui("離線示意圖沒有街道底圖，請切換聯網底圖來移動搜尋範圍。"))}
             }
             Small(if(category=="all")"全部分類 · 附近 5 km · 資料限已匯入區域"else if(category=="gems")"社群探索候選 · 附近 5 km · 非熱門度評分"else if(store.mapProvider==MapProvider.GOOGLE&&store.travelDataSource=="direct")"Google Places · 移動地圖後自動搜尋 · 最遠 5 km"else "切換分類自動搜尋 · 移動地圖後自動搜尋 · 附近 1.5 km")
-            summary?.let{Small(it)}
+            summary?.let{Small(ui(it))}
             if(busy){LinearProgressIndicator(Modifier.fillMaxWidth());Small("正在搜尋附近地點…")}
             error?.let{Text("地點資料暫時無法載入："+it,color=Color.Red,fontSize=12.sp);Small("地圖底圖仍可顯示；地點清單尚未取得，並非附近沒有地點。");TextButton(onClick=::search){Text(ui("重新搜尋"))}}
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)) {

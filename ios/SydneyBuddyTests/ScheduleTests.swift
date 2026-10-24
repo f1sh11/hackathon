@@ -4,6 +4,22 @@ import MapKit
 @testable import SydneyBuddy
 
 @MainActor final class ScheduleTests:XCTestCase {
+    func testDiscoverySubcategoriesRetainParentAndUseExactSearchFilter() async throws {
+        XCTAssertEqual(PoiDiscoveryCategory.details.count,12)
+        XCTAssertEqual(PoiDiscoveryCategory.parent("cafes"),"food")
+        XCTAssertEqual(PoiDiscoveryCategory.filters("toilets").map{$0.0},["toilets","drinking_water"])
+        let model=PoiSearchModel();model.category="cafes"
+        model.loader={request in
+            let input=try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:Any]
+            XCTAssertEqual(input["category"] as? String,"cafes")
+            return(Data("{\"places\":[]}".utf8),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)
+        }
+        model.configure(.osm,dataSource:.zetaris)
+        for _ in 0..<100{if !model.busy{break};try await Task.sleep(nanoseconds:5_000_000)}
+        XCTAssertNil(model.error);model.stop()
+        let unsupported=try await ApplePoiProvider.search(.init(latitude:-33.865,longitude:151.212),"drinking_water","")
+        XCTAssertTrue(unsupported.isEmpty)
+    }
     func testCreationDateUsesRecordedTimestampAndLocalTimeZone() throws {
         let utc=try XCTUnwrap(TimeZone(secondsFromGMT:0)),sydney=try XCTUnwrap(TimeZone(identifier:"Australia/Sydney"))
         XCTAssertEqual(TripCreationDate.formatted("2026-10-24T22:30:00.1234567+00:00",timeZone:utc),"2026-10-24 22:30")

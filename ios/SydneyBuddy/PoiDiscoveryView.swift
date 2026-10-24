@@ -10,27 +10,43 @@ import CryptoKit
     func remove(_ id:String){places.removeAll{$0.id==id};if let data=try? JSONEncoder().encode(places){UserDefaults.standard.set(data,forKey:"poi-toolbox")}}
     func add(_ p:ScheduleCandidate){guard !places.contains(where:{$0.id==p.id}) else{return};places.append(p);if let data=try? JSONEncoder().encode(places){UserDefaults.standard.set(data,forKey:"poi-toolbox")}}
 }
+enum PoiDiscoveryCategory {
+    static let groups=[("all","全部"),("sights","景點"),("gems","私房景點"),("food","餐飲"),("lodging","住宿"),("shops","店家"),("facilities","生活設施")]
+    static let details=[("restaurants","餐廳","food"),("cafes","咖啡廳","food"),("bakeries","甜點烘焙","food"),("bars","酒吧夜生活","food"),("museums","博物館","sights"),("parks","公園綠地","sights"),("beaches","海灘","sights"),("hotels","飯店旅館","lodging"),("hostels","青年旅館","lodging"),("supermarkets","超市雜貨","shops"),("toilets","廁所","facilities"),("drinking_water","飲水點","facilities")]
+    static func parent(_ id:String)->String{details.first{$0.0==id}?.2 ?? id}
+    static func filters(_ id:String)->[(String,String,String)]{let group=parent(id);return details.filter{group=="all" || $0.2==group}}
+}
 @MainActor enum ApplePoiProvider {
     static func search(_ center:CLLocationCoordinate2D,_ category:String,_ query:String,_ radiusOverride:Double?=nil) async throws -> [ScheduleCandidate] {
+        if category=="drinking_water"{return []} // MapKit has no dedicated drinking-water category.
         var categories:[MKPointOfInterestCategory]
         switch category {
-        case "lodging":categories=[.hotel]
+        case "restaurants":categories=[.restaurant]
+        case "cafes":categories=[.cafe]
+        case "bakeries":categories=[.bakery]
+        case "bars":categories=[.nightlife]
+        case "museums":categories=[.museum]
+        case "parks":categories=[.park,.nationalPark]
+        case "beaches":categories=[.beach]
+        case "supermarkets":categories=[.foodMarket]
+        case "toilets":categories=[.restroom]
+        case "hotels","hostels","lodging":categories=[.hotel]
         case "shops":categories=[.store,.foodMarket]
-        case "all":categories=[.hotel,.store,.restaurant,.cafe,.museum,.park,.library,.bakery,.foodMarket]
-        case "food":categories=[.restaurant,.cafe,.bakery,.foodMarket]
-        case "facilities":categories=[] // MapKit has no public-toilet/drinking-water POI category on iOS 17.
+        case "all":categories=[.hotel,.store,.restaurant,.cafe,.museum,.park,.nationalPark,.library,.bakery,.foodMarket,.beach,.nightlife,.restroom]
+        case "food":categories=[.restaurant,.cafe,.bakery,.foodMarket,.nightlife]
+        case "facilities":categories=[.restroom] // Access and opening hours still need verification.
         default:categories=[.museum,.park,.nationalPark,.amusementPark,.aquarium,.zoo,.theater,.library]
         }
         if #available(iOS 18.0,*),category=="sights" {categories += [.landmark,.nationalMonument,.musicVenue]}
         let radius:Double=radiusOverride ?? (category == "all" ? 5000:1500)
         let search:MKLocalSearch
-        if query.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty && category != "facilities" {
+        if query.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty && category != "hotels" && category != "hostels" {
             let request=MKLocalPointsOfInterestRequest(center:center,radius:radius)
             request.pointOfInterestFilter=MKPointOfInterestFilter(including:categories)
             search=MKLocalSearch(request:request)
         }else {
             let request=MKLocalSearch.Request()
-            request.naturalLanguageQuery=query.isEmpty ? "public toilets drinking water" : query
+            request.naturalLanguageQuery=category=="hostels" ? "hostel "+query:category=="hotels" ? "hotel "+query:query
             request.resultTypes = .pointOfInterest
             request.region=MKCoordinateRegion(center:center,latitudinalMeters:radius*2,longitudinalMeters:radius*2)
             if !categories.isEmpty{request.pointOfInterestFilter=MKPointOfInterestFilter(including:categories)}
@@ -49,8 +65,8 @@ import CryptoKit
             guard seen.insert(id).inserted else{return nil}
             let address=[item.placemark.thoroughfare,item.placemark.locality,item.placemark.postalCode].compactMap{$0}.joined(separator:", ")
             // A facility keyword match is not proof of a verified public restroom.
-            let kind=category == "all" ? (item.pointOfInterestCategory == .hotel ? "lodging":item.pointOfInterestCategory == .store ? "shops":[MKPointOfInterestCategory.restaurant,.cafe,.bakery,.foodMarket].contains(where:{$0==item.pointOfInterestCategory}) ? "food":"sights"):category
-            return ScheduleCandidate(id:id,name:name,category:kind=="food" ? "美食":kind=="facilities" ? "設施":kind=="lodging" ? "住宿":kind=="shops" ? "店家":"風景",indoor:false,visitMinutes:category=="food" ? 45:category=="facilities" ? 10:60,cost:0,lat:point.latitude,lng:point.longitude,reason:"Apple Maps 地點搜尋",description:address.isEmpty ? "Apple Maps 未提供詳細介紹。":address,note:"Apple Maps 地點；費用、排隊與營業時間未知。設施用途及開放情況請另行確認。",source:"Apple Maps",poiKind:category=="food" ? "restaurant":category=="facilities" ? "facility":"attraction",openingHoursText:"",website:item.url?.absoluteString,phone:item.phoneNumber,address:address)
+            let kind=category == "all" ? (item.pointOfInterestCategory == .hotel ? "lodging":item.pointOfInterestCategory == .store ? "shops":[MKPointOfInterestCategory.restaurant,.cafe,.bakery,.foodMarket].contains(where:{$0==item.pointOfInterestCategory}) ? "food":item.pointOfInterestCategory == .restroom ? "facilities":"sights"):PoiDiscoveryCategory.parent(category)
+            return ScheduleCandidate(id:id,name:name,category:kind=="food" ? "美食":kind=="facilities" ? "設施":kind=="lodging" ? "住宿":kind=="shops" ? "店家":"風景",indoor:false,visitMinutes:kind=="food" ? 45:kind=="facilities" ? 10:60,cost:0,lat:point.latitude,lng:point.longitude,reason:"Apple Maps 地點搜尋",description:address.isEmpty ? "Apple Maps 未提供詳細介紹。":address,note:"Apple Maps 地點；費用、排隊與營業時間未知。設施用途及開放情況請另行確認。",source:"Apple Maps",poiKind:category=="toilets" || item.pointOfInterestCategory == .restroom ? "toilets":category=="cafes" ? "cafe":category=="bakeries" ? "bakery":kind=="food" ? "restaurant":kind=="facilities" ? "facility":"attraction",openingHoursText:"",website:item.url?.absoluteString,phone:item.phoneNumber,address:address)
         }
     }
 }
@@ -110,7 +126,10 @@ import CryptoKit
         job=Task {@MainActor in
             do {
                 let result:[ScheduleCandidate]
-                if current == .apple && route == .direct && kind != "gems" {result=try await appleSearch(point,kind,text,radius)}
+                if current == .apple && route == .direct && kind != "gems" {
+                    result=try await appleSearch(point,kind,text,radius)
+                    if kind=="drinking_water",token==generation{searchSummary="Apple Maps 未提供獨立飲水點分類；請切換開源資料搜尋。"}
+                }
                 else {
                     var request=URLRequest(url:URL(string:"http://127.0.0.1:8787/poi/search")!);request.httpMethod="POST";route.apply(to:&request);request.setValue("application/json",forHTTPHeaderField:"Content-Type");request.timeoutInterval=30
                     request.httpBody=try JSONSerialization.data(withJSONObject:["lat":point.latitude,"lng":point.longitude,"radius":Int(radius ?? (["gems","all"].contains(kind) ? 5000:1500)),"category":kind,"query":text,"provider":current == .google && route == .direct && kind != "gems" ? "google":"osm","language":language])
@@ -194,10 +213,19 @@ import CryptoKit
                     }
 
                     ScrollView(.horizontal,showsIndicators:false){HStack(spacing:8){
-                        ForEach([("all","全部"),("sights","景點"),("gems","私房景點"),("food","餐飲"),("lodging","住宿"),("shops","店家"),("facilities","生活設施")],id:\.0){id,label in
-                            Button{model.category=id}label:{Text(LocalizedStringKey(label)).font(.subheadline).padding(.horizontal,12).padding(.vertical,8).background(model.category==id ? Palette.green:Palette.mint,in:Capsule()).foregroundStyle(model.category==id ? .white:Palette.ink)}.accessibilityIdentifier("poi-category-"+id)
+                        ForEach(PoiDiscoveryCategory.groups,id:\.0){id,label in
+                            Button{model.category=id}label:{Text(LocalizedStringKey(label)).font(.subheadline).padding(.horizontal,12).padding(.vertical,8).background(PoiDiscoveryCategory.parent(model.category)==id ? Palette.green:Palette.mint,in:Capsule()).foregroundStyle(PoiDiscoveryCategory.parent(model.category)==id ? .white:Palette.ink)}.accessibilityIdentifier("poi-category-"+id)
                         }
                     }}.padding(6).background(.regularMaterial,in:RoundedRectangle(cornerRadius:16))
+                    if !PoiDiscoveryCategory.filters(model.category).isEmpty {
+                        HStack(spacing:6){
+                            Text("細分類").font(.caption).foregroundStyle(Palette.muted)
+                            ScrollView(.horizontal,showsIndicators:false){HStack(spacing:6){
+                                if PoiDiscoveryCategory.parent(model.category) != "all"{categoryFilter(PoiDiscoveryCategory.parent(model.category),"全部")}
+                                ForEach(PoiDiscoveryCategory.filters(model.category),id:\.0){id,title,_ in categoryFilter(id,title)}
+                            }}
+                        }.padding(6).background(.regularMaterial,in:RoundedRectangle(cornerRadius:14))
+                    }
                     Button{showInsights=true;Task{await store.refreshInsights(places:insightPoints)}}label:{Label("交通・人潮・費用",systemImage:"info.circle").font(.caption).padding(10).background(.regularMaterial,in:Capsule())}.accessibilityIdentifier("travel-insights-open")
 
                     if areaChanged {
@@ -253,13 +281,7 @@ import CryptoKit
     }
     .onChange(of:store.travelDataSource){_,_ in detail=nil;areaChanged=false;model.configure(searchProvider,googleMapConfigured:SydneyBuddyApp.mapConfigured,dataSource:store.travelDataSource)}
     .onChange(of: model.category) { _, _ in
-        searching = false
-        areaChanged = false
-        if model.category != "gems" && searchProvider == .google && store.travelDataSource == .direct {
-            model.configure(.google, googleMapConfigured: SydneyBuddyApp.mapConfigured,dataSource:store.travelDataSource)
-        } else {
-            model.search()
-        }
+        searching=false;areaChanged=false;model.search()
     }
     .onChange(of: model.selected) { _, id in
         if id != nil {
@@ -284,6 +306,7 @@ import CryptoKit
             Button{togglePanel()}label:{VStack(spacing:10){Capsule().fill(Palette.muted.opacity(0.35)).frame(width:36,height:4);HStack{Text(LocalizedStringKey(model.busy ? "正在寻找好去处…":"附近地点")).font(.headline);Text("\(visiblePlaces.count)").font(.caption).foregroundStyle(Palette.muted);Spacer();Image(systemName:expanded ? "chevron.down":"chevron.up").font(.caption.bold())}}.padding(.horizontal,20).padding(.top,10).padding(.bottom,12)}.buttonStyle(.plain).accessibilityLabel(expanded ? "收起地点列表":"展开地点列表")
                 .gesture(DragGesture(minimumDistance:15).onEnded{value in if abs(value.translation.height)>20{expanded=value.translation.height<0}})
             if model.busy{ProgressView().padding(12)}
+            if let summary=model.searchSummary{Text(LocalizedStringKey(summary)).font(.caption).foregroundStyle(Palette.muted).padding(.horizontal,16).padding(.bottom,6).accessibilityIdentifier("poi-search-summary")}
             if let error=model.error{ScrollView{VStack(spacing:10){Text("暂时没找到地点资料").font(.headline);Text(error).font(.caption).foregroundStyle(Palette.muted);Button("重新搜索"){search()}}.padding(20)}}
             else if !model.busy && visiblePlaces.isEmpty {ContentUnavailableView("换个地方看看",systemImage:"magnifyingglass",description:Text("移动地图后自动搜索，也可点“搜索此区域”，或换一个关键词。"))}
             else{ScrollViewReader{proxy in ScrollView{LazyVStack(spacing:0){ForEach(orderedPlaces){p in placeRow(p).id(p.id);Divider().padding(.leading,68)}}}.onChange(of:model.selected){_,id in if let id{proxy.scrollTo(id,anchor:.top)}}}}
@@ -317,6 +340,9 @@ import CryptoKit
                 if let version=model.dataVersion { Text(store.language.text("本機地點資料快照：{0}",version)) }
             }.font(.caption2).foregroundStyle(Palette.muted)
         } else{Text(model.attribution).font(.caption2).foregroundStyle(Palette.muted)}
+    }
+    private func categoryFilter(_ id:String,_ title:String)->some View {
+        Button{model.category=id}label:{Text(LocalizedStringKey(title)).font(.caption.bold()).padding(.horizontal,10).padding(.vertical,8).background(model.category==id ? Palette.green:Palette.mint,in:Capsule()).foregroundStyle(model.category==id ? .white:Palette.ink)}.accessibilityIdentifier("poi-category-"+id)
     }
     private func isAdded(_ p:ScheduleCandidate)->Bool {toolbox.places.contains{$0.id==p.id}}
     private func search(){searching=false;areaChanged=false;model.search()}

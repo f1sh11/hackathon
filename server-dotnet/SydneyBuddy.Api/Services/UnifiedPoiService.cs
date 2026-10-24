@@ -26,7 +26,7 @@ public sealed class UnifiedPoiService(TravelDataContext travel,OverturePoiProvid
         var groups=new Dictionary<string,List<JsonObject>>(StringComparer.Ordinal);var identifiers=new HashSet<string>(StringComparer.Ordinal);
         foreach(var point in points.OrderByDescending(Richness)){
             token.ThrowIfCancellationRequested();var kind=Kind(point);
-            if(category!="all"&&kind!=category&&!(category=="sights"&&kind=="gems"))continue;
+            if(!PoiCategories.Matches(point,category))continue;
             if(!tokens.All(q=>CultureInfo.InvariantCulture.CompareInfo.IndexOf(point.Str("searchText",point.Str("name")+" "+point.Str("description")+" "+point.Str("address")),q,CompareOptions.IgnoreCase|CompareOptions.IgnoreNonSpace)>=0))continue;
             if(!identifiers.Add(point.Str("id")))continue;
             var meters=RouteService.Distance(origin,point);if(meters>radius)continue;
