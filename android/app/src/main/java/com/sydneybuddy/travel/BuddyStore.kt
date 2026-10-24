@@ -28,7 +28,9 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
     var busy by mutableStateOf(false); private set
     var weather by mutableStateOf<JSONObject?>(null); private set
     var online by mutableStateOf(false)
-    var tab by mutableStateOf(0)
+    var language by mutableStateOf(AppLanguage.fromStored(prefs.getString("appLanguage",null)));private set
+    fun chooseLanguage(value:AppLanguage){language=value;prefs.edit().putString("appLanguage",value.code).apply()}
+    var tab by mutableStateOf(1)
     var dayIndex by mutableStateOf(0)
     var onboarding by mutableStateOf(!prefs.getBoolean("onboarded", false))
     var preparations by mutableStateOf(prefs.getStringSet("preparations", emptySet())!!.toSet()); private set
@@ -40,6 +42,9 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
         mapProvider = value
         prefs.edit().putString("mapProvider", value.name).apply()
     }
+    var poiToolbox by mutableStateOf(runCatching{JSONArray(prefs.getString("poiToolbox","[]")).objects()}.getOrDefault(emptyList()));private set
+    fun addPoi(p:JSONObject){if(poiToolbox.none{it.optString("id")==p.optString("id")}){poiToolbox=poiToolbox+p.copy();prefs.edit().putString("poiToolbox",JSONArray(poiToolbox).toString()).apply()}}
+    suspend fun searchPoi(body:JSONObject)=JSONObject(request("poi/search","POST",body))
     val base = "http://127.0.0.1:8787"
     val day: JSONObject? get() = trip?.array("days")?.objects()?.getOrNull(dayIndex)
 
@@ -112,6 +117,14 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
             val result = JSONObject(request("plan", "POST", source))
             proposal = Proposal(result, target, revision)
         }
+    }
+    suspend fun scheduleRequest(body:JSONObject)=JSONObject(request("schedule/editor","POST",body))
+    fun previewSchedule(value:JSONObject) {proposal=Proposal(value.copy(),null,0)}
+    fun applyScheduleDraft(value:JSONObject) {proposal=proposal?.copy(trip=value)}
+    fun editSchedule(value:JSONObject) {select(value);proposal=Proposal(value.copy(),value.optString("id"),value.optInt("revision",0))}
+    fun tryScheduleDemo()=operation {
+        val source=Profile(days=3,budget=250,endMinute=1140).json().put("mode","demo")
+        proposal=Proposal(JSONObject(request("plan","POST",source)),null,0)
     }
     fun cancelProposal() { if (!busy) proposal = null }
     fun accept() {

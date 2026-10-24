@@ -48,7 +48,7 @@ class WalkingLiveSmokeTest {
                 store.select(trip);store.resumeSaved();store.chooseMapProvider(MapProvider.OSM);store.tab=0
             }
             rule.waitUntil(30000){rule.onAllNodesWithText("Buddy 正在处理",substring=true).fetchSemanticsNodes().isEmpty()}
-            click("逐段步行导航",false)
+            click("開始導航",false)
             rule.onNode(isToggleable()).performScrollTo().performClick()
             click("预览整天步行路线")
             rule.waitUntil(30000){rule.onAllNodesWithText("全天步行约",substring=true).fetchSemanticsNodes().isNotEmpty()}

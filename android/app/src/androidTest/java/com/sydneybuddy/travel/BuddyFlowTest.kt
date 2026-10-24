@@ -23,9 +23,12 @@ class BuddyFlowTest {
         if(rule.onAllNodesWithText("哪天去悉尼玩？",substring=false).fetchSemanticsNodes().isEmpty()) { click("行程");click("新建") }
         repeat(7) {click("选好了，继续")}
         click("让 Buddy 规划路线")
-        awaitText("你的路线准备好了")
-        click("确认并保存")
-        awaitText("出发前的 3 个小任务")
+        awaitText("我的時間軸")
+        awaitText("行程剩餘額度")
+        rule.waitUntil(30000){rule.onAllNodes(hasText("確認並保存") and isEnabled()).fetchSemanticsNodes().isNotEmpty()}
+        click("確認並保存")
+        rule.onNodeWithText("確認保存").performClick()
+        awaitText("開始導航")
     }
 
     @Test fun onboardingSaveAdjustmentCancelAndLocalPersistence() {
@@ -34,11 +37,11 @@ class BuddyFlowTest {
         newDemoTrip()
         click("问 AI")
         click("少走一点")
-        awaitText("看看这次怎么调整")
+        awaitText("我的時間軸")
         click("取消草案")
         click("地图")
-        click("出发前的 3 个小任务")
-        click("行李备好")
+        rule.onNodeWithTag("home-info-toggle").performClick()
+        rule.onNodeWithText("行李备好").performScrollTo().performClick()
         click("查看路线")
         click("完成")
         click("记账")

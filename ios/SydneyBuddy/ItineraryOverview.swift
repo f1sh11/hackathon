@@ -56,11 +56,19 @@ struct OverviewRoute {
     @Published var message: String?
     private var task: Task<Void, Never>?
     private var generation = UUID()
+    private var homeIdentity=""
+    var loader:(URLRequest) async throws -> (Data,URLResponse) = {try await URLSession.shared.data(for:$0)}
     private let applePlan:(DayPlan,Date) async throws -> JourneyPlan
     init(applePlan:@escaping (DayPlan,Date) async throws -> JourneyPlan = {day,departure in
         try await AppleJourneyProvider.plan(day:day,modes:Array(repeating:"walk",count:day.stops.count+1),departure:departure)
     }) {self.applePlan=applePlan}
     var summary:String {route.map{"路线约 \(Int($0.meters.rounded())) 米 · \(Int(ceil($0.seconds/60))) 分钟"} ?? "显示步行路线"}
+    func loadHome(_ day:DayPlan,provider:MapProvider,contentSource:String) {
+        let identity=mapSceneKey(day)+"|"+provider.rawValue+"|"+contentSource
+        guard homeIdentity != identity else{return};homeIdentity=identity
+        clear();key=mapSceneKey(day)
+        if contentSource != "google" && (provider == .osm || provider == .apple){load(day,provider:provider)}
+    }
     func clear(){cancel();route=nil;plan=nil;message=nil}
     func accept(_ result:JourneyPlan,day:DayPlan) {
         cancel();key=mapSceneKey(day);plan=result;route=result.overview;message="路线来源："+result.source
@@ -84,19 +92,34 @@ struct OverviewRoute {
                     plan=result;route=result.overview;busy=false;message="路线来源："+result.source
                     return
                 }
+                // Co-located meal/facility placeholders remain separate itinerary stops, but
+                // must not become zero-length break points in the upstream road query.
+                var compact:[CLLocationCoordinate2D]=[points[0]]
+                var edgeMap:[Int?]=[]
+                for point in points.dropFirst() {
+                    let previous=compact.last!
+                    if point.latitude == previous.latitude && point.longitude == previous.longitude {edgeMap.append(nil)}
+                    else {edgeMap.append(compact.count-1);compact.append(point)}
+                }
+                if compact.count == 1 {
+                    try Task.checkCancellation();guard token == generation else{return}
+                    route=OverviewRoute(coordinates:[points[0],points[0]],meters:0,seconds:0,legSeconds:edgeMap.map{_ in 0});busy=false;return
+                }
                 var request = URLRequest(url: URL(string: "http://127.0.0.1:8787/navigation/route")!)
                 request.httpMethod = "POST"; request.timeoutInterval = 25
                 request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                request.httpBody = try JSONSerialization.data(withJSONObject: ["locations": points.map { ["lat": $0.latitude, "lon": $0.longitude] }])
-                let (data, response) = try await URLSession.shared.data(for: request)
-                guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
+                request.httpBody = try JSONSerialization.data(withJSONObject: ["locations": compact.map { ["lat": $0.latitude, "lon": $0.longitude] }])
+                let (data, response) = try await loader(request)
+                guard (response as? HTTPURLResponse)?.statusCode == 200 else {let object=(try? JSONSerialization.jsonObject(with:data)) as? [String:Any];throw NSError(domain:"Overview",code:1,userInfo:[NSLocalizedDescriptionKey:object?["error"] as? String ?? "道路路線服務暫時無法使用"])}
                 let parsed = try OverviewRoute.parse(data)
+                guard parsed.legSeconds.count == compact.count-1 else {throw URLError(.cannotParseResponse)}
+                let expanded=OverviewRoute(coordinates:parsed.coordinates,meters:parsed.meters,seconds:parsed.seconds,legSeconds:edgeMap.map{index in index.map{parsed.legSeconds[$0]} ?? 0})
                 try Task.checkCancellation()
                 guard token == generation else { return }
-                plan=nil;route = parsed; busy = false
+                plan=nil;route = expanded; busy = false
             } catch {
                 guard token == generation, !Task.isCancelled else { return }
-                busy = false; message = "暂时无法取得步行路线，仅显示站点；请重试。"
+                busy = false; message = "道路路線無法載入："+error.localizedDescription.trimmingCharacters(in:CharacterSet(charactersIn:"。.!"))+"。目前僅顯示站點。"
             }
         }
     }
@@ -154,5 +177,35 @@ func overviewDirections(_ coordinates: [CLLocationCoordinate2D]) -> [ItineraryPi
         let index = (Int((angle / (.pi/4)).rounded()) + 8) % 8
         let position = coordinates.count > 30 ? a : CLLocationCoordinate2D(latitude: (a.latitude+b.latitude)/2, longitude: (a.longitude+b.longitude)/2)
         return ItineraryPin(position, badge: symbols[index], title: "行程方向", direction: true)
+    }
+}
+
+struct OverviewTransportLeg:Identifiable {
+    var id:Int;var label:String;var from:String;var to:String;var mode:String;var transport:String;var minutes:Int
+}
+func overviewTransportLegs(_ day:DayPlan,route:OverviewRoute?,plan:JourneyPlan?)->[OverviewTransportLeg] {
+    if let plan{return plan.legs.map{leg in
+        OverviewTransportLeg(id:leg.index,label:"\(leg.index==0 ? "起":String(leg.index))→\(leg.index==day.stops.count ? "終":String(leg.index+1))",from:leg.from,to:leg.to,mode:leg.steps.first?.mode ?? leg.mode,transport:leg.steps.map(\.title).joined(separator:" · "),minutes:Int(ceil(leg.steps.reduce(0){$0+$1.seconds+$1.waitSeconds}/60)))
+    }}
+    guard let route,route.legSeconds.count==day.stops.count+1 else{return []}
+    let names=[day.start.name]+day.stops.map(\.name)+[day.end.name]
+    return route.legSeconds.enumerated().map{i,seconds in OverviewTransportLeg(id:i,label:"\(i==0 ? "起":String(i))→\(i==day.stops.count ? "終":String(i+1))",from:names[i],to:names[i+1],mode:"walk",transport:seconds == 0 ? "同一位置" : "步行",minutes:Int(ceil(seconds/60)))}
+}
+struct HomeTransportStrip:View {
+    var day:DayPlan;@ObservedObject var overview:ItineraryOverview
+    @EnvironmentObject var store:AppStore
+    var onPlan:()->Void;var onRetry:()->Void
+    var body:some View {
+        VStack(alignment:.leading,spacing:6){
+            HStack{Button(action:onPlan){Label("交通方式",systemImage:"arrow.triangle.swap").font(.caption.bold())};Spacer();if overview.route != nil{Text(store.language.text("{0} 分 · 交通預估",String(Int(ceil((overview.route?.seconds ?? 0)/60))))).font(.caption2).foregroundStyle(Palette.muted)}}
+            if overview.busy{ProgressView("正在載入道路路線…").font(.caption)}
+            else if overview.route != nil{
+                ScrollView(.horizontal,showsIndicators:false){HStack(spacing:6){ForEach(overviewTransportLegs(day,route:overview.route,plan:overview.plan)){leg in
+                    VStack(alignment:.leading,spacing:4){Label(store.language.text("{0} · {1} {2} 分",leg.label,store.language.text(leg.transport),String(leg.minutes)),systemImage:transportSymbol(leg.mode)).font(.caption.bold()).lineLimit(1);Text(leg.from+" → "+leg.to).font(.system(size:10)).lineLimit(1)}.padding(8).frame(maxWidth:220,alignment:.leading).background(Palette.mint.opacity(0.65),in:RoundedRectangle(cornerRadius:10))
+                }}}.accessibilityIdentifier("home-transport-legs")
+            }else if let message=overview.message{
+                HStack(alignment:.top){Text(message).font(.caption2).foregroundStyle(.red);Spacer();Button("重試",action:onRetry).font(.caption.bold())}.accessibilityIdentifier("home-route-error")
+            }else{Text("選擇交通方式以規劃路線").font(.caption2).foregroundStyle(Palette.muted)}
+        }
     }
 }

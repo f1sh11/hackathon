@@ -94,7 +94,7 @@ class JourneyModel(private val client:OkHttpClient=OkHttpClient.Builder().callTi
         }
     }
 }
-@Composable fun JourneyPlannerDialog(day:JSONObject,base:String,provider:MapProvider,onClose:()->Unit,onWalkNavigation:()->Unit,fixture:JourneyPlan?=null,suppliedModel:JourneyModel?=null,contentSource:String="open") {
+@Composable fun JourneyPlannerDialog(day:JSONObject,base:String,provider:MapProvider,onClose:()->Unit,onWalkNavigation:()->Unit,fixture:JourneyPlan?=null,suppliedModel:JourneyModel?=null,contentSource:String="open",onPlan:(JourneyPlan)->Unit={}) {
     val context=LocalContext.current
     val model=remember(day.toString(),suppliedModel){suppliedModel ?: JourneyModel()}
     DisposableEffect(model){onDispose{model.close()}}
@@ -104,13 +104,15 @@ class JourneyModel(private val client:OkHttpClient=OkHttpClient.Builder().callTi
     LaunchedEffect(provider){model.invalidate()}
     var details by remember{mutableStateOf(true)}
     val result=fixture ?: model.plan
+    val currentOnPlan by rememberUpdatedState(onPlan)
+    LaunchedEffect(model.plan){if(fixture==null)model.plan?.let{currentOnPlan(it)}}
     val points=walkingPoints(day)
     fun setModes(value:List<String>){model.invalidate();modes=value}
     Dialog(onDismissRequest=onClose,properties=DialogProperties(usePlatformDefaultWidth=false)) {
         Box(Modifier.fillMaxSize().background(Mint).testTag("journey-planner")) {
             RouteMap(day,Modifier.fillMaxSize(),true,provider,overview=result?.overview,expanded=true,sections=result?.sections ?: emptyList())
             Column(Modifier.fillMaxSize().padding(horizontal=16.dp,vertical=12.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
-                Surface(shape=RoundedCornerShape(20.dp),color=Color.White){Row(Modifier.fillMaxWidth().padding(14.dp),verticalAlignment=Alignment.CenterVertically){Text("交通路线",modifier=Modifier.weight(1f),style=MaterialTheme.typography.titleMedium);TextButton(onClick=onClose){Text("关闭")}}}
+                Surface(shape=RoundedCornerShape(20.dp),color=Color.White){Row(Modifier.fillMaxWidth().padding(14.dp),verticalAlignment=Alignment.CenterVertically){Text("交通路线",modifier=Modifier.weight(1f),style=MaterialTheme.typography.titleMedium);TextButton(onClick=onClose){Text(ui("关闭"))}}}
                 if(fixture!=null)Text("测试资料 · TEST 公车非真实班次",Modifier.background(Color.Yellow).padding(8.dp),fontSize=12.sp)
                 if(!details)Surface(shape=RoundedCornerShape(18.dp),color=Color.White){Column(Modifier.fillMaxWidth().padding(14.dp)){Text("起 · ${points.first().name}");Text("↓ ${points.size-2} 个停留点",fontSize=12.sp);Text("终 · ${points.last().name}")}}
                 Spacer(Modifier.weight(1f))
@@ -150,7 +152,7 @@ class JourneyModel(private val client:OkHttpClient=OkHttpClient.Builder().callTi
                         model.error?.let{Text(it,color=Color.Red,fontSize=12.sp,modifier=Modifier.testTag("journey-error"))}
                         Row(horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically){
                             Button(onClick={model.load(day,modes,departure.toOffsetDateTime(),base,routingProvider,provider.name.lowercase(),contentSource)},enabled=!model.busy && fixture==null){Text(if(model.busy)"正在查询交通…" else if(result==null)"规划交通路线" else "重新查询")}
-                            if(model.busy)TextButton(onClick=model::invalidate){Text("取消")}
+                            if(model.busy)TextButton(onClick=model::invalidate){Text(ui("取消"))}
                             if(fixture==null && routingProvider=="open" && result!=null && modes.all{it=="walk"})TextButton(onClick=onWalkNavigation){Text("开始步行导航")}
                         }
                     }

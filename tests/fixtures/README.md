@@ -9,3 +9,5 @@ Geographic data © [OpenStreetMap contributors](https://www.openstreetmap.org/co
 `nsw-journey-test.json` / `google-journey-test.json` 是以相同測試行程建立的供應商格式契約 fixture，並非從兩家服務下載的真實班次。四份合成交通 fixture 的幾何取自上述 `walking-sydney.json` 的真實步道記錄，分成三段測試點線 / 實線 / 上下車標記；中間的 `TEST-01` 車段故意沿用步道幾何，僅為繪圖測試，不代表公車能行駛該路。距離、時間、路線名稱與站台同樣為測試值。正式串接不讀取這些 fixture，必須使用供應商實際回傳的 geometry / coords。
 
 `walking-itinerary-day.json` / `walking-itinerary-plan.json` 是 2026-10-23 從開發用 Valhalla 經本地 `/journey/plan` 錄製的公開景點五段步行路線：環形碼頭 → 植物園 → 歌劇院 → 岩石區 → 當代藝術館 → 返回，約 3,693 公尺。記錄用於重現「地圖先載入、再規劃」的路徑可見性與縮放回歸測試，不含裝置位置。背景資料同樣 © OpenStreetMap contributors；這是固定測試記錄，不是即時導航。
+
+- `schedule-trip-test.json`：由本機 demo 規劃及 `/schedule/editor` 產生的三天時間軸樣本，使用公開悉尼地標與明確待確認的生活設施佔位；排隊為未知，並非真實住宿、餐廳、廁所或寄放資訊。供兩平台 Codable／JSON 與編輯操作測試，沒有私人位置或金鑰。
