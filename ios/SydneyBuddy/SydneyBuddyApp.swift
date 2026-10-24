@@ -28,29 +28,13 @@ enum Palette {
 struct PrimaryButton: View {
     var title: String; var symbol = "arrow.right"; var action: () -> Void
     var body: some View {
-        Button(action:action) { HStack { Spacer(); Text(LocalizedStringKey(title)).fontWeight(.bold); Image(systemName:symbol); Spacer() }.padding(.vertical,18) }
-            .buttonStyle(BuddyPressStyle()).foregroundStyle(.white).background(Palette.green,in:RoundedRectangle(cornerRadius:22)).padding(.bottom,5).background(Palette.ink,in:RoundedRectangle(cornerRadius:22)).accessibilityLabel(title)
+        Button(action:action) { HStack { Spacer(); Text(LocalizedStringKey(title)).fontWeight(.bold); Image(systemName:symbol); Spacer() }.padding(.vertical,15) }
+            .buttonStyle(BuddyPressStyle()).foregroundStyle(.white).background(Palette.green,in:RoundedRectangle(cornerRadius:17)).accessibilityLabel(title)
     }
 }
-struct Robot: View {
-    var size: CGFloat = 130
-    var body: some View {
-        ZStack {
-            Ellipse().fill(Palette.green.opacity(0.10)).frame(width:size*0.8,height:size*0.10).offset(y:size*0.46)
-            Capsule().fill(Palette.green).frame(width:size*0.06,height:size*0.18).rotationEffect(.degrees(20)).offset(x:size*0.05,y:-size*0.40)
-            Circle().fill(Palette.mint).overlay(Circle().stroke(Palette.green.opacity(0.4),lineWidth:2)).frame(width:size*0.12).offset(x:size*0.08,y:-size*0.50)
-            RoundedRectangle(cornerRadius:size*0.20).fill(LinearGradient(colors:[Palette.mint,.white],startPoint:.topLeading,endPoint:.bottomTrailing)).frame(width:size*0.64,height:size*0.55).offset(y:size*0.19)
-            Capsule().fill(Palette.green).frame(width:size*0.13,height:size*0.19).rotationEffect(.degrees(25)).offset(x:-size*0.20,y:size*0.40)
-            Capsule().fill(Palette.green).frame(width:size*0.13,height:size*0.19).rotationEffect(.degrees(-25)).offset(x:size*0.20,y:size*0.40)
-            Capsule().fill(Palette.green.opacity(0.8)).frame(width:size*0.12,height:size*0.32).rotationEffect(.degrees(-30)).offset(x:-size*0.38,y:size*0.1)
-            Capsule().fill(Palette.green.opacity(0.8)).frame(width:size*0.12,height:size*0.32).rotationEffect(.degrees(-55)).offset(x:size*0.37,y:-size*0.02)
-            RoundedRectangle(cornerRadius:size*0.30).fill(LinearGradient(colors:[.white,Palette.mint],startPoint:.top,endPoint:.bottom)).overlay(RoundedRectangle(cornerRadius:size*0.30).stroke(Palette.green.opacity(0.3),lineWidth:2)).frame(width:size*0.82,height:size*0.65).offset(y:-size*0.11)
-            RoundedRectangle(cornerRadius:size*0.20).fill(Palette.ink).frame(width:size*0.63,height:size*0.39).offset(y:-size*0.10)
-            HStack(spacing:size*0.18) { Capsule().fill(.white).frame(width:size*0.06,height:size*0.11); Capsule().fill(.white).frame(width:size*0.06,height:size*0.11) }.offset(y:-size*0.12)
-            Image(systemName:"mouth").font(.system(size:size*0.12,weight:.bold)).foregroundStyle(.white).offset(y:size*0.01)
-            Circle().fill(Color.orange.opacity(0.65)).frame(width:size*0.09).offset(y:size*0.27)
-        }.frame(width:size,height:size*1.15).accessibilityLabel("旅行机器人 Buddy")
-    }
+struct Robot:View {
+    var size:CGFloat=130
+    var body:some View {PetAvatar().scaleEffect(size/104).frame(width:size,height:size*1.04)}
 }
 struct RootView: View {
     @EnvironmentObject var store: AppStore
@@ -67,7 +51,7 @@ struct RootView: View {
                 }.tint(Palette.green).modifier(CompactTabs())
             }
             if store.busy {
-                ZStack { Color.black.opacity(0.15).ignoresSafeArea(); VStack(spacing:14) { PetAvatar(mood:.thinking); ProgressView(); Text("正在装好你的小冒险…").font(.headline); Text("时间、步数、预算和返程都要刚刚好").font(.caption).foregroundStyle(Palette.muted) }.padding(30).background(Palette.cream,in:RoundedRectangle(cornerRadius:28)) }
+                ZStack { Color.black.opacity(0.15).ignoresSafeArea(); VStack(spacing:14) { PetAvatar(mood:.thinking); ProgressView(); Text(LocalizedStringKey(store.operationTitle)).font(.headline); Text(LocalizedStringKey(store.operationDetail)).font(.caption).foregroundStyle(Palette.muted);if store.canCancelOperation{Button("取消生成"){store.cancelPendingGeneration()}.buttonStyle(.bordered)} }.padding(30).background(Palette.cream,in:RoundedRectangle(cornerRadius:28)) }
             }
         }
         .sheet(isPresented:Binding(get:{store.proposal != nil},set:{if !$0 {store.proposal=nil}})) { ProposalView() }

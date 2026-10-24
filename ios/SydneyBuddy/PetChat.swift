@@ -149,7 +149,12 @@ struct PetChatView:View {
     @Environment(\.dismiss) private var dismiss
     var onboarding=false
     var conversationOnly=false
-    private var scope:String {onboarding ? "draft" : (store.trip?.id ?? "draft")}
+    var draftScope=false
+    private var scope:String {(onboarding || draftScope) ? "draft" : (store.trip?.id ?? "draft")}
+    private var displayedMessages:[PetMessage] {
+        let messages=chat.session?.messages ?? []
+        return draftScope && messages.first?.role=="assistant" ? Array(messages.dropFirst()):messages
+    }
     var body:some View {
         VStack(spacing:0) {
             HStack(spacing:12) {
@@ -161,7 +166,10 @@ struct PetChatView:View {
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(alignment:.leading,spacing:14){
-                        ForEach(chat.session?.messages ?? []){item in bubble(item.text,user:item.role=="user")}
+                        if draftScope,let session=chat.session {
+                            VStack(alignment:.leading,spacing:8){Text("继续准备这次旅行").font(.headline);Text("\(session.fields["destination"] ?? "悉尼") · \(session.fields["days"] ?? "1") 天 · \(session.fields["interests"] ?? "")").font(.subheadline);Text("已有回答会保留，直接告诉 Buddy 你想补充或调整的内容。").font(.caption).foregroundStyle(Palette.muted)}.padding(16).frame(maxWidth:.infinity,alignment:.leading).background(Palette.mint,in:RoundedRectangle(cornerRadius:18))
+                        }
+                        ForEach(displayedMessages){item in bubble(item.text,user:item.role=="user")}
                         if !chat.outgoing.isEmpty{bubble(chat.outgoing,user:true)}
                         if !chat.streaming.isEmpty{bubble(chat.streaming,user:false)}
                         else if chat.busy {HStack{ProgressView();Text("Buddy 想一想…").font(.caption)}}
@@ -199,7 +207,7 @@ struct PetChatView:View {
                 Menu{Button("清空本次对话",role:.destructive){clearing=true};if onboarding{Button("先看看已有行程"){store.showOnboarding=false;UserDefaults.standard.set(true,forKey:"onboarded");Task{await store.reload()}}}}label:{Image(systemName:"ellipsis.circle")}
             }.font(.subheadline).padding(20).disabled(chat.busy)
         }.background(Palette.cream).foregroundStyle(Palette.ink)
-        .task(id:scope){var seed:[String:String]=[:];if !onboarding,let t=store.trip{seed=["destination":"悉尼","date":t.profile.date,"days":String(t.profile.days),"budget":String(Int(t.profile.budget)),"interests":t.profile.interests.joined(separator:"、"),"pace":"约\(t.profile.maxSteps)步"]};await chat.load(scope:scope,seed:seed)}
+        .task(id:scope){var seed:[String:String]=draftScope ? store.pendingTripFields:[:];if !onboarding && !draftScope,let t=store.trip{seed=["destination":"悉尼","date":t.profile.date,"days":String(t.profile.days),"budget":String(Int(t.profile.budget)),"interests":t.profile.interests.joined(separator:"、"),"pace":"约\(t.profile.maxSteps)步"]};await chat.load(scope:scope,seed:seed);if draftScope{chat.mode(false)}}
         .sheet(isPresented:$review){reviewSheet}
         .sheet(isPresented:$memories){PetMemoryView(chat:chat)}
         .confirmationDialog("清空本次对话和旅行草稿？已保存行程与长期偏好保留。",isPresented:$clearing,titleVisibility:.visible){Button("清空",role:.destructive){Task{await chat.clear()}}}

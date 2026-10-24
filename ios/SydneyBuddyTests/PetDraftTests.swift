@@ -66,6 +66,21 @@ final class PetDraftTests:XCTestCase {
         XCTAssertFalse((bodies[0]["summary"] as! String).contains("2026-11-01"))
         XCTAssertEqual(chat.memories.count,1)
     }
+    @MainActor func testCancellingPlanningPreservesDraftAndDoesNotSaveTrip() async throws {
+        let store=AppStore();let original=store.pendingTripFields
+        defer{store.pendingTripFields=original}
+        store.pendingTripFields=fields
+        var paths:[String]=[]
+        store.loader={request in paths.append(request.url!.path);try await Task.sleep(nanoseconds:5_000_000_000);throw URLError(.badServerResponse)}
+        store.startGeneratingPendingTrip()
+        for _ in 0..<100{if store.busy{break};try await Task.sleep(nanoseconds:1_000_000)}
+        XCTAssertTrue(store.busy);XCTAssertTrue(store.canCancelOperation)
+        store.cancelPendingGeneration()
+        for _ in 0..<100{if !store.busy{break};try await Task.sleep(nanoseconds:1_000_000)}
+        XCTAssertFalse(store.busy);XCTAssertFalse(store.canCancelOperation)
+        XCTAssertEqual(store.pendingTripFields,fields);XCTAssertNil(store.errorMessage)
+        XCTAssertEqual(paths,["/plan"]);XCTAssertTrue(store.saved.isEmpty)
+    }
     func testTripReviewPreservesExplicitWalkingLimitAndBudget() throws {
         let profile=try PetTripDraft.profile(fields)
         XCTAssertEqual(profile.maxSteps,5000);XCTAssertEqual(profile.budget,100);XCTAssertEqual(profile.days,2)

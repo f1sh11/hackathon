@@ -32,7 +32,7 @@ struct JournalView:View {
 }
 struct SettingsView:View {
     @EnvironmentObject var store:AppStore
-    @State var consent=false
+    @State private var deletingMemory:Memory?
     var body:some View {
         NavigationStack {
             Form {
@@ -44,7 +44,18 @@ struct SettingsView:View {
                     Text("語言切換後立即生效，並保存在這台裝置。").font(.caption)
                     Text("景點名稱與已儲存的行程內容保留原始語言。").font(.caption).foregroundStyle(Palette.muted)
                 }
-                Section("地图底图") {
+                Section("Buddy 记住的偏好") {
+                    Text("新旅行会参考你同意保存的兴趣与节奏，本次选择始终优先。长期记忆可在开场摘要中保存。").font(.caption).foregroundStyle(Palette.muted)
+                    if store.memories.isEmpty{Text("还没有长期偏好，和 Buddy 聊聊吧。").foregroundStyle(Palette.muted)}
+                    ForEach(store.memories){memory in HStack(alignment:.top){Text(memory.summary).font(.subheadline);Spacer();Button("删除",role:.destructive){deletingMemory=memory}.font(.subheadline).frame(minHeight:44)}}
+                }
+                Section("体验与帮助") {
+                    Button("重新体验开场提问"){store.newTrip()}
+                    Text("开启新的旅行草稿，历史行程和长期偏好保留。").font(.caption).foregroundStyle(Palette.muted)
+                }
+                Section {
+                    DisclosureGroup("高级设置与开发测试") {
+                        Group {
                     Picker("地图来源",selection:$store.mapProvider) {
                         ForEach(MapProvider.allCases) { source in Text(LocalizedStringKey(source.label)).tag(source) }
                     }
@@ -53,7 +64,7 @@ struct SettingsView:View {
                         Text("Google 地图未配置密钥，请选择 OpenStreetMap 或 Apple Maps。").font(.caption)
                     }
                 }
-                Section("服务连接") {
+                        Group {
                     Toggle("使用在线服务",isOn:$store.live).tint(Palette.green).disabled(store.health?.paidServicesAllowed != true)
                     if store.health?.paidServicesAllowed != true { Text("后端已禁止付费服务，当前可使用演示模式。").font(.caption) }
                     status("本机规划服务",ready:store.health?.status=="ok")
@@ -63,29 +74,12 @@ struct SettingsView:View {
                     Text("在线模式会将本次旅行的偏好、起终点和日期发送给 Google、NVIDIA 及天气服务。不要输入私人住址或敏感信息。密钥在电脑本地设置页配置。").font(.caption).foregroundStyle(Palette.muted)
                     Button("刷新连接状态"){Task{await store.reload()}}
                 }
-                Section("下一次旅行的默认设置") {
-                    Picker("出发地点",selection:$store.profile.start){Text("环形码头").tag(Coordinate.quay);Text("中央车站").tag(Coordinate.central)}
-                    Picker("返回地点",selection:$store.profile.end){Text("环形码头").tag(Coordinate.quay);Text("中央车站").tag(Coordinate.central)}
-                    Stepper(store.language.text("步数偏好：{0}",String(store.profile.maxSteps)),value:$store.profile.maxSteps,in:1000...30000,step:1000)
-                    Text("当前行程的参数在“问 AI”中调整；这里用于新行程。").font(.caption).foregroundStyle(Palette.muted)
-                }
-                Section("我同意保存的偏好") {
-                    Toggle("仅保存本机旅行偏好",isOn:$consent).tint(Palette.green)
-                    Text("长期偏好会用于之后的对话与规划，可随时撤回。宠物对话和本次旅行草稿另外保存在电脑上，可在聊天页清空。").font(.caption).foregroundStyle(Palette.muted)
-                    Button("记住当前偏好"){Task{await store.saveMemory()}}.disabled(!consent)
-                    ForEach(store.memories){memory in
-                        VStack(alignment:.leading,spacing:10){Text(memory.summary).font(.subheadline);HStack{if !memory.profile.interests.isEmpty{Button("用于下次规划"){store.profile.interests=memory.profile.interests;store.profile.maxSteps=memory.profile.maxSteps}};Spacer();Button("删除",role:.destructive){Task{await store.deleteMemory(memory)}}}.font(.caption)}
+                        Button("试用 3 天时间轴"){Task{await store.tryScheduleDemo()}}
+                        Text("Sydney Buddy · iOS 测试版本。路线来源和待确认信息可在行程详情中查看。").font(.caption).foregroundStyle(Palette.muted)
                     }
                 }
-                Section("体验与测试") {
-                    Button("重新体验开场提问"){store.newTrip()}
-                    Text("开启新的旅行草稿，历史行程与长期偏好保留。").font(.caption).foregroundStyle(Palette.muted)
-                }
-                Section("关于这个版本") {
-                    Text("Sydney Buddy · iOS MVP").font(.headline)
-                    Text("演示模式使用明确标记的示例数据；在线模式仅在服务成功返回后生成方案。尚未包含多人同步、自动预订、支付及后台定位。Cursor 与 Zetaris 按你的要求暂缓。").font(.caption).foregroundStyle(Palette.muted)
-                }
             }.scrollContentBackground(.hidden).background(Palette.cream).navigationTitle(store.language.text("我的 Buddy"))
+            .confirmationDialog("删除这条长期偏好？以后的旅行将不再参考它。",isPresented:Binding(get:{deletingMemory != nil},set:{if !$0{deletingMemory=nil}}),titleVisibility:.visible){Button("删除偏好",role:.destructive){if let memory=deletingMemory{Task{await store.deleteMemory(memory);deletingMemory=nil}}}}
         }
     }
     func status(_ name:String,ready:Bool)->some View {HStack{Text(LocalizedStringKey(name));Spacer();Label(LocalizedStringKey(ready ? "已配置" : "待配置"),systemImage:ready ? "checkmark.circle.fill" : "circle.dashed").font(.caption).foregroundStyle(ready ? Palette.green : Palette.muted)}}
