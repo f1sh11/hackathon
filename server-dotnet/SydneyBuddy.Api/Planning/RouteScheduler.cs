@@ -59,12 +59,12 @@ public sealed class RouteScheduler(RouteService routes)
                 selected = await ScheduleAsync(option.Order, daily, context, exact: true, ct);
                 if (selected is not null) break;
             }
-            if (selected is null && places.All(p=>used.Contains(p.Str("id"))))
+            if (selected is null && required.Count == 0 && used.Count > 0)
             {
                 selected=await ScheduleAsync([],daily,context,exact:true,ct);
                 if (selected is not null) {
                     selected["freeTime"]=true;
-                    selected.Array("warnings")!.Add("自由安排：现有候选景点已用完，请自行添加地点；当天未安排景点活动。");
+                    selected.Array("warnings")!.Add("自由安排：剩余候选景点在当天的预算、步数或营业时间约束下无法安排；当天未安排景点活动，可自行补充地点。");
                 }
             }
             if (selected is null)

@@ -21,11 +21,37 @@ public sealed class PetConversationTests(ApiFixture fixture):IClassFixture<ApiFi
         foreach(var key in PetQuestions.Required)session.Fields[key]="暂不确定";
         Assert.Equal("destination",PetQuestions.Next(session));
         Assert.Equal(0,((JsonObject)JsonSerializerNode(PetQuestions.View(session))).Int("completed"));
-        foreach(var key in PetQuestions.Required)session.Fields[key]="known";
+        PetQuestions.Apply(session,new JsonObject{["destination"]="悉尼",["date"]="2026-11-01",["days"]="2",["travelers"]="2",["budget"]="100",["budgetBasis"]="perPersonPerDay",["budgetCurrency"]="AUD"});
         session.Fields["destination"]="悉尼";session.Fields["budgetCurrency"]="AUD";session.Fields["origin"]="稍后补充";
-        Assert.Equal("companions",PetQuestions.Next(session));
+        Assert.Equal("",PetQuestions.Next(session));
     }
     private static JsonNode JsonSerializerNode(object value)=>System.Text.Json.JsonSerializer.SerializeToNode(value,JsonExtensions.Options)!;
+    [Theory]
+    [InlineData("date","明年夏天")]
+    [InlineData("days","16")]
+    [InlineData("budget","NaN")]
+    [InlineData("budgetCurrency","CNY")]
+    [InlineData("budgetBasis","差不多")]
+    [InlineData("travelers","0")]
+    public void InvalidCoreValuesNeverCompletePreparation(string field,string value) {
+        var session=new PetSession();
+        PetQuestions.Apply(session,new JsonObject{["destination"]="悉尼",["date"]="2026-11-01",["days"]="2",["travelers"]="2",["budget"]="100",["budgetBasis"]="perPersonPerDay",["budgetCurrency"]="AUD"});
+        session.Fields[field]=value;Assert.Equal(field,PetQuestions.Next(session));Assert.False(PetQuestions.Answered(session,field));
+    }
+    [Fact]
+    public async Task AmbiguousCorrectionClearsOldValueInsteadOfLeavingGenerationReady() {
+        var fake=new PetFake{Response=JsonNode.Parse("""{"reply":"下周哪天出发呀？","fields":{},"needsClarification":["date"],"memorySuggestion":""}""")!.AsObject()};
+        using var factory=fixture.CreateFactory().WithWebHostBuilder(b=>b.ConfigureServices(s=>{s.RemoveAll<IPetModel>();s.AddSingleton<IPetModel>(fake);}));using var client=factory.CreateClient(new(){BaseAddress=new Uri("http://localhost")});var id=(await Create(client)).Str("id");
+        await client.PatchAsJsonAsync($"/pet/sessions/{id}",new{fields=new{destination="悉尼",date="2026-11-01",days="2",budget="100",budgetCurrency="AUD",budgetBasis="perPersonPerDay",travelers="2"}});
+        var result=await Turn(client,id,new{message="改成下周吧",requestId=Guid.NewGuid().ToString()});Assert.Equal("date",result.Str("nextField"));Assert.False(result.Object("fields")!.ContainsKey("date"));
+    }
+    [Fact]
+    public async Task TemporaryPreferenceNeverCreatesLongTermSuggestionEvenIfModelSuggestsIt() {
+        var fake=new PetFake{Response=JsonNode.Parse("""{"reply":"收到","fields":{"rhythm":"轻松随意"},"memorySuggestion":"喜欢轻松旅行"}""")!.AsObject()};
+        using var factory=fixture.CreateFactory().WithWebHostBuilder(b=>b.ConfigureServices(s=>{s.RemoveAll<IPetModel>();s.AddSingleton<IPetModel>(fake);}));
+        using var client=factory.CreateClient(new(){BaseAddress=new Uri("http://localhost")});var id=(await Create(client)).Str("id");
+        var result=await Turn(client,id,new{message="这次想轻松一点",requestId=Guid.NewGuid().ToString()});Assert.Equal("",result.Str("pendingMemory"));
+    }
     [Fact]
     public async Task UnsupportedCityCannotClaimReadyAndCanBeRepairedWithoutLosingRequirements()
     {
@@ -154,7 +180,7 @@ public sealed class PetConversationTests(ApiFixture fixture):IClassFixture<ApiFi
         var before=fixedResult.Array("messages")!.Count;
         var duplicate=await Turn(client,id,turn);Assert.Equal(before,duplicate.Array("messages")!.Count);
         fake.Response=JsonNode.Parse("""{"reply":"艺术和慢节奏，收到啦。想玩几天？","fields":{"interests":"艺术","pace":"慢悠悠"},"memorySuggestion":"喜欢艺术和慢节奏","mood":"relaxed"}""")!.AsObject();
-        var chatResult=await Turn(client,id,new {message="我喜欢艺术和慢节奏",requestId=Guid.NewGuid().ToString()});
+        var chatResult=await Turn(client,id,new {message="我平时一直喜欢艺术和慢节奏",requestId=Guid.NewGuid().ToString()});
         Assert.Equal("墨尔本",chatResult.Object("fields").Str("destination"));
         Assert.Equal("艺术",chatResult.Object("fields").Str("interests"));
         Assert.Equal("喜欢艺术和慢节奏",chatResult.Str("pendingMemory"));
@@ -177,7 +203,7 @@ public sealed class PetConversationTests(ApiFixture fixture):IClassFixture<ApiFi
         using var factory=fixture.CreateFactory().WithWebHostBuilder(b=>b.ConfigureServices(s=>{s.RemoveAll<IPetModel>();s.AddSingleton<IPetModel>(fake);}));
         using var client=factory.CreateClient(new(){BaseAddress=new Uri("http://localhost")});
         var id=(await Create(client)).Str("id");
-        await Turn(client,id,new{message="我喜欢安静的餐厅",requestId=Guid.NewGuid().ToString()});
+        await Turn(client,id,new{message="我平时一直喜欢安静的餐厅",requestId=Guid.NewGuid().ToString()});
         (await client.PostAsJsonAsync($"/pet/sessions/{id}/memory",new{consent=true})).EnsureSuccessStatusCode();
         var records=(await client.GetFromJsonAsync<JsonArray>("/memories"))!;var memory=records.First(x=>x.Str("summary")=="喜欢安静的餐厅")!;
         fake.Response=JsonNode.Parse("""{"reply":"一起慢慢玩","fields":{},"memorySuggestion":""}""")!.AsObject();

@@ -39,6 +39,24 @@ public sealed class PlannerTests : IDisposable
     }
 
     [Fact]
+    public async Task SevenDaysWithLimitedBudgetKeepsFeasibleDaysAndExplainsFreeTime()
+    {
+        var profile = TestSupport.Profile(7);
+        profile["budget"] = 200d / 7;
+        profile["interests"] = new JsonArray("艺术");
+        var result = await Create().PlanAsync(profile, "demo");
+        var days = result.Array("days")!.OfType<JsonObject>().ToArray();
+        Assert.Equal(7, days.Length);
+        Assert.Contains(days, day => day.Bool("freeTime"));
+        Assert.All(days, day => {
+            Assert.InRange(day.Number("estimatedCost"), 0, 200d / 7);
+            Assert.InRange(day.Int("estimatedSteps"), 0, 10000);
+            if (day.Bool("freeTime")) Assert.NotEmpty(day.Array("warnings")!);
+        });
+        TripContractValidator.Validate(result);
+    }
+
+    [Fact]
     public async Task FeasibleTripAccountsForReturnAndInternalWalking()
     {
         var result = await Create().PlanAsync(TestSupport.Profile(), "demo");

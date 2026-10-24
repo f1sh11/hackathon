@@ -383,6 +383,23 @@ import MapKit
         let result=await store.renameTrip(original,to:"  海风假期  ")
         XCTAssertTrue(result);XCTAssertEqual(store.saved.first?.title,"海风假期");XCTAssertEqual(store.trip?.revision,4)
     }
+    func testAdjustmentMergePreservesEveryOtherDayAndWeather() throws {
+        let original=try fixture();var edited=original
+        edited.days[0].stops=[];edited.days[1].estimatedSteps=99999;edited.days[2].stops=[]
+        let merged=TripAdjustmentMerge.preservingOtherDays(edited,original:original,dayIndex:0)
+        let encoder=JSONEncoder();encoder.outputFormatting=[.sortedKeys]
+        XCTAssertTrue(merged.days[0].stops.isEmpty)
+        XCTAssertEqual(try encoder.encode(merged.days[1]),try encoder.encode(original.days[1]))
+        XCTAssertEqual(try encoder.encode(merged.days[2]),try encoder.encode(original.days[2]))
+        XCTAssertEqual(merged.weather.summary,original.weather.summary)
+    }
+    func testFailedAdjustmentSaveLeavesAcceptedTripUntouched() async throws {
+        let store=AppStore();var original=try fixture();original.id="adjustment-test";original.revision=2
+        store.trip=original;store.saved=[original];var changed=original;changed.days[0].stops=[]
+        store.loader={request in (Data(#"{"error":"版本已更新"}"#.utf8),HTTPURLResponse(url:request.url!,statusCode:409,httpVersion:nil,headerFields:nil)!)}
+        let success=await store.saveAdjustment(changed,original:original)
+        XCTAssertFalse(success);XCTAssertEqual(store.trip?.days[0].stops.count,original.days[0].stops.count);XCTAssertNil(store.lastAdjustment)
+    }
     func fixture() throws -> Trip {try JSONDecoder().decode(Trip.self,from:Data(contentsOf:Bundle(for:Self.self).url(forResource:"schedule-trip-test",withExtension:"json")!))}
     func testLegacyAndroidProfileWithoutRequestCanStillBeRead() throws {
         var raw=try JSONSerialization.jsonObject(with:JSONEncoder().encode(fixture())) as! [String:Any]

@@ -71,7 +71,8 @@ public static class PetEndpoints
                     s.Fields[field]=value;
                     if(field=="companions" && value is "一个人" or "两个人")s.Fields["travelers"]=value=="一个人"?"1":"2";
                     if(PetQuestions.Required.Contains(field) && !PetQuestions.Known(value)) {
-                        reply=PetQuestions.UncertainReply(field);mood="pouting";
+                        var repeated=s.Messages.LastOrDefault()?.Mood=="pouting";
+                        reply=repeated ? "没关系，我们慢慢来。我会留好背包，准备好再告诉我～\n"+PetQuestions.Question(field):PetQuestions.UncertainReply(field);mood=repeated ? "curious":"pouting";
                     } else reply=PetQuestions.UnsupportedDestination(s) ? "小爪爪先停一下～目前还不能生成这个城市的路线。可以改选悉尼，或者保留这份需求，之后再继续。": "收到啦～"+PetQuestions.Question(PetQuestions.Next(s));
 
                     await Emit(new{type="reply",text=reply});
@@ -93,18 +94,22 @@ public static class PetEndpoints
                     foreach(var key in PetQuestions.Keys)
                         if(changes.Str(key) is "未确定" or "未知" or "未提供" or "unknown") changes.Remove(key);
                     PetExplicitFacts.Apply(message,changes);
+                    foreach(var uncertain in result.Array("needsClarification") ?? new JsonArray()) {
+                        var key=uncertain?.GetValue<string>() ?? "";
+                        if(PetQuestions.Required.Contains(key)){s.Fields.Remove(key);changes.Remove(key);}
+                    }
                     if(changes.ContainsKey("budgetCurrency") && s.Fields.TryGetValue("budgetCurrency",out var previousCurrency) && PetQuestions.Known(previousCurrency) && previousCurrency!=changes.Str("budgetCurrency") && !changes.ContainsKey("budget"))s.Fields.Remove("budget");
                     PetQuestions.Apply(s,changes);reply=result.Str("reply");
                     if(changes.ContainsKey("budget"))reply=PetExplicitFacts.BudgetReply(s) ?? "预算先收好啦，我们再确认金额、币种和范围。";
                     else if(reply.Length>220)reply="收到，你的想法已放进这次的小背包。";
-                    if(PetQuestions.Next(s).Length==0)reply="小背包准备好啦！可以直接点下面的「生成行程」，也可以继续告诉我你的想法～";
+                    if(PetQuestions.Next(s).Length==0)reply=(changes.ContainsKey("budget") ? (PetExplicitFacts.BudgetReply(s)??"")+"\n":"")+"小背包准备好啦！可以直接点下面的「生成行程」，可选信息以后再补也没关系～";
                     if(PetQuestions.Next(s).Length>0 && !reply.Contains('？') && !reply.Contains('?') &&
                         !new[]{"别问","不要问","不用问","再见","bye","don't ask","do not ask"}.Any(x=>message.Contains(x,StringComparison.OrdinalIgnoreCase)))
                         reply+="\n"+PetQuestions.Question(PetQuestions.Next(s));
                     if(PetQuestions.Required.Contains(unanswered) && !PetQuestions.Known(message) && !PetQuestions.Known(s.Fields.GetValueOrDefault(unanswered))) {reply=PetQuestions.UncertainReply(unanswered);mood="pouting";}
                     if(PetQuestions.Known(s.Fields.GetValueOrDefault("budgetCurrency")) && s.Fields["budgetCurrency"]!="AUD")reply="小钱包先等等～"+PetQuestions.Question("budgetCurrency");
                     if(PetQuestions.UnsupportedDestination(s)){reply="小爪爪先停一下～目前还不能生成这个城市的路线。可以改选悉尼，或者保留这份需求，之后再继续。";mood="confused";}
-                    var suggestion=result.Str("memorySuggestion");if(suggestion.Length>0)s.PendingMemory=suggestion[..Math.Min(500,suggestion.Length)];
+                    var suggestion=new[]{"以后","平时","长期","每次","一直","记住"}.Any(message.Contains) && !new[]{"不保存","不要记","别记","不记住","只限这次","仅这次","只用于这次"}.Any(message.Contains) ? result.Str("memorySuggestion"):"";if(suggestion.Length>0)s.PendingMemory=suggestion[..Math.Min(500,suggestion.Length)];
                     await Emit(new{type="reply",text=reply});
                 }
                 s.Messages.Add(new(requestId,"user",message));s.Messages.Add(new(Guid.NewGuid().ToString("N"),"assistant",reply,mood));

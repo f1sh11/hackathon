@@ -52,7 +52,7 @@ struct RootView: View {
                 }.tint(Palette.green).modifier(CompactTabs())
             }
             if store.busy {
-                ZStack { Color.black.opacity(0.15).ignoresSafeArea(); VStack(spacing:14) { PetAvatar(mood:.thinking); ProgressView(); Text(LocalizedStringKey(store.operationTitle)).font(.headline); Text(LocalizedStringKey(store.operationDetail)).font(.caption).foregroundStyle(Palette.muted);if store.canCancelOperation{Button("取消生成"){store.cancelPendingGeneration()}.buttonStyle(.bordered)} }.padding(30).background(Palette.cream,in:RoundedRectangle(cornerRadius:28)) }
+                ZStack { Color.black.opacity(0.15).ignoresSafeArea(); VStack(spacing:14) { PetAvatar(mood:.thinking); ProgressView(); Text(LocalizedStringKey(store.operationTitle)).font(.headline); Text(LocalizedStringKey(store.operationDetail)).font(.caption).foregroundStyle(Palette.muted);if store.travelTask?.status=="generating" {VStack(alignment:.leading,spacing:6){ForEach(Array(["整理旅行需求","安排当天活动","校验并保存"].enumerated()),id:\.offset){i,label in Label(label,systemImage:i<store.planningStage ? "checkmark.circle.fill":i==store.planningStage ? "circle.inset.filled":"circle").foregroundStyle(i<=store.planningStage ? Palette.green:Palette.muted).font(.caption)}}};if store.canCancelOperation{Button("取消生成"){store.cancelPendingGeneration()}.buttonStyle(.bordered)} }.padding(30).background(Palette.cream,in:RoundedRectangle(cornerRadius:28)) }
             }
         }
         .sheet(isPresented:Binding(get:{store.proposal != nil},set:{if !$0 {store.proposal=nil}})) { ProposalView() }

@@ -52,7 +52,7 @@ public sealed class Planner(PlaceService places, RecommendationService recommend
         if (!string.IsNullOrEmpty(profile.Str("origin")) && profile.Str("origin") != profile.Object("start")!.Str("name"))warnings.Add("出发地点备注："+profile.Str("origin")+"；当前起点为"+profile.Object("start")!.Str("name")+"，请核实位置。");
         if (!string.IsNullOrEmpty(profile.Str("queueTolerance")))warnings.Add("排队偏好已记录，但缺少可靠实时排队数据，无法保证排队时长。");
         if (days.OfType<JsonObject>().Any(d=>d.Bool("freeTime")))
-            warnings.Add("部分日期为自由安排：现有候选景点不足以每天安排不重复活动，请在日程中补充地点。");
+            warnings.Add("部分日期为自由安排：现有候选景点无法在预算、步数及营业时间约束下每天安排不重复活动，请检查日程并补充地点。");
         if (weather.Bool("rainy") && days.OfType<JsonObject>()
                 .SelectMany(x => x.Array("stops")!.OfType<JsonObject>()).Any(x => !x.Bool("indoor")))
             warnings.Add("你选择的必去地点包含户外活动，请自行确认天气并准备替代安排。");

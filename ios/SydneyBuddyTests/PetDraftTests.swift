@@ -182,7 +182,8 @@ final class PetDraftTests:XCTestCase {
     @MainActor func testCancellingPlanningPreservesDraftAndDoesNotSaveTrip() async throws {
         let store=AppStore();let original=store.pendingTripFields
         defer{store.pendingTripFields=original}
-        store.pendingTripFields=fields
+        var complete=fields;complete["budgetCurrency"]="AUD";complete["budgetBasis"]="perPersonPerDay";complete["travelers"]="2"
+        store.pendingTripFields=complete
         var paths:[String]=[]
         store.loader={request in paths.append(request.url!.path);try await Task.sleep(nanoseconds:5_000_000_000);throw URLError(.badServerResponse)}
         store.startGeneratingPendingTrip()
@@ -191,7 +192,7 @@ final class PetDraftTests:XCTestCase {
         store.cancelPendingGeneration()
         for _ in 0..<100{if !store.busy{break};try await Task.sleep(nanoseconds:1_000_000)}
         XCTAssertFalse(store.busy);XCTAssertFalse(store.canCancelOperation)
-        XCTAssertEqual(store.pendingTripFields,fields);XCTAssertNil(store.errorMessage)
+        XCTAssertEqual(store.pendingTripFields,complete);XCTAssertNil(store.errorMessage)
         XCTAssertEqual(paths,["/plan"]);XCTAssertTrue(store.saved.isEmpty)
     }
     func testPetReactionMatchesChosenAnswerAndNeverClaimsLongTermSave() {

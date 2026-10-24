@@ -14,6 +14,11 @@ public sealed class TripRepository(BuddyDbContext database)
         return new JsonArray(rows.Select(json => JsonNode.Parse(json)).ToArray());
     }
 
+    public async Task<JsonObject?> FindAsync(string id,CancellationToken ct=default) {
+        var json=await database.Trips.AsNoTracking().Where(t=>t.Id==id).Select(t=>t.DataJson).FirstOrDefaultAsync(ct);
+        return json is null ? null:JsonNode.Parse(json)!.AsObject();
+    }
+
     public async Task<JsonObject> SaveAsync(JsonObject draft, int expectedRevision, CancellationToken ct = default)
     {
         if (expectedRevision < 0 || expectedRevision == int.MaxValue) throw new ServiceException("行程版本不合法");

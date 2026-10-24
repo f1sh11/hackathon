@@ -3,7 +3,7 @@ import SwiftUI
 struct ProposalView:View {
     @EnvironmentObject var store:AppStore
     var body:some View {
-        if store.proposal?.mode == "demo" {ScheduleEditorView()} else { legacy }
+        if store.proposal?.mode == "demo" && !store.proposalIsSuggestion {ScheduleEditorView()} else { legacy }
     }
     var legacy:some View {
         NavigationStack {
@@ -68,6 +68,7 @@ struct TripsView:View {
             ScrollView {
                 VStack(alignment:.leading,spacing:20){
                     if let task=store.travelTask,task.status=="failed" || task.status=="generating" {Label(task.status=="failed" ? "生成失败，需求已保留":"正在生成行程",systemImage:task.status=="failed" ? "exclamationmark.circle":"sparkles").font(.subheadline);if let message=task.message{Text(message).font(.caption).foregroundStyle(Palette.muted)}}
+                    if store.travelTask?.status=="failed",!store.pendingTripFields.isEmpty {HStack{Button("重试生成"){store.startGeneratingPendingTrip()};Button("返回修改"){store.resumePendingTrip()}}.disabled(store.busy)}
                     if !store.pendingTripFields.isEmpty { draftCard }
                     HStack{Text("已保存的旅行").font(.headline);Spacer();Text("\(store.saved.count) 份").font(.caption).foregroundStyle(Palette.muted)}
                     if store.saved.isEmpty {ContentUnavailableView("下一段旅程，等你出发",systemImage:"suitcase.rolling",description:Text("准备好偏好后，生成你的第一份路线。"))}
@@ -144,10 +145,10 @@ struct SavedTripWorkspace:View {
             Text("最多 40 个字，只修改名称，地点和日期保持不变。").font(.caption).foregroundStyle(Palette.muted)
             Button("保存名称"){Task{if await store.renameTrip(trip,to:newTitle){renaming=false}}}.disabled(store.busy || newTitle.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty || newTitle.count>40)
         }.navigationTitle("给旅行起个名字").navigationBarTitleDisplayMode(.inline).toolbar{Button("取消"){renaming=false}}}}
-        .onAppear{store.trip=trip;store.dayIndex=0}
+        .onAppear{store.trip=trip;store.dayIndex=0;store.selectedStopID=nil}
         .onChange(of:trip.revision){_,_ in store.trip=trip}
     }
-    private func openEditor(){store.trip=trip;store.proposal=trip}
+    private func openEditor(){store.trip=trip;store.proposalIsSuggestion=false;store.proposal=trip}
 }
 
 struct SavedTripOverview:View {
@@ -298,5 +299,74 @@ struct PreparationTrail: View {
                 Text(title).font(.caption2.bold())
             }.frame(maxWidth:.infinity).padding(.vertical,10).foregroundStyle(store.prepared(key) ? .white : Palette.green).background(store.prepared(key) ? Palette.green : Palette.mint,in:RoundedRectangle(cornerRadius:14))
         }.buttonStyle(BuddyPressStyle()).accessibilityLabel(title + (store.prepared(key) ? "，已完成" : "，待完成"))
+    }
+}
+
+/// Suggestions stay local to this sheet until the user accepts the validated result.
+struct TripAdjustmentView:View {
+    let original:Trip
+    let dayIndex:Int
+    @EnvironmentObject private var store:AppStore
+    @Environment(\.dismiss) private var dismiss
+    @StateObject private var model=ScheduleEditorModel()
+    @State private var target:String?
+    @State private var notice:String?
+    @State private var requested=false
+    private var day:ScheduleDay? {guard let state=model.state,state.days.indices.contains(dayIndex) else{return nil};return state.days[dayIndex]}
+    private var choices:[ScheduleCandidate] {
+        guard let state=model.state else{return []}
+        let used=Set(state.days.flatMap(\.activities).compactMap(\.placeId))
+        return state.candidates.filter{!used.contains($0.id) && !$0.importedPoi}
+    }
+    private var proposedTrip:Trip? {model.trip.map{TripAdjustmentMerge.preservingOtherDays($0,original:original,dayIndex:dayIndex)}}
+    private var canAdopt:Bool {requested && !model.busy && !model.dirty && model.error==nil && model.trip != nil && model.state?.issues.contains(where:{$0.blocking && ($0.day==dayIndex || $0.day == -1)})==false}
+    var body:some View {
+        NavigationStack{ScrollView{VStack(alignment:.leading,spacing:16){
+            HStack{PetAvatar(mood:model.busy ? .thinking:requested ? .ready:.curious).frame(width:100,height:110);Text("我们只改第 \(dayIndex+1) 天。先看看建议，喜欢再收进正式行程～").font(.headline)}
+            if original.mode != "demo" {Text("当前快捷调整仅支持示例行程；在线行程可通过聊天提出调整建议。").foregroundStyle(Palette.muted)}
+            else {
+                HStack{Button("再轻松一点"){lighten()};Button("多一点美食"){addFood()}}
+                    .buttonStyle(.bordered).disabled(model.busy || requested)
+                if !requested,let day {
+                    Text("换掉某一站").font(.headline)
+                    ForEach(day.activities.filter{$0.locked != true && !original.profile.mustVisit.contains($0.placeId ?? "")}){a in
+                        Button{target=a.id}label:{Label(a.name,systemImage:target==a.id ? "checkmark.circle.fill":"circle")}.buttonStyle(.bordered)
+                    }
+                    if target != nil {Text("选择替代地点").font(.subheadline.bold());ForEach(choices){candidate in Button(candidate.name){replace(with:candidate)}.buttonStyle(.bordered)};if choices.isEmpty{Text("当前没有未安排的示例候选地点。")}}
+                }
+                if model.busy{ProgressView("正在校验交通、步数和预算…")}
+                if let error=model.error{Text(error).foregroundStyle(.red);Button("重试校验"){model.recompute()}}
+                if let notice{Text(notice).font(.subheadline).foregroundStyle(Palette.muted)}
+                if requested,let proposed=proposedTrip,!model.busy,model.error==nil {
+                    let before=original.days[dayIndex],after=proposed.days[dayIndex]
+                    VStack(alignment:.leading,spacing:10){Text("建议变化 · 尚未保存").font(.headline)
+                        Text("原来："+before.stops.map(\.name).joined(separator:" → "))
+                        Text("建议："+after.stops.map(\.name).joined(separator:" → "))
+                        Text("预计步数：\(before.estimatedSteps) → \(after.estimatedSteps)")
+                        Text("每人活动估算：A$\(Int(before.estimatedCost)) → A$\(Int(after.estimatedCost))")
+                        Text("其他日期保留原安排；以上为示例估算，出发前仍需核实。").font(.caption).foregroundStyle(Palette.muted)
+                    }.font(.subheadline).padding(16).background(Palette.mint,in:RoundedRectangle(cornerRadius:18))
+                    ForEach((model.state?.issues ?? []).filter{$0.day==dayIndex || $0.day == -1}){issue in Text(issue.message).font(.caption).foregroundStyle(issue.blocking ? .red:.orange)}
+                    Button("换一种调整"){model.restore();requested=false;target=nil;notice=nil}
+                }
+                if let error=store.adjustmentError{Text(error).foregroundStyle(.red)}
+            }
+        }.padding(20)}.background(Palette.cream).navigationTitle("调整这一天").navigationBarTitleDisplayMode(.inline)
+        .toolbar{Button("保留原行程"){dismiss()}.disabled(store.busy)}
+        .safeAreaInset(edge:.bottom){if requested{PrimaryButton(title:"采用调整",symbol:"checkmark"){Task{if let value=proposedTrip,await store.saveAdjustment(value,original:original,dayIndex:dayIndex){dismiss()}}}.disabled(!canAdopt || store.busy).padding(20).background(Palette.cream)}}.tint(Palette.green)}
+        .task{store.adjustmentError=nil;model.prepare(original);model.dayIndex=dayIndex;await model.loadCatalog()}.onDisappear{model.stop()}
+    }
+    private func lighten(){
+        guard let day,let a=day.activities.last(where:{$0.locked != true && !original.profile.mustVisit.contains($0.placeId ?? "")}),day.activities.count>1 else{notice="今天安排已经很少啦，可以在编辑器里增加休息或缩短停留。";return}
+        requested=true;model.edit{$0.days[dayIndex].activities.removeAll{$0.id==a.id}}
+    }
+    private func addFood(){
+        guard let candidate=choices.first(where:{$0.category=="美食"}) else{notice="目前没有未安排的餐饮候选地点。可以到探索地图收藏地点，再手动加入。";return}
+        requested=true;model.add(candidate)
+    }
+    private func replace(with candidate:ScheduleCandidate){
+        guard let target,let a=day?.activities.first(where:{$0.id==target}) else{return}
+        var replacement=a;replacement.id=UUID().uuidString;replacement.placeId=candidate.id;replacement.name=candidate.name;replacement.lat=candidate.lat;replacement.lng=candidate.lng;replacement.duration=candidate.visitMinutes;replacement.cost=candidate.cost;replacement.fixedDuration=nil;replacement.indoor=candidate.indoor;replacement.hoursVerified=false
+        requested=true;model.edit{state in if let i=state.days[dayIndex].activities.firstIndex(where:{$0.id==target}){state.days[dayIndex].activities[i]=replacement}}
     }
 }

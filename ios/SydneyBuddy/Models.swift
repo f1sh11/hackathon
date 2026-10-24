@@ -88,6 +88,18 @@ extension Trip {
         return "悉尼 · "+(theme.isEmpty ? "自在漫游":theme)+" · \(days.count)天"
     }
 }
+enum TripAdjustmentMerge {
+    static func preservingOtherDays(_ candidate:Trip,original:Trip,dayIndex:Int)->Trip {
+        var value=candidate
+        let preserved=original.schedule ?? ScheduleState.preserving(original)
+        for i in original.days.indices where i != dayIndex {
+            if value.days.indices.contains(i){value.days[i]=original.days[i]}
+            if value.schedule?.days.indices.contains(i)==true{value.schedule?.days[i]=preserved.days[i]}
+        }
+        value.schedule?.totalCost=value.days.reduce(0){$0+$1.estimatedCost};value.weather=original.weather
+        return value
+    }
+}
 struct UserTravelProfile:Codable,Equatable {
     var queueTolerance:String?;var dailySteps:Int?;var energy:String?;var rhythm:String?;var interests:[String]?
     static func load(key:String="userTravelProfile")->UserTravelProfile {
@@ -133,7 +145,12 @@ struct TravelPlanningTask:Codable {
     }
     @Published var preparations: [String] = UserDefaults.standard.stringArray(forKey:"preparations") ?? []
     @Published var trip: Trip? { didSet { refreshedWeather = nil } }
-    @Published var proposal: Trip?
+    @Published var proposal: Trip? {didSet{if proposal == nil{proposalIsSuggestion=false}}}
+    @Published var proposalIsSuggestion=false
+    @Published var selectedStopID:String?
+    @Published var lastAdjustment:Trip?
+    @Published var adjustmentError:String?
+    @Published var planningStage=0
     @Published var tripToOpen:Trip?
     @Published var saved: [Trip] = []
     @Published var pendingTripFields: [String:String] = UserDefaults.standard.dictionary(forKey:"pendingTripFields") as? [String:String] ?? [:] {
@@ -216,7 +233,7 @@ struct TravelPlanningTask:Codable {
             var result: Trip = try await api("plan",method:"POST",body:JSONSerialization.data(withJSONObject:raw))
             result.title=trip?.title ?? result.suggestedTitle
             refreshedWeather = nil
-            proposal = result
+            proposalIsSuggestion=true;proposal = result
             agentText = result.explanation
         } catch { errorMessage = error.localizedDescription }
     }
@@ -228,6 +245,7 @@ struct TravelPlanningTask:Codable {
         }
         guard !busy else{return};busy=true;defer{busy=false}
         do {
+            planningStage=1
             operationTitle="正在生成旅行路线…";operationDetail="根据兴趣、活动预算和步数安排行程。"
             var p=profile;p.request=request;p.weatherOverride=nil
             var raw=try JSONSerialization.jsonObject(with:JSONEncoder().encode(p)) as! [String:Any]
@@ -236,6 +254,7 @@ struct TravelPlanningTask:Codable {
             try Task.checkCancellation()
             canCancelOperation=false
             planned.id=nil;planned.revision=nil;planned.title=planned.suggestedTitle
+            planningStage=2
             operationTitle="正在保存到我的行程…";operationDetail="保存后可以查看地图、编辑日程和导航。"
             let body:[String:Any]=["trip":try JSONSerialization.jsonObject(with:JSONEncoder().encode(planned)),"expectedRevision":0]
             let accepted:Trip=try await api("trips",method:"POST",body:JSONSerialization.data(withJSONObject:body))
@@ -247,10 +266,36 @@ struct TravelPlanningTask:Codable {
         if (showOnboarding || consumeDraft),let id=accepted.id,let session=UserDefaults.standard.string(forKey:"petSession.draft") {
             UserDefaults.standard.set(session,forKey:"petSession."+id);UserDefaults.standard.removeObject(forKey:"petSession.draft")
         }
-        trip=accepted;profile=accepted.profile;proposal=nil;dayIndex=0
+        trip=accepted;profile=accepted.profile;proposal=nil;dayIndex=0;selectedStopID=nil
+        if consumeDraft{UserDefaults.standard.removeObject(forKey:"petComposer.draft")}
         if consumeDraft{tripToOpen=accepted}
         if showOnboarding || consumeDraft {pendingTripFields=[:]}
         showOnboarding=false;UserDefaults.standard.set(true,forKey:"onboarded");tab=1
+    }
+    func saveAdjustment(_ candidate:Trip,original:Trip,dayIndex:Int?=nil) async -> Bool {
+        guard !busy,original.id != nil else{return false}
+        busy=true;defer{busy=false}
+        do {
+            operationTitle="正在保存调整…";operationDetail="保存成功后更新地图和当天行程。"
+            var value=candidate;value.id=original.id;value.revision=original.revision;value.title=original.title
+            var raw:[String:Any]=["trip":try JSONSerialization.jsonObject(with:JSONEncoder().encode(value)),"expectedRevision":original.revision ?? 0]
+            if let dayIndex{raw["adjustedDay"]=dayIndex}
+            let accepted:Trip=try await api("trips",method:"POST",body:JSONSerialization.data(withJSONObject:raw))
+            lastAdjustment=original
+            if let i=saved.firstIndex(where:{$0.id==accepted.id}){saved[i]=accepted}
+            trip=accepted;selectedStopID=nil;adjustmentError=nil;return true
+        }catch{adjustmentError=error.localizedDescription;return false}
+    }
+    func undoLastAdjustment() async -> Bool {
+        guard !busy,let original=trip,lastAdjustment?.id==original.id else{return false}
+        busy=true;defer{busy=false}
+        do {
+            operationTitle="正在恢复原安排…"
+            let raw:[String:Any]=["trip":try JSONSerialization.jsonObject(with:JSONEncoder().encode(original)),"expectedRevision":original.revision ?? 0,"undoAdjustment":true]
+            let accepted:Trip=try await api("trips",method:"POST",body:JSONSerialization.data(withJSONObject:raw))
+            if let i=saved.firstIndex(where:{$0.id==accepted.id}){saved[i]=accepted}
+            trip=accepted;lastAdjustment=nil;selectedStopID=nil;return true
+        }catch{errorMessage=error.localizedDescription;return false}
     }
     func renameTrip(_ original:Trip,to value:String) async -> Bool {
         let title=value.trimmingCharacters(in:.whitespacesAndNewlines)
@@ -259,7 +304,7 @@ struct TravelPlanningTask:Codable {
         do {
             operationTitle="正在保存旅行名称…";operationDetail="保留原来的地点和时间安排。"
             var renamed=original;renamed.title=title
-            let raw:[String:Any]=["trip":try JSONSerialization.jsonObject(with:JSONEncoder().encode(renamed)),"expectedRevision":original.revision ?? 0]
+            let raw:[String:Any]=["trip":try JSONSerialization.jsonObject(with:JSONEncoder().encode(renamed)),"expectedRevision":original.revision ?? 0,"renameOnly":true]
             let accepted:Trip=try await api("trips",method:"POST",body:JSONSerialization.data(withJSONObject:raw))
             if let i=saved.firstIndex(where:{$0.id==accepted.id}){saved[i]=accepted}
             if trip?.id==accepted.id{trip=accepted}
@@ -303,7 +348,8 @@ struct TravelPlanningTask:Codable {
     func generatePendingTrip() async {
         guard !pendingTripFields.isEmpty else{return}
         do {
-            let profile=try TravelRequirements.profile(pendingTripFields,personal:pendingPersonalProfile)
+            planningStage=0
+            let profile=try TravelRequirements.readyProfile(pendingTripFields,personal:pendingPersonalProfile)
             travelTask=TravelPlanningTask(id:travelTask?.id ?? UUID().uuidString,status:"generating",fields:pendingTripFields,personalProfile:pendingPersonalProfile,assumptions:TravelRequirements.assumptions(pendingTripFields,personal:pendingPersonalProfile))
             errorMessage=nil
             let request=profile.request ?? ""
@@ -327,7 +373,7 @@ struct TravelPlanningTask:Codable {
     func resumePendingTrip() {
         trip=nil;proposal=nil;showOnboarding=true
     }
-    func newTrip() { tripToOpen=nil;pendingPersonalProfile=personalProfile;UserDefaults.standard.removeObject(forKey:"petSession.draft");pendingTripFields=[:];travelTask=nil;UserDefaults.standard.removeObject(forKey:"travelPlanningTask");trip=nil;proposal=nil;profile=TripProfile();showOnboarding=true }
+    func newTrip() { UserDefaults.standard.removeObject(forKey:"petComposer.draft"); tripToOpen=nil;pendingPersonalProfile=personalProfile;UserDefaults.standard.removeObject(forKey:"petSession.draft");pendingTripFields=[:];travelTask=nil;UserDefaults.standard.removeObject(forKey:"travelPlanningTask");trip=nil;proposal=nil;profile=TripProfile();showOnboarding=true }
 
     func saveMemory() async {
         do {

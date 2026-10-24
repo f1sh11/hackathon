@@ -16,11 +16,15 @@ struct GoogleRouteMap: UIViewRepresentable {
     var viewport: MapViewport?
     var onViewport: (MapViewport) -> Void
     var sections:[JourneyMapSection] = []
+    var selectedStopID:String?=nil
+    var onSelect:(String)->Void={_ in}
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     final class Coordinator: NSObject, GMSMapViewDelegate {
         var parent: GoogleRouteMap
         var sceneKey: String?
         var cameraSceneKey: String?
+        var lastSelection:String?
+        var markers:[GMSMarker]=[]
         var walkingLines:[GMSPolyline]=[]
         func restyleWalking(_ map:GMSMapView) {
             let metrics=walkingDotMetrics(map.bounds.size)
@@ -29,6 +33,13 @@ struct GoogleRouteMap: UIViewRepresentable {
                 line.strokeWidth=metrics.width
                 if let path=line.path {line.spans=GMSStyleSpans(path,[GMSStrokeStyle.solidColor(UIColor(transportColor("walk"))),GMSStrokeStyle.solidColor(.clear)],[NSNumber(value:0.1*metersPerPoint),NSNumber(value:Double(metrics.spacing)*metersPerPoint)],.rhumb)}
             }
+        }
+        func mapView(_ mapView:GMSMapView,didTap marker:GMSMarker)->Bool {
+            if let name=marker.title {
+                let matches=parent.day?.stops.filter{name.contains($0.name)} ?? []
+                if let stop=matches.first(where:{$0.id==parent.selectedStopID}) ?? matches.first{parent.onSelect(stop.id)}
+            }
+            return false
         }
         init(_ parent: GoogleRouteMap) { self.parent=parent }
         func mapView(_ mapView: GMSMapView, idleAt position: GMSCameraPosition) {
@@ -45,10 +56,14 @@ struct GoogleRouteMap: UIViewRepresentable {
     }
     func updateUIView(_ map:GMSMapView,context:Context) {
         context.coordinator.parent=self
+        if context.coordinator.lastSelection != selectedStopID {
+            context.coordinator.lastSelection=selectedStopID
+            if let stop=day?.stops.first(where:{$0.id==selectedStopID}),let marker=context.coordinator.markers.first(where:{$0.title?.contains(stop.name)==true}){map.selectedMarker=marker;map.animate(toLocation:stop.coordinate)}
+        }
         let key=mapSceneKey(day)+"|"+String(overview?.coordinates.count ?? 0)
         guard context.coordinator.sceneKey != key else {return}
         context.coordinator.sceneKey=key
-        map.clear()
+        map.clear();context.coordinator.markers=[]
         context.coordinator.walkingLines=[]
         guard let day else {
             if let saved=viewport, saved.sceneKey==mapSceneKey(day) {map.camera=GMSCameraPosition(latitude:saved.lat,longitude:saved.lng,zoom:Float(saved.zoom))}
@@ -80,7 +95,7 @@ struct GoogleRouteMap: UIViewRepresentable {
         context.coordinator.restyleWalking(map)
         for item in sections.flatMap(\.stopPins)+overviewPins(day) {
             let pin=GMSMarker(position:item.coordinate);pin.title=item.title;pin.snippet=item.subtitle
-            pin.icon=overviewBadge(item.badge);pin.groundAnchor=CGPoint(x:0.5,y:0.5);pin.zIndex=2;pin.map=map
+            pin.icon=overviewBadge(item.badge);pin.groundAnchor=CGPoint(x:0.5,y:0.5);pin.zIndex=2;pin.map=map;context.coordinator.markers.append(pin)
             bounds=bounds.includingCoordinate(item.coordinate)
         }
         let coordinates=(0..<path.count()).map {path.coordinate(at:$0)}
@@ -200,6 +215,8 @@ struct NativeRouteMap:UIViewRepresentable {
     var viewport:MapViewport?
     var onViewport:(MapViewport)->Void
     var sections:[JourneyMapSection] = []
+    var selectedStopID:String?=nil
+    var onSelect:(String)->Void={_ in}
     func makeCoordinator()->Coordinator {Coordinator(self)}
     func makeUIView(context:Context)->MKMapView {
         let map=MKMapView();map.delegate=context.coordinator
@@ -212,6 +229,12 @@ struct NativeRouteMap:UIViewRepresentable {
     }
     func updateUIView(_ map:MKMapView,context:Context) {
         context.coordinator.parent=self
+        if context.coordinator.lastSelection != selectedStopID {
+            context.coordinator.lastSelection=selectedStopID
+            if let stop=day?.stops.first(where:{$0.id==selectedStopID}),let pin=map.annotations.first(where:{($0.title ?? nil)?.contains(stop.name)==true}){
+                map.selectAnnotation(pin,animated:true);map.setCenter(stop.coordinate,animated:true)
+            }
+        }
         let key=mapSceneKey(day)+"|"+String(overview?.coordinates.count ?? 0)
         guard context.coordinator.sceneKey != key else {return}
         context.coordinator.sceneKey=key
@@ -257,6 +280,14 @@ struct NativeRouteMap:UIViewRepresentable {
         fileprivate var walkingDots:WalkingDotsView?
         var sceneKey:String?
         var cameraSceneKey:String?
+        var lastSelection:String?
+        func mapView(_ mapView:MKMapView,didSelect view:MKAnnotationView){
+            guard let pin=view.annotation as? ItineraryPin,!pin.direction,let title=pin.title else{return}
+            let matches=parent.day?.stops.filter{title.contains($0.name)} ?? []
+            guard let stop=matches.first(where:{$0.id==parent.selectedStopID}) ?? matches.first else{return}
+            view.transform=CGAffineTransform(scaleX:1.15,y:1.15);parent.onSelect(stop.id)
+        }
+        func mapView(_ mapView:MKMapView,didDeselect view:MKAnnotationView){view.transform = .identity}
         init(_ parent:NativeRouteMap) {self.parent=parent}
         func mapView(_ mapView:MKMapView,regionDidChangeAnimated animated:Bool) {
             guard sceneKey != nil else {return}
@@ -309,9 +340,9 @@ struct ProviderRouteMap:View {
         let safeSections = canShowOverview ? sections : []
         switch store.mapProvider {
         case .osm,.apple:
-            NativeRouteMap(day:visibleDay,overview:safeOverview,expanded:expanded,provider:store.mapProvider,viewport:expanded ? nil : store.mapViewport,onViewport:{if !expanded {store.mapViewport=$0}},sections:safeSections).id(store.mapProvider)
+            NativeRouteMap(day:visibleDay,overview:safeOverview,expanded:expanded,provider:store.mapProvider,viewport:expanded ? nil : store.mapViewport,onViewport:{if !expanded {store.mapViewport=$0}},sections:safeSections,selectedStopID:store.selectedStopID,onSelect:{if store.selectedStopID != $0{store.selectedStopID=$0}}).id(store.mapProvider)
         case .google:
-            if SydneyBuddyApp.mapReady {GoogleRouteMap(day:visibleDay,overview:safeOverview,expanded:expanded,viewport:expanded ? nil : store.mapViewport,onViewport:{if !expanded {store.mapViewport=$0}},sections:safeSections)}
+            if SydneyBuddyApp.mapReady {GoogleRouteMap(day:visibleDay,overview:safeOverview,expanded:expanded,viewport:expanded ? nil : store.mapViewport,onViewport:{if !expanded {store.mapViewport=$0}},sections:safeSections,selectedStopID:store.selectedStopID,onSelect:{if store.selectedStopID != $0{store.selectedStopID=$0}})}
             else {Palette.mint.overlay(Text("Google 地图未配置密钥\n请在“我的”选择其他底图").multilineTextAlignment(.center))}
         case .schematic:SchematicMap(day:visibleDay)
         }
@@ -320,6 +351,7 @@ struct ProviderRouteMap:View {
 
 struct SchematicMap: View {
     var day: DayPlan?
+    @EnvironmentObject private var store:AppStore
     var body:some View {
         GeometryReader { geo in
             ZStack {
@@ -347,7 +379,7 @@ struct SchematicMap: View {
                 Image(systemName:"sailboat.fill").font(.system(size:36)).foregroundStyle(.white).position(x:geo.size.width*0.80,y:geo.size.height*0.30)
                 if let stops=day?.stops {
                     ForEach(Array(stops.enumerated()),id:\.element.id) { i,stop in
-                        VStack(spacing:4) { Text("\(i+1)").font(.headline.bold()).foregroundStyle(.white).frame(width:34,height:34).background(Palette.green,in:Circle()).overlay(Circle().stroke(.white,lineWidth:3)); Text(stop.name).font(.system(size:10,weight:.bold)).padding(6).background(.white,in:Capsule()) }.position(point(stop,geo.size))
+                        VStack(spacing:4) { Text("\(i+1)").font(.headline.bold()).foregroundStyle(.white).frame(width:34,height:34).background(Palette.green,in:Circle()).overlay(Circle().stroke(.white,lineWidth:3)); Text(stop.name).font(.system(size:10,weight:.bold)).padding(6).background(.white,in:Capsule()) }.position(point(stop,geo.size)).onTapGesture{store.selectedStopID=stop.id}.scaleEffect(store.selectedStopID==stop.id ? 1.1:1)
                     }
                 } else { VStack(spacing:15) { Robot(size:110); Text("你的悉尼小冒险\n从这里开始").font(.title2.bold()).multilineTextAlignment(.center).foregroundStyle(Palette.ink) }.offset(y:-40) }
             }
@@ -366,6 +398,8 @@ struct HomeView: View {
     @State private var homeInfo=false
     @State var chat=false
     @State var details=false
+    @State private var adjusting=false
+    @State private var undoMessage:String?
     @State var expandedMap=false
     @State var journey=false
     @State var navigation=false
@@ -390,6 +424,16 @@ struct HomeView: View {
                         Button{withAnimation(.spring(response:0.3)){homeInfo.toggle()}}label:{
                             VStack(spacing:5){Capsule().fill(Palette.muted.opacity(0.35)).frame(width:34,height:4);Text(homeInfo ? "收起当天行程":"查看当天行程").font(.caption.weight(.medium))}.frame(maxWidth:.infinity).padding(.vertical,4)
                         }.accessibilityIdentifier("home-info-toggle").gesture(DragGesture(minimumDistance:12).onEnded{value in withAnimation{if value.translation.height < -12{homeInfo=true}else if value.translation.height > 12{homeInfo=false}}})
+                    }
+                    if let day=store.currentDay {
+                        Text("🐨 今天安排 \(day.stops.count) 站，预计约 \(day.estimatedSteps.formatted()) 步。点活动就能在地图上找到它。").font(.caption).foregroundStyle(Palette.ink)
+                        ScrollViewReader{proxy in ScrollView(.horizontal,showsIndicators:false){HStack{ForEach(Array(day.stops.enumerated()),id:\.element.id){i,stop in
+                            Button{store.selectedStopID=stop.id}label:{Text("\(i+1). "+stop.name).font(.caption.bold()).padding(8).background(store.selectedStopID==stop.id ? Palette.green:Palette.mint,in:Capsule()).foregroundStyle(store.selectedStopID==stop.id ? .white:Palette.ink)}.id(stop.id).accessibilityIdentifier("trip-stop-"+stop.id)
+                        }}}.onChange(of:store.selectedStopID){_,id in if let id{withAnimation{proxy.scrollTo(id,anchor:.center)}}}}
+                        Text(store.trip?.mode == "live" ? "在线路线 · 出发前核实开放时间":"示例行程 · 费用和步数为估算").font(.caption2).foregroundStyle(Palette.muted)
+                        Button("调整这一天",systemImage:"slider.horizontal.3"){adjusting=true}.font(.subheadline.bold())
+                        if let previous=store.lastAdjustment,previous.id==store.trip?.id {Button("撤销上次调整"){Task{if await store.undoLastAdjustment(){undoMessage="已恢复上次安排"}}}.font(.caption).disabled(store.busy)}
+                        if let undoMessage{Text(undoMessage).font(.caption).foregroundStyle(Palette.green)}
                     }
                     HStack(alignment:.top){
                         VStack(alignment:.leading,spacing:5){Text(store.trip == nil ? "开始你的悉尼旅行":"第 \(store.dayIndex+1) 天 · 当天概况").font(.headline).foregroundStyle(Palette.ink);if let day=store.currentDay{Text(store.language.text("{0} 站 · {1} 步 · A${2} · {3} 返回",String(day.stops.count),day.estimatedSteps.formatted(),String(Int(day.estimatedCost)),day.finishTime)).font(.caption).foregroundStyle(Palette.muted)}}
@@ -416,6 +460,9 @@ struct HomeView: View {
                 }.padding(16).background(.white,in:RoundedRectangle(cornerRadius:24)).shadow(color:Palette.ink.opacity(0.08),radius:12,y:4)
             }.padding(.horizontal,18).padding(.top,10).padding(.bottom,10).tint(Palette.green)
         }.task(id:mapSceneKey(store.currentDay)+"|"+store.mapProvider.rawValue+"|"+(store.trip?.mode ?? "")) {if let day=store.currentDay{overview.loadHome(day,provider:store.mapProvider,contentSource:store.trip?.mode == "live" ? "google":"open")}}
+        .sheet(isPresented:$adjusting){if let trip=store.trip{TripAdjustmentView(original:trip,dayIndex:store.dayIndex)}}
+        .onChange(of:store.dayIndex){_,_ in store.selectedStopID=nil}
+        .onChange(of:store.selectedStopID){_,value in if value != nil{withAnimation{homeInfo=false}}}
         .sheet(isPresented:$poiSearch){PoiDiscoveryView()}
         .sheet(isPresented:$chat){AgentView()}.sheet(isPresented:$details){TripDetailView()}
         .fullScreenCover(isPresented:$expandedMap) {

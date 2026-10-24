@@ -64,7 +64,28 @@ public static class PetQuestions
     public static bool Known(string? value)=>!new[]{"","未确定","暂不确定","未知","稍后补充","还没确定","还没想好","未提供","unknown","不确定","不知道"}.Contains((value??"").Trim());
     public static bool SupportedDestination(string? value)=>new[]{"悉尼","雪梨","sydney"}.Contains((value??"").Trim().ToLowerInvariant());
     public static bool UnsupportedDestination(PetSession s)=>Known(s.Fields.GetValueOrDefault("destination")) && !SupportedDestination(s.Fields.GetValueOrDefault("destination"));
-    public static string Next(PetSession s)=>UnsupportedDestination(s) ? "destination":Required.FirstOrDefault(k=>!Known(s.Fields.GetValueOrDefault(k))) ?? (Known(s.Fields.GetValueOrDefault("budgetCurrency")) && s.Fields["budgetCurrency"]!="AUD" ? "budgetCurrency":null) ?? Optional.FirstOrDefault(k=>!s.Fields.ContainsKey(k)) ?? "";
+    public static bool Answered(PetSession s,string key) {
+        var value=s.Fields.GetValueOrDefault(key);if(!Known(value))return false;
+        return key switch {
+            "destination"=>SupportedDestination(value),
+            "date"=>DateOnly.TryParseExact(value,"yyyy-MM-dd",System.Globalization.CultureInfo.InvariantCulture,System.Globalization.DateTimeStyles.None,out _),
+            "days"=>int.TryParse(value,out var days) && days is >=1 and <=15,
+            "travelers"=>int.TryParse(value,out var people) && people is >=1 and <=30,
+            "budget"=>ValidBudget(s,value),
+            "budgetCurrency"=>value=="AUD",
+            "budgetBasis"=>new[]{"perPersonPerDay","groupPerDay","perPersonTrip","groupTrip"}.Contains(value),
+            _=>true
+        };
+    }
+    private static bool ValidBudget(PetSession s,string? value) {
+        if(s.Fields.GetValueOrDefault("budgetCoverage")=="totalTravel" || !double.TryParse(value,System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out var amount) || !double.IsFinite(amount) || amount<=0 || amount>1000000)return false;
+        var basis=s.Fields.GetValueOrDefault("budgetBasis","");
+        if(int.TryParse(s.Fields.GetValueOrDefault("days"),out var days) && days>0 && int.TryParse(s.Fields.GetValueOrDefault("travelers"),out var people) && people>0){
+            var daily=amount/(basis.StartsWith("group") ? people:1)/(basis.EndsWith("Trip") ? days:1);return daily<=10000;
+        }
+        return true;
+    }
+    public static string Next(PetSession s)=>Required.FirstOrDefault(k=>!Answered(s,k)) ?? (s.Fields.GetValueOrDefault("budgetCoverage")=="totalTravel" ? "budget":"");
     public static string UncertainReply(string key)=>key switch {
         "destination"=>"哼唧，小爪爪抱住地图！还不知道去哪儿，我可没法带路呀～先选一个城市，好不好？🐨",
         "date"=>"哼，小日历都摊开啦！先挑个出发日期嘛，之后还可以改～",
@@ -102,7 +123,7 @@ public static class PetQuestions
         "budgetCurrency"=>["AUD"],"budgetBasis"=>["perPersonPerDay","groupPerDay","perPersonTrip","groupTrip"],"travelers"=>["1","2","3","4"],"origin"=>["环形码头","中央车站","稍后补充"],"mustDo"=>["暂不确定"],"avoid"=>["无特别要求","需要多休息","避免长时间步行"],
         "notes"=>["喜欢安静","需要多休息","没有其他要求"],_=>[]
     };
-    public static object View(PetSession s)=>new {s.Id,s.Messages,s.Fields,s.PendingMemory,s.UpdatedAt,nextField=Next(s),question=Question(Next(s)),options=Choices(Next(s)),completed=Required.Count(k=>Known(s.Fields.GetValueOrDefault(k)) && (k!="budgetCurrency" || s.Fields[k]=="AUD") && (k!="destination" || SupportedDestination(s.Fields[k]))), total=Required.Length};
+    public static object View(PetSession s)=>new {s.Id,s.Messages,s.Fields,s.PendingMemory,s.UpdatedAt,nextField=Next(s),question=Question(Next(s)),options=Choices(Next(s)),completed=Required.Count(k=>Answered(s,k)), total=Required.Length};
     public static void Apply(PetSession s,JsonObject fields)
     {
         foreach(var key in Keys)

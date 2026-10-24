@@ -16,6 +16,24 @@ namespace SydneyBuddy.Api.Tests;
 public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
 {
     [Fact]
+    public async Task SingleDayAdjustmentPreservesOtherAcceptedDaysExactly() {
+        var profile=TestSupport.Profile(3);profile["mode"]="demo";profile["budget"]=500;
+        var planned=(await (await fixture.Client.PostAsJsonAsync("/plan",profile)).Content.ReadFromJsonAsync<JsonObject>())!;
+        var saved=(await (await fixture.Client.PostAsJsonAsync("/trips",new{trip=planned,expectedRevision=0})).Content.ReadFromJsonAsync<JsonObject>())!;
+        var proposed=(await (await fixture.Client.PostAsJsonAsync("/schedule/editor",new{trip=saved})).Content.ReadFromJsonAsync<JsonObject>())!;
+        proposed.Object("profile")!.Clear();foreach(var pair in saved.Object("profile")!)proposed.Object("profile")![pair.Key]=pair.Value?.DeepClone();
+        proposed.Object("profile")!["budget"]=9999; // Client profile changes must not affect a single-day adjustment.
+        var response=await fixture.Client.PostAsJsonAsync("/trips",new{trip=proposed,expectedRevision=saved.Int("revision"),adjustedDay=0});
+        response.EnsureSuccessStatusCode();var accepted=(await response.Content.ReadFromJsonAsync<JsonObject>())!;
+        Assert.True(JsonNode.DeepEquals(saved.Array("days")![1],accepted.Array("days")![1]));Assert.True(JsonNode.DeepEquals(saved.Array("days")![2],accepted.Array("days")![2]));
+        Assert.Equal(2,accepted.Int("revision"));Assert.True(JsonNode.DeepEquals(saved["profile"],accepted["profile"]));
+        var undo=await fixture.Client.PostAsJsonAsync("/trips",new{trip=accepted,expectedRevision=2,undoAdjustment=true});undo.EnsureSuccessStatusCode();var restored=(await undo.Content.ReadFromJsonAsync<JsonObject>())!;
+        Assert.True(JsonNode.DeepEquals(saved["days"],restored["days"]));Assert.Equal(3,restored.Int("revision"));Assert.Null(restored["previousAdjustment"]);
+        var nameDraft=(JsonObject)restored.DeepClone();nameDraft["title"]="海风假期";
+        var rename=await fixture.Client.PostAsJsonAsync("/trips",new{trip=nameDraft,expectedRevision=3,renameOnly=true});rename.EnsureSuccessStatusCode();var renamed=(await rename.Content.ReadFromJsonAsync<JsonObject>())!;
+        Assert.True(JsonNode.DeepEquals(restored["days"],renamed["days"]));Assert.Equal("海风假期",renamed.Str("title"));
+    }
+    [Fact]
     public async Task ScheduleEditorSavesAndReloadsRecomputedSnapshotAndRejectsConflicts()
     {
         var profile=TestSupport.Profile(3);profile["mode"]="demo";profile["budget"]=500;
