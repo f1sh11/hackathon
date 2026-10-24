@@ -129,14 +129,21 @@ struct SavedTripWorkspace:View {
     var onDelete:()->Void
     @EnvironmentObject private var store:AppStore
     @State private var section="map"
+    @State private var renaming=false
+    @State private var newTitle=""
     var body:some View {
         VStack(spacing:0) {
-            HStack{Text(trip.title).font(.headline);Spacer();Text("\(trip.profile.date) · \(trip.days.count) 天").font(.caption).foregroundStyle(Palette.muted)}.padding(.horizontal,20).padding(.top,10)
+            HStack{Button{newTitle=trip.title;renaming=true}label:{HStack(spacing:6){Text(trip.title).font(.headline);Image(systemName:"pencil").font(.caption)}}.foregroundStyle(Palette.ink).accessibilityLabel("修改旅行名称："+trip.title);Spacer();Text("\(trip.profile.date) · \(trip.days.count) 天").font(.caption).foregroundStyle(Palette.muted)}.padding(.horizontal,20).padding(.top,10)
             Picker("旅行工作台",selection:$section){Text("路线地图").tag("map");Text("行程详情").tag("details")}.pickerStyle(.segmented).padding(.horizontal,20).padding(.vertical,10).accessibilityIdentifier("trip-workspace-section")
             if section=="map" {HomeView()}
             else {SavedTripOverview(trip:trip,onEdit:openEditor,onMap:{section="map"},onNavigate:onNavigate,onDelete:onDelete)}
         }.background(Palette.cream).navigationTitle("旅行工作台").navigationBarTitleDisplayMode(.inline)
         .toolbar{ToolbarItem(placement:.topBarTrailing){Button("编辑行程",action:openEditor).disabled(store.busy)}}
+        .sheet(isPresented:$renaming){NavigationStack{Form{
+            TextField("旅行名称",text:$newTitle).accessibilityIdentifier("trip-name-field")
+            Text("最多 40 个字，只修改名称，地点和日期保持不变。").font(.caption).foregroundStyle(Palette.muted)
+            Button("保存名称"){Task{if await store.renameTrip(trip,to:newTitle){renaming=false}}}.disabled(store.busy || newTitle.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty || newTitle.count>40)
+        }.navigationTitle("给旅行起个名字").navigationBarTitleDisplayMode(.inline).toolbar{Button("取消"){renaming=false}}}}
         .onAppear{store.trip=trip;store.dayIndex=0}
         .onChange(of:trip.revision){_,_ in store.trip=trip}
     }

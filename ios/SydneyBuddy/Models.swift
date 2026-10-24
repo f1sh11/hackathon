@@ -82,6 +82,12 @@ struct Expense: Codable, Identifiable {
     var shares: [Int] { (0..<participants).map { cents/participants + ($0 < cents%participants ? 1 : 0) } }
 }
 
+extension Trip {
+    var suggestedTitle:String {
+        let theme=profile.interests.prefix(2).joined(separator:"与")
+        return "悉尼 · "+(theme.isEmpty ? "自在漫游":theme)+" · \(days.count)天"
+    }
+}
 struct UserTravelProfile:Codable,Equatable {
     var queueTolerance:String?;var dailySteps:Int?;var energy:String?;var rhythm:String?;var interests:[String]?
     static func load(key:String="userTravelProfile")->UserTravelProfile {
@@ -207,7 +213,8 @@ struct TravelPlanningTask:Codable {
             if rain { p.weatherOverride = "rain" }
             var raw = try JSONSerialization.jsonObject(with: JSONEncoder().encode(p)) as! [String:Any]
             raw["mode"] = live ? (health?.googleConfigured == true ? "live" : "assisted") : "demo"
-            let result: Trip = try await api("plan",method:"POST",body:JSONSerialization.data(withJSONObject:raw))
+            var result: Trip = try await api("plan",method:"POST",body:JSONSerialization.data(withJSONObject:raw))
+            result.title=trip?.title ?? result.suggestedTitle
             refreshedWeather = nil
             proposal = result
             agentText = result.explanation
@@ -228,7 +235,7 @@ struct TravelPlanningTask:Codable {
             var planned:Trip=try await api("plan",method:"POST",body:JSONSerialization.data(withJSONObject:raw))
             try Task.checkCancellation()
             canCancelOperation=false
-            planned.id=nil;planned.revision=nil
+            planned.id=nil;planned.revision=nil;planned.title=planned.suggestedTitle
             operationTitle="正在保存到我的行程…";operationDetail="保存后可以查看地图、编辑日程和导航。"
             let body:[String:Any]=["trip":try JSONSerialization.jsonObject(with:JSONEncoder().encode(planned)),"expectedRevision":0]
             let accepted:Trip=try await api("trips",method:"POST",body:JSONSerialization.data(withJSONObject:body))
@@ -244,6 +251,20 @@ struct TravelPlanningTask:Codable {
         if consumeDraft{tripToOpen=accepted}
         if showOnboarding || consumeDraft {pendingTripFields=[:]}
         showOnboarding=false;UserDefaults.standard.set(true,forKey:"onboarded");tab=1
+    }
+    func renameTrip(_ original:Trip,to value:String) async -> Bool {
+        let title=value.trimmingCharacters(in:.whitespacesAndNewlines)
+        guard !busy,!title.isEmpty,title.count<=40,original.id != nil else{return false}
+        busy=true;defer{busy=false}
+        do {
+            operationTitle="正在保存旅行名称…";operationDetail="保留原来的地点和时间安排。"
+            var renamed=original;renamed.title=title
+            let raw:[String:Any]=["trip":try JSONSerialization.jsonObject(with:JSONEncoder().encode(renamed)),"expectedRevision":original.revision ?? 0]
+            let accepted:Trip=try await api("trips",method:"POST",body:JSONSerialization.data(withJSONObject:raw))
+            if let i=saved.firstIndex(where:{$0.id==accepted.id}){saved[i]=accepted}
+            if trip?.id==accepted.id{trip=accepted}
+            return true
+        }catch{errorMessage=error.localizedDescription;return false}
     }
     func acceptProposal() async {
         guard var p = proposal else { return }

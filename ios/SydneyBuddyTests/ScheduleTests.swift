@@ -368,6 +368,21 @@ import MapKit
         XCTAssertEqual(model.state!.days[0].activities[0].id,first.id)
         XCTAssertNil(model.state!.days[0].activities[0].fixedStart);model.stop()
     }
+    func testRenamingPreservesRouteAndUsesExpectedRevision() async throws {
+        let store=AppStore();var original=try fixture();original.id="rename-test";original.revision=3
+        store.saved=[original];store.trip=original
+        store.loader={request in
+            let raw=try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:Any]
+            XCTAssertEqual(raw["expectedRevision"] as? Int,3)
+            var renamed=try JSONDecoder().decode(Trip.self,from:JSONSerialization.data(withJSONObject:raw["trip"]!))
+            XCTAssertEqual(renamed.title,"海风假期");XCTAssertEqual(renamed.days.count,original.days.count)
+            XCTAssertEqual(renamed.days[0].stops.map(\.id),original.days[0].stops.map(\.id))
+            renamed.revision=4
+            return (try JSONEncoder().encode(renamed),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)
+        }
+        let result=await store.renameTrip(original,to:"  海风假期  ")
+        XCTAssertTrue(result);XCTAssertEqual(store.saved.first?.title,"海风假期");XCTAssertEqual(store.trip?.revision,4)
+    }
     func fixture() throws -> Trip {try JSONDecoder().decode(Trip.self,from:Data(contentsOf:Bundle(for:Self.self).url(forResource:"schedule-trip-test",withExtension:"json")!))}
     func testLegacyAndroidProfileWithoutRequestCanStillBeRead() throws {
         var raw=try JSONSerialization.jsonObject(with:JSONEncoder().encode(fixture())) as! [String:Any]

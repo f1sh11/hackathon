@@ -66,11 +66,13 @@ public static class PetEndpoints
                     if(!PetQuestions.Keys.Contains(field))throw new ServiceException("未知的旅行字段。");
                     var value=input.Str("value");if(value.Length is 0 or >600)throw new ServiceException("回答太长或为空。");
                     if(field=="date"&&value is "今天" or "明天")value=TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTimeOffset.UtcNow,"Australia/Sydney").Date.AddDays(value=="明天"?1:0).ToString("yyyy-MM-dd");
+                    // Changing currency never reuses an amount entered in a different currency.
+                    if(field=="budgetCurrency" && s.Fields.TryGetValue(field,out var oldCurrency) && PetQuestions.Known(oldCurrency) && oldCurrency!=value)s.Fields.Remove("budget");
                     s.Fields[field]=value;
                     if(field=="companions" && value is "一个人" or "两个人")s.Fields["travelers"]=value=="一个人"?"1":"2";
                     if(PetQuestions.Required.Contains(field) && !PetQuestions.Known(value)) {
                         reply=PetQuestions.UncertainReply(field);mood="pouting";
-                    } else reply="收到啦～"+PetQuestions.Question(PetQuestions.Next(s));
+                    } else reply=PetQuestions.UnsupportedDestination(s) ? "小爪爪先停一下～目前还不能生成这个城市的路线。可以改选悉尼，或者保留这份需求，之后再继续。": "收到啦～"+PetQuestions.Question(PetQuestions.Next(s));
 
                     await Emit(new{type="reply",text=reply});
                 }
@@ -91,6 +93,7 @@ public static class PetEndpoints
                     foreach(var key in PetQuestions.Keys)
                         if(changes.Str(key) is "未确定" or "未知" or "未提供" or "unknown") changes.Remove(key);
                     PetExplicitFacts.Apply(message,changes);
+                    if(changes.ContainsKey("budgetCurrency") && s.Fields.TryGetValue("budgetCurrency",out var previousCurrency) && PetQuestions.Known(previousCurrency) && previousCurrency!=changes.Str("budgetCurrency") && !changes.ContainsKey("budget"))s.Fields.Remove("budget");
                     PetQuestions.Apply(s,changes);reply=result.Str("reply");
                     if(changes.ContainsKey("budget"))reply=PetExplicitFacts.BudgetReply(s) ?? "预算先收好啦，我们再确认金额、币种和范围。";
                     else if(reply.Length>220)reply="收到，你的想法已放进这次的小背包。";
@@ -99,6 +102,8 @@ public static class PetEndpoints
                         !new[]{"别问","不要问","不用问","再见","bye","don't ask","do not ask"}.Any(x=>message.Contains(x,StringComparison.OrdinalIgnoreCase)))
                         reply+="\n"+PetQuestions.Question(PetQuestions.Next(s));
                     if(PetQuestions.Required.Contains(unanswered) && !PetQuestions.Known(message) && !PetQuestions.Known(s.Fields.GetValueOrDefault(unanswered))) {reply=PetQuestions.UncertainReply(unanswered);mood="pouting";}
+                    if(PetQuestions.Known(s.Fields.GetValueOrDefault("budgetCurrency")) && s.Fields["budgetCurrency"]!="AUD")reply="小钱包先等等～"+PetQuestions.Question("budgetCurrency");
+                    if(PetQuestions.UnsupportedDestination(s)){reply="小爪爪先停一下～目前还不能生成这个城市的路线。可以改选悉尼，或者保留这份需求，之后再继续。";mood="confused";}
                     var suggestion=result.Str("memorySuggestion");if(suggestion.Length>0)s.PendingMemory=suggestion[..Math.Min(500,suggestion.Length)];
                     await Emit(new{type="reply",text=reply});
                 }

@@ -62,7 +62,9 @@ public static class PetQuestions
     public static readonly string[] Required=["destination","date","days","budget","budgetCurrency","budgetBasis","travelers"];
     public static readonly string[] Optional=["origin","companions","mustDo","avoid"];
     public static bool Known(string? value)=>!new[]{"","未确定","暂不确定","未知","稍后补充","还没确定","还没想好","未提供","unknown","不确定","不知道"}.Contains((value??"").Trim());
-    public static string Next(PetSession s)=>Required.FirstOrDefault(k=>!Known(s.Fields.GetValueOrDefault(k))) ?? Optional.FirstOrDefault(k=>!s.Fields.ContainsKey(k)) ?? "";
+    public static bool SupportedDestination(string? value)=>new[]{"悉尼","雪梨","sydney"}.Contains((value??"").Trim().ToLowerInvariant());
+    public static bool UnsupportedDestination(PetSession s)=>Known(s.Fields.GetValueOrDefault("destination")) && !SupportedDestination(s.Fields.GetValueOrDefault("destination"));
+    public static string Next(PetSession s)=>UnsupportedDestination(s) ? "destination":Required.FirstOrDefault(k=>!Known(s.Fields.GetValueOrDefault(k))) ?? (Known(s.Fields.GetValueOrDefault("budgetCurrency")) && s.Fields["budgetCurrency"]!="AUD" ? "budgetCurrency":null) ?? Optional.FirstOrDefault(k=>!s.Fields.ContainsKey(k)) ?? "";
     public static string UncertainReply(string key)=>key switch {
         "destination"=>"哼唧，小爪爪抱住地图！还不知道去哪儿，我可没法带路呀～先选一个城市，好不好？🐨",
         "date"=>"哼，小日历都摊开啦！先挑个出发日期嘛，之后还可以改～",
@@ -75,12 +77,12 @@ public static class PetQuestions
     };
     public static string Question(string key)=>key switch
     {
-        "destination"=>"这次想去哪里呀？我先把目的地放进小背包。",
+        "destination"=>"这次想去哪里呀？目前可以生成悉尼路线；其他城市可以先保存想法。",
         "date"=>"准备哪天出发？先选个日期，之后还可以改。",
         "days"=>"想留几天给这次小冒险？",
         "companions"=>"这次和谁一起出发呀？",
         "budget"=>"这次活动预算大概多少？请一起告诉我币种，以及是每人还是全体、每天还是全程。",
-        "budgetCurrency"=>"这笔预算是什么币种呀？比如 AUD、CNY 或 USD。",
+        "budgetCurrency"=>"目前路线费用只支持澳元活动预算。原金额不会自动换汇，请告诉我新的 AUD 活动预算。",
         "budgetBasis"=>"这笔金额是每人还是全体、每天还是全程呢？",
         "travelers"=>"这次总共几个人出发？包含你自己哦。",
         "origin"=>"有出发地点或住宿位置了吗？还不知道也可以稍后补充。",
@@ -89,18 +91,18 @@ public static class PetQuestions
         "interests"=>"这次最想发现什么？也可以直接告诉我好几个喜好。",
         "pace"=>"这次想慢悠悠，还是多逛几个地方？",
         "notes"=>"还有饮食、步行或其他需要照顾的地方吗？没有就跳过吧。",
-        _=>"小背包准备好啦！你可以继续聊，也可以检查信息，生成行程草案。"
+        _=>"小背包准备好啦！可以直接点下面的「生成行程」，也可以继续聊。"
     };
     public static string[] Choices(string key)=>key switch
     {
-        "destination"=>["悉尼","墨尔本","还没想好"],"date"=>["今天","明天","还没确定"],
+        "destination"=>["悉尼","还没想好"],"date"=>["今天","明天","还没确定"],
         "days"=>["1","3","7","15"],"companions"=>["一个人","两个人","和朋友","和家人"],
         "budget"=>["50","100","200"],"interests"=>["艺术、文化","美食、城市","自然、风景"],
         "pace"=>["慢悠悠（约6000步）","适中（约10000步）","多逛逛（约15000步）"],
-        "budgetCurrency"=>["AUD","CNY","USD"],"budgetBasis"=>["perPersonPerDay","groupPerDay","perPersonTrip","groupTrip"],"travelers"=>["1","2","3","4"],"origin"=>["环形码头","中央车站","稍后补充"],"mustDo"=>["暂不确定"],"avoid"=>["无特别要求","需要多休息","避免长时间步行"],
+        "budgetCurrency"=>["AUD"],"budgetBasis"=>["perPersonPerDay","groupPerDay","perPersonTrip","groupTrip"],"travelers"=>["1","2","3","4"],"origin"=>["环形码头","中央车站","稍后补充"],"mustDo"=>["暂不确定"],"avoid"=>["无特别要求","需要多休息","避免长时间步行"],
         "notes"=>["喜欢安静","需要多休息","没有其他要求"],_=>[]
     };
-    public static object View(PetSession s)=>new {s.Id,s.Messages,s.Fields,s.PendingMemory,s.UpdatedAt,nextField=Next(s),question=Question(Next(s)),options=Choices(Next(s)),completed=Required.Count(k=>Known(s.Fields.GetValueOrDefault(k))), total=Required.Length};
+    public static object View(PetSession s)=>new {s.Id,s.Messages,s.Fields,s.PendingMemory,s.UpdatedAt,nextField=Next(s),question=Question(Next(s)),options=Choices(Next(s)),completed=Required.Count(k=>Known(s.Fields.GetValueOrDefault(k)) && (k!="budgetCurrency" || s.Fields[k]=="AUD") && (k!="destination" || SupportedDestination(s.Fields[k]))), total=Required.Length};
     public static void Apply(PetSession s,JsonObject fields)
     {
         foreach(var key in Keys)

@@ -22,10 +22,38 @@ public sealed class PetConversationTests(ApiFixture fixture):IClassFixture<ApiFi
         Assert.Equal("destination",PetQuestions.Next(session));
         Assert.Equal(0,((JsonObject)JsonSerializerNode(PetQuestions.View(session))).Int("completed"));
         foreach(var key in PetQuestions.Required)session.Fields[key]="known";
-        session.Fields["origin"]="稍后补充";
+        session.Fields["destination"]="悉尼";session.Fields["budgetCurrency"]="AUD";session.Fields["origin"]="稍后补充";
         Assert.Equal("companions",PetQuestions.Next(session));
     }
     private static JsonNode JsonSerializerNode(object value)=>System.Text.Json.JsonSerializer.SerializeToNode(value,JsonExtensions.Options)!;
+    [Fact]
+    public async Task UnsupportedCityCannotClaimReadyAndCanBeRepairedWithoutLosingRequirements()
+    {
+        using var client=fixture.CreateFactory().CreateClient(new(){BaseAddress=new Uri("http://localhost")});
+        var id=(await Create(client)).Str("id");
+        await client.PatchAsJsonAsync($"/pet/sessions/{id}",new{fields=new{destination="墨尔本",date="2026-11-01",days="2",budget="100",budgetCurrency="AUD",budgetBasis="perPersonPerDay",travelers="2",origin="稍后补充",companions="两个人",mustDo="无"}});
+        var blocked=await Turn(client,id,new{message="无特别要求",field="avoid",value="无特别要求",requestId=Guid.NewGuid().ToString()});
+        Assert.Equal("destination",blocked.Str("nextField"));Assert.Equal(6,blocked.Int("completed"));
+        Assert.DoesNotContain("准备好",blocked.Array("messages")!.Last()!.Str("text"));
+        var repaired=await Turn(client,id,new{message="改为悉尼",field="destination",value="悉尼",requestId=Guid.NewGuid().ToString()});
+        Assert.Equal("",repaired.Str("nextField"));Assert.Equal("2",repaired.Object("fields")!.Str("days"));
+        Assert.Contains("生成行程",repaired.Array("messages")!.Last()!.Str("text"));
+    }
+    [Fact]
+    public async Task CurrencyRepairClearsTheOldAmountAndDoesNotClaimReadiness()
+    {
+        using var client=fixture.CreateFactory().CreateClient(new(){BaseAddress=new Uri("http://localhost")});
+        var session=await Create(client);
+        var id=session.Str("id");
+        await client.PatchAsJsonAsync($"/pet/sessions/{id}",new{fields=new{destination="悉尼",date="2026-11-01",days="2",budget="100",budgetCurrency="CNY",budgetBasis="groupTrip",travelers="2",origin="未确定",companions="两个人",mustDo="无",avoid="无"}});
+        var current=await client.GetFromJsonAsync<JsonObject>($"/pet/sessions/{id}");
+        Assert.Equal("budgetCurrency",current!.Str("nextField"));
+        Assert.Equal(6,current.Int("completed"));
+        var response=await client.PostAsJsonAsync($"/pet/sessions/{id}/turn",new{message="AUD",field="budgetCurrency",value="AUD",requestId=Guid.NewGuid().ToString()});
+        var last=JsonNode.Parse((await response.Content.ReadAsStringAsync()).Split('\n',StringSplitOptions.RemoveEmptyEntries).Last())!.Object("session")!;
+        Assert.Equal("budget",last.Str("nextField"));Assert.False(last.Object("fields")!.ContainsKey("budget"));
+        Assert.DoesNotContain("准备好",last.Array("messages")!.Last()!.Str("text"));
+    }
     [Fact]
     public void ExplicitNoMustDoOrAvoidCountsAsAnswered()
     {
@@ -130,7 +158,7 @@ public sealed class PetConversationTests(ApiFixture fixture):IClassFixture<ApiFi
         Assert.Equal("墨尔本",chatResult.Object("fields").Str("destination"));
         Assert.Equal("艺术",chatResult.Object("fields").Str("interests"));
         Assert.Equal("喜欢艺术和慢节奏",chatResult.Str("pendingMemory"));
-        Assert.Equal("relaxed",chatResult.Array("messages")!.Last()!.Str("mood"));
+        Assert.Equal("confused",chatResult.Array("messages")!.Last()!.Str("mood"));
         Assert.Empty((await client.GetFromJsonAsync<JsonArray>("/memories"))!);
         var local=await client.PostAsJsonAsync($"/pet/sessions/{id}/memory",new {consent=false});local.EnsureSuccessStatusCode();
         Assert.Empty((await client.GetFromJsonAsync<JsonArray>("/memories"))!);

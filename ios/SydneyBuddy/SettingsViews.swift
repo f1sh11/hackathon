@@ -45,14 +45,15 @@ struct SettingsView:View {
                     Text("語言切換後立即生效，並保存在這台裝置。").font(.caption)
                     Text("景點名稱與已儲存的行程內容保留原始語言。").font(.caption).foregroundStyle(Palette.muted)
                 }
-                Section("个人画像") {
-                    Button { editingPersonalPreferences=true } label:{Label("修改旅行习惯画像",systemImage:"slider.horizontal.3")}
-                    Text("新旅行会带入这些偏好；修改不会影响已有行程或当前旅行草稿。").font(.caption).foregroundStyle(Palette.muted)
-                }
-                Section("Buddy 记住的偏好") {
-                    Text("新旅行会参考你同意保存的兴趣与节奏，本次选择始终优先。可在个人偏好中修改。").font(.caption).foregroundStyle(Palette.muted)
-                    if store.memories.isEmpty{Text("还没有长期偏好，和 Buddy 聊聊吧。").foregroundStyle(Palette.muted)}
-                    ForEach(store.memories){memory in HStack(alignment:.top){Text(memory.summary).font(.subheadline);Spacer();Button("删除",role:.destructive){deletingMemory=memory}.font(.subheadline).frame(minHeight:44)}}
+                Section("我的旅行偏好") {
+                    Text(store.personalProfile.summary.isEmpty ? "还没认识你的旅行习惯，来告诉 Buddy 吧。":store.personalProfile.summary).font(.subheadline)
+                    Button { editingPersonalPreferences=true } label:{Label("修改旅行习惯",systemImage:"slider.horizontal.3")}
+                    Text("新旅行会参考这些习惯；这次旅行的要求始终优先。修改不会改变已有行程或当前草稿。").font(.caption).foregroundStyle(Palette.muted)
+                    DisclosureGroup("聊天中另外记住的偏好（\(store.memories.count)）") {
+                        Text("这里只显示你同意长期保存的聊天补充，可以逐条删除。").font(.caption).foregroundStyle(Palette.muted)
+                        if store.memories.isEmpty{Text("还没有额外保存的偏好。").foregroundStyle(Palette.muted)}
+                        ForEach(store.memories){memory in HStack(alignment:.top){Text(memory.summary).font(.subheadline);Spacer();Button("删除",role:.destructive){deletingMemory=memory}.font(.subheadline).frame(minHeight:44)}}
+                    }
                 }
                 Section("体验与帮助") {
                     Button("创建一次新的旅行"){store.newTrip()}

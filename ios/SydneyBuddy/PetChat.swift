@@ -272,7 +272,15 @@ struct PetChatView:View {
             }
             if let session=chat.session,!session.nextField.isEmpty {quickAnswers(session)}
             if canPlanDirectly {directPlanningCard}
-            else if let blocker=directPlanningBlocker {Label(blocker,systemImage:"info.circle").font(.caption).foregroundStyle(Palette.muted).padding(.horizontal,20).padding(.top,6)}
+            else if let blocker=directPlanningBlocker {
+                VStack(alignment:.leading,spacing:8){Label(blocker,systemImage:"info.circle").font(.caption).foregroundStyle(Palette.muted)
+                    if TravelRequirements.known(liveFields["destination"]),!TravelRequirements.supportedDestination(liveFields["destination"]) {
+                        Button("改为悉尼，继续规划"){Task{await chat.send("改为悉尼，保留其他旅行需求",field:"destination",value:"悉尼")}}.font(.subheadline.bold()).disabled(chat.busy)
+                    } else if let currency=liveFields["budgetCurrency"],TravelRequirements.known(currency),currency != "AUD" {
+                        Button("重新填写澳元活动预算"){Task{await chat.update(["budget":"","budgetCurrency":"AUD","budgetCoverage":"activities"])}}.font(.subheadline.bold()).disabled(chat.busy)
+                    } else {Button("修改旅行需求"){fields=liveFields;review=true}.font(.subheadline.bold())}
+                }.padding(.horizontal,20).padding(.top,6)
+            }
             HStack(alignment:.bottom){
                 TextField("告诉 Buddy 你的想法，也可以点上面的选项…",text:$message,axis:.vertical).focused($composing).lineLimit(1...4).padding(12).background(.white,in:RoundedRectangle(cornerRadius:16)).accessibilityIdentifier("chat-composer")
                 Button{let text=message;composing=false;Task{await chat.send(text);if chat.error==nil{message=""}}}label:{Image(systemName:"arrow.up.circle.fill").font(.system(size:34))}.accessibilityLabel("发送消息").disabled(chat.busy || message.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty || message.count>2000)
@@ -285,6 +293,7 @@ struct PetChatView:View {
             }.font(.subheadline).padding(20).disabled(chat.busy)
         }.background(Palette.cream).foregroundStyle(Palette.ink)
     }
+    @State private var choosingDestination=false
     var body:some View {
         ZStack {
             conversationContent.opacity(review ? 0:1).allowsHitTesting(!review).accessibilityHidden(review)
@@ -302,6 +311,7 @@ struct PetChatView:View {
             if value != nil{assumptionsConfirmed=false}
             if canPlanDirectly{composing=false}
         }
+        .sheet(isPresented:$choosingDestination){destinationIdeas}
         .sheet(isPresented:$memories){PetMemoryView(chat:chat)}
         .confirmationDialog("清空本次对话和旅行草稿？已保存行程与长期偏好保留。",isPresented:$clearing,titleVisibility:.visible){Button("清空",role:.destructive){Task{await chat.clear()}}}
     }
@@ -323,7 +333,22 @@ struct PetChatView:View {
             ScrollView(.horizontal,showsIndicators:false){HStack(spacing:8){ForEach(session.options,id:\.self){option in
                 Button{composing=false;let label=TravelRequirements.optionTitle(option,field:session.nextField);Task{await chat.send(label,field:session.nextField,value:option)}}label:{Text(TravelRequirements.optionTitle(option,field:session.nextField)).font(.subheadline.weight(.medium)).padding(.horizontal,14).padding(.vertical,10).background(.white,in:Capsule()).overlay(Capsule().stroke(Palette.green.opacity(0.2)))}.buttonStyle(.plain).disabled(chat.busy)
             }}}
+            if session.nextField=="destination" {Button("还没想好？让 Buddy 帮我选",systemImage:"sparkles"){choosingDestination=true}.font(.subheadline.bold()).disabled(chat.busy)}
         }.padding(.horizontal,20).padding(.top,8).accessibilityIdentifier("chat-quick-answers")
+    }
+    private var destinationIdeas:some View {
+        NavigationStack {
+            ScrollView {VStack(alignment:.leading,spacing:18){
+                HStack{PetAvatar(mood:.curious).frame(width:100,height:110);Text("哼唧，选不出来就交给我嘛～先看看你想过哪种小假期？").font(.headline)}
+                Text("目前能实际生成路线的城市是悉尼。下面是悉尼的玩法灵感，选择后仍可继续调整需求。").font(.caption).foregroundStyle(Palette.muted)
+                if !store.pendingPersonalProfile.summary.isEmpty{Text("我记得你："+store.pendingPersonalProfile.summary).font(.caption).foregroundStyle(Palette.green)}
+                ForEach([("海风与绿意","歌剧院外观、皇家植物园，适合喜欢自然与风景的你。"),("城市与美食","岩石区、城市街区，给逛吃留些时间。"),("艺术与故事","博物馆、美术馆，慢慢发现城市的另一面。")],id:\.0){title,detail in
+                    VStack(alignment:.leading,spacing:10){Text(title).font(.headline);Text(detail).font(.subheadline).foregroundStyle(Palette.muted)
+                        Button("选悉尼，继续聊"){choosingDestination=false;Task{let interests=title=="海风与绿意" ? "自然、风景":title=="城市与美食" ? "城市、美食":"艺术、文化";await chat.update(["interests":interests]);if chat.error==nil{await chat.send("这次想体验"+title+"，我选悉尼",field:"destination",value:"悉尼")}}}.buttonStyle(.borderedProminent).tint(Palette.green)
+                    }.padding(18).frame(maxWidth:.infinity,alignment:.leading).background(.white,in:RoundedRectangle(cornerRadius:18))
+                }
+            }.padding(20)}.background(Palette.cream).navigationTitle("Buddy 帮你选").navigationBarTitleDisplayMode(.inline).toolbar{Button("关闭"){choosingDestination=false}}
+        }
     }
     private var directPlanningCard:some View {
         VStack(alignment:.leading,spacing:8){
@@ -458,7 +483,7 @@ struct PetMemoryView:View {
 struct PetTripDraft {
     static func profile(_ fields:[String:String],base:TripProfile=TripProfile()) throws -> TripProfile {
         func failure(_ message:String)->NSError{NSError(domain:"PetDraft",code:1,userInfo:[NSLocalizedDescriptionKey:message])}
-        guard ["悉尼","sydney"].contains((fields["destination"] ?? "").trimmingCharacters(in:.whitespacesAndNewlines).lowercased()) else{throw failure("这份资料可保存。当前只能生成悉尼路线，其他城市暂未接入。")}
+        guard TravelRequirements.supportedDestination(fields["destination"]) else{throw failure("这份资料可保存。当前只能生成悉尼路线，其他城市暂未接入。")}
         guard let days=Int(fields["days"] ?? ""),(1...15).contains(days),let budget=Double(fields["budget"] ?? ""),budget.isFinite,budget>0,budget<=10000 else{throw failure("请填写 1–15 天和有效的每日活动预算（纯数字，最多 10000 AUD）。")}
         let format=DateFormatter();format.locale=Locale(identifier:"en_US_POSIX");format.dateFormat="yyyy-MM-dd";format.isLenient=false
         guard let date=fields["date"],let parsed=format.date(from:date),format.string(from:parsed)==date else{throw failure("请填写 YYYY-MM-DD 格式的有效出发日期。")}
@@ -664,6 +689,7 @@ struct PetWelcomeView: View {
 
 
 struct TravelRequirements {
+    static func supportedDestination(_ value:String?)->Bool{["悉尼","雪梨","sydney"].contains((value ?? "").trimmingCharacters(in:.whitespacesAndNewlines).lowercased())}
     static let requiredKeys=["destination","date","days","budget","budgetCurrency","budgetBasis","travelers"]
     static let unknowns=["","未确定","暂不确定","未知","稍后补充","还没确定","还没想好","未提供","unknown","不确定","不知道"]
     static func known(_ value:String?)->Bool{!unknowns.contains((value ?? "").trimmingCharacters(in:.whitespacesAndNewlines))}

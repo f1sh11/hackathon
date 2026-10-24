@@ -194,18 +194,32 @@ struct ScheduleRadarView:View {
             ScrollView {
                 VStack(alignment:.leading,spacing:16) {
                     if let state=model.state {
-                        Text("先建議，再按你的節奏調整").font(.title2.bold())
-                        Text(state.source).font(.caption).foregroundStyle(Palette.muted)
-                        DisclosureGroup("旅行偏好雷達圖"){ScheduleRadarView(axes:state.radar)}.padding().background(.white,in:RoundedRectangle(cornerRadius:20))
-                        HStack {Button("偏好與住宿"){settingsSheet=true};Spacer();Button("景點清單"){candidateSheet=true}}.font(.subheadline.bold())
                         let day=state.days[min(model.dayIndex,state.days.count-1)]
-                        summary(day,state)
-                        HStack {Button("還原上一步"){model.undo()};Spacer();Button("回到原建議"){model.restore()}}.font(.caption)
-                        if model.busy {ProgressView("更新交通與等待時間…").font(.caption)}
-                        ForEach(state.issues.filter{$0.day==model.dayIndex || $0.day == -1}) {issue in Label(issue.message,systemImage:issue.blocking ? "exclamationmark.triangle.fill":"info.circle").font(.caption).foregroundStyle(issue.blocking ? .red:.orange).padding(10).frame(maxWidth:.infinity,alignment:.leading).background(.white,in:RoundedRectangle(cornerRadius:12))}
-                        Label(day.start.name+" 出發",systemImage:"location.fill").font(.subheadline.bold())
-                        ScheduleWorkbench(model:model,onEdit:{editing=$0},onAdd:{candidateSheet=true})
-                        Label(day.end.name+" · "+day.finishTime,systemImage:"flag.checkered").font(.subheadline.bold())
+                        ScrollView(.horizontal,showsIndicators:false){HStack{ForEach(state.days.indices,id:\.self){i in
+                            Button("第 \(i+1) 天"){model.dayIndex=i}.buttonStyle(.bordered).tint(model.dayIndex==i ? Palette.green:Palette.muted)
+                        }}}
+                        Text(day.date+" · "+day.start.name+" 出发").font(.caption).foregroundStyle(Palette.muted)
+                        HStack{Text("当天活动").font(.headline);Spacer();Button("添加安排"){candidateSheet=true}.font(.subheadline.bold())}
+                        if day.activities.isEmpty{Text("这天还没有活动，添加一个想去的地方吧。").font(.subheadline).foregroundStyle(Palette.muted)}
+                        ForEach(day.activities){activity in
+                            Button{editing=activity}label:{HStack(spacing:12){
+                                Text(activity.arrival.isEmpty ? "待安排":activity.arrival).font(.subheadline.monospacedDigit()).foregroundStyle(Palette.green)
+                                VStack(alignment:.leading,spacing:5){Text(activity.name).font(.headline);Text("\(activity.duration) 分钟 · 每人约 A$"+String(format:"%.0f",activity.cost)).font(.caption).foregroundStyle(Palette.muted)}
+                                Spacer();Image(systemName:"pencil").foregroundStyle(Palette.green)
+                            }.padding(16).background(.white,in:RoundedRectangle(cornerRadius:16))}.buttonStyle(.plain).foregroundStyle(Palette.ink).accessibilityLabel("编辑活动："+activity.name)
+                        }
+                        if model.busy {ProgressView("更新交通与等待时间…").font(.caption)}
+                        ForEach(state.issues.filter{$0.day==model.dayIndex || $0.day == -1}) {issue in Label(issue.message,systemImage:issue.blocking ? "exclamationmark.triangle.fill":"info.circle").font(.caption).foregroundStyle(issue.blocking ? .red:.orange)}
+                        HStack{Button("撤销上一步"){model.undo()};Spacer();Button("偏好与住宿"){settingsSheet=true}}.font(.subheadline)
+                        DisclosureGroup("查看步数、预算与交通余量"){summary(day,state)}.font(.subheadline)
+                        DisclosureGroup("高级调整：拖拽时间轴"){
+                            ScheduleWorkbench(model:model,onEdit:{editing=$0},onAdd:{candidateSheet=true})
+                        }.font(.subheadline)
+                        DisclosureGroup("规划依据与更多操作"){
+                            Text(state.source).font(.caption).foregroundStyle(Palette.muted)
+                            ScheduleRadarView(axes:state.radar)
+                            Button("回到原建议"){model.restore()}.font(.caption)
+                        }.font(.subheadline)
                         if state.rainy {Text("下雨測試：戶外活動已標示，可從景點清單替換室內地點。").font(.caption)}
                         Button(state.rainy ? "切回晴天示例":"測試下雨影響"){model.edit{$0.rainy.toggle()}}
                         Button("依目前偏好重新建議（會重選活動）"){model.recompute(regenerate:true)}.font(.caption)
