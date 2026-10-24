@@ -23,6 +23,10 @@ struct WalkingProgress: Codable, Equatable {
         if leg + 1 >= legCount { finished = true } else { leg += 1; arrived = false }
     }
 }
+struct WalkingNavigationStart:Equatable {
+    var id:UUID
+    var simulation:Bool
+}
 
 /// The itinerary owns stop progress; Ferrostar owns only the currently active walking leg.
 @MainActor final class WalkingNavigator: ObservableObject {
@@ -38,6 +42,7 @@ struct WalkingProgress: Codable, Equatable {
     @Published var geometry: [CLLocationCoordinate2D] = []
     @Published var position: CLLocationCoordinate2D?
     @Published var muted = false
+    @Published private(set) var navigationStart:WalkingNavigationStart?
     private var core: FerrostarCore?
     private var provider: LocationProviding?
     private var observer: AnyCancellable?
@@ -173,6 +178,8 @@ struct WalkingProgress: Codable, Equatable {
                 active = true; busy = false
                 UIApplication.shared.isIdleTimerDisabled = true
                 try engine.startNavigation(route: route)
+                // A real successful engine start is distinct from opening or previewing a route.
+                navigationStart=WalkingNavigationStart(id:token,simulation:simulation)
             } catch is CancellationError { }
             catch {
                 guard token == generation else { return }
@@ -192,8 +199,10 @@ struct WalkingNavigationView: View {
     @State private var autoStarted = false
     var autoStart:Bool
     var dayDate:String
+    private let tripIdentity:String
     init(day: DayPlan, tripID: String,autoStart:Bool=false) {
         self.autoStart=autoStart;self.dayDate=day.date
+        self.tripIdentity=tripID
         _navigator = StateObject(wrappedValue: WalkingNavigator(day: day, tripID: tripID, endpoint: "http://127.0.0.1:8787/navigation/route"))
     }
     var body: some View {
@@ -266,6 +275,14 @@ struct WalkingNavigationView: View {
                 .confirmationDialog("重置今天的导航进度？", isPresented: $reset) { Button("重置", role: .destructive) { navigator.reset() } }
         }
         .onDisappear { navigator.pause() }
+        .onChange(of:navigator.navigationStart){_,started in
+            if let started{store.journeyDidStart(tripID:tripIdentity,simulation:started.simulation)}
+        }
+        .overlay(alignment:.bottom){
+            if let cue=store.koalaFeedback,cue.event == .journeyStarted {
+                KoalaFeedbackBanner(cue:cue){if store.koalaFeedback?.id==cue.id{store.koalaFeedback=nil}}.padding(.bottom,20)
+            }
+        }
         // A system location prompt makes the scene inactive; keep the pending start alive until authorization returns.
         .onChange(of: scenePhase) { _, phase in if phase == .background { navigator.pause() } }
     }

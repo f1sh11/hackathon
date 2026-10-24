@@ -17,6 +17,8 @@ localgroup=obj('localgroup',{'isa':'PBXVariantGroup','children':localrefs,'name'
 source_refs.append(localgroup)
 koala=obj('koalaassets',{'isa':'PBXFileReference','lastKnownFileType':'folder','name':'koala','path':'../assets/koala','sourceTree':'SOURCE_ROOT'})
 source_refs.append(koala)
+assetcatalog=obj('assetcatalog',{'isa':'PBXFileReference','lastKnownFileType':'folder.assetcatalog','path':'Assets.xcassets','sourceTree':'<group>'})
+source_refs.append(assetcatalog)
 sourcegroup=obj('sourcegroup' ,{'isa':'PBXGroup','children':source_refs,'path':'SydneyBuddy','sourceTree':'<group>'})
 product=obj('app',{'isa':'PBXFileReference','explicitFileType':'wrapper.application','path':'SydneyBuddy.app','sourceTree':'BUILT_PRODUCTS_DIR'})
 products=obj('products',{'isa':'PBXGroup','children':[product],'name':'Products','sourceTree':'<group>'})
@@ -29,7 +31,7 @@ navprod=obj('ferrostarproduct',{'isa':'XCSwiftPackageProductDependency','package
 navframework=obj('ferrostarbuild',{'isa':'PBXBuildFile','productRef':navprod})
 sources=obj('sources',{'isa':'PBXSourcesBuildPhase','buildActionMask':2147483647,'files':build_refs,'runOnlyForDeploymentPostprocessing':0})
 frameworks=obj('frameworks',{'isa':'PBXFrameworksBuildPhase','buildActionMask':2147483647,'files':[framework,navframework],'runOnlyForDeploymentPostprocessing':0})
-resources=obj('resources',{'isa':'PBXResourcesBuildPhase','buildActionMask':2147483647,'files':[obj('buildlocal',{'isa':'PBXBuildFile','fileRef':localgroup}),obj('buildkoala',{'isa':'PBXBuildFile','fileRef':koala})],'runOnlyForDeploymentPostprocessing':0})
+resources=obj('resources',{'isa':'PBXResourcesBuildPhase','buildActionMask':2147483647,'files':[obj('buildlocal',{'isa':'PBXBuildFile','fileRef':localgroup}),obj('buildkoala',{'isa':'PBXBuildFile','fileRef':koala}),obj('buildassetcatalog',{'isa':'PBXBuildFile','fileRef':assetcatalog})],'runOnlyForDeploymentPostprocessing':0})
 def configs(prefix,base,settings):
  configs=[]
  for name in ['Debug','Release']:

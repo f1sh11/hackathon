@@ -40,12 +40,41 @@ struct Robot:View {
     var size:CGFloat=130
     var body:some View {PetAvatar(animated:false).scaleEffect(size/104).frame(width:size,height:size*1.04)}
 }
+/// Model work can finish before the visible koala has put its map away.
+/// Keep that player mounted until it reports its authored return to Idle.
+struct KokoWorkPresentationState {
+    private(set) var retainedCue:KoalaCue?
+    private(set) var awaitingIdle=false
+    mutating func synchronize(_ work:KoalaCue?,reduceMotion:Bool=false) {
+        if let work,work.action != .idle {
+            retainedCue=work;awaitingIdle=false
+        } else if reduceMotion {
+            retainedCue=nil;awaitingIdle=false
+        } else if let retained=retainedCue,!awaitingIdle {
+            retainedCue=KoalaCue(event:.chatReady,id:"work-return:"+retained.id)
+            awaitingIdle=true
+        }
+    }
+    mutating func reachedIdle(cueID:String?) {
+        guard awaitingIdle,retainedCue?.id==cueID else{return}
+        retainedCue=nil;awaitingIdle=false
+    }
+}
 struct RootView: View {
     @EnvironmentObject var store: AppStore
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var workPresentation=KokoWorkPresentationState()
+    private var modelHasWork:Bool {store.koalaWork.map{$0.action != .idle} ?? false}
+    private var canShowNextSurface:Bool {workPresentation.retainedCue == nil && !modelHasWork}
     var body: some View {
         ZStack {
             Palette.cream.ignoresSafeArea()
-            if store.showPersonalPreferences || store.showOnboarding { NavigationStack{PetChatView(onboarding:true)} }
+            if canShowNextSurface,let completion=store.koalaCompletion {
+                KokoTripCompletionView(completion:completion,choose:store.finishTripCelebration)
+            } else if store.showPersonalPreferences {
+                if store.personalIntroductionStarted {NavigationStack{PetChatView(onboarding:true,personalSetup:true)}}
+                else {KokoProfileIntroduction(begin:store.beginPersonalIntroduction,skip:store.skipPersonalIntroduction)}
+            } else if store.showOnboarding { NavigationStack{PetChatView(onboarding:true)} }
             else {
                 TabView(selection:$store.tab) {
                     TripsView().tabItem { Label(store.language.text("行程"),systemImage:"suitcase.rolling.fill") }.tag(1)
@@ -54,16 +83,46 @@ struct RootView: View {
                     SettingsView().tabItem { Label(store.language.text("我的"),systemImage:"person.crop.circle") }.tag(3)
                 }.tint(Palette.green).modifier(CompactTabs())
             }
-            if store.busy {
-                ZStack { Color.black.opacity(0.15).ignoresSafeArea(); VStack(spacing:14) { PetAvatar(mood:.thinking,cue:store.koalaWork); ProgressView(); Text(LocalizedStringKey(store.operationTitle)).font(.headline); Text(LocalizedStringKey(store.operationDetail)).font(.caption).foregroundStyle(Palette.muted);if store.travelTask?.status=="generating" {VStack(alignment:.leading,spacing:6){ForEach(Array(["整理旅行需求","安排当天活动","校验并保存"].enumerated()),id:\.offset){i,label in Label(label,systemImage:i<store.planningStage ? "checkmark.circle.fill":i==store.planningStage ? "circle.inset.filled":"circle").foregroundStyle(i<=store.planningStage ? Palette.green:Palette.muted).font(.caption)}}};if store.canCancelOperation{Button("取消生成"){store.cancelPendingGeneration()}.buttonStyle(.bordered)} }.padding(30).background(Palette.cream,in:RoundedRectangle(cornerRadius:28)) }
+            if workPresentation.retainedCue != nil || modelHasWork || (store.busy && store.koalaCompletion == nil) {
+                workOverlay
             }
         }
         .overlay(alignment:.bottom) {
-            if let cue=store.koalaFeedback {KoalaFeedbackBanner(cue:cue){if store.koalaFeedback?.id==cue.id{store.koalaFeedback=nil}}.padding(.bottom,80)}
+            if store.koalaCompletion == nil,let cue=store.koalaFeedback {KoalaFeedbackBanner(cue:cue){if store.koalaFeedback?.id==cue.id{store.koalaFeedback=nil}}.padding(.bottom,80)}
         }
-        .sheet(isPresented:Binding(get:{store.proposal != nil},set:{if !$0 {store.proposal=nil}})) { ProposalView() }
-        .alert("需要留意",isPresented:Binding(get:{store.errorMessage != nil},set:{if !$0 {store.errorMessage=nil}})) { Button("知道了",role:.cancel) {} } message: { Text(store.errorMessage ?? "") }
+        .sheet(isPresented:Binding(get:{canShowNextSurface && store.proposal != nil},set:{if !$0 && canShowNextSurface {store.proposal=nil}})) { ProposalView() }
+        .sheet(isPresented:$store.showCompletionAdjustment){NavigationStack{PetChatView()}}
+        .alert("需要留意",isPresented:Binding(get:{canShowNextSurface && store.koalaCompletion == nil && store.errorMessage != nil},set:{if !$0 && canShowNextSurface && store.koalaCompletion == nil {store.errorMessage=nil}})) { Button("知道了",role:.cancel) {} } message: { Text(store.errorMessage ?? "") }
+        .onAppear{workPresentation.synchronize(store.koalaWork,reduceMotion:reduceMotion)}
+        .onChange(of:store.koalaWork){_,work in workPresentation.synchronize(work,reduceMotion:reduceMotion)}
+        .onChange(of:reduceMotion){_,value in workPresentation.synchronize(store.koalaWork,reduceMotion:value)}
         .environment(\.locale,Locale(identifier:store.language.rawValue))
+    }
+    private var workOverlay:some View {
+        let cue=workPresentation.retainedCue ?? store.koalaWork
+        return ZStack {
+            if !workPresentation.awaitingIdle{Color.black.opacity(0.15).ignoresSafeArea()}
+            VStack(spacing:14) {
+                PetAvatar(mood:.thinking,cue:cue,onIdle:{
+                    if !modelHasWork{workPresentation.reachedIdle(cueID:cue?.id)}
+                })
+                if workPresentation.awaitingIdle {
+                    Text("正在把地图收好…").font(.subheadline).foregroundStyle(Palette.muted)
+                } else {
+                    ProgressView()
+                    Text(LocalizedStringKey(store.operationTitle)).font(.headline)
+                    Text(LocalizedStringKey(store.operationDetail)).font(.caption).foregroundStyle(Palette.muted)
+                    if store.travelTask?.status=="generating" {
+                        VStack(alignment:.leading,spacing:6) {
+                            ForEach(Array(["整理旅行需求","安排当天活动","校验并保存"].enumerated()),id:\.offset){i,label in
+                                Label(label,systemImage:i<store.planningStage ? "checkmark.circle.fill":i==store.planningStage ? "circle.inset.filled":"circle").foregroundStyle(i<=store.planningStage ? Palette.green:Palette.muted).font(.caption)
+                            }
+                        }
+                    }
+                    if store.canCancelOperation{Button("取消生成"){store.cancelPendingGeneration()}.buttonStyle(.bordered)}
+                }
+            }.padding(30).background(Palette.cream,in:RoundedRectangle(cornerRadius:28))
+        }
     }
 }
 struct OnboardingView: View {

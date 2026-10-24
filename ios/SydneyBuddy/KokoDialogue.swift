@@ -17,14 +17,15 @@ struct TravelInspiration:Codable,Equatable {
 struct KokoQuickReplies:View {
     let replies:[PetQuickReply]
     let busy:Bool
+    var compact=false
     let choose:(PetQuickReply)->Void
     var body:some View {
-        HStack(spacing:8) {
+        VStack(spacing:compact ? 7:10) {
             ForEach(replies){reply in
-                Button{choose(reply)}label:{Text(reply.text).font(.subheadline.weight(.medium)).multilineTextAlignment(.center).frame(maxWidth:.infinity,minHeight:44).padding(.horizontal,8).padding(.vertical,5).background(.white,in:RoundedRectangle(cornerRadius:15)).overlay(RoundedRectangle(cornerRadius:15).stroke(Palette.coral.opacity(0.25)))}
-                    .buttonStyle(.plain).disabled(busy).accessibilityIdentifier("koko-reply-"+reply.intent)
+                Button{choose(reply)}label:{HStack{Text(reply.text).font(.subheadline.weight(.semibold));Spacer(minLength:8);Image(systemName:"chevron.right").font(.caption.bold()).foregroundStyle(Palette.coral)}}
+                    .buttonStyle(KokoOptionButtonStyle(compact:compact)).disabled(busy).accessibilityIdentifier("koko-reply-"+reply.intent)
             }
-        }.padding(.horizontal,20).padding(.top,8).accessibilityIdentifier("koko-contextual-replies")
+        }.padding(.horizontal,24).padding(.top,4).accessibilityIdentifier("koko-contextual-replies")
     }
 }
 

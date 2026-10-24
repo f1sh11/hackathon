@@ -84,8 +84,8 @@ class MainActivity : ComponentActivity() {
         }
     }
     store.koalaEvent?.let { (event,token) ->
-        LaunchedEffect(token){if(event !in listOf(KoalaEvent.PlanningStarted,KoalaEvent.OptimizationStarted,KoalaEvent.SimulationStarted,KoalaEvent.WeatherRisk,KoalaEvent.BudgetRisk,KoalaEvent.FatigueRisk)){kotlinx.coroutines.delay(if(event==KoalaEvent.TripSaved)2200 else 1700);if(store.koalaEvent?.second==token)store.koalaEvent=null}}
-        AlertDialog(onDismissRequest={store.koalaEvent=null},title={Text(when(event){KoalaEvent.BudgetRisk->"预计费用超出预算";KoalaEvent.WeatherRisk->"有天气风险";KoalaEvent.TripSaved->"行程已保存";KoalaEvent.PreferenceConfirmed->"偏好已确认";else->"Buddy 陪着你"})},text={Box(Modifier.fillMaxWidth(),contentAlignment=Alignment.Center){KoalaAvatar(180,event.action,token)}},confirmButton={TextButton(onClick={store.koalaEvent=null}){Text("知道了")}})
+        LaunchedEffect(token){if(event !in listOf(KoalaEvent.PlanningStarted,KoalaEvent.OptimizationStarted,KoalaEvent.JourneyStarted,KoalaEvent.SimulationStarted,KoalaEvent.WeatherRisk,KoalaEvent.BudgetRisk,KoalaEvent.FatigueRisk)){kotlinx.coroutines.delay(if(event.returnsToIdle && event.action in listOf("weather","tired"))7000 else if(event.action=="celebrate")2200 else 1700);if(store.koalaEvent?.second==token)store.koalaEvent=null}}
+        AlertDialog(onDismissRequest={store.koalaEvent=null},title={Text(when(event){KoalaEvent.BudgetRisk->"预计费用超出预算";KoalaEvent.WeatherRisk->"有天气风险";KoalaEvent.TripSaved->"行程已保存";KoalaEvent.PreferenceConfirmed->"偏好已确认";KoalaEvent.DnaCompleted->"Travel DNA 已完成";KoalaEvent.JourneyStarted->"这趟旅行出发啦";KoalaEvent.InformationSubmitted->"听到了，咱们继续";KoalaEvent.RainConversation->"带上伞，按天气调整";KoalaEvent.PlayfulTired->"多走也记得歇一歇";else->"Koko 陪着你"})},text={Box(Modifier.fillMaxWidth(),contentAlignment=Alignment.Center){KoalaAvatar(180,event.action,token,returnToIdle=event.returnsToIdle)}},confirmButton={TextButton(onClick={store.koalaEvent=null}){Text("知道了")}})
     }
     if (store.proposal != null) BackHandler { if (!store.busy) store.cancelProposal() }
     BackHandler(enabled = store.busy) { /* Keep the current operation visible until it finishes. */ }

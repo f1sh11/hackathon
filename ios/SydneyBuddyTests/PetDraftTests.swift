@@ -21,7 +21,7 @@ final class PetDraftTests:XCTestCase {
     }
     @MainActor func testPersonalOnboardingDoesNotCreateTripAndNewTripDoesNotRepeatIt() {
         let defaults=UserDefaults.standard
-        let keys=["personalPreferences.completed","personalPreferences.v2.completed","onboarded","pendingTripFields","petSession.draft","travelPlanningTask","pendingPersonalProfile"]
+        let keys=["koko.personalIntroduction.v3.completed","koko.personalIntroduction.v3.started","personalPreferences.completed","personalPreferences.v2.completed","onboarded","pendingTripFields","petSession.draft","travelPlanningTask","pendingPersonalProfile"]
         let previous=keys.map{defaults.object(forKey:$0)}
         defer{for (key,value) in zip(keys,previous){if let value{defaults.set(value,forKey:key)}else{defaults.removeObject(forKey:key)}}}
         defaults.removeObject(forKey:"pendingTripFields")

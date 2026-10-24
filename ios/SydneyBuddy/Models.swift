@@ -206,6 +206,9 @@ struct TravelPlanningTask:Codable {
     @Published var busy = false
     @Published var koalaFeedback:KoalaCue?
     @Published var koalaWork:KoalaCue?
+    @Published var koalaCompletion:KokoTripCompletion?
+    @Published var showCompletionAdjustment=false
+    private var startedJourneyTripIDs=Set<String>()
     @Published var koalaWelcomePending = !UserDefaults.standard.bool(forKey:"koala.welcome.seen") && !UserDefaults.standard.bool(forKey:"personalPreferences.v2.completed")
     @Published var canCancelOperation=false
     private var planningTask:Task<Void,Never>?
@@ -239,7 +242,9 @@ struct TravelPlanningTask:Codable {
     @Published var tab = 1
     @Published var dayIndex = 0
     @Published var expenses: [Expense] = [] { didSet { saveExpenses() } }
-    @Published var showPersonalPreferences = !UserDefaults.standard.bool(forKey:"personalPreferences.v2.completed") && !UserDefaults.standard.bool(forKey:"onboarded")
+    // The new introduction is independent of legacy trip onboarding and memory consent.
+    @Published var showPersonalPreferences = !UserDefaults.standard.bool(forKey:"koko.personalIntroduction.v3.completed")
+    @Published var personalIntroductionStarted = UserDefaults.standard.bool(forKey:"koko.personalIntroduction.v3.started")
     @Published var showOnboarding = !UserDefaults.standard.bool(forKey: "onboarded")
     @Published var agentText = "你好！我是你的旅行小伙伴。告诉我你的想法，一起把悉尼安排得刚刚好。"
     let base = URL(string: "http://127.0.0.1:8787")!
@@ -306,7 +311,7 @@ struct TravelPlanningTask:Codable {
             await generate(request,profileOverride:profile)
             return
         }
-        guard !busy else{return};busy=true;defer{busy=false}
+        guard !busy else{return};busy=true;koalaWork=KoalaCue(event:.planningStarted);defer{busy=false;koalaWork=nil}
         do {
             planningStage=1
             operationTitle="正在生成旅行路线…";operationDetail="根据兴趣、活动预算和步数安排行程。"
@@ -331,8 +336,11 @@ struct TravelPlanningTask:Codable {
         }
         trip=accepted;profile=accepted.profile;proposal=nil;dayIndex=0;selectedStopID=nil
         if consumeDraft{UserDefaults.standard.removeObject(forKey:"petComposer.draft")}
-        koalaFeedback=KoalaCue(event:.tripSaved)
-        if consumeDraft{tripToOpen=accepted}
+        koalaCompletion=KokoTripCompletion(trip:accepted)
+        showCompletionAdjustment=false
+        // Route only after the user chooses an action on the visible celebration.
+        // TripsView may already be mounted beneath the map's recovery animation.
+        tripToOpen=nil
         if showOnboarding || consumeDraft {pendingTripFields=[:]}
         showPersonalPreferences=false;showOnboarding=false;UserDefaults.standard.set(true,forKey:"onboarded");tab=1
     }
@@ -426,12 +434,55 @@ struct TravelPlanningTask:Codable {
     func completePersonalPreferences() {
         UserDefaults.standard.set(true,forKey:"personalPreferences.completed")
         UserDefaults.standard.set(true,forKey:"personalPreferences.v2.completed")
-        UserDefaults.standard.set(true,forKey:"onboarded")
+        finishPersonalIntroduction()
+    }
+    func beginPersonalIntroduction() {
+        personalIntroductionStarted=true
+        UserDefaults.standard.set(true,forKey:"koko.personalIntroduction.v3.started")
+    }
+    private func markPersonalIntroductionFinished() {
+        UserDefaults.standard.set(true,forKey:"koko.personalIntroduction.v3.completed")
+        UserDefaults.standard.set(false,forKey:"koko.personalIntroduction.v3.started")
+        personalIntroductionStarted=false
+    }
+    func finishPersonalIntroduction() {
+        markPersonalIntroductionFinished()
         if pendingTripFields.isEmpty{pendingPersonalProfile=personalProfile}
+        // Continue an existing trip draft when present; the personal conversation uses its own session.
+        trip=nil;proposal=nil
         showPersonalPreferences=false;showOnboarding=true;tab=1
+        UserDefaults.standard.set(true,forKey:"onboarded")
+    }
+    func skipPersonalIntroduction() {
+        // The welcome was seen even when the optional personal conversation was skipped.
+        UserDefaults.standard.set(true,forKey:"koko.hasMet")
+        finishPersonalIntroduction()
+    }
+    func finishTripCelebration(_ destination:KokoCompletionDestination) {
+        guard let completion=koalaCompletion else{return}
+        trip=completion.trip;profile=completion.trip.profile;tab=1
+        showCompletionAdjustment=false
+        koalaCompletion=nil
+        switch destination {
+        case .viewTrip:tripToOpen=completion.trip
+        case .adjustTrip:tripToOpen=nil;showCompletionAdjustment=true
+        case .myTrips:tripToOpen=nil
+        }
+    }
+    /// Called only after the navigation engine starts successfully, never by preview or completion buttons.
+    @discardableResult func journeyDidStart(tripID identity:String,simulation:Bool=false)->Bool {
+        guard !simulation else{return false}
+        let knownTrips=(trip.map{[$0]} ?? [])+saved
+        guard let started=knownTrips.first(where:{trip in
+            guard let id=trip.id else{return false}
+            return identity==id || identity==id+":"+String(trip.revision ?? 0)
+        }),let id=started.id,startedJourneyTripIDs.insert(id).inserted else{return false}
+        koalaFeedback=KoalaCue(event:.journeyStarted,id:"journey:"+id)
+        return true
     }
     func returnToTrips(draft:[String:String]) {
         pendingTripFields=draft
+        showPersonalPreferences=false
         showOnboarding=false;UserDefaults.standard.set(true,forKey:"onboarded");tab=1
     }
     func resumePendingTrip() {

@@ -24,7 +24,7 @@ The model supplies the connected proposal, evolving hypothetical `ideas`, and co
 
 Contextual choices are `source=contextual_choice`, `scope=activity`, `status=trip_only`, with the full question retained as a condition. They cannot fill unrelated trip fields, set global fitness/pace/sleep/medical assumptions or create lasting memories. Conditional choices remain in planning notes even when a broad interest field is already present. Free statements retain the existing evidence/consent gates. V2 model context receives only relevant active H-MEM matches, with at most eight records; a failed recall does not dump every historical record into the conversation.
 
-The inspiration card shows the current ideas, explicit known preferences and dimensions still unknown. Ideas are Koko's proposals, with unverified places marked as such. Profile completion, user consent, successful memory persistence and final itinerary save remain separate events. The initial profile-to-inspiration transition can trigger `clap` even when no lasting memory is saved.
+The inspiration card shows the current ideas, explicit known preferences and dimensions still unknown. Ideas are Koko's proposals, with unverified places marked as such. Profile completion, user consent, successful memory persistence and final itinerary save remain separate events. The initial profile-to-inspiration transition can trigger `celebrate` even when no lasting memory is saved.
 
 This slice does not claim that every v2 inference boundary is formally verified by a classifier. The extraction prompt states those limits and contextual clicks have additional server guards; live NVIDIA wording and the full product acceptance scenario still need a configured model run. Android's conversational profiling UI remains a later slice. The spec's richer consent/persistence metadata and activity-specific promotion into long-term memory are not new APIs in this slice.
 
@@ -64,12 +64,12 @@ Session responses retain the old mobile fields and add `travelDna`, `tripContext
 - `POST /pet/sessions/{id}/memory`: existing free-text consent remains compatible; structured requests add `candidateId`, `consent`, `dismiss` and `expectedConflicts`.
 - Conflicting values for the same key and condition show previous values. The user must confirm against the current memory IDs. A stale confirmation is rejected until the session is refreshed.
 - Equivalent saved values are reused. Multiple legacy conflicting records require explicit cleanup through the memory page.
-- `POST /pet/sessions/{id}/profile/complete`: requires at least one confirmed preference and no unresolved candidates. Successful completion triggers `clap`; the v2 initial profile-to-inspiration transition also triggers it independently of memory consent.
+- `POST /pet/sessions/{id}/profile/complete`: requires at least one confirmed preference and no unresolved candidates. Successful completion triggers `celebrate`; the v2 initial profile-to-inspiration transition also triggers it independently of memory consent.
 - Existing `PUT/DELETE /memories/{id}` update/revoke memory. Structured iOS edits preserve the DNA key and provenance instead of reducing the record to an untyped summary. Active records are refreshed before subsequent chat/review.
 
 ## Animation behavior
 
-See [the exact event table](KOALA-ANIMATION-INTEGRATION.md). All 10 actions and 276 frames are bundled. Ordinary chat is Idle. A preference confirmation is thumbs-up; explicit DNA completion is clap; a successful final trip save is celebrate. Planning and existing schedule recomputation use map. Real available rain information and projected budget overruns have dedicated risk reactions. Simulation/departure/fatigue mappings await the actual Digital Twin engine.
+See [the exact event table](KOALA-ANIMATION-INTEGRATION.md). All 10 actions and 276 frames are bundled. Ordinary chat is Idle. A preference confirmation is thumbs-up; whole-profile completion is celebrate; a successful final trip save is celebrate. Planning and existing schedule recomputation use map. Real available rain information and projected budget overruns have dedicated risk reactions. Simulation/departure/fatigue mappings await the actual Digital Twin engine.
 
 ## Verification and review
 
@@ -77,7 +77,7 @@ Local validation: backend compiles and 232 tests pass after integrating main at 
 
 Every runtime PNG has verified dimensions and alpha; Swift syntax parses. Native build and simulator results must be taken from GitHub Actions, not inferred from these local checks. NVIDIA conversational quality still requires a real configured model session; fake-model tests verify the protocol and guards, not the wording a live model will choose.
 
-Suggested manual check: say the sunrise example; confirm both claims; complete DNA; start a five-day Sydney trip with two people and a group-trip activity budget of AUD 2000; change only this trip's walking limit; then correct a lasting habit and review its old value before confirming. Confirm that these trigger wave/Idle/thumbs-up/clap/map/celebrate at the specified moments.
+Suggested manual check: say the sunrise example; confirm both claims; complete DNA; start a five-day Sydney trip with two people and a group-trip activity budget of AUD 2000; change only this trip's walking limit; then correct a lasting habit and review its old value before confirming. Confirm that these trigger wave/Idle/thumbs-up/occasional clap/map/celebrate at the specified moments.
 
 ## Debugging map
 
@@ -104,3 +104,14 @@ The iOS and Android UI use the koala bag's coral family, white fur and warm neut
 | Secondary text | `#75666D` |
 
 The sampled bag coral is lighter (`#F86070`); the darker button variant gives white text a computed contrast ratio of 5.36:1. Primary and secondary text against the page background are 11.80:1 and 5.16:1. Definitions live in `SydneyBuddyApp.swift`, `MainActivity.kt` and `IosStyle.kt`.
+
+
+## Face-to-face companion UI
+
+The iOS interaction screen now projects one current assistant utterance only, above a centered original koala. The supplied sizing reference sets its complete figure near one quarter of the portrait viewport height. A separate approved coastal background sits behind the transparent animation; it contains no baked-in character or controls. Three vertically stacked choices use a raised bottom edge and a pressed state. Text input is optional; returning to choices preserves an unsent draft. Compact layouts reduce spacing on smaller phones. The newest reply remains visible after later preference corrections. Raw conversation context/evidence stays in the session for reasoning and recovery; it is not rendered as a chat transcript. Preferences and trip details are available in a separate sheet.
+
+First entry uses a separate versioned personal introduction, followed by the `personalProfile` session. New journeys use the `draft` session; existing-trip conversations also opt into contextual replies. Finishing the personal introduction does not save long-term memory. Explicit unconfirmed preference clues can be used for this trip, while existing trip requirements win and unknown/AI-inferred data is not filled.
+
+The authoritative action table is in KOALA-ANIMATION-INTEGRATION.md: occasional submission receipts clap, completed steps/confirmed preferences give thumbs-up, whole-profile and saved-itinerary completion celebrate. Successful itinerary save presents a centered completion screen; save failures never celebrate. Departure is emitted only after real navigation starts, with previews/simulation/failed starts excluded from that event. Existing risk events remain separate from playful weather/long-walk conversation responses.
+
+Four supplied recovery clips are reused with their original provenance and 124 frames; no koala artwork was regenerated. The departure fade was not imported as a physical recovery.
