@@ -11,6 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
@@ -199,20 +200,33 @@ internal fun poiActivityKind(p:JSONObject):String=if(p.optString("source") !in l
     if(website.startsWith("https://")||website.startsWith("http://"))TextButton(onClick={uri.openUri(website)}){Text(ui("官方網站"))}
     if(p.optString("sourceRelease").isNotBlank())Small("Overture · "+p.optString("sourceRelease"))
 }
-@Composable internal fun PlaceMedia(p:JSONObject,store:BuddyStore) {
+internal class PlaceMediaState(initial:List<JSONObject>) {
+    var photos by mutableStateOf(initial)
+    var loading by mutableStateOf(false)
+    var message by mutableStateOf<String?>(null)
+    suspend fun load(request:JSONObject,requester:suspend(JSONObject)->JSONObject){
+        if(loading)return
+        loading=true;message=null
+        try{
+            val found=requester(request).array("photos").objects()
+            ensureActivePhotoRequest()
+            if(found.isNotEmpty())photos=found
+            if(photos.isEmpty())message="附近尚無可用的開放照片。"
+        }catch(e:CancellationException){throw e}catch(e:Exception){message="照片暫時無法載入，請稍後重試。"}finally{loading=false}
+    }
+    private suspend fun ensureActivePhotoRequest(){kotlin.coroutines.coroutineContext.ensureActive()}
+}
+@Composable internal fun PlaceMedia(p:JSONObject,store:BuddyStore,requester:suspend(JSONObject)->JSONObject={store.poiMedia(it)}) {
     val scope=rememberCoroutineScope();val uri=LocalUriHandler.current
-    var photos by remember(p.optString("id")){mutableStateOf(p.array("photos").objects())}
-    var loading by remember{mutableStateOf(false)};var message by remember{mutableStateOf<String?>(null)}
+    val media=remember(p.optString("id"),store.travelDataSource){PlaceMediaState(p.array("photos").objects())}
+    val request=remember(p.optString("id")){JSONObject().put("id",p.optString("id")).put("lat",p.optDouble("lat")).put("lng",p.optDouble("lng"))}
+    LaunchedEffect(media){if(media.photos.isEmpty())media.load(request,requester)}
     Text(ui("照片與街景"),style=MaterialTheme.typography.titleSmall)
     Small(ui(if(p.optBoolean("hiddenGem"))"社群照片保留作者與授權；附近照片不代表已確認拍攝此景點。"else "附近 100 公尺的實景照片，並非已核實的商家或店內照片。"))
-    TextButton(onClick={scope.launch{
-        loading=true;message=null
-        try{photos=store.poiMedia(JSONObject().put("id",p.optString("id")).put("lat",p.optDouble("lat")).put("lng",p.optDouble("lng"))).array("photos").objects();if(photos.isEmpty())message="附近尚無可用的開放照片。"}
-        catch(e:CancellationException){throw e}catch(e:Exception){message="照片暫時無法載入，請稍後重試。"}finally{loading=false}
-    }},enabled=!loading){Text(ui(if(photos.isEmpty())"載入附近照片"else "重新載入照片"))}
-    if(loading)LinearProgressIndicator(Modifier.fillMaxWidth())
-    message?.let{Small(ui(it))}
-    photos.forEach{photo->
+    TextButton(onClick={scope.launch{media.load(request,requester)}},enabled=!media.loading,modifier=Modifier.testTag("place-media-retry")){Text(ui(if(media.photos.isEmpty())"載入附近照片"else "重新載入照片"))}
+    if(media.loading)LinearProgressIndicator(Modifier.fillMaxWidth())
+    media.message?.let{Small(ui(it))}
+    media.photos.forEach{photo->
         CommonsPhoto(photo.optString("url"))
         Text(photo.optString("title"),fontSize=12.sp)
         Small(photo.optString("artist")+" · "+photo.optString("license"))

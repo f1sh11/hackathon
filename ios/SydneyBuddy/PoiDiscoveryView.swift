@@ -381,11 +381,41 @@ struct PlacePhoto:Codable,Identifiable {
     var url:String;var pageUrl:String;var title:String;var artist:String;var license:String;var licenseUrl:String?;var matchKind:String?;var source:String?
     var id:String {pageUrl}
 }
+@MainActor final class PlaceMediaModel:ObservableObject {
+    @Published private(set) var photos:[PlacePhoto]=[]
+    @Published private(set) var loading=false
+    @Published private(set) var message:String?
+    var loader:(URLRequest) async throws -> (Data,URLResponse) = {try await URLSession.shared.data(for:$0)}
+    private var generation=UUID()
+    func prepare(_ candidate:ScheduleCandidate,dataSource:TravelDataSource) async {
+        generation=UUID();photos=candidate.photos ?? [];message=nil;loading=false
+        if photos.isEmpty{await load(candidate,dataSource:dataSource)}
+    }
+    func load(_ candidate:ScheduleCandidate,dataSource:TravelDataSource) async {
+        guard !loading else{return}
+        let token=generation
+        loading=true;message=nil
+        defer{if token==generation{loading=false}}
+        do{
+            var request=URLRequest(url:URL(string:"http://127.0.0.1:8787/poi/media")!)
+            request.httpMethod="POST";dataSource.apply(to:&request);request.timeoutInterval=22;request.setValue("application/json",forHTTPHeaderField:"Content-Type")
+            request.httpBody=try JSONSerialization.data(withJSONObject:["lat":candidate.lat,"lng":candidate.lng,"id":candidate.id])
+            let (data,response)=try await loader(request)
+            try Task.checkCancellation();guard token==generation else{return}
+            guard (response as? HTTPURLResponse)?.statusCode==200 else{throw URLError(.badServerResponse)}
+            struct Media:Decodable{var photos:[PlacePhoto]}
+            let found=try JSONDecoder().decode(Media.self,from:data).photos
+            if !found.isEmpty{photos=found}
+            if photos.isEmpty{message="附近尚無可用的開放照片。"}
+        }catch{
+            guard !Task.isCancelled,token==generation else{return}
+            message="照片暫時無法載入，請稍後重試。"
+        }
+    }
+}
 struct PlaceMediaView:View {
     var candidate:ScheduleCandidate
-    @State private var photos:[PlacePhoto]=[]
-    @State private var loading=false
-    @State private var message:String?
+    @StateObject private var media=PlaceMediaModel()
     @State private var scene:MKLookAroundScene?
     @State private var panoramaLoading=false
     @State private var panoramaMessage:String?
@@ -394,10 +424,10 @@ struct PlaceMediaView:View {
         VStack(alignment:.leading,spacing:12){
             Text("照片與街景").font(.headline)
             Text(LocalizedStringKey(candidate.hiddenGem == true ? "社群照片保留作者與授權；附近照片不代表已確認拍攝此景點。":"附近 100 公尺的實景照片，並非已核實的商家或店內照片。")).font(.caption).foregroundStyle(Palette.muted)
-            Button(photos.isEmpty ? "載入附近照片":"重新載入照片"){Task{await loadPhotos()}}.disabled(loading)
-            if loading{ProgressView()}
-            if let message{Text(LocalizedStringKey(message)).font(.caption)}
-            ScrollView(.horizontal){HStack(alignment:.top,spacing:12){ForEach(photos){photo in
+            Button(media.photos.isEmpty ? "載入附近照片":"重新載入照片"){Task{await media.load(candidate,dataSource:store.travelDataSource)}}.disabled(media.loading).accessibilityIdentifier("place-media-retry")
+            if media.loading{ProgressView("正在載入照片…").accessibilityIdentifier("place-media-loading")}
+            if let message=media.message{Text(LocalizedStringKey(message)).font(.caption).accessibilityIdentifier("place-media-status")}
+            ScrollView(.horizontal){HStack(alignment:.top,spacing:12){ForEach(media.photos){photo in
                 VStack(alignment:.leading,spacing:5){
                     AsyncImage(url:URL(string:photo.url)){phase in
                         switch phase{case .success(let image):image.resizable().scaledToFill();case .failure:Text("照片無法載入");default:ProgressView()}
@@ -422,20 +452,9 @@ struct PlaceMediaView:View {
             }
             Link("開啟附近街景（外部地圖）",destination:URL(string:"https://www.mapillary.com/app/?lat=\(candidate.lat)&lng=\(candidate.lng)&z=17")!).font(.caption)
             Text("街景覆蓋由服務提供者決定；未必有此商家的全景。").font(.caption).foregroundStyle(Palette.muted)
-        }.task(id:candidate.id){photos=candidate.photos ?? [];message=nil;scene=nil;panoramaMessage=nil}
-    }
-    @MainActor private func loadPhotos() async {
-        loading=true;message=nil
-        defer{loading=false}
-        do{
-            var request=URLRequest(url:URL(string:"http://127.0.0.1:8787/poi/media")!)
-            request.httpMethod="POST";store.travelDataSource.apply(to:&request);request.timeoutInterval=22;request.setValue("application/json",forHTTPHeaderField:"Content-Type")
-            request.httpBody=try JSONSerialization.data(withJSONObject:["lat":candidate.lat,"lng":candidate.lng,"id":candidate.id])
-            let (data,response)=try await URLSession.shared.data(for:request)
-            guard (response as? HTTPURLResponse)?.statusCode==200 else{throw URLError(.badServerResponse)}
-            struct Media:Decodable{var photos:[PlacePhoto]}
-            photos=try JSONDecoder().decode(Media.self,from:data).photos
-            if photos.isEmpty{message="附近尚無可用的開放照片。"}
-        }catch{message="照片暫時無法載入，請稍後重試。"}
+        }.task(id:candidate.id+"|"+store.travelDataSource.rawValue){
+            scene=nil;panoramaMessage=nil;media.loader=store.loader
+            await media.prepare(candidate,dataSource:store.travelDataSource)
+        }
     }
 }

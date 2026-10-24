@@ -4,6 +4,38 @@ import MapKit
 @testable import SydneyBuddy
 
 @MainActor final class ScheduleTests:XCTestCase {
+    func testPlaceMediaAutomaticallyLoadsWhenCandidateHasNoPhotos() async throws {
+        let model=PlaceMediaModel();let candidate=try fixture().schedule!.candidates[0];var calls=0
+        let photo=PlacePhoto(url:"https://upload.wikimedia.org/test.jpg",pageUrl:"https://commons.wikimedia.org/wiki/File:Test.jpg",title:"Test photo",artist:"Test author",license:"CC BY-SA")
+        let data=try JSONSerialization.data(withJSONObject:["photos":JSONSerialization.jsonObject(with:JSONEncoder().encode([photo]))])
+        model.loader={request in calls+=1;XCTAssertEqual(request.url?.path,"/poi/media");XCTAssertEqual(request.value(forHTTPHeaderField:"X-Travel-Data-Source"),"zetaris");return(data,HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)}
+        await model.prepare(candidate,dataSource:.zetaris)
+        XCTAssertEqual(calls,1);XCTAssertEqual(model.photos.first?.title,"Test photo");XCTAssertFalse(model.loading);XCTAssertNil(model.message)
+    }
+    func testPlaceMediaUsesExistingPhotosWithoutRequest() async throws {
+        let model=PlaceMediaModel();var candidate=try fixture().schedule!.candidates[0]
+        candidate.photos=[PlacePhoto(url:"https://upload.wikimedia.org/existing.jpg",pageUrl:"https://commons.wikimedia.org/wiki/File:Existing.jpg",title:"Existing",artist:"Author",license:"CC BY-SA")]
+        model.loader={_ in XCTFail("Embedded photos should display immediately");throw URLError(.badServerResponse)}
+        await model.prepare(candidate,dataSource:.direct)
+        XCTAssertEqual(model.photos.first?.title,"Existing");XCTAssertNil(model.message)
+    }
+    func testPlaceMediaFailureCanRetryAndDistinguishesNoPhotos() async throws {
+        let model=PlaceMediaModel();let candidate=try fixture().schedule!.candidates[0];var status=503
+        model.loader={request in (Data("{\"photos\":[]}".utf8),HTTPURLResponse(url:request.url!,statusCode:status,httpVersion:nil,headerFields:nil)!)}
+        await model.prepare(candidate,dataSource:.direct)
+        XCTAssertEqual(model.message,"照片暫時無法載入，請稍後重試。");XCTAssertFalse(model.loading)
+        status=200;await model.load(candidate,dataSource:.direct)
+        XCTAssertEqual(model.message,"附近尚無可用的開放照片。");XCTAssertFalse(model.loading)
+    }
+    func testOldPlaceMediaResponseCannotReplaceNewPlacePhotos() async throws {
+        let model=PlaceMediaModel();let first=try fixture().schedule!.candidates[0];var second=first;second.id="second-place"
+        second.photos=[PlacePhoto(url:"https://upload.wikimedia.org/new.jpg",pageUrl:"https://commons.wikimedia.org/wiki/File:New.jpg",title:"New place",artist:"Author",license:"CC BY-SA")]
+        model.loader={request in try? await Task.sleep(nanoseconds:60_000_000);return(Data("{\"photos\":[]}".utf8),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)}
+        let pending=Task{@MainActor in await model.prepare(first,dataSource:.direct)}
+        try await Task.sleep(nanoseconds:10_000_000)
+        await model.prepare(second,dataSource:.direct);await pending.value
+        XCTAssertEqual(model.photos.first?.title,"New place");XCTAssertNil(model.message);XCTAssertFalse(model.loading)
+    }
     func testNearbyPinsRefreshWithoutMovingRouteCameraOrSelectingTripStop() throws {
         let point=try fixture().schedule!.candidates[0]
         var selected:String?;var selectedPlace:String?
