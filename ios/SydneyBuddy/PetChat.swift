@@ -17,6 +17,7 @@ let petFields: [(String,String)] = [("destination","目的地"),("date","出发�
     @Published var memories: [Memory] = []
     @Published var choices = true
     private var scope = "draft"
+    var loader:(URLRequest) async throws -> (Data,URLResponse) = {try await URLSession.shared.data(for:$0)}
     private let base = URL(string:"http://127.0.0.1:8787")!
     private var pendingRequest: (String,String)?
     private var storageKey: String { "petSession." + scope }
@@ -24,7 +25,7 @@ let petFields: [(String,String)] = [("destination","目的地"),("date","出发�
         var req=URLRequest(url:base.appendingPathComponent(path));req.httpMethod=method;req.timeoutInterval=120
         req.setValue("application/json",forHTTPHeaderField:"Content-Type")
         if let body {req.httpBody=try JSONSerialization.data(withJSONObject:body)}
-        let (data,response)=try await URLSession.shared.data(for:req)
+        let (data,response)=try await loader(req)
         guard let http=response as? HTTPURLResponse,(200..<300).contains(http.statusCode) else {
             let obj=(try? JSONSerialization.jsonObject(with:data)) as? [String:Any]
             throw NSError(domain:"Pet",code:1,userInfo:[NSLocalizedDescriptionKey:obj?["error"] as? String ?? "暂时连不上 Buddy，请检查电脑上的服务。"])
@@ -79,6 +80,13 @@ let petFields: [(String,String)] = [("destination","目的地"),("date","出发�
     func decideMemory(_ consent:Bool) async {
         guard let id=session?.id else{return}
         await run{session=try await request("pet/sessions/\(id)/memory",method:"POST",body:["consent":consent])}
+    }
+    func savePreferences(_ profile:TripProfile,consent:Bool) async {
+        guard consent else{return}
+        await run {
+            let memory:Memory=try await request("memories",method:"POST",body:["consent":true,"summary":"喜欢"+profile.interests.joined(separator:"、")+"，每天步数偏好约 \(profile.maxSteps) 步","profile":["interests":profile.interests,"maxSteps":profile.maxSteps]])
+            memories.append(memory)
+        }
     }
     func refreshMemories() async {await run{memories=try await request("memories")}}
     func deleteMemory(_ id:String) async {
@@ -266,6 +274,27 @@ struct PetTripDraft {
     }
 }
 
+struct PetOnboardingDraft {
+    static let groups:[[String]]=[["destination"],["date","days"],["companions"],["interests"],["pace"]]
+    static func initialValues(memories:[Memory],today:String=TripProfile.dateString(Date()))->[String:String] {
+        var values=["destination":"悉尼","date":today,"days":"1","companions":"一个人","budget":"100","interests":"自然、风景","pace":"适中（约10000步）","notes":"没有其他要求"]
+        let sorted=memories.sorted{($0.provenance?.createdAt ?? "")>($1.provenance?.createdAt ?? "")}
+        let names=["风景","美食","自然","文化","艺术","城市"]
+        if let interests=sorted.lazy.map({m in m.profile.interests.isEmpty ? (m.summary.hasPrefix("喜欢") && !["不喜欢","不要","不想"].contains(where:{m.summary.contains($0)}) ? names.filter{m.summary.contains($0)} : []) : m.profile.interests}).first(where:{!$0.isEmpty}) {values["interests"]=interests.joined(separator:"、")}
+        for m in sorted {
+            // Legacy text-only records have a default maxSteps=10000, not a confirmed walking limit.
+            var steps:Int? = m.profile.interests.isEmpty ? nil : m.profile.maxSteps
+            if m.summary.contains("每天步数偏好约"),let range=m.summary.range(of:"[0-9]{3,5}(?= ?步)",options:.regularExpression){steps=Int(m.summary[range])}
+            if steps==nil && m.summary.hasPrefix("喜欢") && !["不喜欢","不要","不想"].contains(where:{m.summary.contains($0)}) && ["慢","少走","轻松"].contains(where:{m.summary.contains($0)}){steps=6000}
+            if let steps,(1000...30000).contains(steps){values["pace"]=steps==6000 ? "慢悠悠（约6000步）" : steps==10000 ? "适中（约10000步）" : steps==15000 ? "多逛逛（约15000步）" : "沿用偏好（约\(steps)步）";break}
+        }
+        return values
+    }
+    static func confirmedPayload(_ values:[String:String],confirmed:Set<String>)->[String:String] {
+        Dictionary(uniqueKeysWithValues:petFields.map{($0.0,confirmed.contains($0.0) ? values[$0.0] ?? "" : "")})
+    }
+}
+
 /// Five calm cards share the same persisted session as the optional AI conversation.
 struct PetWelcomeView: View {
     @EnvironmentObject private var store: AppStore
@@ -275,14 +304,17 @@ struct PetWelcomeView: View {
     @State private var talking = false
     @State private var restarting = false
     @State private var loaded = false
+    @State private var confirmed=Set<String>()
+    @State private var memoryDecision=false
+    @State private var finishing=false
     @State private var problem: String?
     private let titles = ["先从悉尼开始，好吗？", "哪天一起出发？", "这次和谁一起呀？", "什么会让你眼睛发亮？", "你喜欢怎样的节奏？", "小背包，装好啦"]
     private let hints = ["我是 Buddy，你的考拉旅行搭子。", "留一点时间，给期待的风景。", "一个人的自在，或一群人的快乐。", "可以选好几个，我都帮你装进去。", "不用赶路，按舒服的步调走。", "看一眼，我们就出发。"]
-    private var working: Bool { chat.busy || store.busy }
+    private var working: Bool { chat.busy || store.busy || finishing }
     private var day: Binding<Date> { Binding(get:{ date(values["date"]) },set:{ values["date"] = Self.format.string(from:$0) }) }
     private static var format: DateFormatter { let f=DateFormatter();f.locale=Locale(identifier:"en_US_POSIX");f.dateFormat="yyyy-MM-dd";return f }
     private func date(_ value: String?) -> Date { value.flatMap{Self.format.date(from:$0)} ?? Date() }
-    private var defaults: [String:String] { ["destination":"悉尼","date":Self.format.string(from:Date()),"days":"1","companions":"一个人","budget":"100","interests":"自然、风景","pace":"适中（约10000步）","notes":"没有其他要求"] }
+    private var defaults:[String:String] {PetOnboardingDraft.initialValues(memories:chat.memories)}
     var body: some View {
         VStack(spacing:0) {
             HStack(spacing:16) {
@@ -302,6 +334,7 @@ struct PetWelcomeView: View {
                         Text(titles[step]).font(.system(size:27,weight:.bold,design:.rounded)).multilineTextAlignment(.center)
                         Text(hints[step]).font(.subheadline).foregroundStyle(Palette.muted).multilineTextAlignment(.center)
                     }
+                    if !chat.memories.isEmpty && (step==3 || step==4){Text("参考你同意保存的偏好，选项仍可修改。").font(.caption).foregroundStyle(Palette.green)}
                     VStack(spacing:12) { cardContent }.padding(.top,8)
                     if let problem { Label(problem,systemImage:"exclamationmark.circle").font(.subheadline).foregroundStyle(.red) }
                     if let error=chat.error { VStack(spacing:10){Text(error).font(.caption).foregroundStyle(.red);Button("重新连接"){Task{await load()}}} }
@@ -321,10 +354,16 @@ struct PetWelcomeView: View {
             }.padding(.horizontal,26).padding(.top,12).padding(.bottom,18).background(Palette.cream)
         }.background(Palette.cream).foregroundStyle(Palette.ink)
         .task { await load() }
+        .onChange(of:confirmed){_,keys in if let id=chat.session?.id{UserDefaults.standard.set(Array(keys),forKey:"petWelcome.confirmed."+id)}}
         .onChange(of:step){_,value in if loaded{UserDefaults.standard.set(value,forKey:"petWelcome.step")}}
         .onChange(of:values){_,value in if loaded,let id=chat.session?.id,let data=try? JSONEncoder().encode(value){UserDefaults.standard.set(data,forKey:"petWelcome.values."+id)}}
         .sheet(isPresented:$talking,onDismiss:{Task{await syncChat()}}){NavigationStack{PetChatView(conversationOnly:true).toolbar{ToolbarItem(placement:.topBarTrailing){Button("回到小背包"){talking=false}}}}}
-        .confirmationDialog("重新开始这次提问？历史行程和长期偏好保留。",isPresented:$restarting,titleVisibility:.visible){Button("重新开始",role:.destructive){Task{await chat.clear();if chat.error==nil{values=defaults;step=0;await chat.update(values);loaded=chat.error==nil;UserDefaults.standard.set(0,forKey:"petWelcome.step")}}}}
+        .confirmationDialog("下次也按这些偏好吗？",isPresented:$memoryDecision,titleVisibility:.visible) {
+            Button("仅用于这次旅行"){Task{await finish(remember:false)}}
+            Button("以后也记住兴趣和节奏"){Task{await finish(remember:true)}}
+            Button("继续修改",role:.cancel){}
+        } message: {Text("长期保存：\(values["interests"] ?? "")，\(values["pace"] ?? "")。日期、同行人、预算和补充要求仅用于本次，可在记忆页撤回长期偏好。")}
+        .confirmationDialog("重新开始这次提问？历史行程和长期偏好保留。",isPresented:$restarting,titleVisibility:.visible){Button("重新开始",role:.destructive){Task{await chat.clear();if chat.error==nil{values=defaults;confirmed=[];step=0;loaded=true;UserDefaults.standard.set(chat.session?.id,forKey:"petWelcome.session");UserDefaults.standard.set(0,forKey:"petWelcome.step")}}}}
     }
     @ViewBuilder private var cardContent: some View {
         switch step {
@@ -339,6 +378,7 @@ struct PetWelcomeView: View {
         case 3:
             ForEach([("自然","leaf.fill"),("风景","sun.max.fill"),("美食","fork.knife"),("文化","building.columns.fill"),("艺术","paintpalette.fill"),("城市","building.2.fill")],id:\.0){label,icon in option(label,icon:icon,selected:(values["interests"] ?? "").contains(label)){var picked=(values["interests"] ?? "").components(separatedBy:"、").filter{!$0.isEmpty};if picked.contains(label){picked.removeAll{$0==label}}else{picked.append(label)};values["interests"]=picked.joined(separator:"、")}}
         case 4:
+            if (values["pace"] ?? "").hasPrefix("沿用偏好"){option(values["pace"]!,detail:"你之前同意保存的步数",icon:"heart.fill",selected:true){}}
             ForEach([("慢悠悠（约6000步）","多坐一会儿，多看看风景","tortoise.fill"),("适中（约10000步）","走走停停，刚刚好","figure.walk"),("多逛逛（约15000步）","想把一天装得满一点","shoeprints.fill")],id:\.0){label,detail,icon in option(label,detail:detail,icon:icon,selected:values["pace"]==label){values["pace"]=label}}
         default:
             VStack(spacing:16){summary("目的地","\(values["destination"] ?? "悉尼") · \(values["days"] ?? "1") 天");summary("出发",values["date"] ?? "");summary("同行",values["companions"] ?? "");summary("喜欢",values["interests"] ?? "");summary("节奏",values["pace"] ?? "")}.padding(20).background(.white,in:RoundedRectangle(cornerRadius:24))
@@ -354,10 +394,13 @@ struct PetWelcomeView: View {
     private func load() async {
         await chat.load(scope:"draft")
         guard let session=chat.session else{return}
+        await chat.refreshMemories();guard chat.error==nil else{return}
         values=defaults.merging(session.fields){_,new in new}
         if let data=UserDefaults.standard.data(forKey:"petWelcome.values."+session.id),let saved=try? JSONDecoder().decode([String:String].self,from:data){values=values.merging(saved){_,new in new}}
         let key="petWelcome.session"
         step=UserDefaults.standard.string(forKey:key)==session.id ? min(5,max(0,UserDefaults.standard.integer(forKey:"petWelcome.step"))) : 0
+        if let keys=UserDefaults.standard.stringArray(forKey:"petWelcome.confirmed."+session.id){confirmed=Set(keys)}
+        else {confirmed=Set(PetOnboardingDraft.groups.prefix(step).flatMap{$0})}
         UserDefaults.standard.set(session.id,forKey:key);loaded=true
     }
     private func advance() async {
@@ -365,19 +408,29 @@ struct PetWelcomeView: View {
         if step==3 && (values["interests"] ?? "").isEmpty {problem="选一个喜欢的方向吧，也可以先选自然。";return}
         if step==5 {
             do {
-                let profile=try PetTripDraft.profile(values)
-                await chat.update(values);guard chat.error==nil else{return}
-                store.completePetPreferences(profile,fields:values)
+                _=try PetTripDraft.profile(values)
+                memoryDecision=true
             } catch {problem=error.localizedDescription}
         } else {
-            await chat.update(values);guard chat.error==nil else{return}
-            step+=1;UserDefaults.standard.set(step,forKey:"petWelcome.step")
+            let keys=confirmed.union(PetOnboardingDraft.groups[step])
+            await chat.update(PetOnboardingDraft.confirmedPayload(values,confirmed:keys));guard chat.error==nil else{return}
+            confirmed=keys;step+=1;UserDefaults.standard.set(step,forKey:"petWelcome.step")
         }
     }
-    private func openChat() async {await chat.update(values);if chat.error==nil{chat.mode(false);talking=true}}
+    private func openChat() async {await chat.update(PetOnboardingDraft.confirmedPayload(values,confirmed:confirmed));if chat.error==nil{chat.mode(false);talking=true}}
+    private func finish(remember:Bool) async {
+        guard !working else{return};finishing=true;defer{finishing=false}
+        do {
+            let profile=try PetTripDraft.profile(values)
+            await chat.update(values);guard chat.error==nil else{return}
+            confirmed=Set(values.keys)
+            if remember {await chat.savePreferences(profile,consent:true);guard chat.error==nil else{return}}
+            store.completePetPreferences(profile,fields:values)
+        } catch {problem=error.localizedDescription}
+    }
     private func syncChat() async {
         // The chat sheet owns its own store; reload the shared persisted session after it closes.
         await chat.reloadSession()
-        if let session=chat.session{values=defaults.merging(session.fields){_,new in new}}
+        if let session=chat.session{values=values.merging(session.fields){_,new in new};confirmed.formUnion(session.fields.keys)}
     }
 }

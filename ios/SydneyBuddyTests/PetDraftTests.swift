@@ -19,6 +19,53 @@ final class PetDraftTests:XCTestCase {
         XCTAssertEqual(restored.pendingTripFields,fields)
         XCTAssertFalse(restored.showOnboarding)
     }
+    func testOnlyExplicitlyConfirmedCardsReachConversation() {
+        let values=PetOnboardingDraft.initialValues(memories:[])
+        let opening=PetOnboardingDraft.confirmedPayload(values,confirmed:[])
+        XCTAssertTrue(opening.values.allSatisfy(\.isEmpty))
+        let first=PetOnboardingDraft.confirmedPayload(values,confirmed:["destination"])
+        XCTAssertEqual(first["destination"],"悉尼")
+        for key in ["date","days","companions","budget","interests","pace","notes"] {XCTAssertEqual(first[key],"")}
+        let dates=PetOnboardingDraft.confirmedPayload(values,confirmed:["destination","date","days"])
+        XCTAssertFalse(dates["date"]!.isEmpty);XCTAssertEqual(dates["interests"],"")
+    }
+    func testNewestConfirmedPreferencesPrefillDraftAndCurrentChoicesOverrideThem() throws {
+        let old=Memory(id:"old",summary:"喜欢自然，每天约15000步",profile:.init(interests:["自然"],maxSteps:15000),provenance:.init(createdAt:"2026-10-01T00:00:00Z"))
+        let latest=Memory(id:"new",summary:"喜欢艺术，每天约6000步",profile:.init(interests:["艺术"],maxSteps:6000),provenance:.init(createdAt:"2026-10-24T00:00:00Z"))
+        var values=PetOnboardingDraft.initialValues(memories:[old,latest],today:"2026-11-01")
+        var profile=try PetTripDraft.profile(values)
+        XCTAssertEqual(profile.interests,["艺术"]);XCTAssertEqual(profile.maxSteps,6000)
+        values["interests"]="美食";values["pace"]="多逛逛（约15000步）"
+        profile=try PetTripDraft.profile(values)
+        XCTAssertEqual(profile.interests,["美食"]);XCTAssertEqual(profile.maxSteps,15000)
+        let revoked=try PetTripDraft.profile(PetOnboardingDraft.initialValues(memories:[],today:"2026-11-01"))
+        XCTAssertEqual(revoked.maxSteps,10000);XCTAssertEqual(Set(revoked.interests),Set(["自然","风景"]))
+    }
+    func testTextOnlyMemoryDoesNotInventWalkingPreference() throws {
+        let memory=Memory(id:"text",summary:"喜欢艺术",profile:.init(interests:[],maxSteps:10000))
+        let values=PetOnboardingDraft.initialValues(memories:[memory],today:"2026-11-01")
+        XCTAssertEqual(values["interests"],"艺术")
+        XCTAssertEqual(try PetTripDraft.profile(values).maxSteps,10000)
+    }
+    @MainActor func testLongTermSaveRequiresConsentAndExcludesTripOnlyData() async throws {
+        let chat=PetChatStore();var bodies:[[String:Any]]=[]
+        chat.loader={request in
+            bodies.append(try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:Any])
+            let data=Data(#"{"id":"saved","summary":"喜欢艺术","profile":{"interests":["艺术"],"maxSteps":5000}}"#.utf8)
+            return (data,HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)
+        }
+        let profile=try PetTripDraft.profile(fields)
+        await chat.savePreferences(profile,consent:false)
+        XCTAssertTrue(bodies.isEmpty);XCTAssertTrue(chat.memories.isEmpty)
+        await chat.savePreferences(profile,consent:true)
+        XCTAssertNil(chat.error);XCTAssertEqual(bodies.count,1)
+        XCTAssertEqual(bodies[0]["consent"] as? Bool,true)
+        let saved=bodies[0]["profile"] as! [String:Any]
+        XCTAssertEqual(Set(saved.keys),Set(["interests","maxSteps"]))
+        XCTAssertEqual(saved["maxSteps"] as? Int,5000)
+        XCTAssertFalse((bodies[0]["summary"] as! String).contains("2026-11-01"))
+        XCTAssertEqual(chat.memories.count,1)
+    }
     func testTripReviewPreservesExplicitWalkingLimitAndBudget() throws {
         let profile=try PetTripDraft.profile(fields)
         XCTAssertEqual(profile.maxSteps,5000);XCTAssertEqual(profile.budget,100);XCTAssertEqual(profile.days,2)

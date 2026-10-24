@@ -61,6 +61,8 @@ struct Trip: Codable, Identifiable {
 }
 struct Memory: Codable, Identifiable {
     var id: String; var summary: String; var profile: MemoryProfile
+    var provenance:Provenance? = nil
+    struct Provenance:Codable {var createdAt:String}
     struct MemoryProfile: Codable { var interests: [String]; var maxSteps: Int }
 }
 struct Health: Codable { var navigationConfigured: Bool?; var paidServicesAllowed: Bool?; var status: String; var nvidiaConfigured: Bool; var googleConfigured: Bool; var iosMapConfigured: Bool; var model: String }
