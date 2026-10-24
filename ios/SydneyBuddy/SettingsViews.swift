@@ -77,6 +77,10 @@ struct SettingsView:View {
                         VStack(alignment:.leading,spacing:10){Text(memory.summary).font(.subheadline);HStack{if !memory.profile.interests.isEmpty{Button("用于下次规划"){store.profile.interests=memory.profile.interests;store.profile.maxSteps=memory.profile.maxSteps}};Spacer();Button("删除",role:.destructive){Task{await store.deleteMemory(memory)}}}.font(.caption)}
                     }
                 }
+                Section("体验与测试") {
+                    Button("重新体验开场提问"){store.newTrip()}
+                    Text("开启新的旅行草稿，历史行程与长期偏好保留。").font(.caption).foregroundStyle(Palette.muted)
+                }
                 Section("关于这个版本") {
                     Text("Sydney Buddy · iOS MVP").font(.headline)
                     Text("演示模式使用明确标记的示例数据；在线模式仅在服务成功返回后生成方案。尚未包含多人同步、自动预订、支付及后台定位。Cursor 与 Zetaris 按你的要求暂缓。").font(.caption).foregroundStyle(Palette.muted)
