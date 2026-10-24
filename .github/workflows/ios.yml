@@ -57,6 +57,20 @@ jobs:
       - name: Capture the first-run companion screen
         shell: bash
         run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])/'koko-smoke'
+          root.mkdir(exist_ok=True)
+          payloads={'health':{'status':'ok','nvidiaConfigured':False,'googleConfigured':False,'iosMapConfigured':False,'model':'ci-screenshot'},'trips':[],'memories':[]}
+          for name,value in payloads.items():
+              (root/name).write_text(json.dumps(value))
+          PY
+          python3 -m http.server 8787 --bind 127.0.0.1 --directory "$RUNNER_TEMP/koko-smoke" > "$RUNNER_TEMP/koko-smoke.log" 2>&1 &
+          koko_smoke_pid=$!
+          trap 'kill "$koko_smoke_pid" || true' EXIT
+          xcrun simctl uninstall "$SIMULATOR_ID" com.sydneybuddy.travel || true
+          xcrun simctl install "$SIMULATOR_ID" "$RUNNER_TEMP/SydneyBuddyDerivedData/Build/Products/Debug-iphonesimulator/SydneyBuddy.app"
           xcrun simctl launch "$SIMULATOR_ID" com.sydneybuddy.travel
           sleep 3
           xcrun simctl io "$SIMULATOR_ID" screenshot "$RUNNER_TEMP/koko-first-run.png"

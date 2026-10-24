@@ -10,13 +10,13 @@ This slice implements natural-conversation profiling, candidate/consent/conflict
 
 The free-chat endpoint no longer appends the next fixed question, replaces a no-question reply with a completion script, truncates an ordinary response to generic boilerplate or pouts when a user says they do not know. Missing trip fields remain available to the review panel, rather than controlling every reply. Budget math and supported-city checks remain guarded. The response is buffered until its data is validated; the client receives NDJSON reply/done events, not a claim of raw token streaming.
 
-The first iOS flow opens Koko directly. Contextual reply buttons follow the current proposal. The older fixed-field quick-fill controls remain opt-in under the menu. The separate editable personal-preferences form remains available in settings.
+The first iOS flow opens Koko directly. Contextual reply buttons follow the current proposal. Contextual choices remain visible without enabling a mode; legacy fixed-field options are a fallback when contextual replies are unavailable. The separate editable personal-preferences form remains available in settings.
 
 ## Travel Profiling v2: initial conversation slice
 
 The authoritative product rules are [Travel Profiling v2](TRAVEL-PROFILING-V2-SPEC.md). Section 8 of that document is simulation evidence only; none of its example preferences, nickname, destination or consent is seeded into application data.
 
-iOS draft/onboarding chat opts into `profilingVersion=2`. `KokoDialogue.Enable` handles a brief introduction and optional name, or resumes known context. Explicit nicknames are stored locally for future trips; no account/name inference or long-term memory consent is implied. Existing sessions upgrade through PATCH in place, count their prior user responses and preserve their trip fields/history. Older clients retain their existing contract.
+iOS personal introduction, draft/onboarding and existing-trip chat opt into `profilingVersion=2`. `KokoDialogue.Enable` handles a brief introduction and optional name, or resumes known context. Explicit nicknames are stored locally for future trips; no account/name inference or long-term memory consent is implied. Existing sessions upgrade through PATCH in place, count their prior user responses and preserve their trip fields/history. Older clients retain their existing contract.
 
 `ProfilingDialogue.responseCount` caps the initial conversation at four successful user-response turns, including the name response. Memory-card decisions and merely focusing the optional name editor do not add turns. An early draft request bypasses the model and immediately returns an inspiration from existing ideas. A fourth response forces the draft even if the model asks another profile question. Later chat can refine it without restarting the interview. Three contextual buttons are available throughout, with free text alongside them. Formal trip generation keeps its existing validated date/budget/group requirements; those requirements do not block inspiration.
 
@@ -69,7 +69,7 @@ Session responses retain the old mobile fields and add `travelDna`, `tripContext
 
 ## Animation behavior
 
-See [the exact event table](KOALA-ANIMATION-INTEGRATION.md). All 10 actions and 276 frames are bundled. Ordinary chat is Idle. A preference confirmation is thumbs-up; whole-profile completion is celebrate; a successful final trip save is celebrate. Planning and existing schedule recomputation use map. Real available rain information and projected budget overruns have dedicated risk reactions. Simulation/departure/fatigue mappings await the actual Digital Twin engine.
+See [the exact event table](KOALA-ANIMATION-INTEGRATION.md). All 10 actions and 276 frames are bundled. Ordinary chat is Idle. A preference confirmation is thumbs-up; whole-profile completion is celebrate; a successful final trip save is celebrate. Planning and existing schedule recomputation use map. Real available rain information and projected budget overruns have dedicated risk reactions. Successful real navigation emits departure; simulated departures and fatigue findings await the actual Digital Twin engine.
 
 ## Verification and review
 
@@ -82,7 +82,7 @@ Suggested manual check: say the sunrise example; confirm both claims; complete D
 ## Debugging map
 
 - Missing extraction: check NVIDIA configuration, model JSON and evidence matching in `TravelProfiling.Apply`.
-- Memory not saved: check `memoryWarning`, Node 24 and the H-MEM bridge; inspect the preference service error before claiming persistence.
+- Memory not saved: check `memoryWarning`, the configured Node runtime and the H-MEM bridge; inspect the preference service error before claiming persistence.
 - Old value still shown: refresh the session and active memory records; do not reuse a stale conflict confirmation.
 - Koala missing: check the `koala` folder in the iOS bundle/APK and regenerate the Xcode project after adding sources.
 - Wrong reaction: inspect the semantic event emitter, not the LLM mood.
@@ -108,10 +108,18 @@ The sampled bag coral is lighter (`#F86070`); the darker button variant gives wh
 
 ## Face-to-face companion UI
 
-The iOS interaction screen now projects one current assistant utterance only, above a centered original koala. The supplied sizing reference sets its complete figure near one quarter of the portrait viewport height. A separate approved coastal background sits behind the transparent animation; it contains no baked-in character or controls. Three vertically stacked choices use a raised bottom edge and a pressed state. Text input is optional; returning to choices preserves an unsent draft. Compact layouts reduce spacing on smaller phones. The newest reply remains visible after later preference corrections. Raw conversation context/evidence stays in the session for reasoning and recovery; it is not rendered as a chat transcript. Preferences and trip details are available in a separate sheet.
+The iOS interaction screen now projects one current assistant utterance only, above a centered original koala. The supplied sizing reference sets its complete figure near one quarter of the portrait viewport height. A separate approved coastal background sits behind the transparent animation; it contains no baked-in character or controls. Three vertically stacked choices use a raised bottom edge and a pressed state. Text input is optional; returning to choices preserves an unsent draft. Compact layouts reduce spacing on smaller phones; keyboard input also hides the repeated heading and reduces the stage when available height is limited. The newest reply remains visible after later preference corrections. Raw conversation context/evidence stays in the session for reasoning and recovery; it is not rendered as a chat transcript. Preferences and trip details are available in a separate sheet.
 
 First entry uses a separate versioned personal introduction, followed by the `personalProfile` session. New journeys use the `draft` session; existing-trip conversations also opt into contextual replies. Finishing the personal introduction does not save long-term memory. Explicit unconfirmed preference clues can be used for this trip, while existing trip requirements win and unknown/AI-inferred data is not filled.
 
 The authoritative action table is in KOALA-ANIMATION-INTEGRATION.md: occasional submission receipts clap, completed steps/confirmed preferences give thumbs-up, whole-profile and saved-itinerary completion celebrate. Successful itinerary save presents a centered completion screen; save failures never celebrate. Departure is emitted only after real navigation starts, with previews/simulation/failed starts excluded from that event. Existing risk events remain separate from playful weather/long-walk conversation responses.
 
 Four supplied recovery clips are reused with their original provenance and 124 frames; no koala artwork was regenerated. The departure fade was not imported as a physical recovery.
+
+Teammate simulator review for this slice:
+
+1. Open the app after updating: the independent personal introduction appears, with the original large koala, speech above and raised choices below. Skip does not erase a trip or save a lasting memory.
+2. Start the introduction, answer a choice, then use optional text input. Return to choices with an unsent draft; check both a smaller iPhone and a normal portrait phone. Only the current Koko reply is shown, and the koala stays visible while typing.
+3. In the relevant conversation choose willingness to use an umbrella, then choose 15,000 steps. Check the umbrella/lying reaction and return to Idle. These playful cues must not become actual risk findings or global fitness facts.
+4. Complete the initial profile: Koko jumps to celebrate. Correct a preference afterward and verify that the new reply replaces the completion wording. Confirm lasting memories separately in the profile details.
+5. Create a trip and verify that choices remain available. Generate and save: map remains while work runs, returns before the completion screen, and the centered celebration precedes the explicit view/adjust/my-trips choice. A failed save does not celebrate; viewing a plan does not play departure. Actual successful navigation starts it.

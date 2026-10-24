@@ -22,7 +22,7 @@ import MapKit
         let success=await store.deleteTrip(target)
         XCTAssertTrue(success);XCTAssertEqual(store.saved.map(\.id),[other.id]);XCTAssertNil(store.trip);XCTAssertNil(store.tripToOpen);XCTAssertNil(store.lastAdjustment)
     }
-    func testSuccessfulGenerationRequestsOpeningTheAcceptedTripWorkspace() async throws {
+    func testSuccessfulGenerationCelebratesBeforeOpeningTheAcceptedTripWorkspace() async throws {
         let defaults=UserDefaults.standard
         let keys=["pendingTripFields","travelPlanningTask","onboarded","petSession.draft","petSession.nav-workspace-trip"]
         let previous=keys.map{defaults.object(forKey:$0)}
@@ -44,9 +44,14 @@ import MapKit
         }
         await store.generatePendingTrip()
         XCTAssertNil(store.errorMessage)
-        XCTAssertEqual(store.tripToOpen?.id,"nav-workspace-trip")
+        XCTAssertNil(store.tripToOpen)
+        XCTAssertEqual(store.koalaCompletion?.trip.id,"nav-workspace-trip")
+        XCTAssertEqual(store.koalaCompletion?.cue.action,.celebrate)
         XCTAssertEqual(store.travelTask?.status,"completed")
         XCTAssertTrue(store.pendingTripFields.isEmpty)
+        store.finishTripCelebration(.viewTrip)
+        XCTAssertNil(store.koalaCompletion)
+        XCTAssertEqual(store.tripToOpen?.id,"nav-workspace-trip")
     }
     func testPoiToolboxRemovalPersistsAndAllowsAddingAgain() throws {
         let toolbox=PoiToolbox.shared;let original=toolbox.places
