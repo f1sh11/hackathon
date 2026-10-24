@@ -296,18 +296,24 @@ struct PetChatView:View {
             } else if let session=chat.session,!session.nextField.isEmpty {
                 quickAnswers(session)
             }
-            if canPlanDirectly{PrimaryButton(title:"确认需求，生成行程",symbol:"sparkles"){openRequirements()}.padding(.horizontal,20).disabled(chat.busy)}
+            if canPlanDirectly {
+                PrimaryButton(title:"确认需求，生成行程",symbol:"sparkles"){openRequirements()}.padding(.horizontal,20)
+                    .disabled(chat.busy || !message.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty)
+                if !message.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty {
+                    Text("还有未发送的话，先发送或清空，再生成。").font(.caption).foregroundStyle(Palette.muted)
+                }
+            }
             }
             if writing {
                 HStack(alignment:.bottom){
-                    TextField("也可以直接告诉 Koko…",text:$message,axis:.vertical).focused($composing).lineLimit(1...3).padding(12).background(.white,in:RoundedRectangle(cornerRadius:16)).accessibilityIdentifier("chat-composer").disabled(chat.busy)
+                    TextField("也可以直接告诉 Koko…",text:$message,axis:.vertical).focused($composing).lineLimit(1...(compact ? 2:3)).padding(12).background(.white,in:RoundedRectangle(cornerRadius:16)).accessibilityIdentifier("chat-composer").disabled(chat.busy)
                     Button{let text=message;composing=false;Task{await respond(text);if chat.error==nil{message="";writing=false}}}label:{Image(systemName:"arrow.up.circle.fill").font(.system(size:34))}.accessibilityLabel("发送消息").disabled(chat.busy || message.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty || message.count>2000)
                 }.padding(.horizontal,20)
                 Button("返回点选"){writing=false;composing=false}.font(.caption).frame(minHeight:32)
             } else {
                 Button{writing=true;composing=true}label:{Label(message.isEmpty ? "我想自己说…":"继续写刚才的话…",systemImage:"keyboard").font(.subheadline).frame(maxWidth:.infinity,minHeight:42).background(.white,in:RoundedRectangle(cornerRadius:16))}.padding(.horizontal,20).disabled(chat.busy)
             }
-            if personalSetup,chat.session?.dialogue?.inspiration == nil{Button("先跳过，之后再认识"){store.finishPersonalIntroduction()}.font(.caption).foregroundStyle(Palette.muted).disabled(chat.busy)}
+            if personalSetup,!writing,chat.session?.dialogue?.inspiration == nil{Button("先跳过，之后再认识"){store.finishPersonalIntroduction()}.font(.caption).foregroundStyle(Palette.muted).disabled(chat.busy)}
         }.padding(.top,8).padding(.bottom,8).background(Palette.cream)
     }
     private func openRequirements(){fields=liveFields;editingRequirements=false;assumptionsConfirmed=false;review=true}
