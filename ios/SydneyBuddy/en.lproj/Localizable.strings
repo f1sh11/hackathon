@@ -308,3 +308,11 @@
 "全部分類 · 附近 5 km · 資料限已匯入區域" = "All categories · within 5 km · imported areas only";
 "已顯示部分結果，請輸入名稱或縮小分類。" = "Showing some results. Enter a name or choose a category.";
 "整合已匯入的雪梨地點；底圖原生標記可能不同。探索候選不代表已確認冷門；房價、營業狀態與評論未即時核實。" = "Imported Sydney places combined. Native map labels may differ. Popularity, room prices, opening status and reviews are unverified.";
+"建立於 {0}" = "Created {0}";
+"建立日期未知" = "Creation date unavailable";
+"改名" = "Rename";
+"旅行名称" = "Trip name";
+"保存名称" = "Save name";
+"给旅行起个名字" = "Name your trip";
+"最多 40 个字，只修改名称，地点和日期保持不变。" = "Up to 40 characters. Places and travel dates stay the same.";
+"名稱未儲存，請重試。" = "Name was not saved. Please try again.";

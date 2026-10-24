@@ -1208,5 +1208,45 @@
     "en" : "Imported Sydney places combined. Native map labels may differ. Popularity, room prices, opening status and reviews are unverified.",
     "zh-Hans" : "整合已导入的悉尼地点；底图原生标记可能不同。探索候选不代表已确认冷门；房价、营业状态与评论未实时核实。",
     "zh-Hant" : "整合已匯入的雪梨地點；底圖原生標記可能不同。探索候選不代表已確認冷門；房價、營業狀態與評論未即時核實。"
+  },
+  "建立於 {0}": {
+    "en": "Created {0}",
+    "zh-Hans": "创建于 {0}",
+    "zh-Hant": "建立於 {0}"
+  },
+  "建立日期未知": {
+    "en": "Creation date unavailable",
+    "zh-Hans": "创建日期未知",
+    "zh-Hant": "建立日期未知"
+  },
+  "改名": {
+    "en": "Rename",
+    "zh-Hans": "改名",
+    "zh-Hant": "改名"
+  },
+  "旅行名称": {
+    "en": "Trip name",
+    "zh-Hans": "旅行名称",
+    "zh-Hant": "旅行名稱"
+  },
+  "保存名称": {
+    "en": "Save name",
+    "zh-Hans": "保存名称",
+    "zh-Hant": "儲存名稱"
+  },
+  "给旅行起个名字": {
+    "en": "Name your trip",
+    "zh-Hans": "给旅行起个名字",
+    "zh-Hant": "為行程取個名字"
+  },
+  "最多 40 个字，只修改名称，地点和日期保持不变。": {
+    "en": "Up to 40 characters. Places and travel dates stay the same.",
+    "zh-Hans": "最多 40 个字，只修改名称，地点和日期保持不变。",
+    "zh-Hant": "最多 40 個字；只修改名稱，地點與日期保持不變。"
+  },
+  "名稱未儲存，請重試。": {
+    "en": "Name was not saved. Please try again.",
+    "zh-Hans": "名称未保存，请重试。",
+    "zh-Hant": "名稱未儲存，請重試。"
   }
 }

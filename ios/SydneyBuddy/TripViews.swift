@@ -63,6 +63,7 @@ struct TripsView:View {
     @EnvironmentObject var store:AppStore
     @State private var navigationTrip:Trip?
     @State private var selectedTrip:Trip?
+    @State private var namingTrip:Trip?
     @State private var editingDraft=false
     @State private var deleting:Trip?
     @State private var deletingInProgress=false
@@ -72,6 +73,7 @@ struct TripsView:View {
         NavigationStack { tripList }
             .fullScreenCover(item:$navigationTrip){trip in SavedTripNavigationView(trip:trip)}
             .sheet(isPresented:$editingDraft){TripDraftEditor(fields:store.pendingTripFields)}
+            .sheet(item:$namingTrip){TripNameEditor(trip:$0)}
             .alert("删除「\(deleting?.title ?? "这份行程")」？",isPresented:deletionPresented){
                 Button("确认删除",role:.destructive){
                     if let trip=deleting{deletingInProgress=true;Task{let success=await store.deleteTrip(trip);if success,selectedTrip?.id==trip.id{selectedTrip=nil};deletingInProgress=false;deleting=nil}}
@@ -114,7 +116,9 @@ struct TripsView:View {
                 .buttonStyle(PlainButtonStyle())
                 .accessibilityLabel(Text(title)).accessibilityIdentifier(identifier)
             Divider().padding(.horizontal,16)
-            HStack{Spacer();Button(role:.destructive){deleting=trip}label:{Label("删除",systemImage:"trash").font(.subheadline).frame(minWidth:70,minHeight:44)}.accessibilityLabel(Text("删除行程："+trip.title)).accessibilityIdentifier("delete-trip-"+(trip.id ?? "draft"))}.padding(.horizontal,16)
+            HStack{
+                Button{namingTrip=trip}label:{Label("改名",systemImage:"pencil").font(.subheadline).frame(minHeight:44)}.accessibilityIdentifier("rename-trip-"+(trip.id ?? "draft"))
+                Spacer();Button(role:.destructive){deleting=trip}label:{Label("删除",systemImage:"trash").font(.subheadline).frame(minWidth:70,minHeight:44)}.accessibilityLabel(Text("删除行程："+trip.title)).accessibilityIdentifier("delete-trip-"+(trip.id ?? "draft"))}.padding(.horizontal,16)
         }.background(.white,in:RoundedRectangle(cornerRadius:22)).disabled(deletingInProgress || store.busy)
     }
     @ViewBuilder private var selectedDestination:some View {
@@ -140,14 +144,51 @@ struct TripsView:View {
 
 }
 
+enum TripCreationDate {
+    static func formatted(_ raw:String,timeZone:TimeZone = .current)->String? {
+        let parser=ISO8601DateFormatter();parser.formatOptions=[.withInternetDateTime,.withFractionalSeconds]
+        var date=parser.date(from:raw)
+        if date==nil{parser.formatOptions=[.withInternetDateTime];date=parser.date(from:raw)}
+        guard let date else{return nil}
+        let formatter=DateFormatter();formatter.locale=Locale(identifier:"en_US_POSIX");formatter.calendar=Calendar(identifier:.gregorian);formatter.timeZone=timeZone;formatter.dateFormat="yyyy-MM-dd HH:mm"
+        return formatter.string(from:date)
+    }
+}
+struct TripNameEditor:View {
+    let trip:Trip
+    @EnvironmentObject private var store:AppStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var title:String
+    @State private var problem:String?
+    init(trip:Trip){self.trip=trip;_title=State(initialValue:trip.title)}
+    var body:some View {
+        NavigationStack{Form{
+            TextField("旅行名称",text:$title).accessibilityIdentifier("trip-name-field")
+            Text("最多 40 个字，只修改名称，地点和日期保持不变。").font(.caption).foregroundStyle(Palette.muted)
+            if let problem{Text(problem).font(.caption).foregroundStyle(.red)}
+            Button("保存名称"){Task{problem=nil;if await store.renameTrip(trip,to:title){dismiss()}else{problem=store.errorMessage ?? store.language.text("名稱未儲存，請重試。")}}}
+                .disabled(store.busy || title.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty || title.count>40)
+                .accessibilityIdentifier("trip-name-save")
+        }.navigationTitle("给旅行起个名字").navigationBarTitleDisplayMode(.inline).toolbar{Button("取消"){dismiss()}.disabled(store.busy)}}
+        .interactiveDismissDisabled(store.busy)
+    }
+}
 struct TripListRow:View {
     let trip:Trip
-    private var subtitle:String {"\(trip.profile.date) · \(trip.days.count) 天 · \(trip.days.reduce(0){$0+$1.stops.count}) 个地点"}
+    @EnvironmentObject private var store:AppStore
+    private var subtitle:String {store.language.text("{0} · {1} 天 · {2} 个地点",trip.profile.date,String(trip.days.count),String(trip.days.reduce(0){$0+$1.stops.count}))}
+    private var created:String {TripCreationDate.formatted(trip.createdAt).map{store.language.text("建立於 {0}",$0)} ?? store.language.text("建立日期未知")}
     private var highlights:String {(trip.days.first?.stops ?? []).prefix(2).map{$0.name}.joined(separator:" · ")}
     var body:some View {
         HStack(alignment:.top,spacing:14){
             Image(systemName:"sailboat.fill").font(.title2).foregroundStyle(Palette.green).frame(width:56,height:64).background(Palette.mint,in:RoundedRectangle(cornerRadius:16))
-            VStack(alignment:.leading,spacing:7){Text(trip.title).font(.headline);Text(subtitle).font(.subheadline).foregroundStyle(Palette.muted);Text(highlights).font(.caption).foregroundStyle(Palette.muted).lineLimit(1);if trip.mode != "live"{Text("示例路线").font(.caption2).foregroundStyle(Palette.green)}}.frame(maxWidth:.infinity,alignment:.leading)
+            VStack(alignment:.leading,spacing:7){
+                Text(trip.title).font(.headline)
+                Label(subtitle,systemImage:"calendar").font(.subheadline).foregroundStyle(Palette.muted)
+                Label(created,systemImage:"clock").font(.caption).foregroundStyle(Palette.muted).accessibilityIdentifier("trip-created-"+(trip.id ?? "draft"))
+                Text(highlights).font(.caption).foregroundStyle(Palette.muted).lineLimit(1)
+                if trip.mode != "live"{Text("示例路线").font(.caption2).foregroundStyle(Palette.green)}
+            }.frame(maxWidth:.infinity,alignment:.leading)
             Image(systemName:"chevron.right").font(.caption.bold()).foregroundStyle(Palette.muted).padding(.top,5)
         }.padding(16).background(.white,in:RoundedRectangle(cornerRadius:22))
     }
@@ -159,20 +200,15 @@ struct SavedTripWorkspace:View {
     @EnvironmentObject private var store:AppStore
     @State private var section="map"
     @State private var renaming=false
-    @State private var newTitle=""
     var body:some View {
         VStack(spacing:0) {
-            HStack{Text("\(trip.profile.date) · \(trip.days.count) 天").font(.caption).foregroundStyle(Palette.muted);Spacer();Button{newTitle=trip.title;renaming=true}label:{Label("改名",systemImage:"pencil").font(.caption)}.accessibilityLabel("修改旅行名称："+trip.title)}.padding(.horizontal,20).padding(.top,4)
+            HStack{Text("\(trip.profile.date) · \(trip.days.count) 天").font(.caption).foregroundStyle(Palette.muted);Spacer();Button{renaming=true}label:{Label("改名",systemImage:"pencil").font(.caption)}.accessibilityLabel("修改旅行名称："+trip.title)}.padding(.horizontal,20).padding(.top,4)
             Picker("旅行工作台",selection:$section){Text("路线地图").tag("map");Text("行程详情").tag("details")}.pickerStyle(.segmented).padding(.horizontal,20).padding(.vertical,10).accessibilityIdentifier("trip-workspace-section")
             if section=="map" {HomeView()}
             else {SavedTripOverview(trip:trip,onEdit:openEditor,onMap:{section="map"},onNavigate:onNavigate,onDelete:onDelete)}
         }.background(Palette.cream).navigationTitle(trip.title).navigationBarTitleDisplayMode(.inline)
         .toolbar{ToolbarItemGroup(placement:.topBarTrailing){Button("编辑行程",action:openEditor).disabled(store.busy);Button("删除",role:.destructive,action:onDelete).disabled(store.busy)}}
-        .sheet(isPresented:$renaming){NavigationStack{Form{
-            TextField("旅行名称",text:$newTitle).accessibilityIdentifier("trip-name-field")
-            Text("最多 40 个字，只修改名称，地点和日期保持不变。").font(.caption).foregroundStyle(Palette.muted)
-            Button("保存名称"){Task{if await store.renameTrip(trip,to:newTitle){renaming=false}}}.disabled(store.busy || newTitle.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty || newTitle.count>40)
-        }.navigationTitle("给旅行起个名字").navigationBarTitleDisplayMode(.inline).toolbar{Button("取消"){renaming=false}}}}
+        .sheet(isPresented:$renaming){TripNameEditor(trip:trip)}
         .onAppear{store.trip=trip;store.dayIndex=0;store.selectedStopID=nil}
         .onChange(of:trip.revision){_,_ in store.trip=trip}
     }

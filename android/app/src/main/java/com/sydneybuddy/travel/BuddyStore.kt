@@ -150,6 +150,16 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
             load()
         }
     }
+    suspend fun renameTrip(original:JSONObject,value:String):Boolean {
+        if(busy)return false
+        busy=true
+        try{
+            val accepted=JSONObject(request("trips","POST",tripRenamePayload(original,value)))
+            saved=saved.map{if(it.optString("id")==accepted.optString("id"))accepted else it}
+            if(trip?.optString("id")==accepted.optString("id"))trip=accepted
+            return true
+        }catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:Exception){error=e.message ?: "名稱未儲存，請重試。";return false}finally{busy=false}
+    }
     fun deleteTrip(value: JSONObject) = operation {
         request("trips/${value.getString("id")}", "DELETE")
         val prefix = value.getString("id") + ":"

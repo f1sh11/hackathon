@@ -25,6 +25,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 val Green = Color(0xFF0D825E)
@@ -170,21 +171,39 @@ internal fun savedTripNavigationDay(trip:JSONObject,today:String=java.time.Local
     val days=trip.array("days").objects();val index=days.indexOfFirst{it.optString("date")==today}
     return if(index>=0)index else if(days.size==1)0 else null
 }
-@Composable internal fun SavedTripCard(t:JSONObject,enabled:Boolean=true,onEdit:()->Unit,onNavigate:()->Unit,onMap:()->Unit,onDelete:()->Unit) {
+@Composable internal fun SavedTripCard(t:JSONObject,enabled:Boolean=true,onEdit:()->Unit,onNavigate:()->Unit,onMap:()->Unit,onDelete:()->Unit,onRename:()->Unit={}) {
     Surface(onClick=onEdit,enabled=enabled,shape=RoundedCornerShape(24.dp),color=Color.White,modifier=Modifier.fillMaxWidth().testTag("edit-trip-${t.optString("id")}")) {
         Column(Modifier.padding(18.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
             TripArtwork()
             Text(t.optString("title"),fontWeight=FontWeight.Bold);Text(ui("{0} · {1} 天",t.getJSONObject("profile").optString("date"),t.array("days").length().toString()))
+            val created=tripCreatedDate(t.optString("createdAt"))
+            Box(Modifier.testTag("trip-created-${t.optString("id")}")){Small(if(created!=null)ui("建立於 {0}",created)else ui("建立日期未知"))}
             Small(modeLabel(t.optString("mode")))
             Row(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
                 TextButton(onClick=onNavigate,enabled=enabled,modifier=Modifier.testTag("navigate-trip-${t.optString("id")}")){Icon(Icons.Outlined.Navigation,null,Modifier.size(18.dp));Text(ui("開始導航"))}
                 TextButton(onClick=onMap,enabled=enabled){Text(ui("查看地图"),fontWeight=FontWeight.Bold)}
+            }
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
+                TextButton(onClick=onRename,enabled=enabled,modifier=Modifier.testTag("rename-trip-${t.optString("id")}")){Icon(Icons.Outlined.Edit,null,Modifier.size(18.dp));Text(ui("改名"))}
+                Spacer(Modifier.weight(1f))
                 TextButton(onClick=onDelete,enabled=enabled){Text(ui("删除行程"))}
             }
         }
     }
 }
+@Composable internal fun TripNameDialog(trip:JSONObject,busy:Boolean,onDismiss:()->Unit,onSave:suspend(String)->Boolean) {
+    var title by remember(trip.optString("id")){mutableStateOf(trip.optString("title"))}
+    var problem by remember{mutableStateOf(false)}
+    var saving by remember{mutableStateOf(false)}
+    val scope=rememberCoroutineScope()
+    AlertDialog(onDismissRequest={if(!busy&&!saving)onDismiss()},title={Text(ui("给旅行起个名字"))},text={Column{
+        OutlinedTextField(title,{title=it;problem=false},label={Text(ui("旅行名称"))},singleLine=true,modifier=Modifier.testTag("trip-name-field"),enabled=!busy&&!saving)
+        Small(ui("最多 40 个字，只修改名称，地点和日期保持不变。"))
+        if(problem)Text(ui("名稱未儲存，請重試。"),color=MaterialTheme.colorScheme.error)
+    }},confirmButton={TextButton(onClick={scope.launch{saving=true;try{if(onSave(title)){onDismiss()}else{problem=true}}finally{saving=false}}},enabled=!busy&&!saving&&title.trim().isNotEmpty()&&title.trim().length<=40,modifier=Modifier.testTag("trip-name-save")){Text(ui("保存名称"))}},dismissButton={TextButton(onClick=onDismiss,enabled=!busy&&!saving){Text(ui("取消"))}})
+}
 @Composable fun TripsScreen(store:BuddyStore,onDelete:(JSONObject)->Unit) {
+    var renaming by remember{mutableStateOf<JSONObject?>(null)}
     var choosing by remember{mutableStateOf<JSONObject?>(null)}
     var navigation by remember{mutableStateOf(false)}
     fun start(trip:JSONObject,index:Int){store.select(trip);store.dayIndex=index;choosing=null;navigation=true}
@@ -193,8 +212,9 @@ internal fun savedTripNavigationDay(trip:JSONObject,today:String=java.time.Local
         TextButton(onClick=store::reload,enabled=!store.busy){Text(ui("刷新行程"))}
         Action("試用 3 天時間軸",!store.busy,store::tryScheduleDemo)
         if(store.saved.isEmpty()) Small("还没有保存的行程。")
-        store.saved.forEach { t -> SavedTripCard(t,!store.busy,onEdit={store.editSchedule(t)},onNavigate={val day=savedTripNavigationDay(t);if(day!=null)start(t,day)else choosing=t},onMap={store.select(t);store.tab=0},onDelete={onDelete(t)}) }
+        store.saved.forEach { t -> SavedTripCard(t,!store.busy,onEdit={store.editSchedule(t)},onNavigate={val day=savedTripNavigationDay(t);if(day!=null)start(t,day)else choosing=t},onMap={store.select(t);store.tab=0},onDelete={onDelete(t)},onRename={renaming=t}) }
     }
+    renaming?.let{trip->TripNameDialog(trip,store.busy,onDismiss={renaming=null},onSave={store.renameTrip(trip,it)})}
     choosing?.let{trip->AlertDialog(onDismissRequest={choosing=null},title={Text("選擇導航日期")},text={Column(Modifier.verticalScroll(rememberScrollState())){
         Small("今天不在旅程日期內，請選擇要導航的行程")
         trip.array("days").objects().forEachIndexed{i,day->TextButton(onClick={start(trip,i)}){Text("第 ${i+1} 天 · ${day.optString("date")} · ${day.array("stops").length()} 個站點")}}

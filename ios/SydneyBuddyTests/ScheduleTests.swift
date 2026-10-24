@@ -4,6 +4,19 @@ import MapKit
 @testable import SydneyBuddy
 
 @MainActor final class ScheduleTests:XCTestCase {
+    func testCreationDateUsesRecordedTimestampAndLocalTimeZone() throws {
+        let utc=try XCTUnwrap(TimeZone(secondsFromGMT:0)),sydney=try XCTUnwrap(TimeZone(identifier:"Australia/Sydney"))
+        XCTAssertEqual(TripCreationDate.formatted("2026-10-24T22:30:00.1234567+00:00",timeZone:utc),"2026-10-24 22:30")
+        XCTAssertEqual(TripCreationDate.formatted("2026-10-24T22:30:00Z",timeZone:sydney),"2026-10-25 09:30")
+        XCTAssertNil(TripCreationDate.formatted("unknown"));XCTAssertNil(TripCreationDate.formatted(""))
+    }
+    func testRenameConflictPreservesExistingNameDatesAndRoute() async throws {
+        let store=AppStore();var trip=try fixture();trip.id="rename-conflict";trip.revision=3
+        store.saved=[trip];store.trip=trip
+        store.loader={request in (Data("{\"error\":\"版本已更新\"}".utf8),HTTPURLResponse(url:request.url!,statusCode:409,httpVersion:nil,headerFields:nil)!)}
+        let success=await store.renameTrip(trip,to:"New name");XCTAssertFalse(success)
+        XCTAssertEqual(store.saved.first?.title,trip.title);XCTAssertEqual(store.trip?.createdAt,trip.createdAt);XCTAssertEqual(store.trip?.profile.date,trip.profile.date);XCTAssertEqual(store.trip?.revision,3)
+    }
     func testPlaceMediaAutomaticallyLoadsWhenCandidateHasNoPhotos() async throws {
         let model=PlaceMediaModel();let candidate=try fixture().schedule!.candidates[0];var calls=0
         let photo=PlacePhoto(url:"https://upload.wikimedia.org/test.jpg",pageUrl:"https://commons.wikimedia.org/wiki/File:Test.jpg",title:"Test photo",artist:"Test author",license:"CC BY-SA")
@@ -612,6 +625,7 @@ import MapKit
             let raw=try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:Any]
             XCTAssertEqual(raw["expectedRevision"] as? Int,3)
             var renamed=try JSONDecoder().decode(Trip.self,from:JSONSerialization.data(withJSONObject:raw["trip"]!))
+            XCTAssertEqual(raw["renameOnly"] as? Bool,true);XCTAssertEqual(renamed.createdAt,original.createdAt);XCTAssertEqual(renamed.profile.date,original.profile.date)
             XCTAssertEqual(renamed.title,"海风假期");XCTAssertEqual(renamed.days.count,original.days.count)
             XCTAssertEqual(renamed.days[0].stops.map(\.id),original.days[0].stops.map(\.id))
             renamed.revision=4
