@@ -72,11 +72,8 @@ struct TripsView:View {
                     if !store.pendingTripFields.isEmpty { draftCard }
                     HStack{Text("已保存的旅行").font(.headline);Spacer();Text("\(store.saved.count) 份").font(.caption).foregroundStyle(Palette.muted)}
                     if store.saved.isEmpty {ContentUnavailableView("下一段旅程，等你出发",systemImage:"suitcase.rolling",description:Text("准备好偏好后，生成你的第一份路线。"))}
-                    ForEach(store.saved,id:\.id){t in
-                        Button{store.trip=t;selectedTrip=t}label:{
-                            TripListRow(trip:t)
-                        }.buttonStyle(.plain).accessibilityLabel("查看行程："+t.title+"，"+t.profile.date).accessibilityIdentifier("view-trip-"+(t.id ?? "draft"))
-                        .contextMenu{Button("删除行程",role:.destructive){deleting=t}}
+                    ForEach(store.saved,id:\.id){trip in
+                        SavedTripButton(trip:trip,onOpen:{store.trip=trip;selectedTrip=trip},onDelete:{deleting=trip})
                     }
                 }.padding(20)
             }.background(Palette.cream).navigationTitle(store.language.text("我的行程"))
@@ -110,6 +107,22 @@ struct TripsView:View {
         }.padding(18).background(Palette.mint.opacity(0.65),in:RoundedRectangle(cornerRadius:24))
     }
 
+}
+
+/// Keep the row's button and accessibility modifiers out of the large list builder.
+private struct SavedTripButton:View {
+    let trip:Trip
+    let onOpen:()->Void
+    let onDelete:()->Void
+    private var accessibilityTitle:String {"查看行程：\(trip.title)，\(trip.profile.date)"}
+    private var identifier:String {"view-trip-\(trip.id ?? "draft")"}
+    var body:some View {
+        Button(action:onOpen){TripListRow(trip:trip)}
+            .buttonStyle(PlainButtonStyle())
+            .accessibilityLabel(Text(accessibilityTitle))
+            .accessibilityIdentifier(identifier)
+            .contextMenu{Button(role:.destructive,action:onDelete){Text("删除行程")}}
+    }
 }
 
 struct TripListRow:View {
