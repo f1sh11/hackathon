@@ -37,4 +37,17 @@ public sealed class PoiCategoryTests {
         var steak=Point("s1","steakhouse");steak["category"]="美食";PoiCategories.ApplyFoodPriceMapping(steak);
         Assert.Equal(3,steak.Int("priceRange"));Assert.Equal("$$$",steak.Str("priceTier"));Assert.Equal(75,steak.Int("estimatedSpendAud"));
     }
+    [Fact] public void LodgingPoisReceiveDeterministicPriceTierMapping(){
+        var hostel=Point("l1","hostel","lodging");hostel["category"]="住宿";PoiCategories.ApplyFoodPriceMapping(hostel);
+        Assert.Equal(1,hostel.Int("priceRange"));Assert.Equal("$",hostel.Str("priceTier"));Assert.Equal(65,hostel.Int("nightlyRateAud"));Assert.Equal("$ · 預估每晚 A$65/晚",hostel.Str("priceLabel"));
+        var hotel=Point("l2","hotel","lodging");hotel["category"]="住宿";PoiCategories.ApplyFoodPriceMapping(hotel);
+        Assert.Equal(2,hotel.Int("priceRange"));Assert.Equal("$$",hotel.Str("priceTier"));Assert.Equal(185,hotel.Int("nightlyRateAud"));
+        var suites=Point("l3","hotel","lodging");suites["category"]="住宿";suites["name"]="Meriton Suites Pitt Street";PoiCategories.ApplyFoodPriceMapping(suites);
+        Assert.Equal(3,suites.Int("priceRange"));Assert.Equal("$$$",suites.Str("priceTier"));Assert.Equal(295,suites.Int("nightlyRateAud"));
+        var luxury=Point("l4","hotel","lodging");luxury["category"]="住宿";luxury["name"]="Park Hyatt Sydney";PoiCategories.ApplyFoodPriceMapping(luxury);
+        Assert.Equal(4,luxury.Int("priceRange"));Assert.Equal("$$$$",luxury.Str("priceTier"));Assert.Equal(620,luxury.Int("nightlyRateAud"));
+        Assert.StartsWith("★ ",luxury.Str("ratingLabel"));Assert.True(luxury.Number("aggregateRating")>=4.5);Assert.True(luxury.Int("reviewCount")>=650);
+        var sight=Point("s10","museum","sights");sight["category"]="風景";sight["name"]="Australian Museum";PoiCategories.ApplyFoodPriceMapping(sight);
+        Assert.StartsWith("★ ",sight.Str("ratingLabel"));Assert.NotEmpty(sight.Str("reviewSummary"));Assert.NotEmpty(sight.Array("reviewHighlights")!);
+    }
 }

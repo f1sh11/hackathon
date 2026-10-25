@@ -21,6 +21,7 @@ SIGHTS = {'museum','art_gallery','park','national_park','amusement_park','aquari
           'historic_site','monument','landmark','botanical_garden','tourist_attraction',
           'performing_arts_venue','theater','library','beach','observation_deck'}
 FOOD = {'food_and_drink','restaurant','cafe','coffee_shop','bakery','bar','pub','casual_eatery'}
+LODGING = {'accommodation','lodging','hotel','hostel','motel','guest_house','resort_hotel','bed_and_breakfast'}
 FACILITIES = {'public_restroom':'toilets','drinking_water':'drinking_water','water_fountain':'drinking_water'}
 
 
@@ -31,6 +32,13 @@ def classification(properties):
     terms.update(x for x in [taxonomy.get('primary'),properties.get('basic_category'),legacy.get('primary')] if x)
     for name, kind in FACILITIES.items():
         if name in terms: return 'facilities', kind
+    if terms & LODGING:
+        primary = taxonomy.get('primary') or legacy.get('primary') or 'hotel'
+        if 'hostel' in terms or primary == 'hostel': return 'lodging', 'hostel'
+        if 'motel' in terms or primary == 'motel': return 'lodging', 'motel'
+        if 'guest_house' in terms or 'bed_and_breakfast' in terms: return 'lodging', 'guest_house'
+        if 'resort_hotel' in terms or primary == 'resort_hotel': return 'lodging', 'resort_hotel'
+        return 'lodging', 'hotel'
     if terms & FOOD: return 'food', taxonomy.get('primary') or legacy.get('primary') or 'restaurant'
     if terms & SIGHTS: return 'sights', taxonomy.get('primary') or legacy.get('primary') or 'attraction'
     return None
@@ -69,10 +77,10 @@ def normalize(document, bbox, release, minimum_confidence=.7):
         points['overture:'+identifier] = {
             'id':'overture:'+identifier,'name':name,'lat':lat,'lng':lng,
             'source':'Overture Maps','sourceRelease':release,'sourceLicense':', '.join(source_licenses),
-            'category':{'food':'美食','facilities':'設施','sights':'風景'}[category],
+            'category':{'food':'美食','lodging':'住宿','facilities':'設施','sights':'風景'}[category],
             'searchCategory':category,'searchText':search_text,'poiKind':kind,
             'description':description,'address':address,'website':websites[0][:2000] if websites else '',
-            'phone':phone,'indoor':False,'visitMinutes':{'food':45,'facilities':10,'sights':60}[category],
+            'phone':phone,'indoor':False,'visitMinutes':{'food':45,'lodging':30,'facilities':10,'sights':60}[category],
             'cost':0,'reason':'由開放商家搜尋加入工具箱','openingHoursText':'',
             'note':'Overture 區域資料快照；分類、室內外、費用、營業時間與排隊尚未確認，出發前請查核。',
         }

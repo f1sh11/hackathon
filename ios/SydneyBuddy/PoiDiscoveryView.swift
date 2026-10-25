@@ -75,7 +75,7 @@ enum PoiDiscoveryCategory {
             let kind=category == "all" ? (item.pointOfInterestCategory == .hotel ? "lodging":item.pointOfInterestCategory == .store ? "shops":[MKPointOfInterestCategory.restaurant,.cafe,.bakery,.foodMarket].contains(where:{$0==item.pointOfInterestCategory}) ? "food":item.pointOfInterestCategory == .restroom ? "facilities":"sights"):PoiDiscoveryCategory.parent(category)
             let actual=item.pointOfInterestCategory
             let interest=kind=="food" ? "美食":kind=="facilities" ? "設施":kind=="lodging" ? "住宿":kind=="shops" ? "购物":actual == .park || actual == .nationalPark || actual == .beach ? "自然":actual == .museum || actual == .library ? "文化":actual == .theater ? "艺术":"风景"
-            return ScheduleCandidate(id:id,name:name,category:interest,indoor:false,visitMinutes:kind=="food" ? 45:kind=="facilities" ? 10:60,cost:0,lat:point.latitude,lng:point.longitude,reason:"Apple Maps 地點搜尋",description:address.isEmpty ? "Apple Maps 未提供詳細介紹。":address,note:"Apple Maps 地點；費用、排隊與營業時間未知。設施用途及開放情況請另行確認。",source:"Apple Maps",poiKind:actual == .publicTransport ? "transport":category=="toilets" || item.pointOfInterestCategory == .restroom ? "toilets":category=="cafes" || actual == .cafe ? "cafe":category=="bakeries" || actual == .bakery ? "bakery":actual == .foodMarket ? "foodMarket":kind=="food" ? "restaurant":kind=="facilities" ? "facility":"attraction",openingHoursText:"",website:item.url?.absoluteString,phone:item.phoneNumber,address:address)
+            return ScheduleCandidate(id:id,name:name,category:interest,indoor:false,visitMinutes:kind=="food" ? 45:kind=="facilities" ? 10:kind=="lodging" ? 30:60,cost:0,lat:point.latitude,lng:point.longitude,reason:"Apple Maps 地點搜尋",description:address.isEmpty ? "Apple Maps 未提供詳細介紹。":address,note:"Apple Maps 地點；費用、排隊與營業時間未知。設施用途及開放情況請另行確認。",source:"Apple Maps",poiKind:actual == .publicTransport ? "transport":category=="toilets" || item.pointOfInterestCategory == .restroom ? "toilets":category=="cafes" || actual == .cafe ? "cafe":category=="bakeries" || actual == .bakery ? "bakery":actual == .foodMarket ? "foodMarket":category=="hostels" ? "hostel":kind=="lodging" ? "hotel":kind=="food" ? "restaurant":kind=="facilities" ? "facility":"attraction",openingHoursText:"",website:item.url?.absoluteString,phone:item.phoneNumber,address:address)
     }
 
 }
@@ -333,9 +333,11 @@ enum PoiDiscoveryCategory {
         }.frame(height:height).frame(maxWidth:.infinity).background(Palette.cream,in:UnevenRoundedRectangle(topLeadingRadius:24,topTrailingRadius:24)).shadow(color:.black.opacity(0.08),radius:12,y:-3)
     }
     private func placeRow(_ p:ScheduleCandidate)->some View {
-        HStack(alignment:.top,spacing:12){
+        let priceText:String=ticketSummaries[p.id]?.label(store.language) ?? p.mappedFoodPriceLabel ?? store.insights?.places.first{$0.id==p.id}?.price.summary ?? "費用未知"
+        let metaLine:String="\(p.mappedRatingLabel) · \(priceText) · 人潮未知"
+        return HStack(alignment:.top,spacing:12){
             Image(systemName:p.discoverySymbol).font(.title3).foregroundStyle(Palette.green).frame(width:38,height:44).background(Palette.mint,in:RoundedRectangle(cornerRadius:12))
-            Button{focusPlace(p)}label:{VStack(alignment:.leading,spacing:5){Text(p.name).font(.subheadline.bold()).multilineTextAlignment(.leading);Text((ticketSummaries[p.id]?.label(store.language) ?? p.mappedFoodPriceLabel ?? store.insights?.places.first{$0.id==p.id}?.price.summary ?? "費用未知")+" · 人潮未知").font(.caption2).foregroundStyle(Palette.muted);Text(p.description ?? "点击查看地点详情").font(.caption).foregroundStyle(Palette.muted).lineLimit(2)}.frame(maxWidth:.infinity,alignment:.leading)}.buttonStyle(.plain).accessibilityLabel("查看地点："+p.name).accessibilityIdentifier("poi-focus-"+p.id)
+            Button{focusPlace(p)}label:{VStack(alignment:.leading,spacing:5){Text(p.name).font(.subheadline.bold()).multilineTextAlignment(.leading);Text(metaLine).font(.caption2).foregroundStyle(Palette.muted);Text(p.description ?? "点击查看地点详情").font(.caption).foregroundStyle(Palette.muted).lineLimit(2)}.frame(maxWidth:.infinity,alignment:.leading)}.buttonStyle(.plain).accessibilityLabel("查看地点："+p.name).accessibilityIdentifier("poi-focus-"+p.id)
             Button{focusPlace(p);detail=p}label:{Image(systemName:"info.circle").frame(width:36,height:44)}.accessibilityLabel("介紹："+p.name).accessibilityIdentifier("poi-detail-"+p.id)
             if p.source == "Google Places" {
                 Text("Google 地點暫不匯入本機示例時間軸").font(.caption2).foregroundStyle(Palette.muted)

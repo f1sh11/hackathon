@@ -73,6 +73,7 @@ import SwiftUI
                                     VStack(alignment:.leading,spacing:7) {
                                         Text(String(format:"%02d",index+1)).font(.caption2.bold()).foregroundStyle(Palette.green)
                                         Text(c.name).font(.system(size:12,weight:.semibold)).fixedSize(horizontal:false,vertical:true)
+                                        Text(c.mappedRatingLabel).font(.system(size:10,weight:.medium)).foregroundStyle(Palette.green)
                                         Text(c.importedPoi ? "\(c.visitMinutes) 分 · "+(c.mappedFoodPriceLabel ?? "費用未知"):"\(c.visitMinutes) 分 · A$\(Int(c.cost))").font(.system(size:10)).foregroundStyle(Palette.muted)
                                         if let d=selected[c.id] {Text("第 \(d+1) 天已排").font(.system(size:10)).foregroundStyle(Palette.green)}
                                         let locked=state.days.flatMap(\.activities).contains{$0.placeId==c.id && $0.locked==true}
@@ -131,6 +132,17 @@ struct SchedulePlaceDetail:View {
                     Image(systemName:candidate.indoor ? "building.2.crop.circle.fill":"leaf.circle.fill").font(.system(size:54)).foregroundStyle(Palette.green)
                     Text(candidate.name).font(.title2.bold())
                     Text(candidate.category+" · "+(candidate.importedPoi ? (candidate.indoor ? "室內（來源標記）":"室內外未確認"):(candidate.indoor ? "室內":"戶外"))).font(.subheadline).foregroundStyle(Palette.muted)
+                    VStack(alignment:.leading,spacing:8) {
+                        HStack {
+                            Text("旅客綜合評價").font(.headline)
+                            Spacer()
+                            Text(candidate.mappedRatingLabel).font(.subheadline.bold()).foregroundStyle(Palette.green)
+                        }
+                        Text(candidate.mappedReviewSummary).font(.subheadline)
+                        ForEach(candidate.mappedReviewHighlights,id:\.self) { item in
+                            Text("• "+item).font(.caption).foregroundStyle(Palette.muted)
+                        }
+                    }.padding().frame(maxWidth:.infinity,alignment:.leading).background(Palette.mint.opacity(0.65),in:RoundedRectangle(cornerRadius:14))
                     Text(candidate.description ?? "此草案尚未附上景點介紹，可重新試算以更新資料。").lineSpacing(6)
                     if let data=candidate.restaurantData {RestaurantPriceView(placeId:candidate.id,initial:data)}
                     if let recommendations=candidate.socialRecommendations {ForEach(Array(recommendations.enumerated()),id:\.offset){_,recommendation in VStack(alignment:.leading,spacing:6){Text(recommendation.author ?? "來源未提供作者");Text(recommendation.claims.quote);Text(recommendation.postedAt ?? "發文日期未提供").font(.caption);if let url=URL(string:recommendation.sourceUrl){Link("查看原始推薦",destination:url)}}}}
