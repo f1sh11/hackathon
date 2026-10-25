@@ -466,13 +466,13 @@ import MapKit
         window.makeKeyAndVisible();defer{window.isHidden=true;old?.makeKeyAndVisible()}
         try await Task.sleep(nanoseconds:400_000_000)
         func findMap(_ view:UIView)->MKMapView? {if let map=view as? MKMapView{return map};return view.subviews.compactMap{findMap($0)}.first}
-        let map=try XCTUnwrap(findMap(window));XCTAssertEqual(map.overlays.filter{$0 is OsmTiles}.count,1);XCTAssertEqual(map.annotations.count,points.count)
+        let map=try XCTUnwrap(findMap(window));XCTAssertEqual(map.overlays.filter{$0 is OsmTiles}.count,1);XCTAssertTrue(map.selectableMapFeatures.isEmpty);XCTAssertEqual(map.annotations.count,points.count)
         let center=map.centerCoordinate
         store.mapProvider = .apple;try await Task.sleep(nanoseconds:250_000_000)
-        XCTAssertTrue(map.overlays.isEmpty);XCTAssertEqual(map.annotations.count,points.count)
+        XCTAssertTrue(map.overlays.isEmpty);XCTAssertTrue(map.selectableMapFeatures.contains(.pointsOfInterest));XCTAssertEqual(map.annotations.count,points.count)
         XCTAssertEqual(map.centerCoordinate.latitude,center.latitude,accuracy:0.0001);XCTAssertEqual(map.centerCoordinate.longitude,center.longitude,accuracy:0.0001)
         store.mapProvider = .osm;try await Task.sleep(nanoseconds:250_000_000)
-        XCTAssertEqual(map.overlays.filter{$0 is OsmTiles}.count,1);XCTAssertEqual(map.annotations.count,points.count)
+        XCTAssertEqual(map.overlays.filter{$0 is OsmTiles}.count,1);XCTAssertTrue(map.selectableMapFeatures.isEmpty);XCTAssertEqual(map.annotations.count,points.count)
     }
     func testPoiFocusMovesToVisibleAreaAndKeepsSelectionWithoutSearching() async throws {
         let points=try fixture().schedule!.candidates
@@ -499,6 +499,26 @@ import MapKit
         try await Task.sleep(nanoseconds:1_500_000_000)
         XCTAssertEqual(map.selectedAnnotations.compactMap{$0 as? PoiPin}.first?.point.id,points.first!.id)
         XCTAssertEqual(state.cameraChanges,baseline)
+    }
+    func testAppleFeatureItemUsesActualIdentityLocationAndContactWithoutInventingPrice() throws {
+        let item=MKMapItem(placemark:MKPlacemark(coordinate:.init(latitude:-33.864,longitude:151.217)))
+        item.name="Visitor Centre";item.phoneNumber="+61 2 0000 0000";item.url=URL(string:"https://example.com/visitor")
+        let point=try XCTUnwrap(ApplePoiProvider.candidate(item))
+        XCTAssertTrue(point.id.hasPrefix("apple:"));XCTAssertEqual(point.name,"Visitor Centre")
+        XCTAssertEqual(point.lat,-33.864,accuracy:0.000001);XCTAssertEqual(point.lng,151.217,accuracy:0.000001)
+        XCTAssertEqual(point.website,item.url?.absoluteString);XCTAssertEqual(point.phone,item.phoneNumber)
+        XCTAssertEqual(point.cost,0);XCTAssertNil(point.openMinute);XCTAssertNotEqual(point.poiKind,"toilets")
+        XCTAssertEqual(ApplePoiProvider.candidate(item)?.id,point.id)
+        item.name="Other Centre";XCTAssertNotEqual(ApplePoiProvider.candidate(item)?.id,point.id)
+    }
+    func testLateAppleFeatureCannotReplaceNewSelectionAndFailureIsVisible() async throws {
+        let points=try fixture().schedule!.candidates;let lookup=AppleFeatureLookup();var selected:String?;var message:String?
+        lookup.load(operation:{try? await Task.sleep(nanoseconds:100_000_000);return points[0]},onResult:{selected=$0.id},onStatus:{_,error in message=error})
+        lookup.load(operation:{points[1]},onResult:{selected=$0.id},onStatus:{_,error in message=error})
+        try await Task.sleep(nanoseconds:150_000_000);XCTAssertEqual(selected,points[1].id);XCTAssertNil(message)
+        lookup.load(operation:{throw URLError(.notConnectedToInternet)},onResult:{selected=$0.id},onStatus:{_,error in message=error})
+        try await Task.sleep(nanoseconds:20_000_000);XCTAssertNotNil(message);XCTAssertEqual(selected,points[1].id)
+        lookup.cancel()
     }
     func testSavedTripNavigationChoosesTodayOrAsksForDate() throws {
         var trip=try fixture()

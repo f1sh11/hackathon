@@ -480,3 +480,6 @@
 "此景點的活動與參考票價" = "Activities & reference prices for this place";
 "只顯示已配對此景點的活動；票種、日期與名額以官網為準，不自動扣預算。" = "Only activities matched to this place are shown. Check official ticket types, dates and availability. Not added to your budget.";
 "此景點尚無已確認的活動票價資料。" = "No confirmed activity price references for this place yet.";
+"正在載入地點…" = "Loading place…";
+"地點資料暫時無法載入" = "Place details could not load";
+"請再點一次地圖上的地點重試。" = "Tap the place on the map again to retry.";

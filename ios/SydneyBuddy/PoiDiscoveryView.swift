@@ -60,16 +60,22 @@ enum PoiDiscoveryCategory {
         return response.mapItems.compactMap{item in
             let point=item.placemark.coordinate
             guard CLLocationCoordinate2DIsValid(point),origin.distance(from:CLLocation(latitude:point.latitude,longitude:point.longitude))<=radius,let name=item.name,!name.isEmpty else{return nil}
+            guard let candidate=candidate(item,category:category),seen.insert(candidate.id).inserted else{return nil}
+            return candidate
+        }
+    }
+    static func candidate(_ item:MKMapItem,category:String="all")->ScheduleCandidate? {
+        let point=item.placemark.coordinate
+        guard CLLocationCoordinate2DIsValid(point),let name=item.name,!name.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty else{return nil}
             var identity=name+String(format:"|%.6f|%.6f",point.latitude,point.longitude)
             if #available(iOS 18.0,*),let identifier=item.identifier{identity=identifier.rawValue}
             let id="apple:"+SHA256.hash(data:Data(identity.utf8)).map{String(format:"%02x",$0)}.joined()
-            guard seen.insert(id).inserted else{return nil}
             let address=[item.placemark.thoroughfare,item.placemark.locality,item.placemark.postalCode].compactMap{$0}.joined(separator:", ")
             // A facility keyword match is not proof of a verified public restroom.
             let kind=category == "all" ? (item.pointOfInterestCategory == .hotel ? "lodging":item.pointOfInterestCategory == .store ? "shops":[MKPointOfInterestCategory.restaurant,.cafe,.bakery,.foodMarket].contains(where:{$0==item.pointOfInterestCategory}) ? "food":item.pointOfInterestCategory == .restroom ? "facilities":"sights"):PoiDiscoveryCategory.parent(category)
             return ScheduleCandidate(id:id,name:name,category:kind=="food" ? "美食":kind=="facilities" ? "設施":kind=="lodging" ? "住宿":kind=="shops" ? "店家":"風景",indoor:false,visitMinutes:kind=="food" ? 45:kind=="facilities" ? 10:60,cost:0,lat:point.latitude,lng:point.longitude,reason:"Apple Maps 地點搜尋",description:address.isEmpty ? "Apple Maps 未提供詳細介紹。":address,note:"Apple Maps 地點；費用、排隊與營業時間未知。設施用途及開放情況請另行確認。",source:"Apple Maps",poiKind:category=="toilets" || item.pointOfInterestCategory == .restroom ? "toilets":category=="cafes" ? "cafe":category=="bakeries" ? "bakery":kind=="food" ? "restaurant":kind=="facilities" ? "facility":"attraction",openingHoursText:"",website:item.url?.absoluteString,phone:item.phoneNumber,address:address)
-        }
     }
+
 }
 @MainActor final class PoiSearchModel:ObservableObject {
     @Published var query=""
@@ -161,6 +167,8 @@ enum PoiDiscoveryCategory {
     @StateObject private var model=PoiSearchModel()
     @State private var detail:ScheduleCandidate?
     @State private var focus:PoiMapFocus?
+    @State private var featureLoading=false
+    @State private var featureError:String?
     @State private var localProvider:MapProvider = .apple
     private var searchProvider:MapProvider {addingToDay ? localProvider:store.mapProvider}
     @ObservedObject private var toolbox=PoiToolbox.shared
@@ -262,6 +270,8 @@ enum PoiDiscoveryCategory {
         }
     }
     .tint(Palette.green)
+    .overlay {if featureLoading{ProgressView("正在載入地點…").padding(16).background(.regularMaterial,in:Capsule()).accessibilityIdentifier("map-feature-loading")}}
+    .alert("地點資料暫時無法載入",isPresented:Binding(get:{featureError != nil},set:{if !$0{featureError=nil}})){Button("完成"){featureError=nil}}message:{Text(featureError ?? "")}
     .sheet(item: $detail) { SchedulePlaceDetail(candidate: $0) }
     .sheet(isPresented:$showInsights){TravelInsightsSheet(places:insightPoints)}
     .task(id:visiblePlaces.map(\.id).joined()+store.travelDataSource.rawValue+store.mapProvider.rawValue){if !visiblePlaces.isEmpty{await store.refreshInsights(places:insightPoints)}}
@@ -297,7 +307,7 @@ enum PoiDiscoveryCategory {
     private func panelHeight(_ height:CGFloat)->CGFloat {max(180,height*(expanded ? 0.65:0.36))}
     @ViewBuilder private var map:some View {
         switch searchProvider {
-        case .apple,.osm:PoiNativeMap(places:visiblePlaces,osm:searchProvider == .osm,center:model.center,zoom:zoom,onCamera:{zoom=$1;areaChanged=false;model.cameraChanged($0,zoom:$1)},onSelect:{id in if let point=visiblePlaces.first(where:{$0.id==id}){focusPlace(point)}},insightMarkers:insightMarkers,focus:focus).accessibilityIdentifier("poi-map-"+searchProvider.rawValue)
+        case .apple,.osm:PoiNativeMap(places:visiblePlaces,osm:searchProvider == .osm,center:model.center,zoom:zoom,onCamera:{zoom=$1;areaChanged=false;model.cameraChanged($0,zoom:$1)},onSelect:{id in if let point=visiblePlaces.first(where:{$0.id==id}){focusPlace(point)}},insightMarkers:insightMarkers,focus:focus,onFeature:{point in model.stop();if !model.places.contains(where:{$0.id==point.id}){model.places.append(point)};focusPlace(point);detail=point},onFeatureStatus:{loading,error in featureLoading=loading;featureError=error}).accessibilityIdentifier("poi-map-"+searchProvider.rawValue)
         case .google:
             if SydneyBuddyApp.mapReady{PoiGoogleMap(places:visiblePlaces,center:model.center,zoom:zoom,onCamera:{zoom=$1;areaChanged=false;model.cameraChanged($0,zoom:$1)},onSelect:{id in if let point=visiblePlaces.first(where:{$0.id==id}){focusPlace(point)}},insightMarkers:insightMarkers,focus:focus)}
             else{ContentUnavailableView("地图尚未配置",systemImage:"map",description:Text("请切换到 Apple Maps 或 OpenStreetMap。"))}
@@ -355,6 +365,23 @@ enum PoiDiscoveryCategory {
     private func search(){searching=false;areaChanged=false;model.search()}
     private func togglePanel(){withAnimation(reduceMotion ? nil:.easeInOut(duration:0.2)){expanded.toggle()}}
 }
+@MainActor final class AppleFeatureLookup {
+    private var job:Task<Void,Never>?
+    private var generation=UUID()
+    func cancel(){generation=UUID();job?.cancel();job=nil}
+    func load(operation:@escaping @MainActor () async throws -> ScheduleCandidate,onResult:@escaping (ScheduleCandidate)->Void,onStatus:@escaping (Bool,String?)->Void){
+        cancel();let token=generation;onStatus(true,nil)
+        job=Task{@MainActor in
+            do{
+                let point=try await operation();try Task.checkCancellation()
+                guard generation==token else{return};job=nil;onStatus(false,nil);onResult(point)
+            }catch{
+                guard generation==token,!Task.isCancelled else{return};job=nil;onStatus(false,"請再點一次地圖上的地點重試。");
+            }
+        }
+    }
+}
+
 struct PoiMapFocus {let token=UUID();let point:ScheduleCandidate}
 
 final class PoiPin:NSObject,MKAnnotation {
@@ -369,9 +396,12 @@ struct PoiNativeMap:UIViewRepresentable {
     var onCamera:(CLLocationCoordinate2D,Double)->Void;var onSelect:(String)->Void
     var insightMarkers:[InsightMarker]=[]
     var focus:PoiMapFocus?=nil
+    var onFeature:(ScheduleCandidate)->Void={_ in}
+    var onFeatureStatus:(Bool,String?)->Void={_,_ in}
     func makeCoordinator()->Coordinator{Coordinator(self)}
+    static func dismantleUIView(_ map:MKMapView,coordinator:Coordinator){coordinator.featureLookup.cancel();map.delegate=nil}
     final class Coordinator:NSObject,MKMapViewDelegate {
-        var parent:PoiNativeMap;var key="";var focusToken:UUID?;var focusing=false
+        var parent:PoiNativeMap;var key="";var focusToken:UUID?;var focusing=false;let featureLookup=AppleFeatureLookup()
         init(_ p:PoiNativeMap){parent=p}
         func mapView(_ map:MKMapView,rendererFor overlay:MKOverlay)->MKOverlayRenderer{if let tiles=overlay as? MKTileOverlay{return MKTileOverlayRenderer(tileOverlay:tiles)};return MKOverlayRenderer(overlay:overlay)}
         func mapView(_ map:MKMapView,regionDidChangeAnimated animated:Bool){if focusing{focusing=false;return};parent.onCamera(map.centerCoordinate,log2(360/max(0.00001,map.region.span.longitudeDelta)))}
@@ -380,10 +410,24 @@ struct PoiNativeMap:UIViewRepresentable {
             guard let pin=annotation as? PoiPin else{return nil}
             let view=MKMarkerAnnotationView(annotation:pin,reuseIdentifier:nil);let selected=pin.point.id==parent.focus?.point.id;view.markerTintColor=selected ? .systemBlue:pin.point.category=="美食" ? .systemOrange:.systemTeal;view.displayPriority=selected ? .required:.defaultHigh;view.zPriority=selected ? .max:.defaultUnselected;view.transform=selected ? CGAffineTransform(scaleX:1.2,y:1.2):.identity;view.glyphImage=UIImage(systemName:pin.point.discoverySymbol);view.canShowCallout=true;return view
         }
-        func mapView(_ map:MKMapView,didSelect view:MKAnnotationView){if let pin=view.annotation as? PoiPin,pin.point.id != parent.focus?.point.id{parent.onSelect(pin.point.id)}}
+        func mapView(_ map:MKMapView,didSelect view:MKAnnotationView){if let pin=view.annotation as? PoiPin,pin.point.id != parent.focus?.point.id{featureLookup.cancel();parent.onFeatureStatus(false,nil);parent.onSelect(pin.point.id)}}
+        func mapView(_ map:MKMapView,didSelect annotation:MKAnnotation){
+            guard !parent.osm,let feature=annotation as? MKMapFeatureAnnotation,feature.featureType == .pointOfInterest else{return}
+            let request=MKMapItemRequest(mapFeatureAnnotation:feature)
+            featureLookup.load(operation:{
+                let item=try await withTaskCancellationHandler{try await request.mapItem}onCancel:{Task{@MainActor in request.cancel()}}
+                guard let point=ApplePoiProvider.candidate(item)else{throw NSError(domain:"MapFeature",code:1)}
+                return point
+            },onResult:{[weak self] point in guard let self,!self.parent.osm else{return};self.parent.onFeature(point)},onStatus:{[weak self,weak map] loading,error in
+                self?.parent.onFeatureStatus(loading,error)
+                if error != nil{map?.deselectAnnotation(feature,animated:false)}
+            })
+        }
     }
-    func makeUIView(context:Context)->MKMapView{let map=MKMapView();map.delegate=context.coordinator;if osm{map.addOverlay(OsmTiles(),level:.aboveLabels)};let delta=360/pow(2,zoom);map.setRegion(MKCoordinateRegion(center:center,span:MKCoordinateSpan(latitudeDelta:delta,longitudeDelta:delta)),animated:false);return map}
-    func updateUIView(_ map:MKMapView,context:Context){context.coordinator.parent=self
+    func makeUIView(context:Context)->MKMapView{let map=MKMapView();map.delegate=context.coordinator;map.selectableMapFeatures=osm ? []:[.pointsOfInterest];if osm{map.addOverlay(OsmTiles(),level:.aboveLabels)};let delta=360/pow(2,zoom);map.setRegion(MKCoordinateRegion(center:center,span:MKCoordinateSpan(latitudeDelta:delta,longitudeDelta:delta)),animated:false);return map}
+    func updateUIView(_ map:MKMapView,context:Context){
+        if context.coordinator.parent.osm != osm{context.coordinator.featureLookup.cancel();onFeatureStatus(false,nil)}
+        context.coordinator.parent=self;map.selectableMapFeatures=osm ? []:[.pointsOfInterest]
         let tiles=map.overlays.filter{$0 is OsmTiles}
         if osm && tiles.isEmpty{map.addOverlay(OsmTiles(),level:.aboveLabels)}
         if !osm{map.removeOverlays(tiles)}
