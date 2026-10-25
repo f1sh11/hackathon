@@ -4,6 +4,10 @@ import MapKit
 @testable import SydneyBuddy
 
 @MainActor final class ScheduleTests:XCTestCase {
+    func testRestaurantSocialSpendCanRemainUnknownWithoutBreakingPlaceDecoding() throws {
+        let json="{\"menuItems\":[],\"reportedSpends\":[{\"amount\":null,\"currency\":\"\",\"quote\":\"around forty dollars\",\"source\":{\"url\":\"https://example.com/post\",\"name\":\"Test\",\"observedAt\":\"2026-10-25T00:00:00Z\"}}],\"recommendations\":[],\"reviews\":[],\"budgetEstimate\":{\"status\":\"unknown\"}}"
+        let data=try JSONDecoder().decode(RestaurantData.self,from:Data(json.utf8));XCTAssertNil(data.reportedSpends[0].amount);XCTAssertEqual(data.budgetEstimate.status,"unknown")
+    }
     func testSocialJsonPreviewDoesNotCallAiAndDraftRequiresConfirmation() async throws {
         let store=AppStore();let model=SocialImportModel();var paths:[String]=[]
         store.loader={request in paths.append(request.url!.path);return (Data("{\"id\":\"social:test\",\"status\":\"draft\",\"mentions\":[]}".utf8),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)}

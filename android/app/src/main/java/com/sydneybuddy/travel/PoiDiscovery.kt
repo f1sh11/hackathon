@@ -75,7 +75,7 @@ internal class NearbyPoiState {
     }
     return state
 }
-internal fun poiActivityKind(p:JSONObject):String=if(p.optString("source") !in listOf("OpenStreetMap","Apple Maps","Overture Maps","Wikivoyage"))"attraction"else when {p.optString("poiKind")=="toilets"->"restroom";p.optString("poiKind")=="drinking_water"->"rest";p.optString("category")=="美食"->"meal";else->"attraction"}
+internal fun poiActivityKind(p:JSONObject):String=if(p.optString("source") !in listOf("OpenStreetMap","Apple Maps","Overture Maps","Wikivoyage","Restaurant evidence","Community social recommendation"))"attraction"else when {p.optString("poiKind")=="toilets"->"restroom";p.optString("poiKind")=="drinking_water"->"rest";p.optString("category")=="美食"->"meal";else->"attraction"}
 @Composable internal fun PoiDiscoveryDialog(store:BuddyStore,onDismiss:()->Unit,requester:suspend(JSONObject)->JSONObject={store.searchPoi(it)},onAdd:(JSONObject)->Unit={store.addPoi(it)},googleMapConfigured:Boolean=BuildConfig.MAPS_CONFIGURED) {
     var showInsights by remember{mutableStateOf(false)}
     var query by remember{mutableStateOf("")};var category by remember{mutableStateOf("all")}

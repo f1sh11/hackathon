@@ -57,6 +57,8 @@ public static class DependencyInjection
         services.AddScoped<HiddenGemService>();
         services.AddScoped<UnifiedPoiService>();
         services.AddScoped<SocialImportStore>();
+        services.AddScoped<RestaurantStore>();
+        services.AddScoped<RestaurantService>();
         services.AddScoped<SocialImportService>();
         services.AddHttpClient<PoiMediaService>(client=>client.Timeout=TimeSpan.FromSeconds(18)).ConfigurePrimaryHttpMessageHandler(()=>new HttpClientHandler{AllowAutoRedirect=false});
         return services;

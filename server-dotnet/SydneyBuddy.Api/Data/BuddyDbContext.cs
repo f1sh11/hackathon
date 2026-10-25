@@ -10,8 +10,16 @@ public sealed class BuddyDbContext(DbContextOptions<BuddyDbContext> options) : D
 
     public DbSet<SocialImportEntity> SocialImports => Set<SocialImportEntity>();
 
+    public DbSet<RestaurantImportEntity> RestaurantImports => Set<RestaurantImportEntity>();
+    public DbSet<RestaurantVenueEntity> RestaurantVenues => Set<RestaurantVenueEntity>();
+    public DbSet<RestaurantEstimateEntity> RestaurantEstimates => Set<RestaurantEstimateEntity>();
     protected override void OnModelCreating(ModelBuilder model)
     {
+        var estimates=model.Entity<RestaurantEstimateEntity>();estimates.ToTable("restaurant_estimates");estimates.HasKey(x=>x.Id);estimates.Property(x=>x.Id).HasColumnName("id").HasColumnType("text").ValueGeneratedNever();estimates.Property(x=>x.DataJson).HasColumnName("data").HasColumnType("jsonb").IsRequired();
+        var imports=model.Entity<RestaurantImportEntity>();imports.ToTable("restaurant_imports");imports.HasKey(x=>x.Id);
+        imports.Property(x=>x.Id).HasColumnName("id").HasColumnType("text").ValueGeneratedNever();imports.Property(x=>x.VenueId).HasColumnName("venue_id").HasColumnType("text").IsRequired();imports.HasIndex(x=>x.VenueId);
+        imports.Property(x=>x.DataJson).HasColumnName("data").HasColumnType("jsonb").IsRequired();
+        var venues=model.Entity<RestaurantVenueEntity>();venues.ToTable("restaurant_venues");venues.HasKey(x=>x.Id);venues.Property(x=>x.Id).HasColumnName("id").HasColumnType("text").ValueGeneratedNever();venues.Property(x=>x.DataJson).HasColumnName("data").HasColumnType("jsonb").IsRequired();
         var social=model.Entity<SocialImportEntity>();
         social.ToTable("social_imports");social.HasKey(x=>x.Id);
         social.Property(x=>x.Id).HasColumnName("id").HasColumnType("text").ValueGeneratedNever();
@@ -33,3 +41,8 @@ public sealed class BuddyDbContext(DbContextOptions<BuddyDbContext> options) : D
 }
 
 public sealed class SocialImportEntity { public string Id {get;set;}=""; public string DataJson {get;set;}="{}"; }
+
+public sealed class RestaurantImportEntity {public string Id{get;set;}="";public string VenueId{get;set;}="";public string DataJson{get;set;}="{}";}
+public sealed class RestaurantVenueEntity {public string Id{get;set;}="";public string DataJson{get;set;}="{}";}
+
+public sealed class RestaurantEstimateEntity {public string Id{get;set;}="";public string DataJson{get;set;}="{}";}

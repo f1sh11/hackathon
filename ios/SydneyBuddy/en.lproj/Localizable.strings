@@ -407,3 +407,67 @@
 "搜尋中心預設雪梨，可修改座標。" = "The search centre defaults to Sydney. You can edit the coordinates.";
 
 "確認地點並發布" = "Confirm place and publish";
+
+"匯入菜單與餐廳資料" = "Import menus and restaurant data";
+
+"貼上含 sourceType、sourceUrl、observedAt、license 及 menuItems／reportedSpends／recommendations 的 JSON。" = "Paste JSON with sourceType, sourceUrl, observedAt, license and menuItems, reportedSpends or recommendations.";
+
+"菜單、單次消費與預算分開保存；匯入後不會自動扣預算。" = "Menu prices, reported spending and budgets stay separate. Importing does not deduct your budget.";
+
+"比對餐廳分店" = "Match the restaurant branch";
+
+"確認分店並匯入" = "Confirm branch and import";
+
+"餐廳資料已匯入，請重新搜尋查看。" = "Restaurant data imported. Search again to view it.";
+
+"菜單標價" = "Menu prices";
+
+"來源未提供菜單價格。" = "No menu prices provided by this source.";
+
+"內用" = "Dine-in";
+
+"外送" = "Delivery";
+
+"外帶" = "Takeaway";
+
+"份數：{0}" = "Quantity: {0}";
+
+"網友單次消費" = "Reported spending";
+
+"來源未提供單次消費。" = "No reported spending provided.";
+
+"消費人數：{0}" = "Diners: {0}";
+
+"消費人數未知" = "Number of diners unknown";
+
+"每人預估預算" = "Estimated budget per person";
+
+"尚未選餐，預算待確認。" = "Choose dishes to estimate your budget.";
+
+"用餐人數：{0}" = "People dining: {0}";
+
+"依所選餐點估算" = "Estimate selected dishes";
+
+"估算已儲存，重新試算行程時會套用。" = "Estimate saved. Recalculate the itinerary to apply it.";
+
+"推薦菜色與評論" = "Recommended dishes and reviews";
+
+"資料日期：{0}" = "Data date: {0}";
+
+"來源未提供作者" = "Author not provided";
+
+"發文日期未提供" = "Post date not provided";
+
+"查看原始推薦" = "View original recommendation";
+
+"餐費見上方估算；營業與排隊仍待確認。" = "See the meal estimate above. Opening hours and queues remain unconfirmed.";
+
+"金額未結構化，保留原文供參考。" = "Amount not structured. Original text is provided for reference.";
+
+"目前預算以 AUD 內用價格估算。" = "Budget estimates currently use AUD dine-in prices.";
+
+"估算已儲存；既有行程保留原估算，重新加入可套用。" = "Estimate saved. Existing trips keep their original estimate; add the meal again to apply this one.";
+
+"估算人數：{0}" = "Estimate covers {0} people";
+
+"估算日期：{0}" = "Estimated on {0}";

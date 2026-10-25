@@ -289,6 +289,8 @@ internal fun savedTripNavigationDay(trip:JSONObject,today:String=java.time.Local
 }
 
 @Composable fun SettingsScreen(store:BuddyStore,onDelete:(JSONObject)->Unit) {
+    var restaurantImport by remember{mutableStateOf(false)}
+    if(restaurantImport)RestaurantImportDialog(store){restaurantImport=false}
     var socialImport by remember{mutableStateOf(false)}
     if(socialImport)SocialImportDialog(store,onDismiss={socialImport=false})
     var consent by rememberSaveable {mutableStateOf(false)}
@@ -306,6 +308,7 @@ internal fun savedTripNavigationDay(trip:JSONObject,today:String=java.time.Local
             Small("語言切換後立即生效，並保存在這台裝置。")
             Small("景點名稱與已儲存的行程內容保留原始語言。")
         }
+        TextButton(onClick={restaurantImport=true}){Text(ui("匯入菜單與餐廳資料"))}
         TextButton(onClick={socialImport=true},modifier=Modifier.testTag("social-import-open")){Icon(Icons.Outlined.FileDownload,null);Text(ui("匯入社群靈感"))}
         Panel {
             Text(ui("旅遊資料來源"),fontWeight=FontWeight.Bold)

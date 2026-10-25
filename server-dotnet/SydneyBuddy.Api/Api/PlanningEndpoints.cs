@@ -24,6 +24,10 @@ public static class PlanningEndpoints
             Results.Json(await navigation.RouteAsync(await RequestJson.ReadAsync(context), context.RequestAborted)));
         routes.MapPost("/journey/plan", async (HttpContext context, JourneyService journeys) =>
             Results.Json(await journeys.PlanAsync(await RequestJson.ReadAsync(context), context.RequestAborted)));
+        routes.MapPost("/restaurants/parse-menu",async(HttpContext context)=>Results.Json(RestaurantEvidence.ParseMenu(await RequestJson.ReadAsync(context))));
+        routes.MapPost("/restaurants/import",async(HttpContext context,RestaurantService service)=>Results.Json(await service.ImportAsync(await RequestJson.ReadAsync(context),context.RequestAborted)));
+        routes.MapPost("/restaurants/estimate",async(HttpContext context,RestaurantService service)=>Results.Json(await service.EstimateAsync(await RequestJson.ReadAsync(context),context.RequestAborted)));
+        routes.MapGet("/restaurants/published",(RestaurantStore store)=>Results.Json(new{places=store.Published()}));
         routes.MapPost("/social/extract",async(HttpContext context,SocialImportService service)=>Results.Json(await service.ExtractAsync(await RequestJson.ReadAsync(context),context.RequestAborted)));
         routes.MapPost("/social/import",async(HttpContext context,SocialImportService service)=>Results.Json(await service.ImportAsync(await RequestJson.ReadAsync(context),context.RequestAborted)));
         routes.MapGet("/social/published",(SocialImportStore store)=>Results.Json(new{places=store.Published()}));

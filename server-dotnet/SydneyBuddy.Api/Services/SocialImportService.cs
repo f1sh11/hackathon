@@ -77,7 +77,7 @@ public sealed class SocialImportService(SocialImportStore store,UnifiedPoiServic
     public async Task<JsonObject> ImportAsync(JsonObject input,CancellationToken ct){
         var url=PlatformUrl(input.Str("platform"),input.Str("postUrl"));var mentions=ValidateMentions(input);
         var id="social:"+Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(url))).ToLowerInvariant()[..24];
-        var record=new JsonObject{["id"]=id,["platform"]=input.Str("platform"),["postUrl"]=url,["hashtags"]=new JsonArray(Regex.Matches(Text(input),@"#[\p{L}\p{N}_]+").Select(m=>m.Value).Distinct().Take(50).Select(x=>(JsonNode)JsonValue.Create(x)!).ToArray()),["text"]=Text(input),["comments"]=input.Array("comments")?.DeepClone()??new JsonArray(),["mentions"]=mentions,["photos"]=Photos(input),["status"]="draft",["importedAt"]=DateTimeOffset.UtcNow.ToString("O")};
+        var record=new JsonObject{["id"]=id,["platform"]=input.Str("platform"),["author"]=input.Str("author")[..Math.Min(200,input.Str("author").Length)],["postedAt"]=input.Str("postedAt").Length>0?RestaurantEvidence.Date(input.Str("postedAt")):null,["postUrl"]=url,["hashtags"]=new JsonArray(Regex.Matches(Text(input),@"#[\p{L}\p{N}_]+").Select(m=>m.Value).Distinct().Take(50).Select(x=>(JsonNode)JsonValue.Create(x)!).ToArray()),["text"]=Text(input),["comments"]=input.Array("comments")?.DeepClone()??new JsonArray(),["mentions"]=mentions,["photos"]=Photos(input),["status"]="draft",["importedAt"]=DateTimeOffset.UtcNow.ToString("O")};
         return await store.Insert(record,ct);
     }
     public async Task<JsonObject> PublishAsync(string id,JsonObject input,CancellationToken ct){
@@ -95,7 +95,14 @@ public sealed class SocialImportService(SocialImportStore store,UnifiedPoiServic
         var notes=new List<string>{"社群推薦（未核實）："+mention.Str("quote")};
         foreach(var f in new[]{"dishes","prices","reviews"})foreach(var q in mention.Array(f)!.OfType<JsonObject>())notes.Add((f=="dishes"?"推薦菜色：":f=="prices"?"貼文花費：":"評論原文：")+q.Str("quote"));
         if(mention.Str("accessQuote").Length>0)notes.Add("作者到達說明（未核實）："+mention.Str("accessQuote"));
-        point["description"]=string.Join("\n",notes);point["note"]=point.Str("description");point["socialRecommendations"]=new JsonArray(new JsonObject{["platform"]=record.Str("platform"),["sourceUrl"]=record.Str("postUrl"),["importedAt"]=record.Str("importedAt"),["claims"]=mention.DeepClone()});
+        point["description"]=string.Join("\n",notes);point["note"]=point.Str("description");point["socialRecommendations"]=new JsonArray(new JsonObject{["platform"]=record.Str("platform"),["author"]=record.Str("author").Length>0?record.Str("author"):null,["postedAt"]=record["postedAt"]?.DeepClone(),["sourceUrl"]=record.Str("postUrl"),["importedAt"]=record.Str("importedAt"),["claims"]=mention.DeepClone()});
+        if(mention.Str("kind")=="restaurant"){
+            var source=new JsonObject{["type"]="social_post",["url"]=record.Str("postUrl"),["name"]=record.Str("platform"),["author"]=record.Str("author"),["observedAt"]=record.Str("importedAt")};
+            JsonObject Claim(JsonObject q)=>new(){["quote"]=q.Str("quote"),["author"]=record.Str("author").Length>0?record.Str("author"):null,["date"]=record["postedAt"]?.DeepClone(),["source"]=source.DeepClone()};
+            var spends=new JsonArray();foreach(var q in mention.Array("prices")!.OfType<JsonObject>()){var claim=Claim(q);claim["amount"]=null;claim["currency"]="";claim["people"]=null;claim["priceType"]="reported_spend";spends.Add(claim);}
+            var recommendations=new JsonArray();foreach(var q in mention.Array("dishes")!.OfType<JsonObject>()){var claim=Claim(q);claim["dish"]=q.Str("name");recommendations.Add(claim);}
+            point["restaurantData"]=new JsonObject{["menuItems"]=new JsonArray(),["reportedSpends"]=spends,["recommendations"]=recommendations,["reviews"]=new JsonArray(mention.Array("reviews")!.OfType<JsonObject>().Select(q=>(JsonNode)Claim(q)).ToArray()),["budgetEstimate"]=new JsonObject{["status"]="unknown"}};
+        }
         // Keep existing map photos and their licenses. A caption does not grant reuse of social photos.
         var images=point.Array("photos")?.DeepClone().AsArray()??new JsonArray();foreach(var photo in record.Array("photos")??new JsonArray())images.Add(photo!.DeepClone());point["photos"]=images;
         var published=record.Array("places")??new JsonArray();var existing=published.FirstOrDefault(p=>p!.Str("id")==point.Str("id"));if(existing is not null)published.Remove(existing);published.Add(point);record["places"]=published;record["status"]="published";record["publishedAt"]=DateTimeOffset.UtcNow.ToString("O");await store.Save(record,expected,ct);return record;

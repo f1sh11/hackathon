@@ -1513,5 +1513,165 @@
     "en": "Confirm place and publish",
     "zh-Hans": "確認地點並發布",
     "zh-Hant": "確認地點並發布"
+  },
+  "匯入菜單與餐廳資料": {
+    "en": "Import menus and restaurant data",
+    "zh-Hans": "匯入菜單與餐廳資料",
+    "zh-Hant": "匯入菜單與餐廳資料"
+  },
+  "貼上含 sourceType、sourceUrl、observedAt、license 及 menuItems／reportedSpends／recommendations 的 JSON。": {
+    "en": "Paste JSON with sourceType, sourceUrl, observedAt, license and menuItems, reportedSpends or recommendations.",
+    "zh-Hans": "貼上含 sourceType、sourceUrl、observedAt、license 及 menuItems／reportedSpends／recommendations 的 JSON。",
+    "zh-Hant": "貼上含 sourceType、sourceUrl、observedAt、license 及 menuItems／reportedSpends／recommendations 的 JSON。"
+  },
+  "菜單、單次消費與預算分開保存；匯入後不會自動扣預算。": {
+    "en": "Menu prices, reported spending and budgets stay separate. Importing does not deduct your budget.",
+    "zh-Hans": "菜單、單次消費與預算分開保存；匯入後不會自動扣預算。",
+    "zh-Hant": "菜單、單次消費與預算分開保存；匯入後不會自動扣預算。"
+  },
+  "比對餐廳分店": {
+    "en": "Match the restaurant branch",
+    "zh-Hans": "比對餐廳分店",
+    "zh-Hant": "比對餐廳分店"
+  },
+  "確認分店並匯入": {
+    "en": "Confirm branch and import",
+    "zh-Hans": "確認分店並匯入",
+    "zh-Hant": "確認分店並匯入"
+  },
+  "餐廳資料已匯入，請重新搜尋查看。": {
+    "en": "Restaurant data imported. Search again to view it.",
+    "zh-Hans": "餐廳資料已匯入，請重新搜尋查看。",
+    "zh-Hant": "餐廳資料已匯入，請重新搜尋查看。"
+  },
+  "菜單標價": {
+    "en": "Menu prices",
+    "zh-Hans": "菜單標價",
+    "zh-Hant": "菜單標價"
+  },
+  "來源未提供菜單價格。": {
+    "en": "No menu prices provided by this source.",
+    "zh-Hans": "來源未提供菜單價格。",
+    "zh-Hant": "來源未提供菜單價格。"
+  },
+  "內用": {
+    "en": "Dine-in",
+    "zh-Hans": "內用",
+    "zh-Hant": "內用"
+  },
+  "外送": {
+    "en": "Delivery",
+    "zh-Hans": "外送",
+    "zh-Hant": "外送"
+  },
+  "外帶": {
+    "en": "Takeaway",
+    "zh-Hans": "外帶",
+    "zh-Hant": "外帶"
+  },
+  "份數：{0}": {
+    "en": "Quantity: {0}",
+    "zh-Hans": "份數：{0}",
+    "zh-Hant": "份數：{0}"
+  },
+  "網友單次消費": {
+    "en": "Reported spending",
+    "zh-Hans": "網友單次消費",
+    "zh-Hant": "網友單次消費"
+  },
+  "來源未提供單次消費。": {
+    "en": "No reported spending provided.",
+    "zh-Hans": "來源未提供單次消費。",
+    "zh-Hant": "來源未提供單次消費。"
+  },
+  "消費人數：{0}": {
+    "en": "Diners: {0}",
+    "zh-Hans": "消費人數：{0}",
+    "zh-Hant": "消費人數：{0}"
+  },
+  "消費人數未知": {
+    "en": "Number of diners unknown",
+    "zh-Hans": "消費人數未知",
+    "zh-Hant": "消費人數未知"
+  },
+  "每人預估預算": {
+    "en": "Estimated budget per person",
+    "zh-Hans": "每人預估預算",
+    "zh-Hant": "每人預估預算"
+  },
+  "尚未選餐，預算待確認。": {
+    "en": "Choose dishes to estimate your budget.",
+    "zh-Hans": "尚未選餐，預算待確認。",
+    "zh-Hant": "尚未選餐，預算待確認。"
+  },
+  "用餐人數：{0}": {
+    "en": "People dining: {0}",
+    "zh-Hans": "用餐人數：{0}",
+    "zh-Hant": "用餐人數：{0}"
+  },
+  "依所選餐點估算": {
+    "en": "Estimate selected dishes",
+    "zh-Hans": "依所選餐點估算",
+    "zh-Hant": "依所選餐點估算"
+  },
+  "估算已儲存，重新試算行程時會套用。": {
+    "en": "Estimate saved. Recalculate the itinerary to apply it.",
+    "zh-Hans": "估算已儲存，重新試算行程時會套用。",
+    "zh-Hant": "估算已儲存，重新試算行程時會套用。"
+  },
+  "推薦菜色與評論": {
+    "en": "Recommended dishes and reviews",
+    "zh-Hans": "推薦菜色與評論",
+    "zh-Hant": "推薦菜色與評論"
+  },
+  "資料日期：{0}": {
+    "en": "Data date: {0}",
+    "zh-Hans": "資料日期：{0}",
+    "zh-Hant": "資料日期：{0}"
+  },
+  "來源未提供作者": {
+    "en": "Author not provided",
+    "zh-Hans": "來源未提供作者",
+    "zh-Hant": "來源未提供作者"
+  },
+  "發文日期未提供": {
+    "en": "Post date not provided",
+    "zh-Hans": "發文日期未提供",
+    "zh-Hant": "發文日期未提供"
+  },
+  "查看原始推薦": {
+    "en": "View original recommendation",
+    "zh-Hans": "查看原始推薦",
+    "zh-Hant": "查看原始推薦"
+  },
+  "餐費見上方估算；營業與排隊仍待確認。": {
+    "en": "See the meal estimate above. Opening hours and queues remain unconfirmed.",
+    "zh-Hans": "餐費見上方估算；營業與排隊仍待確認。",
+    "zh-Hant": "餐費見上方估算；營業與排隊仍待確認。"
+  },
+  "金額未結構化，保留原文供參考。": {
+    "en": "Amount not structured. Original text is provided for reference.",
+    "zh-Hans": "金額未結構化，保留原文供參考。",
+    "zh-Hant": "金額未結構化，保留原文供參考。"
+  },
+  "目前預算以 AUD 內用價格估算。": {
+    "en": "Budget estimates currently use AUD dine-in prices.",
+    "zh-Hans": "目前預算以 AUD 內用價格估算。",
+    "zh-Hant": "目前預算以 AUD 內用價格估算。"
+  },
+  "估算已儲存；既有行程保留原估算，重新加入可套用。": {
+    "en": "Estimate saved. Existing trips keep their original estimate; add the meal again to apply this one.",
+    "zh-Hans": "估算已儲存；既有行程保留原估算，重新加入可套用。",
+    "zh-Hant": "估算已儲存；既有行程保留原估算，重新加入可套用。"
+  },
+  "估算人數：{0}": {
+    "en": "Estimate covers {0} people",
+    "zh-Hans": "估算人數：{0}",
+    "zh-Hant": "估算人數：{0}"
+  },
+  "估算日期：{0}": {
+    "en": "Estimated on {0}",
+    "zh-Hans": "估算日期：{0}",
+    "zh-Hant": "估算日期：{0}"
   }
 }

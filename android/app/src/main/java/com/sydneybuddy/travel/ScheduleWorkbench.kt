@@ -68,12 +68,12 @@ internal fun toolboxMinute(y:Float,scale:Float,first:Int,start:Int,end:Int):Int?
                 TextButton(onClick={discover=true},contentPadding=PaddingValues(0.dp)){Text("地圖找地點",fontSize=11.sp)}
                 Text("依推薦排序\n按住 ☰ 拖到日期切換\n再拖入右側時段",fontSize=10.sp,color=Color.Gray)
                 Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(10.dp)) {
-                    state.array("candidates").objects().filter{p->p.optString("source") !in listOf("OpenStreetMap","Apple Maps","Overture Maps","Wikivoyage") || c.store.poiToolbox.any{it.optString("id")==p.optString("id")}}.forEachIndexed{i,p->key(p.getString("id")) {
+                    state.array("candidates").objects().filter{p->p.optString("source") !in listOf("OpenStreetMap","Apple Maps","Overture Maps","Wikivoyage","Restaurant evidence","Community social recommendation") || c.store.poiToolbox.any{it.optString("id")==p.optString("id")}}.forEachIndexed{i,p->key(p.getString("id")) {
                         val id=p.getString("id");val locked=state.array("days").objects().flatMap{it.array("activities").objects()}.any{it.optString("placeId")==id&&it.optBoolean("locked")};var grip by remember{mutableStateOf(Offset.Zero)}
                         Column(Modifier.fillMaxWidth().background(Color.White,RoundedCornerShape(13.dp)).border(1.dp,Green.copy(alpha=.12f),RoundedCornerShape(13.dp)).padding(8.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
                             Text("%02d".format(i+1),fontSize=10.sp,color=Green,fontWeight=FontWeight.Bold)
                             Text(p.optString("name"),fontSize=12.sp,fontWeight=FontWeight.SemiBold)
-                            Text(if(p.optString("source") in listOf("OpenStreetMap","Apple Maps","Overture Maps","Wikivoyage"))"${p.optInt("visitMinutes")} 分 · 費用未知"else "${p.optInt("visitMinutes")} 分 · A$${p.optInt("cost")}",fontSize=10.sp,color=Color.Gray)
+                            Text(if(p.optString("source") in listOf("OpenStreetMap","Apple Maps","Overture Maps","Wikivoyage","Restaurant evidence","Community social recommendation"))"${p.optInt("visitMinutes")} 分 · 費用未知"else "${p.optInt("visitMinutes")} 分 · A$${p.optInt("cost")}",fontSize=10.sp,color=Color.Gray)
                             selected[id]?.let{Text("第 ${it+1} 天已排",fontSize=10.sp,color=Green)}
                             if(locked)Text("已鎖定",fontSize=10.sp,color=Color.Gray)
                             Row(verticalAlignment=Alignment.CenterVertically){
@@ -106,6 +106,8 @@ internal fun toolboxMinute(y:Float,scale:Float,first:Int,start:Int,end:Int):Int?
         Text(p.optString("name"),fontSize=21.sp,fontWeight=FontWeight.Bold)
         Text(p.optString("category")+" · "+if(p.optBoolean("indoor"))"室內"else "戶外",color=Color.Gray)
         Text(p.optString("description").takeIf{it.isNotBlank()} ?: "此草案尚未附上景點介紹，可重新試算以更新資料。")
+        p.optJSONObject("restaurantData")?.let{RestaurantPricePanel(p,store)}
+        p.array("socialRecommendations").objects().forEach{recommendation->Text(recommendation.optString("author").ifBlank{ui("來源未提供作者")});Text(recommendation.optJSONObject("claims")?.optString("quote") ?: "");Small(recommendation.optString("postedAt").ifBlank{ui("發文日期未提供")})}
         p.optJSONObject("guide")?.let{guide->
             val uri=androidx.compose.ui.platform.LocalUriHandler.current
             Text(ui("如何到達"),fontWeight=FontWeight.Bold)
@@ -122,10 +124,10 @@ internal fun toolboxMinute(y:Float,scale:Float,first:Int,start:Int,end:Int):Int?
         PlaceMedia(p,store)
         PlaceContact(p)
         Text("為你推薦",fontWeight=FontWeight.Bold);Text(p.optString("reason"))
-        Text("建議停留 ${p.optInt("visitMinutes")} 分鐘\n"+if(p.optString("source") in listOf("OpenStreetMap","Apple Maps","Overture Maps","Wikivoyage"))"費用與排隊時間未知"else "規劃預留 A$${p.optInt("cost")} · 排隊時間未知")
+        Text("建議停留 ${p.optInt("visitMinutes")} 分鐘\n"+if(p.optJSONObject("restaurantData")!=null)ui("餐費見上方估算；營業與排隊仍待確認。")else if(p.optString("source") in listOf("OpenStreetMap","Apple Maps","Overture Maps","Wikivoyage","Restaurant evidence","Community social recommendation"))"費用與排隊時間未知"else "規劃預留 A$${p.optInt("cost")} · 排隊時間未知")
         if(p.optString("openingHoursText").isNotBlank())Small("OSM 營業時間標記："+p.optString("openingHoursText"))
         if(!p.isNull("openMinute")&&!p.isNull("closeMinute"))Text("示範開放時段 ${time(p.optInt("openMinute"))}–${time(p.optInt("closeMinute"))}")
         if(p.optString("note").isNotBlank())Small(p.optString("note"))
-        Small(if(p.optString("source") in listOf("OpenStreetMap","Apple Maps","Overture Maps","Wikivoyage"))"資料來源："+p.optString("source")+"；費用及營業資訊未確認。"else "本機景點資料；費用與開放時間是規劃示例，出發前請確認當日資訊。")
+        Small(if(p.optString("source") in listOf("OpenStreetMap","Apple Maps","Overture Maps","Wikivoyage","Restaurant evidence","Community social recommendation"))"資料來源："+p.optString("source")+"；費用及營業資訊未確認。"else "本機景點資料；費用與開放時間是規劃示例，出發前請確認當日資訊。")
     }},confirmButton={TextButton(onClick=onDismiss){Text(ui("完成"))}})
 }

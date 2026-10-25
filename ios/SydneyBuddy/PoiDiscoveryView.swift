@@ -7,6 +7,7 @@ import CryptoKit
     static let shared=PoiToolbox()
     @Published var places:[ScheduleCandidate]
     private init(){places=(UserDefaults.standard.data(forKey:"poi-toolbox").flatMap{try? JSONDecoder().decode([ScheduleCandidate].self,from:$0)}) ?? []}
+    func replace(_ point:ScheduleCandidate){guard let index=places.firstIndex(where:{$0.id==point.id}) else{return};places[index]=point;if let data=try? JSONEncoder().encode(places){UserDefaults.standard.set(data,forKey:"poi-toolbox")}}
     func remove(_ id:String){places.removeAll{$0.id==id};if let data=try? JSONEncoder().encode(places){UserDefaults.standard.set(data,forKey:"poi-toolbox")}}
     func add(_ p:ScheduleCandidate){guard !places.contains(where:{$0.id==p.id}) else{return};places.append(p);if let data=try? JSONEncoder().encode(places){UserDefaults.standard.set(data,forKey:"poi-toolbox")}}
 }

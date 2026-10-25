@@ -3,7 +3,7 @@ using System.Text.Json.Nodes;
 namespace SydneyBuddy.Api;
 
 /// <summary>Local, deterministic schedule editor. Never saves or invokes external providers.</summary>
-public sealed class ScheduleEditorService(PlaceCatalog catalog)
+public sealed class ScheduleEditorService(PlaceCatalog catalog,RestaurantStore? restaurants=null)
 {
     static JsonObject Copy(JsonObject x)=>(JsonObject)x.DeepClone();
     static string Time(int m)=>$"{m/60:00}:{m%60:00}";
@@ -23,7 +23,7 @@ public sealed class ScheduleEditorService(PlaceCatalog catalog)
         var lat=x.Number("lat",double.NaN);var lng=x.Number("lng",double.NaN);
         if(!double.IsFinite(lat)||!double.IsFinite(lng)||lat is < -34.2 or > -33.5||lng is <150.5 or >151.5||x.Str("name").Length>120)throw new ServiceException("請填入悉尼範圍的有效地點與座標。");
     }
-    public static JsonObject Attraction(JsonObject p,string pace)=>new(){["id"]=Guid.NewGuid().ToString("N"),["placeId"]=p.Str("id"),["kind"]="attraction",["name"]=p.Str("name"),["duration"]=Math.Clamp(p.Int("visitMinutes")+(pace=="relaxed"?15:pace=="packed"?-10:0),15,180),["queueMinutes"]=null,["locked"]=false};
+    public static JsonObject Attraction(JsonObject p,string pace)=>new(){["id"]=Guid.NewGuid().ToString("N"),["placeId"]=p.Str("id"),["kind"]=PoiService.IsImported(p)?PoiService.ActivityKind(p):"attraction",["lat"]=p.Number("lat"),["lng"]=p.Number("lng"),["cost"]=p.Number("cost"),["name"]=p.Str("name"),["duration"]=Math.Clamp(p.Int("visitMinutes")+(pace=="relaxed"?15:pace=="packed"?-10:0),15,180),["queueMinutes"]=null,["locked"]=false};
     static JsonObject Facility(string kind,string name,JsonObject p,int duration,double cost=0,int open=0,int close=1440)=>new(){["id"]=Guid.NewGuid().ToString("N"),["kind"]=kind,["name"]=name,["lat"]=p.Number("lat"),["lng"]=p.Number("lng"),["duration"]=duration,["cost"]=cost,["confirmed"]=false,["openMinute"]=open,["closeMinute"]=close,["locked"]=false};
     static JsonObject Radar(string name,double value)=>new(){["name"]=name,["value"]=Math.Clamp(value,0,1)};
     public static string KindLabel(string kind)=>kind switch {"meal"=>"用餐","restroom"=>"廁所","rest"=>"休息","stay"=>"入住","checkout"=>"退房","bag-drop"=>"寄放","bag-pickup"=>"取件",_=>"景點"};
@@ -36,7 +36,8 @@ public sealed class ScheduleEditorService(PlaceCatalog catalog)
         if(imported is not null) {
             if(imported.Count>150)throw new ServiceException("工具箱最多 150 個地點。");
             foreach(var p in imported.OfType<JsonObject>().Where(PoiService.IsImported)) {
-                var normalized=PoiService.Import(p);if(places.All(x=>x.Str("id")!=normalized.Str("id")))places.Add(normalized);
+                var authoritative=p.Str("id").StartsWith("restaurant:") ? restaurants?.Get(p.Str("id"))??throw new ServiceException("餐廳資料不存在，請重新搜尋。") : p;
+                var normalized=PoiService.Import(authoritative);if(places.All(x=>x.Str("id")!=normalized.Str("id")))places.Add(normalized);
             }
         }
         // The legacy Rocks estimate includes food; meals have their own allowance here.
@@ -115,11 +116,20 @@ public sealed class ScheduleEditorService(PlaceCatalog catalog)
                 var id=a.Str("id");if(id.Length is <1 or >120||!ids.Add(id))throw new ServiceException("活動 ID 無效或重複。");
                 var kind=a.Str("kind");if(kind is not("attraction" or "meal" or "restroom" or "rest" or "bag-drop" or "bag-pickup" or "stay" or "checkout"))throw new ServiceException("活動類型不合法。");
                 JsonObject point;
-                if(kind=="attraction"||(a.Str("placeId").StartsWith("osm:")||a.Str("placeId").StartsWith("apple:")||a.Str("placeId").StartsWith("overture:"))){
+                if(kind=="attraction"||(a.Str("placeId").StartsWith("osm:")||a.Str("placeId").StartsWith("apple:")||a.Str("placeId").StartsWith("overture:")||a.Str("placeId").StartsWith("restaurant:")||a.Str("placeId").StartsWith("social:")||a.Str("placeId").StartsWith("gem:"))){
                     point=places.FirstOrDefault(p=>p.Str("id")==a.Str("placeId"))??throw new ServiceException("景點不在目錄。");
                     if(!selected.Add(point.Str("id")))throw new ServiceException("同一景點不能重複排入多天。");
-                    if(PoiService.IsImported(point)) {if(kind!=PoiService.ActivityKind(point))throw new ServiceException("地點活動類型不一致。");Issue("poi-unknown",point.Str("name")+(kind!="attraction"&&a.Number("cost")>0?"的費用為使用者預留，營業時間仍未知。":"的費用與營業時間未知，預算未包含此地點費用。"),id);}
+                    if(PoiService.IsImported(point)) {if(kind!=PoiService.ActivityKind(point))throw new ServiceException("地點活動類型不一致。");Issue("poi-unknown",point.Str("name")+(point.Str("id").StartsWith("restaurant:")?"的營業時間待確認；餐費使用選餐估算或使用者預留。":kind!="attraction"&&a.Number("cost")>0?"的費用為使用者預留，營業時間仍未知。":"的費用與營業時間未知，預算未包含此地點費用。"),id);}
                     a["name"]=point.Str("name");a["lat"]=point.Number("lat");a["lng"]=point.Number("lng");a["cost"]=PoiService.IsImported(point)&&kind!="attraction"?Cost(a,"cost"):point.Number("cost");a["indoor"]=point.Bool("indoor");
+                    if(point.Str("id").StartsWith("restaurant:")&&kind=="meal"){
+                        var estimate=point.Object("restaurantData")?.Object("budgetEstimate");
+                        if(a.Str("restaurantEstimateId").Length>0){estimate=restaurants?.GetEstimate(a.Str("restaurantEstimateId"))??throw new ServiceException("餐費估算已不存在，請重新選餐。");if(estimate.Str("placeId")!=point.Str("id"))throw new ServiceException("餐費估算不屬於此分店。");}
+                        if(estimate is not null && estimate.Str("status") is "ready" or "stale" && estimate.Str("currency")=="AUD"&&estimate.Str("channel")=="dine_in"){
+                            var valid=RestaurantService.Fresh(estimate);
+                            a["cost"]=estimate.Number("perPerson");a["restaurantEstimateId"]=estimate.Str("id");a["costBasis"]=valid?"selected_menu_per_person":"stale_estimate";var snapshot=estimate.DeepClone().AsObject();snapshot["status"]=valid?"ready":"stale";a["priceEstimate"]=snapshot;
+                            if(!valid)Issue("restaurant-price-expired","餐廳價格已過期，目前保留歷史估算並標記過期，請重新選餐。",id);
+                        }
+                    }
                 }else{point=a;CheckPoint(point);facilityUnknown|=!a.Bool("confirmed");}
                 var duration=N(a,"duration",30,5,240);var cost=Cost(a,"cost");var leg=RouteService.EstimateLeg(previous,point);leg["source"]="示例距離估算，非道路導航";
                 var minutes=(int)leg.Number("minutes");var arrival=clock+minutes;var fixedStart=a["fixedStart"] is null?(int?)null:N(a,"fixedStart",0,0,1439);

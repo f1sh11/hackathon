@@ -10,7 +10,7 @@ struct ScheduleActivity:Codable,Identifiable {
     var confirmed:Bool?;var locked:Bool?;var fixedStart:Int?;var fixedDuration:Int?
     var openMinute:Int?;var closeMinute:Int?;var queueMinutes:Int?;var queueSource:String?
     var arrival:String;var departure:String;var scheduledStart:Int;var travelMinutes:Int
-    var indoor:Bool?;var hoursVerified:Bool?
+    var indoor:Bool?;var hoursVerified:Bool?;var restaurantEstimateId:String?=nil
     var label:String {switch kind {case "meal":return "用餐";case "restroom":return "廁所";case "rest":return "休息";case "stay":return "入住";case "checkout":return "退房";case "bag-drop":return "寄放";case "bag-pickup":return "取件";default:return "景點"}}
 }
 struct ScheduleStay:Codable {var name:String;var lat:Double;var lng:Double;var cost:Double;var confirmed:Bool?;var checkIn:Int;var checkOut:Int}
@@ -22,12 +22,12 @@ struct ScheduleDay:Codable,Identifiable {
 }
 struct CommunityGuide:Codable {var directions:String;var directionsStatus:String?;var sourceUrl:String;var revision:String;var license:String;var licenseUrl:String;var attribution:String;var retrievedAt:String;var coordinateSource:String?}
 struct CommunityReview:Codable,Identifiable {var id:String;var author:String;var text:String;var sourceUrl:String;var publishedAt:String?}
-struct ScheduleCandidate:Codable,Identifiable {var id:String;var name:String;var category:String;var indoor:Bool;var visitMinutes:Int;var cost:Double;var lat:Double;var lng:Double;var reason:String;var description:String?;var note:String?;var openMinute:Int?;var closeMinute:Int?;var source:String?;var poiKind:String?;var openingHoursText:String?;var website:String?;var phone:String?;var address:String?;var sourceRelease:String?;var guide:CommunityGuide?;var photos:[PlacePhoto]?;var reviews:[CommunityReview]?;var hiddenGem:Bool?;var accessStatus:String?;var sources:[String]?;var sourceIds:[String]?;var sourceUrl:String?;var sourceLicense:String?;var retrievedAt:String?;var wikidata:String?}
+struct ScheduleCandidate:Codable,Identifiable {var id:String;var name:String;var category:String;var indoor:Bool;var visitMinutes:Int;var cost:Double;var lat:Double;var lng:Double;var reason:String;var description:String?;var note:String?;var openMinute:Int?;var closeMinute:Int?;var source:String?;var poiKind:String?;var openingHoursText:String?;var website:String?;var phone:String?;var address:String?;var sourceRelease:String?;var guide:CommunityGuide?;var photos:[PlacePhoto]?;var reviews:[CommunityReview]?;var hiddenGem:Bool?;var accessStatus:String?;var sources:[String]?;var sourceIds:[String]?;var sourceUrl:String?;var sourceLicense:String?;var retrievedAt:String?;var wikidata:String?;var restaurantData:RestaurantData?;var socialRecommendations:[RestaurantSocialRecommendation]?}
 extension ScheduleCandidate {
     var discoverySymbol:String {switch category{case "住宿":return "bed.double";case "店家":return "bag";case "美食":return "fork.knife";case "設施":return "figure.stand";default:return hiddenGem == true ? "sparkles":"mappin.and.ellipse"}}
-    var importedPoi:Bool {source=="OpenStreetMap" || source=="Apple Maps" || source=="Overture Maps" || source=="Wikivoyage"}
+    var importedPoi:Bool {source=="OpenStreetMap" || source=="Apple Maps" || source=="Overture Maps" || source=="Wikivoyage" || source=="Restaurant evidence" || source=="Community social recommendation"}
 
-    var activityKind:String {guard source=="OpenStreetMap" || source=="Apple Maps" || source=="Overture Maps" || source=="Wikivoyage" else{return "attraction"};return poiKind=="toilets" ? "restroom":poiKind=="drinking_water" ? "rest":category=="美食" ? "meal":"attraction"}
+    var activityKind:String {guard importedPoi else{return "attraction"};return poiKind=="toilets" ? "restroom":poiKind=="drinking_water" ? "rest":category=="美食" ? "meal":"attraction"}
 }
 struct ScheduleIssue:Codable,Identifiable {var code:String;var message:String;var day:Int;var activityId:String?;var blocking:Bool;var id:String {code+message+(activityId ?? "")}}
 struct ScheduleRadar:Codable {var name:String;var value:Double}

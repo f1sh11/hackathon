@@ -4,6 +4,11 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class PoiViewportTest {
+    @Test fun importedRestaurantEvidenceKeepsMealActivityType(){
+        val point=org.json.JSONObject().put("source","Restaurant evidence").put("category","美食")
+        assertEquals("meal",poiActivityKind(point))
+        point.put("source","Community social recommendation");assertEquals("meal",poiActivityKind(point))
+    }
     @Test fun subcategoriesRetainTheirParentAndExposeAllOptions(){
         assertEquals(12,PoiDiscoveryCategory.details.size)
         assertEquals("food",PoiDiscoveryCategory.parent("cafes"))

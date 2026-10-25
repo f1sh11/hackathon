@@ -147,3 +147,5 @@ Zetaris__EnvironmentFile=/Users/linziqiao/zetaris-local/zetaris-platform/.env \
 ## 社群貼文與餐廳推薦
 
 新增可選的 `travel_social_places` view：ASP.NET Core 保存原始匯入和證據，再同步已發布的公開 POI 至專用來源庫。完整操作與目前平台限制見 [社群靈感匯入](../../docs/social/README.md)。既有部署需先同步／註冊表，再開啟 `Zetaris__SocialEnabled=true`。
+
+餐廳菜單與餐費估算：執行 `scripts/sync_social_zetaris.py --restaurants --register --platform-env <私人設定路徑>` 同步至 `travel_restaurant_places`，再開啟 `Zetaris__RestaurantsEnabled=true`。詳見 [餐廳資料流程](../../docs/social/RESTAURANT-DATA.md)。

@@ -22,6 +22,15 @@ namespace SydneyBuddy.Api.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("SydneyBuddy.Api.RestaurantEstimateEntity", b => {
+                b.Property<string>("Id").HasColumnType("text").HasColumnName("id");b.Property<string>("DataJson").IsRequired().HasColumnType("jsonb").HasColumnName("data");b.HasKey("Id");b.ToTable("restaurant_estimates",(string)null);
+            });
+            modelBuilder.Entity("SydneyBuddy.Api.RestaurantImportEntity", b => {
+                b.Property<string>("Id").HasColumnType("text").HasColumnName("id");b.Property<string>("VenueId").IsRequired().HasColumnType("text").HasColumnName("venue_id");b.Property<string>("DataJson").IsRequired().HasColumnType("jsonb").HasColumnName("data");b.HasKey("Id");b.HasIndex("VenueId");b.ToTable("restaurant_imports",(string)null);
+            });
+            modelBuilder.Entity("SydneyBuddy.Api.RestaurantVenueEntity", b => {
+                b.Property<string>("Id").HasColumnType("text").HasColumnName("id");b.Property<string>("DataJson").IsRequired().HasColumnType("jsonb").HasColumnName("data");b.HasKey("Id");b.ToTable("restaurant_venues",(string)null);
+            });
             modelBuilder.Entity("SydneyBuddy.Api.SocialImportEntity", b => {
                 b.Property<string>("Id").HasColumnType("text").HasColumnName("id");
                 b.Property<string>("DataJson").IsRequired().HasColumnType("jsonb").HasColumnName("data");

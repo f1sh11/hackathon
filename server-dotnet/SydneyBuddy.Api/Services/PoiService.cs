@@ -79,19 +79,20 @@ public sealed class PoiService(IPoiProvider provider,IMemoryCache cache,GooglePo
         }finally{Gate.Release();}
     }
     JsonObject Result(JsonArray points)=>new(){["places"]=points,["source"]=provider.Source,["attribution"]=provider.Attribution,["metadata"]=provider.Metadata,["message"]="開放地點資料快照；不包含即時評價、營業確認或價格。"};
-    public static bool IsImported(JsonObject p)=>p.Str("id").StartsWith("social:")||p.Str("id").StartsWith("gem:")||p.Str("id").StartsWith("osm:")||p.Str("id").StartsWith("apple:")||p.Str("id").StartsWith("overture:");
+    public static bool IsImported(JsonObject p)=>p.Str("id").StartsWith("restaurant:")||p.Str("id").StartsWith("social:")||p.Str("id").StartsWith("gem:")||p.Str("id").StartsWith("osm:")||p.Str("id").StartsWith("apple:")||p.Str("id").StartsWith("overture:");
     public static string ActivityKind(JsonObject p)=>p.Str("poiKind")=="toilets"?"restroom":p.Str("poiKind")=="drinking_water"?"rest":p.Str("category")=="美食"?"meal":"attraction";
     public static JsonObject Import(JsonObject p) {
         var id=p.Str("id");var name=p.Str("name");var lat=p.Number("lat",double.NaN);var lng=p.Number("lng",double.NaN);
+        var restaurant=p.Str("source")=="Restaurant evidence"&&Regex.IsMatch(id,@"^restaurant:[a-f0-9]{24}$");
         var social=p.Str("source")=="Community social recommendation"&&Regex.IsMatch(id,@"^social:[a-f0-9]{24}:[0-9]$");
         var apple=p.Str("source")=="Apple Maps"&&Regex.IsMatch(id,@"^apple:[A-Za-z0-9_-]{1,180}$");
         var overture=p.Str("source")=="Overture Maps"&&id.StartsWith("overture:")&&Guid.TryParse(id[9..],out _);
         var gem=p.Str("source")=="Wikivoyage"&&Regex.IsMatch(id,@"^gem:[a-f0-9]{24}$");
-        if(!(social||gem||apple||overture||Regex.IsMatch(id,@"^osm:(node|way|relation):[0-9]{1,20}$"))||name.Length is <1 or >200||!OsmPoiProvider.ValidPoint(lat,lng))throw new ServiceException("工具箱地點資料無效。");
+        if(!(restaurant||social||gem||apple||overture||Regex.IsMatch(id,@"^osm:(node|way|relation):[0-9]{1,20}$"))||name.Length is <1 or >200||!OsmPoiProvider.ValidPoint(lat,lng))throw new ServiceException("工具箱地點資料無效。");
         string Short(string key,int max){var s=p.Str(key);return s[..Math.Min(max,s.Length)];}
-        var result=new JsonObject{["id"]=id,["name"]=name,["lat"]=lat,["lng"]=lng,["source"]=social?"Community social recommendation":gem?"Wikivoyage":apple?"Apple Maps":overture?"Overture Maps":"OpenStreetMap",["category"]=p.Str("category") is "美食" or "設施" or "住宿" or "店家"?p.Str("category"):"風景",["indoor"]=p.Bool("indoor"),["visitMinutes"]=Math.Clamp(p.Int("visitMinutes",60),5,240),["cost"]=0,["description"]=Short("description",3000),["note"]="費用、營業狀態與排隊未知；尚未預留費用，請自行確認。",["website"]=Short("website",2000),["phone"]=Short("phone",100),["address"]=Short("address",600),["sourceRelease"]=Short("sourceRelease",40),["openingHoursText"]=Short("openingHoursText",300),["poiKind"]=Short("poiKind",40),["reason"]="由地圖搜尋加入工具箱"};
+        var result=new JsonObject{["id"]=id,["name"]=name,["lat"]=lat,["lng"]=lng,["source"]=restaurant?"Restaurant evidence":social?"Community social recommendation":gem?"Wikivoyage":apple?"Apple Maps":overture?"Overture Maps":"OpenStreetMap",["category"]=p.Str("category") is "美食" or "設施" or "住宿" or "店家"?p.Str("category"):"風景",["indoor"]=p.Bool("indoor"),["visitMinutes"]=Math.Clamp(p.Int("visitMinutes",60),5,240),["cost"]=0,["description"]=Short("description",3000),["note"]="費用、營業狀態與排隊未知；尚未預留費用，請自行確認。",["website"]=Short("website",2000),["phone"]=Short("phone",100),["address"]=Short("address",600),["sourceRelease"]=Short("sourceRelease",40),["openingHoursText"]=Short("openingHoursText",300),["poiKind"]=Short("poiKind",40),["reason"]="由地圖搜尋加入工具箱"};
         foreach(var key in new[]{"sourceUrl","sourceLicense","retrievedAt","sources","sourceIds","wikidata","hiddenGem","accessStatus"})if(p[key] is not null)result[key]=p[key]!.DeepClone();
-        if(gem||social){foreach(var key in new[]{"guide","photos","reviews","hiddenGem","accessStatus","reviewsStatus","socialRecommendations","matchedPlaceId","verificationStatus","socialHiddenGemClaim"})if(p[key] is not null)result[key]=p[key]!.DeepClone();}
+        if(gem||social||restaurant){foreach(var key in new[]{"guide","photos","reviews","hiddenGem","accessStatus","reviewsStatus","socialRecommendations","matchedPlaceId","verificationStatus","socialHiddenGemClaim","restaurantData"})if(p[key] is not null)result[key]=p[key]!.DeepClone();}
         return result;
     }
 }
