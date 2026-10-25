@@ -22,6 +22,42 @@ public sealed class PlannerTests : IDisposable
         new RecommendationService(_external, new FakeMemory()), new RouteScheduler(new RouteService(_external)),
         new WeatherService(_external), new SecretStore(_paths));
 
+    private static JsonObject SearchPlace(string id,string name,double lat) => new() {
+        ["id"]="apple:"+id,["name"]=name,["lat"]=lat,["lng"]=151.2126,["source"]="Apple Maps",["category"]="风景",["poiKind"]="pointOfInterest"
+    };
+    [Theory]
+    [InlineData("Le Jolly Christmas Market",true)]
+    [InlineData("聖誕市集",true)]
+    [InlineData("圣诞集市",true)]
+    [InlineData("Sydney Royal Easter Show",true)]
+    [InlineData("Royal Botanic Garden",false)]
+    [InlineData("Christmas Shop",false)]
+    public void SeasonalNamesRequireDatesWithoutAssumingAClosingDate(string name,bool expected) =>
+        Assert.Equal(expected,SeasonalEventGuard.NeedsVerifiedDates(SearchPlace("test",name,-33.86)));
+
+    [Theory]
+    [InlineData("2026-10-29")]
+    [InlineData("2026-12-20")]
+    public async Task SearchEventCannotEnterPlanOrWalkingBackupsEvenInAnAssumedSeason(string date) {
+        var profile=TestSupport.Profile();profile["date"]=date;profile["interests"]=new JsonArray("风景");profile["maxSteps"]=60000;
+        profile["planningCandidates"]=new JsonArray(SearchPlace("seasonal","Le Jolly Christmas Market",-33.86),SearchPlace("garden","Harbour Garden",-33.862));
+        var plan=await Create().PlanAsync(profile,"demo");
+        Assert.DoesNotContain(plan.Array("days")!.OfType<JsonObject>().SelectMany(x=>x.Array("stops")!.OfType<JsonObject>()),s=>s.Str("id")=="apple:seasonal");
+        var shortlist=await Create().PrepareWalkingAsync(profile);
+        Assert.DoesNotContain(shortlist.Array("candidateDays")!.OfType<JsonArray>().SelectMany(x=>x),id=>id!.GetValue<string>()=="apple:seasonal");
+        Assert.Contains(plan.Array("trace")!.OfType<JsonObject>(),x=>x.Str("title")=="核对限时活动");
+    }
+    [Fact] public async Task RequiredUnknownEventExplainsTheBlockInsteadOfSilentlyDroppingIt() {
+        var profile=TestSupport.Profile();profile["mustDo"]="Le Jolly Christmas Market";
+        profile["planningCandidates"]=new JsonArray(SearchPlace("seasonal","Le Jolly Christmas Market",-33.86));
+        var error=await Assert.ThrowsAsync<ServiceException>(()=>Create().PlanAsync(profile,"demo"));
+        Assert.Contains("尚未核实",error.Message);Assert.Equal("Le Jolly Christmas Market",profile.Str("mustDo"));
+    }
+    [Fact] public void PermanentRestaurantIsNotRemovedBecauseOfItsFestiveName() {
+        var cafe=SearchPlace("cafe","Christmas Market Cafe",-33.86);cafe["activityType"]="meal";
+        Assert.False(SeasonalEventGuard.NeedsVerifiedDates(cafe));
+    }
+
     [Fact]
     public async Task ExplicitAvoidAndMustVisitConstrainActualStops()
     {

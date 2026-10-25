@@ -37,6 +37,8 @@ public sealed class Planner(PlaceService places, RecommendationService recommend
         context.CompareTransit=evidence is not null && raw.Str("transportPreference","walk")!="walk";
         var profile = PlanValidator.Validate(raw, planningCatalog);
         var candidates = TravelConstraints.Apply(profile, imported is null ? await places.GetCandidatesAsync(context, ct):planningCatalog.Where(p=>PoiService.IsImported(p)||profile.Array("mustVisit")!.Any(id=>id!.GetValue<string>()==p.Str("id"))||profile.Str("mustDo").Contains(p.Str("name"))).ToArray());
+        var uncertainEventCount=planningCatalog.Count(SeasonalEventGuard.NeedsVerifiedDates);
+        if(uncertainEventCount>0)context.Record("核对限时活动",$"候选中有 {uncertainEventCount} 个疑似季节性或限时活动。地图搜索结果不能证明本次日期开放，已排除自动推荐；没有推断活动停业或过期。","保守候选校验：活动日期待核实");
         if(candidateDays is not null) {
             var known=planningCatalog.Select(p=>p.Str("id")).ToHashSet(StringComparer.Ordinal);
             if(context.Walking is null || candidateDays.Count!=profile.Int("days"))throw new ServiceException("逐日步行候选不完整，请重新生成。");

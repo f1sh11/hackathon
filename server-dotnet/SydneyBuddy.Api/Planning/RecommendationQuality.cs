@@ -53,3 +53,18 @@ public static class RecommendationQuality
         }
     }
 }
+
+/// Search presence and regular opening hours do not establish an event's operating dates.
+/// This conservative name/type check never guesses a season or asserts that an event is closed.
+public static class SeasonalEventGuard
+{
+    public static bool NeedsVerifiedDates(JsonObject place)
+    {
+        if (RecommendationQuality.IsMeal(place)) return false; // Permanent cafes may have festive names.
+        var name = place.Str("name");
+        return place.Str("poiKind") is "seasonal_event" or "temporary_event" ||
+            System.Text.RegularExpressions.Regex.IsMatch(name,
+                @"\b(?:christmas[\s-]+(?:market|fair|festival)|easter[\s-]+(?:show|fair|festival)|halloween[\s-]+festival|winter[\s-]+festival)\b|圣诞(?:节)?(?:集市|市集|市场|活動|活动)|聖誕(?:節)?(?:集市|市集|市場|活動)|春节庙会|春節廟會",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+    }
+}
