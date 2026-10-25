@@ -827,3 +827,12 @@ final class ActivityReferenceContractTests:XCTestCase {
         XCTAssertEqual(try JSONDecoder().decode(ActivityReference.self,from:JSONSerialization.data(withJSONObject:free)).amount,0)
     }
 }
+
+final class TicketSummaryLabelTests:XCTestCase {
+    func testLabelsDistinguishAdultTourFromFreeAdmission() throws {
+        let tour=try JSONDecoder().decode(TicketPriceSummary.self,from:Data(#"{"amount":50,"currency":"AUD","basis":"guided_tour"}"#.utf8))
+        XCTAssertEqual(tour.label(.traditional),"成人導覽 A$50 起")
+        let admission=try JSONDecoder().decode(TicketPriceSummary.self,from:Data(#"{"amount":0,"currency":"AUD","basis":"general_admission"}"#.utf8))
+        XCTAssertEqual(admission.label(.english),"General admission free")
+    }
+}

@@ -90,6 +90,7 @@ internal data class PoiFocus(val id:String,val lat:Double,val lng:Double,val nam
 @Composable internal fun PoiDiscoveryDialog(store:BuddyStore,onDismiss:()->Unit,requester:suspend(JSONObject)->JSONObject={store.searchPoi(it)},onAdd:(JSONObject)->Unit={store.addPoi(it)},googleMapConfigured:Boolean=BuildConfig.MAPS_CONFIGURED) {
     var showInsights by remember{mutableStateOf(false)}
     var query by remember{mutableStateOf("")};var category by remember{mutableStateOf("all")}
+    var ticketSummaries by remember{mutableStateOf(JSONObject())}
     var focus by remember{mutableStateOf<PoiFocus?>(null)}
     var places by remember{mutableStateOf<List<JSONObject>>(emptyList())};var selected by remember{mutableStateOf<String?>(null)}
     var center by remember{mutableStateOf(-33.865 to 151.212)};var busy by remember{mutableStateOf(false)};var error by remember{mutableStateOf<String?>(null)};var detail by remember{mutableStateOf<JSONObject?>(null)}
@@ -106,6 +107,14 @@ internal data class PoiFocus(val id:String,val lat:Double,val lng:Double,val nam
     var summary by remember{mutableStateOf<String?>(null)}
     var dataVersion by remember{mutableStateOf("")}
     val visiblePlaces=if(resultProvider==store.mapProvider&&resultDataSource==store.travelDataSource)places else emptyList()
+    LaunchedEffect(visiblePlaces.map{it.optString("id")},store.travelDataSource,store.mapProvider){
+        ticketSummaries=JSONObject();val route=store.travelDataSource;val provider=store.mapProvider
+        if(visiblePlaces.isNotEmpty())try{
+            val points=JSONArray();visiblePlaces.take(80).forEach{points.put(JSONObject().put("id",it.getString("id")).put("name",it.getString("name")).put("lat",it.getDouble("lat")).put("lng",it.getDouble("lng")))}
+            val response=store.socialRequest("activities/summaries",JSONObject().put("places",points))
+            ensureActive();if(route==store.travelDataSource&&provider==store.mapProvider&&response.optString("dataSource")==route)ticketSummaries=response.optJSONObject("summaries") ?: JSONObject()
+        }catch(e:CancellationException){throw e}catch(e:Exception){/* Optional reference unavailable; no fabricated price. */}
+    }
     val source=if(store.travelDataSource=="zetaris")"Open travel data / Zetaris"else if(category=="gems")"Open travel data / local"else when(store.mapProvider){MapProvider.OSM->openSource;MapProvider.GOOGLE->"Google Places";MapProvider.SCHEMATIC->"離線示意 · 不搜尋地點"}
     fun search(){
         searchJob?.cancel();places=emptyList();selected=null;focus=null;detail=null;error=null;hasSearched=true;busy=false;resultProvider=null
@@ -168,6 +177,7 @@ internal data class PoiFocus(val id:String,val lat:Double,val lng:Double,val nam
                 if(visiblePlaces.isEmpty()&&!busy&&error==null&&hasSearched)Small("此範圍沒有符合的地點。可清空名稱、切換分類，或移動地圖後重新搜尋。")
                 visiblePlaces.sortedBy{if(it.optString("id")==selected)0 else 1}.forEach{p->Column(Modifier.fillMaxWidth().background(if(p.optString("id")==selected)Mint else Color.White).clickable{focusPlace(p)}.padding(8.dp)) {
                     Text((if(p.optString("category")=="美食")"🍴 "else if(p.optString("category")=="設施")"🚻 "else if(p.optString("category")=="住宿")"🛏 "else if(p.optString("category")=="店家")"🛍 "else "📍 ")+p.optString("name"),color=if(p.optString("category")=="美食")Color(0xffa65d12)else Green)
+                    Small(ticketSummaries.optJSONObject(p.optString("id"))?.let{ticketSummaryLabel(it)} ?: ui("費用未知"))
                     Small(ui(p.optString("category"))+" · "+(p.optJSONArray("sources")?.strings()?.joinToString(" / ") ?: p.optString("source")))
                     Text(p.optString("description"),fontSize=12.sp,maxLines=2)
                     Row{TextButton(onClick={focusPlace(p);detail=p}){Text(ui("詳細介紹"))};Spacer(Modifier.weight(1f));val added=store.poiToolbox.any{it.optString("id")==p.optString("id")};if(p.optString("source")=="Google Places")Small("Google 地點暫不匯入本機示例時間軸")else TextButton(onClick={if(added)store.removePoi(p.optString("id"))else{store.addPoi(p);onAdd(p)}}){Text(ui(if(added)"移出工具箱"else "＋工具箱"))}}
@@ -302,4 +312,11 @@ private val photoClient=okhttp3.OkHttpClient.Builder().callTimeout(15,java.util.
     val photo=bitmap
     if(photo!=null)androidx.compose.foundation.Image(bitmap=photo.asImageBitmap(),contentDescription=ui("附近實景照片"),modifier=Modifier.fillMaxWidth().height(170.dp),contentScale=androidx.compose.ui.layout.ContentScale.Crop)
     else if(failed)Small(ui("照片無法載入"))else CircularProgressIndicator()
+}
+
+@Composable private fun ticketSummaryLabel(summary:JSONObject):String {
+    val amount=summary.getDouble("amount");val basis=summary.optString("basis")
+    if(amount==0.0)return ui(if(basis=="general_admission")"一般入場免費"else "活動免費")
+    val money=(if(summary.optString("currency")=="AUD")"A$"else summary.optString("currency")+" ")+(if(amount%1.0==0.0)"%.0f"else "%.2f").format(amount)
+    return ui(if(basis=="guided_tour")"成人導覽 {0} 起"else if(basis=="combo")"成人套裝 {0} 起"else "成人票 {0} 起",money)
 }

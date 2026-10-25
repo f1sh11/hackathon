@@ -49,6 +49,10 @@ def validate(document):
             entries=row.get(key,[])
             if not isinstance(entries,list) or len(entries)>30 or any(not isinstance(item,str) or not 1<=len(item)<=250 for item in entries):raise ValueError('Invalid venue matching metadata')
             value[key]=entries
+        for key,allowed in [('audience',['adult','general','concession','child','family']),('experience',['general_admission','guided_tour','combo','precinct'])]:
+            if key in row:
+                if row[key] not in allowed:raise ValueError('Invalid summary classification')
+                value[key]=row[key]
         value.update(priceType='reference_ticket_price',budgetEligible=False)
         result.append(value)
     return result

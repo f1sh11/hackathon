@@ -167,6 +167,7 @@ enum PoiDiscoveryCategory {
     @StateObject private var model=PoiSearchModel()
     @State private var detail:ScheduleCandidate?
     @State private var focus:PoiMapFocus?
+    @State private var ticketSummaries:[String:TicketPriceSummary]=[:]
     @State private var featureLoading=false
     @State private var featureError:String?
     @State private var localProvider:MapProvider = .apple
@@ -272,6 +273,7 @@ enum PoiDiscoveryCategory {
     .tint(Palette.green)
     .overlay {if featureLoading{ProgressView("正在載入地點…").padding(16).background(.regularMaterial,in:Capsule()).accessibilityIdentifier("map-feature-loading")}}
     .alert("地點資料暫時無法載入",isPresented:Binding(get:{featureError != nil},set:{if !$0{featureError=nil}})){Button("完成"){featureError=nil}}message:{Text(featureError ?? "")}
+    .task(id:visiblePlaces.map(\.id).joined()+store.travelDataSource.rawValue+searchProvider.rawValue){await loadTicketSummaries()}
     .sheet(item: $detail) { SchedulePlaceDetail(candidate: $0) }
     .sheet(isPresented:$showInsights){TravelInsightsSheet(places:insightPoints)}
     .task(id:visiblePlaces.map(\.id).joined()+store.travelDataSource.rawValue+store.mapProvider.rawValue){if !visiblePlaces.isEmpty{await store.refreshInsights(places:insightPoints)}}
@@ -330,7 +332,7 @@ enum PoiDiscoveryCategory {
     private func placeRow(_ p:ScheduleCandidate)->some View {
         HStack(alignment:.top,spacing:12){
             Image(systemName:p.discoverySymbol).font(.title3).foregroundStyle(Palette.green).frame(width:38,height:44).background(Palette.mint,in:RoundedRectangle(cornerRadius:12))
-            Button{focusPlace(p)}label:{VStack(alignment:.leading,spacing:5){Text(p.name).font(.subheadline.bold()).multilineTextAlignment(.leading);Text((store.insights?.places.first{$0.id==p.id}?.price.summary ?? "費用未知")+" · 人潮未知").font(.caption2).foregroundStyle(Palette.muted);Text(p.description ?? "点击查看地点详情").font(.caption).foregroundStyle(Palette.muted).lineLimit(2)}.frame(maxWidth:.infinity,alignment:.leading)}.buttonStyle(.plain).accessibilityLabel("查看地点："+p.name).accessibilityIdentifier("poi-focus-"+p.id)
+            Button{focusPlace(p)}label:{VStack(alignment:.leading,spacing:5){Text(p.name).font(.subheadline.bold()).multilineTextAlignment(.leading);Text((ticketSummaries[p.id]?.label(store.language) ?? store.insights?.places.first{$0.id==p.id}?.price.summary ?? "費用未知")+" · 人潮未知").font(.caption2).foregroundStyle(Palette.muted);Text(p.description ?? "点击查看地点详情").font(.caption).foregroundStyle(Palette.muted).lineLimit(2)}.frame(maxWidth:.infinity,alignment:.leading)}.buttonStyle(.plain).accessibilityLabel("查看地点："+p.name).accessibilityIdentifier("poi-focus-"+p.id)
             Button{focusPlace(p);detail=p}label:{Image(systemName:"info.circle").frame(width:36,height:44)}.accessibilityLabel("介紹："+p.name).accessibilityIdentifier("poi-detail-"+p.id)
             if p.source == "Google Places" {
                 Text("Google 地點暫不匯入本機示例時間軸").font(.caption2).foregroundStyle(Palette.muted)
@@ -359,6 +361,16 @@ enum PoiDiscoveryCategory {
         Button{model.category=id}label:{Text(LocalizedStringKey(title)).font(.caption.bold()).padding(.horizontal,10).padding(.vertical,8).background(model.category==id ? Palette.green:Palette.mint,in:Capsule()).foregroundStyle(model.category==id ? .white:Palette.ink)}.accessibilityIdentifier("poi-category-"+id)
     }
     private func isAdded(_ p:ScheduleCandidate)->Bool {toolbox.places.contains{$0.id==p.id}}
+    private func loadTicketSummaries() async {
+        ticketSummaries=[:];let points=Array(visiblePlaces.prefix(80));let source=store.travelDataSource;let provider=searchProvider
+        guard !points.isEmpty else{return}
+        do{
+            let raw=try await SocialImportModel().call("activities/summaries",body:["places":points.map{["id":$0.id,"name":$0.name,"lat":$0.lat,"lng":$0.lng] as [String:Any]}],store:store)
+            try Task.checkCancellation()
+            guard source==store.travelDataSource,provider==searchProvider,raw["dataSource"] as? String==source.rawValue else{return}
+            ticketSummaries=try JSONDecoder().decode([String:TicketPriceSummary].self,from:JSONSerialization.data(withJSONObject:raw["summaries"] ?? [:]))
+        }catch{ /* Reference prices are optional; unavailable data keeps the unknown label. */ }
+    }
     private func focusPlace(_ point:ScheduleCandidate){
         searching=false;model.stop();model.center = .init(latitude:point.lat,longitude:point.lng);model.selected=point.id;expanded=false;focus=PoiMapFocus(point:point)
     }
@@ -556,5 +568,14 @@ struct PlaceMediaView:View {
             scene=nil;panoramaMessage=nil;media.loader=store.loader
             await media.prepare(candidate,dataSource:store.travelDataSource)
         }
+    }
+}
+
+struct TicketPriceSummary:Decodable {
+    let amount:Double;let currency:String;let basis:String
+    func label(_ language:AppLanguage)->String {
+        if amount==0{return language.text(basis=="general_admission" ? "一般入場免費":"活動免費")}
+        let money=(currency=="AUD" ? "A$":currency+" ")+String(format:amount.rounded()==amount ? "%.0f":"%.2f",amount)
+        return language.text(basis=="guided_tour" ? "成人導覽 {0} 起":basis=="combo" ? "成人套裝 {0} 起":"成人票 {0} 起",money)
     }
 }

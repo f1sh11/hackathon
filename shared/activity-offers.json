@@ -27,7 +27,9 @@
         "悉尼歌劇院",
         "雪梨歌劇院"
       ],
-      "pricingStatus": "known"
+      "pricingStatus": "known",
+      "audience": "adult",
+      "experience": "guided_tour"
     },
     {
       "venueName": "Sydney Opera House",
@@ -55,7 +57,9 @@
         "悉尼歌劇院",
         "雪梨歌劇院"
       ],
-      "pricingStatus": "known"
+      "pricingStatus": "known",
+      "audience": "adult",
+      "experience": "combo"
     },
     {
       "id": "garden:general-entry",
@@ -85,7 +89,9 @@
       "pricingStatus": "free",
       "priceType": "reference_ticket_price",
       "budgetEligible": false,
-      "license": "Factual admission reference; source page rights retained. No photos or reviews copied."
+      "license": "Factual admission reference; source page rights retained. No photos or reviews copied.",
+      "audience": "general",
+      "experience": "general_admission"
     },
     {
       "id": "museum:general-entry",
@@ -114,7 +120,9 @@
       "pricingStatus": "free",
       "priceType": "reference_ticket_price",
       "budgetEligible": false,
-      "license": "Factual admission reference; source page rights retained. No photos or reviews copied."
+      "license": "Factual admission reference; source page rights retained. No photos or reviews copied.",
+      "audience": "general",
+      "experience": "general_admission"
     },
     {
       "id": "gallery:general-entry",
@@ -143,7 +151,9 @@
       "pricingStatus": "free",
       "priceType": "reference_ticket_price",
       "budgetEligible": false,
-      "license": "Factual admission reference; source page rights retained. No photos or reviews copied."
+      "license": "Factual admission reference; source page rights retained. No photos or reviews copied.",
+      "audience": "general",
+      "experience": "general_admission"
     },
     {
       "id": "qvb:history-tour",
@@ -172,7 +182,9 @@
       "pricingStatus": "known",
       "priceType": "reference_ticket_price",
       "budgetEligible": false,
-      "license": "Factual admission reference; source page rights retained. No photos or reviews copied."
+      "license": "Factual admission reference; source page rights retained. No photos or reviews copied.",
+      "audience": "adult",
+      "experience": "guided_tour"
     },
     {
       "id": "qvb:history-tour-child",
@@ -201,7 +213,9 @@
       "pricingStatus": "free",
       "priceType": "reference_ticket_price",
       "budgetEligible": false,
-      "license": "Factual admission reference; source page rights retained. No photos or reviews copied."
+      "license": "Factual admission reference; source page rights retained. No photos or reviews copied.",
+      "audience": "child",
+      "experience": "guided_tour"
     },
     {
       "id": "mca:adult-general-entry",
@@ -230,7 +244,9 @@
       "pricingStatus": "known",
       "priceType": "reference_ticket_price",
       "budgetEligible": false,
-      "license": "Factual admission reference; source page rights retained. No photos or reviews copied."
+      "license": "Factual admission reference; source page rights retained. No photos or reviews copied.",
+      "audience": "adult",
+      "experience": "general_admission"
     },
     {
       "id": "mca:under18-entry",
@@ -259,7 +275,9 @@
       "pricingStatus": "free",
       "priceType": "reference_ticket_price",
       "budgetEligible": false,
-      "license": "Factual admission reference; source page rights retained. No photos or reviews copied."
+      "license": "Factual admission reference; source page rights retained. No photos or reviews copied.",
+      "audience": "child",
+      "experience": "general_admission"
     },
     {
       "id": "rocks:precinct-reference",
@@ -287,7 +305,9 @@
       "pricingStatus": "unknown",
       "priceType": "reference_ticket_price",
       "budgetEligible": false,
-      "license": "Factual admission reference; source page rights retained. No photos or reviews copied."
+      "license": "Factual admission reference; source page rights retained. No photos or reviews copied.",
+      "audience": "general",
+      "experience": "precinct"
     },
     {
       "id": "darling:precinct-reference",
@@ -315,7 +335,9 @@
       "pricingStatus": "unknown",
       "priceType": "reference_ticket_price",
       "budgetEligible": false,
-      "license": "Factual admission reference; source page rights retained. No photos or reviews copied."
+      "license": "Factual admission reference; source page rights retained. No photos or reviews copied.",
+      "audience": "general",
+      "experience": "precinct"
     },
     {
       "id": "mca:concession-general-entry",
@@ -344,7 +366,9 @@
       "pricingStatus": "known",
       "priceType": "reference_ticket_price",
       "budgetEligible": false,
-      "license": "Factual admission reference; source page rights retained. No photos or reviews copied."
+      "license": "Factual admission reference; source page rights retained. No photos or reviews copied.",
+      "audience": "concession",
+      "experience": "general_admission"
     },
     {
       "venueName": "Sydney Opera House",
@@ -372,7 +396,9 @@
         "悉尼歌劇院",
         "雪梨歌劇院"
       ],
-      "pricingStatus": "known"
+      "pricingStatus": "known",
+      "audience": "child",
+      "experience": "guided_tour"
     },
     {
       "venueName": "Sydney Opera House",
@@ -400,7 +426,9 @@
         "悉尼歌劇院",
         "雪梨歌劇院"
       ],
-      "pricingStatus": "known"
+      "pricingStatus": "known",
+      "audience": "concession",
+      "experience": "guided_tour"
     },
     {
       "venueName": "Sydney Opera House",
@@ -428,7 +456,9 @@
         "悉尼歌劇院",
         "雪梨歌劇院"
       ],
-      "pricingStatus": "known"
+      "pricingStatus": "known",
+      "audience": "family",
+      "experience": "guided_tour"
     },
     {
       "venueName": "Sydney Opera House",
@@ -456,7 +486,9 @@
         "悉尼歌劇院",
         "雪梨歌劇院"
       ],
-      "pricingStatus": "known"
+      "pricingStatus": "known",
+      "audience": "adult",
+      "experience": "guided_tour"
     }
   ]
 }

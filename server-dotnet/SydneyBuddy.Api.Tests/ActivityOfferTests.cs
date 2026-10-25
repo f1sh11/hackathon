@@ -26,6 +26,18 @@ public sealed class ActivityOfferTests {
         free["amount"]=25;Assert.Throws<ServiceException>(()=>ActivityOfferService.Validate(free));
         unknown["amount"]=0;Assert.Throws<ServiceException>(()=>ActivityOfferService.Validate(unknown));
     }
+    static JsonObject SummaryOffer(double amount,string audience="adult",string experience="guided_tour",string currency="AUD",bool stale=false)=>new(){["id"]=Guid.NewGuid().ToString(),["amount"]=amount,["audience"]=audience,["experience"]=experience,["currency"]=currency,["pricingStatus"]=amount==0?"free":"known",["stale"]=stale,["sourceUrl"]="https://example.com",["observedOn"]="2026-10-25"};
+    [Fact]public void SummaryExcludesChildConcessionFamilyAndUnlikePackages(){
+        var summary=ActivityOfferService.Summarize(new JsonArray(SummaryOffer(0,"child"),SummaryOffer(20,"concession"),SummaryOffer(130,"family"),SummaryOffer(50),SummaryOffer(55),SummaryOffer(84,"adult","combo")));
+        Assert.Equal(50,summary!.Number("amount"));Assert.Equal("guided_tour",summary.Str("basis"));Assert.False(summary.Bool("budgetEligible"));
+    }
+    [Fact]public void GeneralAdmissionPrecedesTourAndStaleOrMixedCurrenciesAreNotSummarized(){
+        var free=ActivityOfferService.Summarize(new JsonArray(SummaryOffer(0,"general","general_admission"),SummaryOffer(25)));
+        Assert.Equal(0,free!.Number("amount"));Assert.Equal("general_admission",free.Str("basis"));
+        Assert.Null(ActivityOfferService.Summarize(new JsonArray(SummaryOffer(50,stale:true))));
+        Assert.Null(ActivityOfferService.Summarize(new JsonArray(SummaryOffer(50),SummaryOffer(20,currency:"USD"))));
+        Assert.Null(ActivityOfferService.Summarize(new JsonArray(SummaryOffer(0,"child"))));
+    }
     sealed class Warehouse: ITravelWarehouse {
         public bool Fail;public int Calls;
         public Task<TravelSnapshot> ReadAsync(CancellationToken token)=>throw new NotImplementedException();
@@ -37,6 +49,13 @@ public sealed class ActivityOfferTests {
         var request=new JsonObject{["lat"]=-33.8568,["lng"]=151.2153,["placeId"]="test-venue",["placeName"]="Test venue"};
         var result=await service.SearchAsync(request,CancellationToken.None);Assert.Single(result.Array("offers")!);Assert.Equal(1,warehouse.Calls);
         warehouse.Fail=true;await Assert.ThrowsAsync<ServiceException>(()=>service.SearchAsync(request,CancellationToken.None));Assert.Equal(2,warehouse.Calls);
+    }
+    [Fact]public async Task BatchReadsWarehouseOnceAndRejectsUnboundedRequests(){
+        var context=new DefaultHttpContext();context.Request.Headers[TravelDataContext.Header]="zetaris";var warehouse=new Warehouse();
+        var service=new ActivityOfferService(new ProjectPaths("/unused"),new TravelDataContext(new HttpContextAccessor{HttpContext=context}),warehouse);
+        var points=new JsonArray();for(var i=0;i<80;i++)points.Add(new JsonObject{["id"]="test:"+i,["name"]="Test venue",["lat"]=-33.8568,["lng"]=151.2153});
+        await service.SummariesAsync(new(){["places"]=points},CancellationToken.None);Assert.Equal(1,warehouse.Calls);
+        points.Add(points[0]!.DeepClone());await Assert.ThrowsAsync<ServiceException>(()=>service.SummariesAsync(new(){["places"]=points.DeepClone()},CancellationToken.None));Assert.Equal(1,warehouse.Calls);
     }
     [Fact]public async Task InvalidLocationIsRejectedBeforeDataQuery(){
         var context=new DefaultHttpContext();context.Request.Headers[TravelDataContext.Header]="zetaris";var warehouse=new Warehouse();

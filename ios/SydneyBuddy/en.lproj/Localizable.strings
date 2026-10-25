@@ -485,3 +485,8 @@
 "請再點一次地圖上的地點重試。" = "Tap the place on the map again to retry.";
 "免費" = "Free";
 "票價待確認" = "Price not confirmed";
+"一般入場免費" = "General admission free";
+"活動免費" = "Activity free";
+"成人導覽 {0} 起" = "Adult tour from {0}";
+"成人套裝 {0} 起" = "Adult package from {0}";
+"成人票 {0} 起" = "Adult ticket from {0}";

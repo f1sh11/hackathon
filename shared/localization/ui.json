@@ -1728,5 +1728,30 @@
     "en": "Price not confirmed",
     "zh-Hant": "票價待確認",
     "zh-Hans": "票价待确认"
+  },
+  "一般入場免費": {
+    "en": "General admission free",
+    "zh-Hant": "一般入場免費",
+    "zh-Hans": "一般入场免费"
+  },
+  "活動免費": {
+    "en": "Activity free",
+    "zh-Hant": "活動免費",
+    "zh-Hans": "活动免费"
+  },
+  "成人導覽 {0} 起": {
+    "en": "Adult tour from {0}",
+    "zh-Hant": "成人導覽 {0} 起",
+    "zh-Hans": "成人导览 {0} 起"
+  },
+  "成人套裝 {0} 起": {
+    "en": "Adult package from {0}",
+    "zh-Hant": "成人套裝 {0} 起",
+    "zh-Hans": "成人套装 {0} 起"
+  },
+  "成人票 {0} 起": {
+    "en": "Adult ticket from {0}",
+    "zh-Hant": "成人票 {0} 起",
+    "zh-Hans": "成人票 {0} 起"
   }
 }
