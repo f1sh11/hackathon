@@ -79,6 +79,8 @@ App 仍可選直接來源、本機 Zetaris、雲端 Zetaris。這裡的「本機
 
 Oracle 免費 VM 不會消除其他供應商費用；先前 AWS Zetaris 仍依使用者要求保留。是否移除 VM、開機磁碟、備份、網路與 AWS 資源，待團隊測試完成後另行確認。
 
-目前狀態：部署檔已準備；VM 建立、遠端啟動與 App 連線尚待驗證。
+目前狀態：部署檔已準備；2026-10-26 已嘗試在 Sydney `ap-sydney-1` 的 AD-1 建立 `sydneybuddy-free-api`（Always Free `VM.Standard.A1.Flex`，1 OCPU／6 GB，Ubuntu 24.04 Minimal aarch64，預設 46.6 GB 開機磁碟），但 Oracle 回覆 `Out of capacity for shape VM.Standard.A1.Flex in availability domain AD-1`。依照「只用免費資源、容量不足即停止」的授權，未改用付費規格，亦未啟用付費監控附加項目。
+
+失敗後檢查 Sydney／`tlin0965 (root)`：Instances 與 Virtual Cloud Networks 清單皆為空。未取得 VM、公網 IP 或 SSH 連線，因此遠端啟動及 App 連線仍未完成。之後免費容量恢復時可使用相同部署檔重新建立；沒有排程自動重試。先前 AWS Zetaris 資源依照團隊測試需求保留，Oracle 建立失敗不會停止 AWS 費用。
 
 2026-10-26 本機驗證：部署包已實際建置為 `aarch64` 映像，API／PostgreSQL 容器皆健康，公開景點搜尋成功；重建 API 容器後合成 H-MEM 資料仍存在。後端 388 項測試通過。此紀錄不代表 Oracle 遠端部署已完成。
