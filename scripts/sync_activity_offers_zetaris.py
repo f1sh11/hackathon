@@ -27,13 +27,19 @@ def validate(document):
     result=[];seen=set()
     for row in rows:
         value={key:row[key] for key in FIELDS}
+        status=row.get('pricingStatus','unknown' if value['amount'] is None else 'free' if value['amount']==0 else 'known')
+        if status not in ['known','free','unknown']:raise ValueError('Invalid pricing status')
+        if status=='unknown' and value['amount'] is not None:raise ValueError('Unknown must have a null amount')
+        value['pricingStatus']=status
         if value['id'] in seen:raise ValueError('Duplicate ID')
         seen.add(value['id'])
         for key,maximum in [('id',150),('title',300),('venueName',200),('ticketType',200),('conditions',2000),('sourceName',200),('license',1000)]:
             if not isinstance(value[key],str) or not 1<=len(value[key])<=maximum:raise ValueError('Invalid text')
         for key,low,high in [('lat',-90,90),('lng',-180,180),('amount',0,100000)]:
             number=value[key]
+            if key=='amount' and status=='unknown' and number is None:continue
             if isinstance(number,bool) or not isinstance(number,(float,int)) or not math.isfinite(number) or not low<=number<=high:raise ValueError('Invalid number')
+        if status=='free' and value['amount']!=0 or status=='known' and value['amount']<=0:raise ValueError('Inconsistent price status')
         url=urlsplit(value['sourceUrl'])
         if url.scheme!='https' or not url.hostname or url.username or url.password:raise ValueError('Invalid source URL')
         if not re.fullmatch('[A-Z]{3}',value['currency']):raise ValueError('Explicit currency required')

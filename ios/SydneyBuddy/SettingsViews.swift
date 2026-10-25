@@ -322,7 +322,7 @@ struct RestaurantPriceView:View {
 }
 
 struct ActivityReference:Decodable,Identifiable {
-    let id:String;let title:String;let venueName:String;let amount:Double;let currency:String
+    let id:String;let title:String;let venueName:String;let amount:Double?;let currency:String
     let ticketType:String;let conditions:String;let sourceName:String;let sourceUrl:String
     let observedOn:String;let stale:Bool;let distanceMeters:Double
 }
@@ -343,7 +343,7 @@ struct ActivityReferencesView:View {
                 VStack(alignment:.leading,spacing:6){
                     Text(offer.title).bold()
                     Text(offer.venueName+" · \(Int(offer.distanceMeters)) m")
-                    Text(String(format:"%@ %.2f",offer.currency,offer.amount)+" · "+offer.ticketType).bold().foregroundStyle(Palette.green)
+                    HStack{if let amount=offer.amount{Text(amount==0 ? store.language.text("免費"):String(format:"%@ %.2f",offer.currency,amount))}else{Text("票價待確認")};Text(offer.ticketType)}.fontWeight(.bold).foregroundStyle(Palette.green)
                     Text(offer.conditions).font(.caption)
                     Text(store.language.text("資料日期：{0}",offer.observedOn)).font(.caption).foregroundStyle(Palette.muted)
                     if offer.stale{Text("票價待重新確認，請查看官網。").font(.caption).foregroundStyle(.orange)}

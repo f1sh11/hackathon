@@ -62,3 +62,7 @@ Klook 前次一般 HTTP 測試回傳 403 驗證頁，因此目前沒有任何 Kl
 - Android 編譯與單元測試通過，APK 已安裝至本機模擬器。
 
 2026-10-25 配對修正：明確 venueIds／venueAliases 會一起同步到 PostgreSQL 與 Zetaris。回歸測試涵蓋附近餐廳不配對、缺少場館識別不配對、名稱包含不配對、同名遠處分店不配對，以及已審核別名可配對。
+
+## 官網票價擴充（2026-10-25）
+
+最新集合已擴充為 8 個內建場館、16 筆參考記錄，逐項來源與限制見 [官網票價查核紀錄](OFFICIAL-ADMISSION-PRICES.md)。價格新增 `pricingStatus=known|free|unknown`；未知 `amount=null`，明確免費才是 `amount=0`，兩個手機平台均分開顯示。原本兩項活動的實測是初版紀錄，最新數量以共享集合及查核紀錄為準。

@@ -26,7 +26,8 @@
         "悉尼歌剧院",
         "悉尼歌劇院",
         "雪梨歌劇院"
-      ]
+      ],
+      "pricingStatus": "known"
     },
     {
       "venueName": "Sydney Opera House",
@@ -53,7 +54,409 @@
         "悉尼歌剧院",
         "悉尼歌劇院",
         "雪梨歌劇院"
-      ]
+      ],
+      "pricingStatus": "known"
+    },
+    {
+      "id": "garden:general-entry",
+      "title": "Royal Botanic Garden Sydney — general entry",
+      "venueName": "Royal Botanic Garden Sydney",
+      "lat": -33.8642,
+      "lng": 151.2166,
+      "amount": 0,
+      "currency": "AUD",
+      "ticketType": "一般入園 · 不含付費活動",
+      "conditions": "官方確認一般入園免費；特殊售票活動另計。惡劣天氣可能提早關閉。",
+      "sourceName": "Royal Botanic Garden Sydney · official source",
+      "sourceUrl": "https://www.botanicgardens.org.au/royal-botanic-garden-sydney/plan-your-visit",
+      "observedOn": "2026-10-25",
+      "reviewBy": "2026-11-24",
+      "venueIds": [
+        "garden"
+      ],
+      "venueAliases": [
+        "皇家植物园",
+        "Royal Botanic Garden Sydney",
+        "Royal Botanic Garden",
+        "Royal Botanic Gardens Sydney",
+        "皇家植物園",
+        "雪梨皇家植物園"
+      ],
+      "pricingStatus": "free",
+      "priceType": "reference_ticket_price",
+      "budgetEligible": false,
+      "license": "Factual admission reference; source page rights retained. No photos or reviews copied."
+    },
+    {
+      "id": "museum:general-entry",
+      "title": "Australian Museum — permanent exhibitions",
+      "venueName": "Australian Museum",
+      "lat": -33.8749,
+      "lng": 151.2133,
+      "amount": 0,
+      "currency": "AUD",
+      "ticketType": "一般入場／常設展",
+      "conditions": "官方確認一般入場與常設展免費，不需一般入場票。特展、工作坊與部分活動可能收費，須另外查詢。",
+      "sourceName": "Australian Museum Sydney · official source",
+      "sourceUrl": "https://australian.museum/visit/admission/",
+      "observedOn": "2026-10-25",
+      "reviewBy": "2026-11-24",
+      "venueIds": [
+        "museum"
+      ],
+      "venueAliases": [
+        "澳大利亚博物馆",
+        "Australian Museum Sydney",
+        "Australian Museum",
+        "澳洲博物館",
+        "澳大利亞博物館"
+      ],
+      "pricingStatus": "free",
+      "priceType": "reference_ticket_price",
+      "budgetEligible": false,
+      "license": "Factual admission reference; source page rights retained. No photos or reviews copied."
+    },
+    {
+      "id": "gallery:general-entry",
+      "title": "Art Gallery of NSW — general admission",
+      "venueName": "Art Gallery of New South Wales",
+      "lat": -33.8688,
+      "lng": 151.2173,
+      "amount": 0,
+      "currency": "AUD",
+      "ticketType": "一般入場 · 特展另計",
+      "conditions": "官方訪客頁列一般入場免費；多數展覽與活動免費，部分特展另計。官方頁的可讀版本較舊，已另以 NSW 政府近期名錄交叉核對；出發前仍須確認特展。",
+      "sourceName": "Art Gallery of New South Wales · official source",
+      "sourceUrl": "https://www.artgallery.nsw.gov.au/visit/",
+      "observedOn": "2026-10-25",
+      "reviewBy": "2026-11-24",
+      "venueIds": [
+        "gallery"
+      ],
+      "venueAliases": [
+        "新南威尔士州美术馆",
+        "Art Gallery of New South Wales",
+        "Art Gallery of NSW",
+        "新南威爾斯美術館",
+        "新南威爾士州美術館"
+      ],
+      "pricingStatus": "free",
+      "priceType": "reference_ticket_price",
+      "budgetEligible": false,
+      "license": "Factual admission reference; source page rights retained. No photos or reviews copied."
+    },
+    {
+      "id": "qvb:history-tour",
+      "title": "Queen Victoria Building — history tour",
+      "venueName": "Queen Victoria Building",
+      "lat": -33.8719,
+      "lng": 151.2067,
+      "amount": 25,
+      "currency": "AUD",
+      "ticketType": "歷史導覽 · 每人",
+      "conditions": "官方歷史導覽每人 AUD 25，含 GST；需線上預訂，導覽約 60 分鐘。這是選購導覽，不能視為一般購物或進入建築的入場費。",
+      "sourceName": "Queen Victoria Building Sydney · official source",
+      "sourceUrl": "https://www.qvb.com.au/qvb-history-tour",
+      "observedOn": "2026-10-25",
+      "reviewBy": "2026-11-24",
+      "venueIds": [
+        "qvb"
+      ],
+      "venueAliases": [
+        "维多利亚女王大厦",
+        "Queen Victoria Building Sydney",
+        "Queen Victoria Building",
+        "QVB",
+        "維多利亞女王大廈"
+      ],
+      "pricingStatus": "known",
+      "priceType": "reference_ticket_price",
+      "budgetEligible": false,
+      "license": "Factual admission reference; source page rights retained. No photos or reviews copied."
+    },
+    {
+      "id": "qvb:history-tour-child",
+      "title": "Queen Victoria Building — child history tour",
+      "venueName": "Queen Victoria Building",
+      "lat": -33.8719,
+      "lng": 151.2067,
+      "amount": 0,
+      "currency": "AUD",
+      "ticketType": "歷史導覽 · 0–12 歲兒童",
+      "conditions": "官方列 0–12 歲兒童免費，必須由付費成人陪同；仍須依官網預約條件辦理。",
+      "sourceName": "Queen Victoria Building Sydney · official source",
+      "sourceUrl": "https://www.qvb.com.au/qvb-history-tour",
+      "observedOn": "2026-10-25",
+      "reviewBy": "2026-11-24",
+      "venueIds": [
+        "qvb"
+      ],
+      "venueAliases": [
+        "维多利亚女王大厦",
+        "Queen Victoria Building Sydney",
+        "Queen Victoria Building",
+        "QVB",
+        "維多利亞女王大廈"
+      ],
+      "pricingStatus": "free",
+      "priceType": "reference_ticket_price",
+      "budgetEligible": false,
+      "license": "Factual admission reference; source page rights retained. No photos or reviews copied."
+    },
+    {
+      "id": "mca:adult-general-entry",
+      "title": "MCA Australia — general admission",
+      "venueName": "Museum of Contemporary Art Australia",
+      "lat": -33.8599,
+      "lng": 151.2091,
+      "amount": 25,
+      "currency": "AUD",
+      "ticketType": "成人一般入場 · 日期參考",
+      "conditions": "官方售票頁選擇 2026-10-25 後顯示成人票 AUD 25；不含目前主要特展，結帳另加服務／交易費，總額尚未確認。其他日期須重新查價。",
+      "sourceName": "Museum of Contemporary Art Australia · official source",
+      "sourceUrl": "https://tix.mca.com.au/events/a5f499c1-d58d-1808-4770-4934715a3779",
+      "observedOn": "2026-10-25",
+      "reviewBy": "2026-10-26",
+      "venueIds": [
+        "mca"
+      ],
+      "venueAliases": [
+        "澳大利亚当代艺术博物馆",
+        "Museum of Contemporary Art Australia",
+        "Museum of Contemporary Art",
+        "MCA Australia",
+        "澳大利亞當代藝術博物館"
+      ],
+      "pricingStatus": "known",
+      "priceType": "reference_ticket_price",
+      "budgetEligible": false,
+      "license": "Factual admission reference; source page rights retained. No photos or reviews copied."
+    },
+    {
+      "id": "mca:under18-entry",
+      "title": "MCA Australia — under 18 admission",
+      "venueName": "Museum of Contemporary Art Australia",
+      "lat": -33.8599,
+      "lng": 151.2091,
+      "amount": 0,
+      "currency": "AUD",
+      "ticketType": "未滿 18 歲／MCA 會員",
+      "conditions": "官方確認未滿 18 歲及 MCA 會員免費入場；售票頁另註 0–12 歲須由付費持票者陪同。指定特展、活動及預約條件須另查。",
+      "sourceName": "Museum of Contemporary Art Australia · official source",
+      "sourceUrl": "https://www.mca.com.au/visitor-information/",
+      "observedOn": "2026-10-25",
+      "reviewBy": "2026-11-24",
+      "venueIds": [
+        "mca"
+      ],
+      "venueAliases": [
+        "澳大利亚当代艺术博物馆",
+        "Museum of Contemporary Art Australia",
+        "Museum of Contemporary Art",
+        "MCA Australia",
+        "澳大利亞當代藝術博物館"
+      ],
+      "pricingStatus": "free",
+      "priceType": "reference_ticket_price",
+      "budgetEligible": false,
+      "license": "Factual admission reference; source page rights retained. No photos or reviews copied."
+    },
+    {
+      "id": "rocks:precinct-reference",
+      "title": "The Rocks — precinct and individual venues",
+      "venueName": "The Rocks Sydney",
+      "lat": -33.8599,
+      "lng": 151.209,
+      "amount": null,
+      "currency": "AUD",
+      "ticketType": "街區 · 個別活動另查",
+      "conditions": "官網列多種免費散步與文化活動，但不把街區內所有店家、導覽、餐飲或博物館視為免費。未核實統一街區門票；請依選定場館或活動查價。",
+      "sourceName": "The Rocks Sydney · official source",
+      "sourceUrl": "https://www.therocks.com/whats-on/campaigns/free-activities",
+      "observedOn": "2026-10-25",
+      "reviewBy": "2026-11-24",
+      "venueIds": [
+        "rocks"
+      ],
+      "venueAliases": [
+        "岩石区",
+        "The Rocks Sydney",
+        "The Rocks",
+        "岩石區"
+      ],
+      "pricingStatus": "unknown",
+      "priceType": "reference_ticket_price",
+      "budgetEligible": false,
+      "license": "Factual admission reference; source page rights retained. No photos or reviews copied."
+    },
+    {
+      "id": "darling:precinct-reference",
+      "title": "Darling Harbour — precinct and individual attractions",
+      "venueName": "Darling Harbour Sydney",
+      "lat": -33.873,
+      "lng": 151.2009,
+      "amount": null,
+      "currency": "AUD",
+      "ticketType": "港灣街區 · 個別設施另查",
+      "conditions": "官網提供免費公共藝術與活動清單。水族館、中國花園及其他設施有各自票價，不能用免費活動推論整個街區內所有景點免費。未核實統一街區門票。",
+      "sourceName": "Darling Harbour Sydney · official source",
+      "sourceUrl": "https://www.darlingharbour.com/whats-on/campaigns/free-things-to-do",
+      "observedOn": "2026-10-25",
+      "reviewBy": "2026-11-24",
+      "venueIds": [
+        "darling"
+      ],
+      "venueAliases": [
+        "达令港",
+        "Darling Harbour Sydney",
+        "Darling Harbour",
+        "達令港"
+      ],
+      "pricingStatus": "unknown",
+      "priceType": "reference_ticket_price",
+      "budgetEligible": false,
+      "license": "Factual admission reference; source page rights retained. No photos or reviews copied."
+    },
+    {
+      "id": "mca:concession-general-entry",
+      "title": "MCA Australia — general admission",
+      "venueName": "Museum of Contemporary Art Australia",
+      "lat": -33.8599,
+      "lng": 151.2091,
+      "amount": 20,
+      "currency": "AUD",
+      "ticketType": "優惠／大專學生一般入場 · 須證件",
+      "conditions": "官方售票頁 2026-10-25 優惠票與大專學生票均顯示 AUD 20，需有效證件；不含目前主要特展，結帳另收服務／交易費。其他日期須重新查價。",
+      "sourceName": "Museum of Contemporary Art Australia · official source",
+      "sourceUrl": "https://tix.mca.com.au/events/a5f499c1-d58d-1808-4770-4934715a3779",
+      "observedOn": "2026-10-25",
+      "reviewBy": "2026-10-26",
+      "venueIds": [
+        "mca"
+      ],
+      "venueAliases": [
+        "澳大利亚当代艺术博物馆",
+        "Museum of Contemporary Art Australia",
+        "Museum of Contemporary Art",
+        "MCA Australia",
+        "澳大利亞當代藝術博物館"
+      ],
+      "pricingStatus": "known",
+      "priceType": "reference_ticket_price",
+      "budgetEligible": false,
+      "license": "Factual admission reference; source page rights retained. No photos or reviews copied."
+    },
+    {
+      "venueName": "Sydney Opera House",
+      "lat": -33.8568,
+      "lng": 151.2153,
+      "currency": "AUD",
+      "sourceName": "Sydney Opera House official website",
+      "observedOn": "2026-10-25",
+      "reviewBy": "2026-11-24",
+      "ticketType": "5–15 歲兒童 · 預訂",
+      "priceType": "reference_ticket_price",
+      "budgetEligible": false,
+      "license": "Factual price reference; source page rights retained. No photos or reviews copied.",
+      "id": "soh:child-prebook",
+      "title": "Sydney Opera House Tour",
+      "amount": 30,
+      "sourceUrl": "https://www.sydneyoperahouse.com/tours/sydney-opera-house-tour",
+      "conditions": "5–15 歲兒童，須由成人陪同。 官方標準導覽價格，2027-04-01 起另有新價格；不含表演門票，須依日期與可訂名額確認。",
+      "venueIds": [
+        "opera"
+      ],
+      "venueAliases": [
+        "Sydney Opera House",
+        "悉尼歌剧院",
+        "悉尼歌劇院",
+        "雪梨歌劇院"
+      ],
+      "pricingStatus": "known"
+    },
+    {
+      "venueName": "Sydney Opera House",
+      "lat": -33.8568,
+      "lng": 151.2153,
+      "currency": "AUD",
+      "sourceName": "Sydney Opera House official website",
+      "observedOn": "2026-10-25",
+      "reviewBy": "2026-11-24",
+      "ticketType": "優惠票 · 預訂",
+      "priceType": "reference_ticket_price",
+      "budgetEligible": false,
+      "license": "Factual price reference; source page rights retained. No photos or reviews copied.",
+      "id": "soh:concession-prebook",
+      "title": "Sydney Opera House Tour",
+      "amount": 40,
+      "sourceUrl": "https://www.sydneyoperahouse.com/tours/sydney-opera-house-tour",
+      "conditions": "須符合官網列出的優惠身分及出示證件。 官方標準導覽價格，2027-04-01 起另有新價格；不含表演門票，須依日期與可訂名額確認。",
+      "venueIds": [
+        "opera"
+      ],
+      "venueAliases": [
+        "Sydney Opera House",
+        "悉尼歌剧院",
+        "悉尼歌劇院",
+        "雪梨歌劇院"
+      ],
+      "pricingStatus": "known"
+    },
+    {
+      "venueName": "Sydney Opera House",
+      "lat": -33.8568,
+      "lng": 151.2153,
+      "currency": "AUD",
+      "sourceName": "Sydney Opera House official website",
+      "observedOn": "2026-10-25",
+      "reviewBy": "2026-11-24",
+      "ticketType": "家庭票 · 2 成人＋2 兒童",
+      "priceType": "reference_ticket_price",
+      "budgetEligible": false,
+      "license": "Factual price reference; source page rights retained. No photos or reviews copied.",
+      "id": "soh:family-prebook",
+      "title": "Sydney Opera House Tour",
+      "amount": 130,
+      "sourceUrl": "https://www.sydneyoperahouse.com/tours/sydney-opera-house-tour",
+      "conditions": "此為整組家庭票，含 2 成人及 2 名 15 歲以下兒童，不是每人價格。 官方標準導覽價格，2027-04-01 起另有新價格；不含表演門票，須依日期與可訂名額確認。",
+      "venueIds": [
+        "opera"
+      ],
+      "venueAliases": [
+        "Sydney Opera House",
+        "悉尼歌剧院",
+        "悉尼歌劇院",
+        "雪梨歌劇院"
+      ],
+      "pricingStatus": "known"
+    },
+    {
+      "venueName": "Sydney Opera House",
+      "lat": -33.8568,
+      "lng": 151.2153,
+      "currency": "AUD",
+      "sourceName": "Sydney Opera House official website",
+      "observedOn": "2026-10-25",
+      "reviewBy": "2026-11-24",
+      "ticketType": "成人 · 當日購買",
+      "priceType": "reference_ticket_price",
+      "budgetEligible": false,
+      "license": "Factual price reference; source page rights retained. No photos or reviews copied.",
+      "id": "soh:adult-on-day",
+      "title": "Sydney Opera House Tour",
+      "amount": 55,
+      "sourceUrl": "https://www.sydneyoperahouse.com/tours/sydney-opera-house-tour",
+      "conditions": "當日購買價格，仍須有名額。 官方標準導覽價格，2027-04-01 起另有新價格；不含表演門票，須依日期與可訂名額確認。",
+      "venueIds": [
+        "opera"
+      ],
+      "venueAliases": [
+        "Sydney Opera House",
+        "悉尼歌剧院",
+        "悉尼歌劇院",
+        "雪梨歌劇院"
+      ],
+      "pricingStatus": "known"
     }
   ]
 }

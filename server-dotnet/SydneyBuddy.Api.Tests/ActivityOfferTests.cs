@@ -19,6 +19,13 @@ public sealed class ActivityOfferTests {
         Assert.False(ActivityOfferService.MatchesVenue(offer,"apple:123","測試場館",600));
         Assert.False(ActivityOfferService.MatchesVenue(offer,"apple:123","Other",0));
     }
+    [Fact]public void UnknownAndFreeAreDifferentAndNeitherDeductsBudget(){
+        var unknown=Offer();unknown["amount"]=null;unknown["pricingStatus"]="unknown";
+        var checkedUnknown=ActivityOfferService.Validate(unknown);Assert.Null(checkedUnknown["amount"]);Assert.Equal("unknown",checkedUnknown.Str("pricingStatus"));Assert.False(checkedUnknown.Bool("budgetEligible"));
+        var free=Offer();free["amount"]=0;free["pricingStatus"]="free";var checkedFree=ActivityOfferService.Validate(free);Assert.Equal(0,checkedFree.Number("amount"));Assert.Equal("free",checkedFree.Str("pricingStatus"));
+        free["amount"]=25;Assert.Throws<ServiceException>(()=>ActivityOfferService.Validate(free));
+        unknown["amount"]=0;Assert.Throws<ServiceException>(()=>ActivityOfferService.Validate(unknown));
+    }
     sealed class Warehouse: ITravelWarehouse {
         public bool Fail;public int Calls;
         public Task<TravelSnapshot> ReadAsync(CancellationToken token)=>throw new NotImplementedException();

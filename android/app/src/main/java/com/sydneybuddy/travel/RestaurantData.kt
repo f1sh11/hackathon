@@ -96,7 +96,7 @@ import org.json.JSONObject
     offers.forEach{offer->Card(Modifier.fillMaxWidth()){Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){
         Text(offer.optString("title"),style=MaterialTheme.typography.titleSmall)
         Small(offer.optString("venueName")+" · "+offer.optInt("distanceMeters")+" m")
-        Text(offer.optString("currency")+" %.2f · ".format(offer.optDouble("amount"))+offer.optString("ticketType"))
+        Text((if(offer.isNull("amount"))ui("票價待確認")else if(offer.optDouble("amount")==0.0)ui("免費")else offer.optString("currency")+" %.2f".format(offer.optDouble("amount")))+" · "+offer.optString("ticketType"))
         Small(offer.optString("conditions"));Small(ui("資料日期：{0}",offer.optString("observedOn")))
         if(offer.optBoolean("stale"))Small(ui("票價待重新確認，請查看官網。"))
         if(offer.optString("sourceUrl").startsWith("https://"))TextButton(onClick={uri.openUri(offer.getString("sourceUrl"))}){Text(offer.optString("sourceName"))}

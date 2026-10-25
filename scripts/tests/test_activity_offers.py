@@ -22,3 +22,14 @@ class ActivityTests(unittest.TestCase):
     def test_ignores_extra_private_fields(self):
         raw=self.input();raw['offers'][0]['cookies']='not exported'
         self.assertNotIn('cookies',module.validate(raw)[0])
+
+    def test_unknown_is_not_converted_to_zero(self):
+        raw=self.input();raw['offers'][0].update(amount=None,pricingStatus='unknown')
+        self.assertIsNone(module.validate(raw)[0]['amount'])
+        raw['offers'][0]['amount']=0
+        with self.assertRaises(ValueError):module.validate(raw)
+    def test_free_requires_zero_and_known_requires_positive(self):
+        raw=self.input();raw['offers'][0].update(amount=0,pricingStatus='free')
+        self.assertEqual(module.validate(raw)[0]['pricingStatus'],'free')
+        raw['offers'][0]['pricingStatus']='known'
+        with self.assertRaises(ValueError):module.validate(raw)

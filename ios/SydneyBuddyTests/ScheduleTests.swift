@@ -817,3 +817,13 @@ final class TravelInsightContractTests:XCTestCase {
     var places:[ScheduleCandidate]
     var body:some View{PoiNativeMap(places:places,osm:store.mapProvider == .osm,center:.init(latitude:-33.87,longitude:151.20),zoom:14,onCamera:{_,_ in state.cameraChanges+=1},onSelect:{_ in},focus:state.focus)}
 }
+
+final class ActivityReferenceContractTests:XCTestCase {
+    func testUnknownAndFreePriceDecodeSeparately() throws {
+        let fields:[String:Any] = ["id":"test","title":"Test admission","venueName":"Test venue","currency":"AUD","ticketType":"General entry","conditions":"Test","sourceName":"Official","sourceUrl":"https://example.com","observedOn":"2026-10-25","stale":false,"distanceMeters":0]
+        var unknown=fields;unknown["amount"]=NSNull()
+        XCTAssertNil(try JSONDecoder().decode(ActivityReference.self,from:JSONSerialization.data(withJSONObject:unknown)).amount)
+        var free=fields;free["amount"]=0
+        XCTAssertEqual(try JSONDecoder().decode(ActivityReference.self,from:JSONSerialization.data(withJSONObject:free)).amount,0)
+    }
+}

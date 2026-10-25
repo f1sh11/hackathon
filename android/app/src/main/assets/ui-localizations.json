@@ -1718,5 +1718,15 @@
     "en": "No confirmed activity price references for this place yet.",
     "zh-Hant": "此景點尚無已確認的活動票價資料。",
     "zh-Hans": "此景点尚无已确认的活动票价资料。"
+  },
+  "免費": {
+    "en": "Free",
+    "zh-Hant": "免費",
+    "zh-Hans": "免费"
+  },
+  "票價待確認": {
+    "en": "Price not confirmed",
+    "zh-Hant": "票價待確認",
+    "zh-Hans": "票价待确认"
   }
 }
