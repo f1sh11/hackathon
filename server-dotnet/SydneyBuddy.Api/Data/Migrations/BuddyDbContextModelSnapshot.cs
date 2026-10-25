@@ -9,7 +9,6 @@ using SydneyBuddy.Api;
 
 namespace SydneyBuddy.Api.Data.Migrations
 {
-    /// <summary>保存 EF 迁移模型快照；tracks the last migrated model so future schema changes remain explicit.</summary>
     [DbContext(typeof(BuddyDbContext))]
     partial class BuddyDbContextModelSnapshot : ModelSnapshot
     {
@@ -52,6 +51,34 @@ namespace SydneyBuddy.Api.Data.Migrations
                     b.ToTable("memories", (string)null);
                 });
 
+            modelBuilder.Entity("SydneyBuddy.Api.TravelWorldEntity", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text")
+                        .HasColumnName("id");
+
+                    b.Property<string>("CreatedAt")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("SchemaVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("schema_version");
+
+                    b.Property<string>("TripId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("trip_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TripId")
+                        .IsUnique();
+
+                    b.ToTable("travel_worlds", (string)null);
+                });
+
             modelBuilder.Entity("SydneyBuddy.Api.TripEntity", b =>
                 {
                     b.Property<string>("Id")
@@ -74,6 +101,192 @@ namespace SydneyBuddy.Api.Data.Migrations
                         {
                             t.HasCheckConstraint("ck_trips_revision", "revision > 0");
                         });
+                });
+
+            modelBuilder.Entity("SydneyBuddy.Api.WorldEventEntity", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Actor")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("actor");
+
+                    b.Property<string>("DataJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("data");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<string>("OccurredAt")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("occurred_at");
+
+                    b.Property<string>("RunId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("run_id");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("type");
+
+                    b.Property<string>("WorldId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("world_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RunId");
+
+                    b.HasIndex("WorldId", "IdempotencyKey")
+                        .IsUnique();
+
+                    b.ToTable("world_events", (string)null);
+                });
+
+            modelBuilder.Entity("SydneyBuddy.Api.WorldRunEntity", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text")
+                        .HasColumnName("id");
+
+                    b.Property<string>("CompletedAt")
+                        .HasColumnType("text")
+                        .HasColumnName("completed_at");
+
+                    b.Property<string>("CreatedAt")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("RequestId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("request_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.Property<int>("TripRevision")
+                        .HasColumnType("integer")
+                        .HasColumnName("trip_revision");
+
+                    b.Property<string>("WorldId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("world_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WorldId", "RequestId")
+                        .IsUnique();
+
+                    b.ToTable("world_runs", (string)null);
+                });
+
+            modelBuilder.Entity("SydneyBuddy.Api.WorldSnapshotEntity", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text")
+                        .HasColumnName("id");
+
+                    b.Property<string>("DataJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("data");
+
+                    b.Property<string>("OccurredAt")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("occurred_at");
+
+                    b.Property<string>("RunId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("run_id");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer")
+                        .HasColumnName("sequence");
+
+                    b.Property<string>("WorldId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("world_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WorldId");
+
+                    b.HasIndex("RunId", "Sequence")
+                        .IsUnique();
+
+                    b.ToTable("world_snapshots", (string)null);
+                });
+
+            modelBuilder.Entity("SydneyBuddy.Api.TravelWorldEntity", b =>
+                {
+                    b.HasOne("SydneyBuddy.Api.TripEntity", null)
+                        .WithMany()
+                        .HasForeignKey("TripId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("SydneyBuddy.Api.WorldEventEntity", b =>
+                {
+                    b.HasOne("SydneyBuddy.Api.WorldRunEntity", null)
+                        .WithMany()
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SydneyBuddy.Api.TravelWorldEntity", null)
+                        .WithMany()
+                        .HasForeignKey("WorldId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("SydneyBuddy.Api.WorldRunEntity", b =>
+                {
+                    b.HasOne("SydneyBuddy.Api.TravelWorldEntity", null)
+                        .WithMany()
+                        .HasForeignKey("WorldId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("SydneyBuddy.Api.WorldSnapshotEntity", b =>
+                {
+                    b.HasOne("SydneyBuddy.Api.WorldRunEntity", null)
+                        .WithMany()
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SydneyBuddy.Api.TravelWorldEntity", null)
+                        .WithMany()
+                        .HasForeignKey("WorldId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }

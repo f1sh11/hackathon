@@ -229,6 +229,91 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
         Assert.DoesNotContain((await fixture.Client.GetFromJsonAsync<JsonArray>("/memories"))!, item => item!.Str("id") == id);
     }
 
+    [Fact]
+    public async Task FailedWorldCheckRollsBackAndSameRequestCanRetry() {
+        var saved=await SaveAsync(await PlanAsync(),0);var id=saved.Str("id");
+        try {
+            await using var host=fixture.CreateFactory();using var client=host.CreateClient();
+            using(var scope=host.Services.CreateScope()) {
+                var repository=scope.ServiceProvider.GetRequiredService<TripRepository>();
+                var invalid=(JsonObject)saved.DeepClone();invalid["days"]=new JsonArray();await repository.SaveAsync(invalid,1);
+            }
+            var request=new{requestId="rollback_"+Guid.NewGuid().ToString("N")};
+            Assert.False((await client.PostAsJsonAsync("/trips/"+id+"/simulation-runs",request)).IsSuccessStatusCode);
+            Assert.False((await client.GetFromJsonAsync<JsonObject>("/trips/"+id+"/world"))!.Bool("available"));
+            using(var scope=host.Services.CreateScope()) await scope.ServiceProvider.GetRequiredService<TripRepository>().SaveAsync(saved,2);
+            var retry=await client.PostAsJsonAsync("/trips/"+id+"/simulation-runs",request);retry.EnsureSuccessStatusCode();
+            Assert.Equal("completed",(await retry.Content.ReadFromJsonAsync<JsonObject>())!.Str("status"));
+        } finally {await fixture.Client.DeleteAsync("/trips/"+id);}
+    }
+
+    [Fact]
+    public async Task WorldChecksSerializeRetriesAndRejectDecisionsAfterRevisionChanges() {
+        var saved=await SaveAsync(await PlanAsync(),0);var id=saved.Str("id");
+        try {
+            var request="concurrent_"+Guid.NewGuid().ToString("N");
+            var responses=await Task.WhenAll(Enumerable.Range(0,3).Select(_=>fixture.Client.PostAsJsonAsync("/trips/"+id+"/simulation-runs",new{requestId=request})));
+            var runs=new List<JsonObject>();foreach(var response in responses){response.EnsureSuccessStatusCode();runs.Add((await response.Content.ReadFromJsonAsync<JsonObject>())!);}
+            Assert.Single(runs.Select(x=>x.Str("id")).Distinct());
+            var run=runs[0];Assert.False(run.Bool("stale"));Assert.Null(run.Object("summary")!["after"]);
+            var suggestion=run.Array("suggestions")!.OfType<JsonObject>().First();
+            var path="/simulation-runs/"+run.Str("id")+"/decisions";
+            var decision=new{suggestionId=suggestion.Str("id"),decision="rejected"};
+            foreach(var _ in Enumerable.Range(0,2))(await fixture.Client.PostAsJsonAsync(path,decision)).EnsureSuccessStatusCode();
+            Assert.Single((await fixture.Client.GetFromJsonAsync<JsonObject>("/simulation-runs/"+run.Str("id")))!.Array("decisions")!);
+            Assert.False((await fixture.Client.PostAsJsonAsync(path,new{suggestionId=suggestion.Str("id"),decision="accepted"})).IsSuccessStatusCode);
+            var recheck=await fixture.Client.PostAsJsonAsync("/trips/"+id+"/simulation-runs",new{requestId="recheck_"+Guid.NewGuid().ToString("N")});recheck.EnsureSuccessStatusCode();
+            var checkedAgain=(await recheck.Content.ReadFromJsonAsync<JsonObject>())!;
+            Assert.Equal("rejected",Assert.Single(checkedAgain.Array("decisions")!.OfType<JsonObject>()).Str("decision"));
+            saved["title"]="更新过的行程";
+            (await fixture.Client.PostAsJsonAsync("/trips",new{trip=saved,expectedRevision=saved.Int("revision"),renameOnly=true})).EnsureSuccessStatusCode();
+            var latest=await fixture.Client.GetFromJsonAsync<JsonObject>("/trips/"+id+"/world");Assert.True(latest!.Object("run")!.Bool("stale"));
+            Assert.False((await fixture.Client.PostAsJsonAsync(path,decision)).IsSuccessStatusCode);
+        } finally {await fixture.Client.DeleteAsync("/trips/"+id);}
+    }
+
+    [Fact]
+    public async Task WorldModelPersistsSimulationSnapshotsAndUserDecisionWithoutChangingTrip()
+    {
+        var saved = await SaveAsync(await PlanAsync(), 0);
+        var id = saved.Str("id");
+        try
+        {
+            var empty = await fixture.Client.GetFromJsonAsync<JsonObject>("/trips/" + id + "/world");
+            Assert.False(empty!.Bool("available"));
+
+            var request = "simulation_" + Guid.NewGuid().ToString("N");
+            var response = await fixture.Client.PostAsJsonAsync("/trips/" + id + "/simulation-runs", new { requestId = request });
+            response.EnsureSuccessStatusCode();
+            var run = (await response.Content.ReadFromJsonAsync<JsonObject>())!;
+            Assert.Equal("completed", run.Str("status"));
+            Assert.Equal(id, run.Str("tripId"));
+            Assert.NotEmpty(run.Array("snapshots")!);
+            Assert.NotEmpty(run.Array("suggestions")!);
+            Assert.Equal(saved.Int("revision"), run.Int("tripRevision"));
+
+            var retry = await fixture.Client.PostAsJsonAsync("/trips/" + id + "/simulation-runs", new { requestId = request });
+            var sameRun = (await retry.Content.ReadFromJsonAsync<JsonObject>())!;
+            Assert.Equal(run.Str("id"), sameRun.Str("id"));
+
+            var suggestion = run.Array("suggestions")![0]!.AsObject().Str("id");
+            var decision = await fixture.Client.PostAsJsonAsync("/simulation-runs/" + run.Str("id") + "/decisions",
+                new { suggestionId = suggestion, decision = "rejected" });
+            decision.EnsureSuccessStatusCode();
+            var decided = (await decision.Content.ReadFromJsonAsync<JsonObject>())!;
+            var eventData = Assert.Single(decided.Array("decisions")!.OfType<JsonObject>());
+            Assert.Equal("rejected", eventData.Str("decision"));
+            Assert.True(eventData.Bool("preserveUserChoice"));
+
+            var latest = await fixture.Client.GetFromJsonAsync<JsonObject>("/trips/" + id + "/world");
+            Assert.True(latest!.Bool("available"));
+            Assert.Equal(run.Str("id"), latest.Object("run")!.Str("id"));
+            var unchanged = Assert.Single((await ListAsync()).OfType<JsonObject>(), trip => trip.Str("id") == id);
+            Assert.Equal(saved.Int("revision"), unchanged.Int("revision"));
+        }
+        finally { await fixture.Client.DeleteAsync("/trips/" + id); }
+    }
+
     [Theory]
     [InlineData("not-json")]
     [InlineData("[]")]

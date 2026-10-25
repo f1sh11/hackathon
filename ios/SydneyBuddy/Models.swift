@@ -709,3 +709,20 @@ struct PlanningCatalogPlace:Decodable {
     var description:String?;var note:String?;var openMinute:Int?;var closeMinute:Int?;var activityType:String?
     var candidate:ScheduleCandidate {ScheduleCandidate(id:id,name:name,category:category,indoor:indoor,visitMinutes:visitMinutes,cost:cost,lat:lat,lng:lng,reason:"地点目录候选",description:description,note:note,openMinute:openMinute,closeMinute:closeMinute,activityType:activityType)}
 }
+
+// Saved-trip checks are isolated from chat/generation state; no global busy flag or profile mutation.
+struct WorldSummary:Codable {
+    var walkingSteps:Int;var cost:Double;var transportMinutes:Int;var outdoorMinutes:Int
+    var energyRisk:String;var budgetRisk:String;var weatherRisk:String;var source:String
+}
+struct WorldSuggestion:Codable,Identifiable {
+    var id:String;var dayIndex:Int;var title:String;var detail:String;var action:String;var status:String
+}
+struct WorldDecision:Codable {var suggestionId:String;var decision:String}
+struct WorldRun:Codable,Identifiable {
+    var id:String;var tripId:String;var tripRevision:Int;var status:String;var stale:Bool
+    var summary:WorldSummary;var suggestions:[WorldSuggestion];var decisions:[WorldDecision]
+    func decision(for suggestion:WorldSuggestion)->String? {decisions.last{$0.suggestionId==suggestion.id}?.decision}
+    func matches(_ trip:Trip)->Bool {trip.id==tripId && trip.revision==tripRevision && !stale && status=="completed"}
+}
+struct WorldRunEnvelope:Codable {var available:Bool;var run:WorldRun?}

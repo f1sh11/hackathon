@@ -57,6 +57,69 @@ struct AgentView:View {
     var autoSend=false
     var body:some View { PetChatView(initialMessage:context,autoSendInitial:autoSend) }
 }
+/// Koko checks live inside the existing trip workspace. The original itinerary stays untouched.
+struct WorldModelView:View {
+    let trip:Trip
+    var onAdjust:(WorldSuggestion)->Void
+    @EnvironmentObject private var store:AppStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var run:WorldRun?
+    @State private var loading=false
+    @State private var active=false
+    @State private var error:String?
+    @State private var requestID=UUID().uuidString
+    private var current:Bool {run?.matches(trip)==true}
+    var body:some View {
+        NavigationStack {ScrollView {VStack(alignment:.leading,spacing:18) {
+            HStack(spacing:12){PetAvatar(mood:loading ? .thinking:.curious).frame(width:78,height:90)
+                VStack(alignment:.leading,spacing:6){Text("出发前，我帮你看看～").font(.headline);Text("检查每天的体力、交通、预算和已保存的天气。原行程会好好留着。").font(.caption).foregroundStyle(Palette.muted)}}
+            if loading {ProgressView("正在检查已保存的安排…").frame(maxWidth:.infinity).padding()}
+            if let error {Text(error).font(.subheadline).foregroundStyle(.red).accessibilityIdentifier("world-error")}
+            if let run {
+                if !current {Label("行程已经修改，这份检查需要更新。",systemImage:"arrow.clockwise").font(.subheadline).accessibilityIdentifier("world-stale")}
+                else {
+                    Text("全程约 \(run.summary.walkingSteps) 步 · 每人活动估算 A$\(Int(run.summary.cost))").font(.subheadline.bold())
+                    Text("每日风险：体力 \(risk(run.summary.energyRisk)) · 预算 \(risk(run.summary.budgetRisk)) · 天气 \(risk(run.summary.weatherRisk))").font(.caption).foregroundStyle(Palette.muted)
+                    if run.suggestions.isEmpty {Text("按当前资料，没有发现超限问题。按自己的节奏出发，想调整随时叫我～").font(.subheadline)}
+                    ForEach(run.suggestions){suggestion in
+                        VStack(alignment:.leading,spacing:10){Text("第 \(suggestion.dayIndex+1) 天 · \(suggestion.title)").font(.subheadline.bold());Text(suggestion.detail).font(.caption).foregroundStyle(Palette.muted)
+                            if run.decision(for:suggestion)=="rejected" {Label("这次按你的想法保留，不改这一项。",systemImage:"heart").font(.caption).foregroundStyle(Palette.green)}
+                            else {HStack {
+                                Button(suggestion.action=="review" ? "问 Koko 怎么确认":"看看怎么调整") {Task{await decide(suggestion,"accepted")}}.buttonStyle(.borderedProminent).accessibilityIdentifier("world-adjust-"+suggestion.id)
+                                if run.decision(for:suggestion)==nil {Button("先保留"){Task{await decide(suggestion,"rejected")}}.buttonStyle(.bordered).accessibilityIdentifier("world-keep-"+suggestion.id)}
+                            }.disabled(loading)}
+                        }.padding(16).frame(maxWidth:.infinity,alignment:.leading).background(.white,in:RoundedRectangle(cornerRadius:20))
+                    }
+                    Text(run.summary.source).font(.caption2).foregroundStyle(Palette.muted)
+                }
+            }
+            if !loading {Button(current ? "重新检查":"让 Koko 检查一下"){Task{await check()}}.buttonStyle(.bordered).accessibilityIdentifier("world-check")}
+            Text("只使用这份行程中的资料，不会自动修改长期偏好。调整仍需预览并保存。").font(.caption2).foregroundStyle(Palette.muted)
+        }.padding(20)}.background(Palette.cream).navigationTitle("Koko 行程检查").navigationBarTitleDisplayMode(.inline)
+            .toolbar{ToolbarItem(placement:.topBarTrailing){Button("完成"){dismiss()}}}
+            .task {active=true;await load()}.onDisappear{active=false}
+        }.tint(Palette.green)
+    }
+    private func risk(_ value:String)->String {switch value{case "high":return "需留意";case "medium":return "接近上限";case "low":return "未超限";default:return "待确认"}}
+    private func load() async {
+        guard let id=trip.id else{return};loading=true;defer{loading=false}
+        do {let result:WorldRunEnvelope=try await store.api("trips/"+id+"/world");guard !Task.isCancelled,active else{return};run=result.run}
+        catch {if !Task.isCancelled{self.error="暂时没能读取检查记录，可以重试。"}}
+    }
+    private func check() async {
+        guard let id=trip.id,!loading else{return};loading=true;error=nil;defer{loading=false}
+        do {let body=try JSONSerialization.data(withJSONObject:["requestId":requestID]);let result:WorldRun=try await store.api("trips/"+id+"/simulation-runs",method:"POST",body:body)
+            guard !Task.isCancelled,active else{return};run=result;requestID=UUID().uuidString
+        }catch {if !Task.isCancelled{self.error=error.localizedDescription}}
+    }
+    private func decide(_ suggestion:WorldSuggestion,_ decision:String) async {
+        guard let run,current,!loading else{return};loading=true;error=nil;defer{loading=false}
+        do {let body=try JSONSerialization.data(withJSONObject:["suggestionId":suggestion.id,"decision":decision]);let result:WorldRun=try await store.api("simulation-runs/"+run.id+"/decisions",method:"POST",body:body)
+            guard !Task.isCancelled,active else{return};self.run=result
+            if decision=="accepted" {onAdjust(suggestion)}
+        }catch {if !Task.isCancelled{self.error=error.localizedDescription}}
+    }
+}
 struct TripDetailView:View {
     @EnvironmentObject var store:AppStore
     var body:some View { NavigationStack { ScrollView {VStack(alignment:.leading,spacing:20){if let t=store.trip {Text(t.explanation).font(.subheadline);WeatherCard(weather:store.currentWeather);ForEach(t.days){DaySummary(day:$0)};ForEach(t.warnings,id:\.self){Text($0).font(.caption).foregroundStyle(Palette.muted)};DisclosureGroup("规划与验证记录"){ForEach(t.trace){r in VStack(alignment:.leading,spacing:6){Text(r.title).font(.headline);Text(r.detail).font(.caption);Text(r.source).font(.caption2).foregroundStyle(Palette.green)}.padding(.vertical,8)}}}}.padding(24)}.background(Palette.cream).navigationTitle("这次的小冒险").onAppear {store.markPrepared("route")}.task(id:store.travelDataSource){await store.refreshWeather()} } }
@@ -330,6 +393,8 @@ struct SavedTripWorkspace:View {
     @State private var companionRequest:TripCompanionRequest?
     @State private var adjustingDay=false
     @State private var replacingStop=false
+    @State private var checkingWorld=false
+    @State private var worldAction:WorldSuggestion?
     var body:some View {
         VStack(spacing:0) {
             HStack{Text("\(trip.profile.date) · \(trip.days.count) 天").font(.caption).foregroundStyle(Palette.muted);Spacer();Text("\(trip.profile.travelers ?? 1) 人同行").font(.caption).foregroundStyle(Palette.muted)}.padding(.horizontal,20).padding(.top,4)
@@ -341,6 +406,7 @@ struct SavedTripWorkspace:View {
                 HStack{Text("地图显示已保存的安排").font(.caption);Spacer();Button("返回修改预览"){section="details"}.font(.caption.bold())}.padding(.horizontal,20).padding(.vertical,8).background(Palette.mint)
             }
             KokoTripActions(trip:trip,dayIndex:store.dayIndex,disabled:hasScheduleDraft || savingSchedule){intent in
+                if intent == .checkPlan{checkingWorld=true;return}
                 if intent == .replace{replacingStop=true;return}
                 companionRequest=TripCompanionRequest(text:TripCompanionContext.request(trip:trip,dayIndex:store.dayIndex,intent:intent),autoSend:intent != nil)
             }.padding(.horizontal,20).padding(.bottom,8)
@@ -359,6 +425,12 @@ struct SavedTripWorkspace:View {
             Button("修改名称",systemImage:"pencil"){renaming=true}
             Button("删除行程",systemImage:"trash",role:.destructive,action:onDelete)
         }label:{Image(systemName:"ellipsis").frame(width:44,height:36)}.accessibilityLabel("行程更多操作").disabled(store.busy || hasScheduleDraft)}}
+        .sheet(isPresented:$checkingWorld,onDismiss:{
+            guard let action=worldAction else{return};worldAction=nil
+            guard trip.days.indices.contains(action.dayIndex) else{return};store.dayIndex=action.dayIndex
+            if action.action=="review" {companionRequest=TripCompanionRequest(text:TripCompanionContext.checkRequest(trip:trip,suggestion:action),autoSend:true)}
+            else if action.action=="replace" {replacingStop=true} else {adjustingDay=true}
+        }){WorldModelView(trip:trip){action in worldAction=action;checkingWorld=false}.id((trip.id ?? "")+String(trip.revision ?? 0))}
         .sheet(isPresented:$renaming){TripNameEditor(trip:trip)}
         .sheet(isPresented:$adjustingDay){TripAdjustmentView(original:trip,dayIndex:store.dayIndex)}
         .sheet(isPresented:$replacingStop){TripAdjustmentView(original:trip,dayIndex:store.dayIndex,focusReplacement:true)}
@@ -662,10 +734,11 @@ struct TripNavigationAction:View {
 
 struct TripCompanionRequest:Identifiable {let id=UUID();let text:String;let autoSend:Bool}
 enum TripCompanionIntent:String,CaseIterable,Identifiable {
-    case tired,replace,shortOnTime
+    case checkPlan,tired,replace,shortOnTime
     var id:String {rawValue}
-    var label:String {switch self{case .tired:return "累了想歇歇";case .replace:return "换个地方";case .shortOnTime:return "时间不够了"}}
+    var label:String {switch self{case .checkPlan:return "帮我检查";case .tired:return "累了想歇歇";case .replace:return "换个地方";case .shortOnTime:return "时间不够了"}}
     var message:String {switch self {
+        case .checkPlan:return "请检查这份已保存行程中的风险，区分已知与未知。"
         case .tired:return "这次有点累了，想减少步行、留出休息。请给我具体调整建议。"
         case .replace:return "我想换一个地方。请先问我想换哪一站，再给出顺路的真实候选。"
         case .shortOnTime:return "这一天时间不够了。请先问我还剩多久，再建议保留哪些安排。"
@@ -681,6 +754,14 @@ enum TripHomeFocus {
     }
 }
 enum TripCompanionContext {
+    static func checkRequest(trip:Trip,suggestion:WorldSuggestion)->String {
+        guard trip.days.indices.contains(suggestion.dayIndex) else{return suggestion.detail}
+        let day=trip.days[suggestion.dayIndex]
+        let places=day.stops.prefix(8).map { stop in
+            stop.name+"（"+stop.costLabel+"，"+stop.indoorLabel+"，"+(stop.hoursVerified ? "营业时间有记录":"营业时间待确认")+"）"
+        }.joined(separator:"；")
+        return request(trip:trip,dayIndex:suggestion.dayIndex,intent:nil)+" 检查发现："+suggestion.detail+" 已保存的当天地点："+places+"。我现在想知道如何确认这些未知资料，请针对上述地点给出一到两个具体的确认步骤，不要重复询问已知旅行资料，不要重新生成行程。区分已保存信息与待核实信息；没有实际查询结果时，不要声称已查到天气、票价或营业时间。"
+    }
     static func speech(_ trip:Trip)->String {
         if trip.profile.transportPreference=="lessWalking"{return "这趟尽量少走路。想歇一会儿，随时叫我一起调整。"}
         if trip.profile.rhythm=="轻松随意"{return "这趟按你选的轻松节奏来。喜欢哪里多待一会儿，也没关系。"}

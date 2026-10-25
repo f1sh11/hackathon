@@ -29,6 +29,8 @@ public static class DependencyInjection
         });
         services.AddScoped<TripRepository>();
         services.AddScoped<MemoryRepository>();
+        services.AddScoped<WorldRepository>();
+        services.AddScoped<TravelWorldModelService>();
         services.AddHttpClient<IExternalJsonClient, ExternalJsonClient>(client => client.Timeout = Timeout.InfiniteTimeSpan);
         services.AddSingleton<IMemoryService, MemoryService>();
         services.AddScoped<PreferenceService>();

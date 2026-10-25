@@ -8,6 +8,7 @@ public static class ApiEndpoints
         var routes = app.MapGroup(prefix);
         routes.MapPlanningEndpoints();
         routes.MapTripEndpoints();
+        routes.MapWorldEndpoints();
         routes.MapMemoryEndpoints();
         routes.MapPetEndpoints();
         routes.MapSettingsEndpoints();

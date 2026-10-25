@@ -4,6 +4,20 @@ import MapKit
 @testable import SydneyBuddy
 
 @MainActor final class ScheduleTests:XCTestCase {
+    func testWorldReviewCarriesActualPlacesWithoutPretendingTheyAreVerified() throws {
+        let trip=try fixture()
+        let suggestion=WorldSuggestion(id:"verify-0",dayIndex:0,title:"待确认",detail:"费用未知",action:"review",status:"pending")
+        let context=TripCompanionContext.checkRequest(trip:trip,suggestion:suggestion)
+        XCTAssertTrue(context.contains(trip.days[0].stops[0].name));XCTAssertTrue(context.contains("不要声称已查到"));XCTAssertTrue(context.contains("不要重新生成行程"))
+    }
+    func testWorldChecksAreBoundToSavedTripRevision() throws {
+        var trip=try fixture();trip.id="world-test";trip.revision=2
+        let json=Data(#"{"id":"run-test","tripId":"world-test","tripRevision":2,"status":"completed","stale":false,"summary":{"walkingSteps":1000,"cost":20,"transportMinutes":10,"outdoorMinutes":0,"energyRisk":"low","budgetRisk":"unknown","weatherRisk":"unknown","source":"saved routes"},"suggestions":[],"decisions":[]}"#.utf8)
+        var run=try JSONDecoder().decode(WorldRun.self,from:json)
+        XCTAssertTrue(run.matches(trip));trip.revision=3;XCTAssertFalse(run.matches(trip))
+        trip.revision=2;run.stale=true;XCTAssertFalse(run.matches(trip))
+        run.stale=false;trip.id="another-trip";XCTAssertFalse(run.matches(trip))
+    }
     func testDayAnchorEditsAreTrackedAndDoNotChangeOtherDays() throws {
         let trip=try fixture();var state=trip.schedule ?? ScheduleState.preserving(trip)
         let encoder=JSONEncoder();encoder.outputFormatting = .sortedKeys
