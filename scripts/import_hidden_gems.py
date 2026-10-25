@@ -65,6 +65,7 @@ def photo_records(data,match_kind):
         meta=info.get('extmetadata',{})
         val=lambda k:plain(meta.get(k,{}).get('value',''))
         license=val('LicenseShortName');license_url=val('LicenseUrl');artist=val('Artist');url=info.get('thumburl',info.get('url',''));page_url=info.get('descriptionurl','')
+        if license in ('Public domain','CC0') and not license_url:license_url='https://creativecommons.org/publicdomain/mark/1.0/'
         if info.get('mime') not in ('image/jpeg','image/png','image/webp'):continue
         if not safe_url(url,{'upload.wikimedia.org','thumb.wikimedia.org'}) or not safe_url(page_url,{'commons.wikimedia.org'}):continue
         if not license or not artist or not license_url.startswith('https://'):continue
@@ -101,22 +102,47 @@ def listings(data,page,now):
                         'attribution':'Wikivoyage contributors · '+page,'retrievedAt':now,
                         'coordinateSource':source},'photos':[], '_image':fields.get('image','')}
 
+SEARCH_QUERIES={
+    'Blues Point Reserve':'intitle:"Blues Point" Sydney Harbour filetype:bitmap',
+    'Sawmillers Reserve':'intitle:"Berrys Bay" filetype:bitmap',
+    'Balls Head Reserve':'intitle:"Balls Head" Reserve filetype:bitmap',
+    'Berry Island Reserve':'intitle:"Berry Island" Sydney filetype:bitmap',
+    'Cremorne Reserve':'intitle:"Robertson Point Light" filetype:bitmap',
+    "Wendy Whiteley's Secret Garden":'intitle:"Secret Garden" Wendy filetype:bitmap',
+    'The Strand Arcade':'intitle:"Strand Arcade" Sydney filetype:bitmap',
+    'Trim the Cat':'intitle:"Trim" "cat" Mitchell OR "Trim the cat" filetype:bitmap',
+    'Justice and Police Museum':'intitle:"Justice and Police Museum" Sydney filetype:bitmap',
+    'Vaucluse Bay Range Front Light':'intitle:"Vaucluse Bay Range Front Light" filetype:bitmap',
+    'McKell Park':'intitle:"McKell Park" -Brooklyn filetype:bitmap',
+    'Lindesay':'intitle:"Lindesay" "Darling Point" filetype:bitmap',
+}
+NOISE_TERMS=('donington','lincs','morocco','covid-19','1906 reserva','ford xm','eda utku','sticker art','circa 18','1900-1914','1923','1924','1930','brooklyn','catfish','no planet b','polar bear','six men standing','four men outside')
+
 def match_nearby_photos(place,photos):
     tokens=set(re.findall(r'[a-z]{4,}',place['name'].lower()))-{'reserve','garden','point','park','front','light'}
     if not tokens:return []
-    scored=[(sum(t in photo['title'].lower() for t in tokens),photo) for photo in photos]
-    return [photo for score,photo in sorted(scored,key=lambda item:(-item[0],item[1]['title'])) if score>=min(2,len(tokens))]
+    clean=[p for p in photos if not any(bad in p['title'].lower() for bad in NOISE_TERMS)]
+    scored=[(sum(t in photo['title'].lower() for t in tokens),photo) for photo in clean]
+    return [photo for score,photo in sorted(scored,key=lambda item:(-item[0],item[1]['title'])) if score>=min(1,len(tokens))]
 
 def enrich(place):
     image=place.pop('_image','')
-    params={'action':'query','prop':'imageinfo','iiprop':'url|extmetadata|mime','iiurlwidth':640}
+    base={'action':'query','prop':'imageinfo','iiprop':'url|extmetadata|mime','iiurlwidth':640}
+    photos=[]
     if image:
-        params['titles']='File:'+image
-        photos=photo_records(fetch('commons.wikimedia.org',params),'guide-file')
-    else:
-        params.update({'generator':'geosearch','ggsprimary':'all','ggsnamespace':6,'ggsradius':150,'ggslimit':8,'ggscoord':f"{place['lat']}|{place['lng']}"})
-        photos=photo_records(fetch('commons.wikimedia.org',params),'nearby-unverified')
-        photos=match_nearby_photos(place,photos)
+        p=dict(base,titles='File:'+image)
+        photos.extend(photo_records(fetch('commons.wikimedia.org',p),'guide-file'))
+    q=SEARCH_QUERIES.get(place['name'],f'intitle:"{place["name"]}" Sydney filetype:bitmap')
+    p_search=dict(base,generator='search',gsrnamespace=6,gsrlimit=10,gsrsearch=q)
+    for rec in photo_records(fetch('commons.wikimedia.org',p_search),'exact-place'):
+        if not any(bad in rec['title'].lower() for bad in NOISE_TERMS) and all(rec['pageUrl']!=x['pageUrl'] for x in photos):
+            photos.append(rec)
+    if len(photos)<3:
+        p_geo=dict(base,generator='geosearch',ggsprimary='all',ggsnamespace=6,ggsradius=250,ggslimit=12,ggscoord=f"{place['lat']}|{place['lng']}")
+        nearby=match_nearby_photos(place,photo_records(fetch('commons.wikimedia.org',p_geo),'nearby-unverified'))
+        for rec in nearby:
+            if all(rec['pageUrl']!=x['pageUrl'] for x in photos):
+                photos.append(rec)
     place['photos']=photos[:3]
     return place
 

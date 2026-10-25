@@ -7,6 +7,9 @@ internal static class TestSupport
 {
     public static string RepositoryRoot()
     {
+        // Out-of-tree artifacts are useful on synced filesystems; keep the source root explicit.
+        var configured=Environment.GetEnvironmentVariable("SYDNEYBUDDY_TEST_REPO");
+        if(!string.IsNullOrEmpty(configured)&&File.Exists(Path.Combine(configured,"server","places.json")))return Path.GetFullPath(configured);
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
             if (File.Exists(Path.Combine(directory.FullName, "server", "places.json"))) return directory.FullName;
         throw new InvalidOperationException("Cannot locate repository server/places.json for migration tests.");

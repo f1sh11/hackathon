@@ -1,4 +1,5 @@
 import java.util.Properties
+import java.net.URI
 
 plugins {
     id("com.android.application")
@@ -10,6 +11,11 @@ val local = Properties().apply {
     if (file.exists()) file.inputStream().use { load(it) }
 }
 val mapsKey = local.getProperty("MAPS_API_KEY", "")
+val backendUrl = local.getProperty("BACKEND_URL", "http://127.0.0.1:8787").trimEnd('/')
+val backendUri = URI(backendUrl)
+require(backendUri.host != null && backendUri.userInfo == null && backendUri.query == null && backendUri.fragment == null &&
+    (backendUri.scheme == "https" || backendUri.scheme == "http" && backendUri.host in listOf("127.0.0.1", "localhost"))) { "BACKEND_URL must be HTTPS or local loopback HTTP" }
+
 android {
     namespace = "com.sydneybuddy.travel"
     compileSdk = 36
@@ -21,6 +27,7 @@ android {
         versionName = "1.0"
         manifestPlaceholders["MAPS_API_KEY"] = mapsKey
         buildConfigField("boolean", "MAPS_CONFIGURED", mapsKey.isNotBlank().toString())
+        buildConfigField("String", "BACKEND_URL", "\"$backendUrl\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     sourceSets.getByName("androidTest").assets.srcDir("../../tests/fixtures")
