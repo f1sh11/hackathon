@@ -29,4 +29,48 @@ public static class PoiCategories {
             "drinking_water"=>kind is "drinking_water" or "water_fountain",
             _=>false};
     }
+
+    static readonly HashSet<string> Tier1Kinds=new(StringComparer.OrdinalIgnoreCase){
+        "cafe","coffee_shop","bakery","pastry","pastry_shop","cake_shop","dessert_shop","ice_cream_shop",
+        "bubble_tea_shop","juice_bar","smoothie_juice_bar","sandwich_shop","bagel_shop","donut_shop",
+        "fast_food","fast_food_restaurant","food_court","food_stand","food_truck","kebab_shop",
+        "fish_and_chips_restaurant","pie_shop","hot_dog_stand","burger_restaurant","chicken_restaurant",
+        "noodle_restaurant","dumpling_restaurant","ramen_restaurant","pho_restaurant","snack_bar","deli","delicatessen","takeaway","cafeteria","tea_house"
+    };
+    static readonly HashSet<string> Tier3Kinds=new(StringComparer.OrdinalIgnoreCase){
+        "steakhouse","seafood_restaurant","french_restaurant","fine_dining_restaurant","modern_australian_restaurant",
+        "modern_european_restaurant","sushi_restaurant","japanese_bbq_restaurant","korean_bbq_restaurant",
+        "wine_bar","cocktail_bar","tapas_bar","bistro","brasserie","oyster_bar","teppanyaki_restaurant"
+    };
+    static readonly HashSet<string> Tier4Kinds=new(StringComparer.OrdinalIgnoreCase){
+        "fine_dining","haute_cuisine_restaurant","omakase_restaurant"
+    };
+
+    public static (int Tier,string Symbol,int PerPersonAud,int ForTwoAud)? ClassifyFoodPriceTier(string? poiKind,string? name,string? category){
+        if(category!="美食"&&category!="food")return null;
+        var kind=(poiKind??"restaurant").Trim().ToLowerInvariant().Replace(' ','_');
+        var lowerName=(name??"").Trim().ToLowerInvariant();
+        int tier;
+        if(Tier4Kinds.Contains(kind)||lowerName.Contains("omakase")||lowerName.Contains("fine dining")||lowerName.Contains("sixpenny")||lowerName.Contains("quay restaurant")||lowerName.Contains("aria restaurant")||lowerName.Contains("bennelong")||lowerName.Contains("tetsuya")||lowerName.Contains("firedoor"))tier=4;
+        else if(Tier3Kinds.Contains(kind)||lowerName.Contains("steakhouse")||lowerName.Contains("seafood")||lowerName.Contains("bistro")||lowerName.Contains("brasserie")||lowerName.Contains("oyster")||lowerName.Contains("grill & bar")||lowerName.Contains("6 head")||lowerName.Contains("harbourfront")||lowerName.Contains("rockpool")||lowerName.Contains("mr. wong")||lowerName.Contains("hubert")||lowerName.Contains("nomad")||lowerName.Contains("chin chin"))tier=3;
+        else if(Tier1Kinds.Contains(kind)||lowerName.Contains("cafe")||lowerName.Contains("café")||lowerName.Contains("coffee")||lowerName.Contains("espresso")||lowerName.Contains("bakery")||lowerName.Contains("patisserie")||lowerName.Contains("pork roll")||lowerName.Contains("banh mi")||lowerName.Contains("kebab")||lowerName.Contains("mcdonald")||lowerName.Contains("kfc")||lowerName.Contains("subway")||lowerName.Contains("hungry jack")||lowerName.Contains("guzman")||lowerName.Contains("sushi hub")||lowerName.Contains("gong cha")||lowerName.Contains("chatime")||lowerName.Contains("gelato")||lowerName.Contains("messina")||lowerName.Contains("san churro")||lowerName.Contains("kurtos"))tier=1;
+        else tier=2;
+        return tier switch{
+            1=>(1,"$",20,40),
+            3=>(3,"$$$",75,150),
+            4=>(4,"$$$$",120,240),
+            _=>(2,"$$",40,80)
+        };
+    }
+
+    public static void ApplyFoodPriceMapping(JsonObject point){
+        var category=point.Str("category");
+        if(category!="美食"&&point.Str("searchCategory")!="food")return;
+        if(ClassifyFoodPriceTier(point.Str("poiKind"),point.Str("name"),"美食") is not {} mapped)return;
+        if(point["priceRange"] is null)point["priceRange"]=mapped.Tier;
+        if(point.Str("priceTier").Length==0)point["priceTier"]=mapped.Symbol;
+        if(point["estimatedSpendAud"] is null)point["estimatedSpendAud"]=mapped.PerPersonAud;
+        if(point["avgCostForTwoAud"] is null)point["avgCostForTwoAud"]=mapped.ForTwoAud;
+        if(point.Str("priceLabel").Length==0)point["priceLabel"]=$"{mapped.Symbol} · 預估均消 A${mapped.PerPersonAud}/人";
+    }
 }

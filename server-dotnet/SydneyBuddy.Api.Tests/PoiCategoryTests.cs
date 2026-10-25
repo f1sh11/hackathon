@@ -29,4 +29,12 @@ public sealed class PoiCategoryTests {
         Assert.Contains("[amenity=toilets]",OsmPoiProvider.Query(-33.865,151.212,1500,"toilets",""));
         Assert.Contains("[natural=beach]",OsmPoiProvider.Query(-33.865,151.212,1500,"beaches",""));
     }
+    [Fact] public void FoodPoisReceiveDeterministicPriceTierMapping(){
+        var cafe=Point("c1","cafe");cafe["category"]="美食";PoiCategories.ApplyFoodPriceMapping(cafe);
+        Assert.Equal(1,cafe.Int("priceRange"));Assert.Equal("$",cafe.Str("priceTier"));Assert.Equal(20,cafe.Int("estimatedSpendAud"));Assert.Equal("$ · 預估均消 A$20/人",cafe.Str("priceLabel"));
+        var thai=Point("r1","thai_restaurant");thai["category"]="美食";PoiCategories.ApplyFoodPriceMapping(thai);
+        Assert.Equal(2,thai.Int("priceRange"));Assert.Equal("$$",thai.Str("priceTier"));Assert.Equal(40,thai.Int("estimatedSpendAud"));
+        var steak=Point("s1","steakhouse");steak["category"]="美食";PoiCategories.ApplyFoodPriceMapping(steak);
+        Assert.Equal(3,steak.Int("priceRange"));Assert.Equal("$$$",steak.Str("priceTier"));Assert.Equal(75,steak.Int("estimatedSpendAud"));
+    }
 }
