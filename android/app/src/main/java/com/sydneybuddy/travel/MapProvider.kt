@@ -83,7 +83,7 @@ internal const val OSM_STYLE="""{
 }"""
 
 @Composable fun OsmRouteMap(day:JSONObject?,modifier:Modifier,fullBleed:Boolean,
-    viewport:MapViewport?,onViewport:(MapViewport)->Unit,overview:OverviewRoute?=null,expanded:Boolean=false,sections:List<JourneyMapSection> = emptyList(),insightMarkers:List<JSONObject> = emptyList()) {
+    viewport:MapViewport?,onViewport:(MapViewport)->Unit,overview:OverviewRoute?=null,expanded:Boolean=false,sections:List<JourneyMapSection> = emptyList(),insightMarkers:List<JSONObject> = emptyList(),nearbyPlaces:List<JSONObject> = emptyList(),onPoiSelect:(JSONObject)->Unit={}) {
     val context=LocalContext.current
     val configuration=androidx.compose.ui.platform.LocalConfiguration.current
     val density=androidx.compose.ui.platform.LocalDensity.current.density
@@ -94,6 +94,9 @@ internal const val OSM_STYLE="""{
     val currentViewport by rememberUpdatedState(viewport)
     val currentOnViewport by rememberUpdatedState(onViewport)
     val currentDay by rememberUpdatedState(day)
+    val currentPoiSelect by rememberUpdatedState(onPoiSelect)
+    val currentNearby by rememberUpdatedState(nearbyPlaces)
+    var nearbyMarkers by remember{mutableStateOf<List<org.maplibre.android.annotations.Marker>>(emptyList())}
     var error by remember { mutableStateOf(false) }
     var rendered by remember {mutableStateOf(false)}
     var map by remember {mutableStateOf<MapLibreMap?>(null)}
@@ -113,6 +116,10 @@ internal const val OSM_STYLE="""{
                 ready.uiSettings.isCompassEnabled=true
                 ready.uiSettings.isRotateGesturesEnabled=false
                 ready.setPrefetchZoomDelta(0)
+                ready.setOnMarkerClickListener{marker->
+                    val point=currentNearby.firstOrNull{it.optString("id")==marker.snippet}
+                    if(point!=null){currentPoiSelect(point);true}else false
+                }
                 ready.addOnCameraIdleListener {
                     if(sceneKey==null) return@addOnCameraIdleListener
                     updateWalkingDots(ready,currentPaths,currentDotStyle)
@@ -209,6 +216,11 @@ internal const val OSM_STYLE="""{
             applyingCamera=false
             ready.cameraPosition.target?.let {target -> currentOnViewport(MapViewport(day.toString(),target.latitude,target.longitude,ready.cameraPosition.zoom))}
         }
+    }
+    LaunchedEffect(map,nearbyPlaces,sceneKey){
+        val ready=map ?: return@LaunchedEffect
+        nearbyMarkers.forEach{ready.removeMarker(it)}
+        nearbyMarkers=nearbyPlaces.map{point->ready.addMarker(MarkerOptions().position(LatLng(point.getDouble("lat"),point.getDouble("lng"))).title(point.optString("name")).snippet(point.optString("id")).icon(IconFactory.getInstance(context).fromBitmap(itineraryBadge("景"))))}
     }
     Box(if(fullBleed) modifier else modifier.fillMaxWidth().height(310.dp)) {
         AndroidView(factory={view},modifier=Modifier.fillMaxSize().onSizeChanged {size->if(size.width>0 && size.height>0)mapShortSide=minOf(size.width,size.height)/density})

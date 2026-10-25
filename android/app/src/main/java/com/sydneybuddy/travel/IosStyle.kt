@@ -3,6 +3,10 @@ package com.sydneybuddy.travel
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.ui.semantics.selected
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -175,6 +179,10 @@ fun durationLabel(startMinute: Int, endMinute: Int): String {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun HomeScreen(store:BuddyStore,suppliedOverview:ItineraryOverview?=null) {
     val uri=androidx.compose.ui.platform.LocalUriHandler.current
+    val nearby=rememberNearbyPoi(store)
+    var nearbyDetail by remember{mutableStateOf<org.json.JSONObject?>(null)}
+    nearbyDetail?.let{point->SchedulePlaceDetail(point,store){nearbyDetail=null}}
+
     var poiSearch by remember{mutableStateOf(false)}
     if(poiSearch)PoiDiscoveryDialog(store,onDismiss={poiSearch=false})
     var detail by rememberSaveable {mutableStateOf(false)}
@@ -194,17 +202,16 @@ fun durationLabel(startMinute: Int, endMinute: Int): String {
     LaunchedEffect(overview){if(day!=null&&trip?.optString("mode")!="live"&&store.mapProvider==MapProvider.OSM)overview.load(day,store.base)}
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val compact=maxHeight<650.dp
-        RouteMap(day,Modifier.fillMaxSize(),true,store.mapProvider,trip?.optString("mode")=="live",store.mapViewport,{store.mapViewport=it},overview.route,sections=overview.plan?.sections ?: emptyList(),insightMarkers=(store.insights?.optJSONObject("traffic")?.array("items")?.objects() ?: emptyList())+(store.insights?.array("pricePlaces")?.objects() ?: emptyList()))
+        RouteMap(day,Modifier.fillMaxSize(),true,store.mapProvider,trip?.optString("mode")=="live",store.mapViewport,{store.mapViewport=it;nearby.move(it.lat,it.lng,it.zoom)},overview.route,sections=overview.plan?.sections ?: emptyList(),insightMarkers=(store.insights?.optJSONObject("traffic")?.array("items")?.objects() ?: emptyList())+(store.insights?.array("pricePlaces")?.objects() ?: emptyList()),nearbyPlaces=nearby.places,onPoiSelect={nearbyDetail=it})
         Column(Modifier.fillMaxSize().padding(horizontal=18.dp).padding(top=10.dp,bottom=10.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically){
                 TextButton(onClick={poiSearch=true},modifier=Modifier.weight(1f).background(Color.White,CircleShape),contentPadding=PaddingValues(horizontal=16.dp,vertical=12.dp)){Icon(Icons.Outlined.Search,null,Modifier.size(20.dp));Spacer(Modifier.width(8.dp));Text(ui("搜尋景點、餐廳與設施"),fontSize=13.sp);Spacer(Modifier.weight(1f))}
                 var layers by remember{mutableStateOf(false)}
                 Box{IconButton(onClick={layers=true},modifier=Modifier.size(46.dp).background(Color.White,CircleShape)){Icon(Icons.Outlined.Layers,"切換底圖",tint=Green)};DropdownMenu(expanded=layers,onDismissRequest={layers=false}){MapProvider.entries.forEach{provider->DropdownMenuItem(text={Text(ui(provider.label))},onClick={store.chooseMapProvider(provider);layers=false})}}}
             }
-            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-                Text(ui("悉尼 · {0}",day?.optString("date")?.takeLast(5) ?: ui("準備出發")),Modifier.background(Color.White.copy(alpha=.95f),CircleShape).padding(horizontal=12.dp,vertical=9.dp),fontSize=11.sp,fontWeight=FontWeight.Bold)
-                if(trip!=null&&trip.array("days").length()>1)Row(Modifier.weight(1f).clip(CircleShape).background(Color.White.copy(alpha=.8f))){trip.array("days").objects().forEachIndexed{i,_->TextButton(onClick={store.dayIndex=i},modifier=Modifier.weight(1f).background(if(i==store.dayIndex)Color.White else Color.Transparent,CircleShape),contentPadding=PaddingValues(2.dp)){Text(ui("第 {0} 天",(i+1).toString()),fontSize=11.sp,color=if(i==store.dayIndex)Green else Muted)}}}
-            }
+            if(trip!=null)MapDaySelector(trip.array("days").objects().map{it.optString("date")},store.dayIndex){store.dayIndex=it}
+            if(nearby.busy)Text("搜尋附近地點…",Modifier.background(Color.White,CircleShape).padding(8.dp),fontSize=11.sp)
+            nearby.error?.let{TextButton(onClick={poiSearch=true},modifier=Modifier.background(Color.White,CircleShape)){Text("附近地點未載入・開啟搜尋重試",fontSize=11.sp)}}
             Spacer(Modifier.weight(1f))
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End,verticalAlignment=Alignment.CenterVertically){
                 if(trip!=null)IconButton(onClick={expandedMap=true},modifier=Modifier.size(42.dp).background(Color.White,CircleShape)){Icon(Icons.Outlined.OpenInFull,"展开地图",tint=Green)}
@@ -444,4 +451,21 @@ fun durationLabel(startMinute: Int, endMinute: Int): String {
             Small(report.optString("attribution"))
         }
     }}}
+}
+
+@Composable fun MapDaySelector(dates:List<String>,selection:Int,onSelect:(Int)->Unit) {
+    val listState=rememberLazyListState()
+    LaunchedEffect(selection,dates){if(selection in dates.indices)listState.animateScrollToItem(selection)}
+    LazyRow(state=listState,modifier=Modifier.fillMaxWidth().testTag("map-day-selector"),horizontalArrangement=Arrangement.spacedBy(8.dp),contentPadding=PaddingValues(3.dp)) {
+        itemsIndexed(dates){index,date->
+            val active=index==selection
+            val dayLabel=ui("第 {0} 天",(index+1).toString())
+            Surface(onClick={onSelect(index)},shape=RoundedCornerShape(16.dp),color=if(active)Green else Color.White.copy(alpha=.96f),modifier=Modifier.widthIn(min=84.dp).testTag("map-day-$index").semantics{selected=active;contentDescription=dayLabel+", "+date}) {
+                Column(Modifier.padding(horizontal=12.dp,vertical=10.dp).heightIn(min=40.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(4.dp)) {
+                    Text(dayLabel,fontSize=14.sp,fontWeight=FontWeight.Bold,color=if(active)Color.White else Ink,softWrap=false)
+                    Text(date.takeLast(5),fontSize=12.sp,color=if(active)Color.White else Muted,softWrap=false)
+                }
+            }
+        }
+    }
 }

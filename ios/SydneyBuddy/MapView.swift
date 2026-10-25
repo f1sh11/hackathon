@@ -19,6 +19,8 @@ struct GoogleRouteMap: UIViewRepresentable {
     var sections:[JourneyMapSection] = []
     var selectedStopID:String?=nil
     var onSelect:(String)->Void={_ in}
+    var nearbyPlaces:[ScheduleCandidate]=[]
+    var onPoiSelect:(ScheduleCandidate)->Void={_ in}
     var insightMarkers:[InsightMarker] = []
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     final class Coordinator: NSObject, GMSMapViewDelegate {
@@ -27,6 +29,14 @@ struct GoogleRouteMap: UIViewRepresentable {
         var cameraSceneKey: String?
         var lastSelection:String?
         var lastBottomInset:CGFloat?
+        var nearbyKey=""
+        var nearbyMarkers:[GMSMarker]=[]
+        func refreshNearby(_ map:GMSMapView){
+            let key=parent.nearbyPlaces.map(\.id).joined()
+            guard nearbyKey != key else{return};nearbyKey=key
+            nearbyMarkers.forEach{$0.map=nil};nearbyMarkers=[]
+            for point in parent.nearbyPlaces{let pin=GMSMarker(position:.init(latitude:point.lat,longitude:point.lng));pin.title=point.name;pin.userData=point;pin.icon=GMSMarker.markerImage(with:.systemTeal);pin.map=map;nearbyMarkers.append(pin)}
+        }
         var markers:[GMSMarker]=[]
         var walkingLines:[GMSPolyline]=[]
         func restyleWalking(_ map:GMSMapView) {
@@ -38,6 +48,7 @@ struct GoogleRouteMap: UIViewRepresentable {
             }
         }
         func mapView(_ mapView:GMSMapView,didTap marker:GMSMarker)->Bool {
+            if let point=marker.userData as? ScheduleCandidate{parent.onPoiSelect(point);return true}
             if let name=marker.title {
                 let matches=parent.day?.stops.filter{name.contains($0.name)} ?? []
                 if let stop=matches.first(where:{$0.id==parent.selectedStopID}) ?? matches.first{parent.onSelect(stop.id)}
@@ -67,9 +78,9 @@ struct GoogleRouteMap: UIViewRepresentable {
             if let stop=day?.stops.first(where:{$0.id==selectedStopID}),let marker=context.coordinator.markers.first(where:{$0.title?.contains(stop.name)==true}){map.selectedMarker=marker;map.animate(toLocation:stop.coordinate)}
         }
         let key=mapSceneKey(day)+"|"+String(overview?.coordinates.count ?? 0)+"|"+String(Int(bottomInset))+insightMarkers.map{$0.id+$0.title}.joined()
-        guard context.coordinator.sceneKey != key else {return}
+        guard context.coordinator.sceneKey != key else {context.coordinator.refreshNearby(map);return}
         context.coordinator.sceneKey=key
-        map.clear();context.coordinator.markers=[]
+        map.clear();context.coordinator.markers=[];context.coordinator.nearbyKey="";context.coordinator.refreshNearby(map)
         for item in insightMarkers {let pin=GMSMarker(position:.init(latitude:item.lat,longitude:item.lng));pin.title=(item.kind == "price" ? "💰 ":"⚠️ ")+item.title;pin.snippet=item.summary+" · "+item.source;pin.icon=GMSMarker.markerImage(with:item.kind == "price" ? .systemGreen:.systemOrange);pin.map=map}
         context.coordinator.walkingLines=[]
         guard let day else {
@@ -239,6 +250,8 @@ struct NativeRouteMap:UIViewRepresentable {
     var sections:[JourneyMapSection] = []
     var selectedStopID:String?=nil
     var onSelect:(String)->Void={_ in}
+    var nearbyPlaces:[ScheduleCandidate]=[]
+    var onPoiSelect:(ScheduleCandidate)->Void={_ in}
     var insightMarkers:[InsightMarker] = []
     func makeCoordinator()->Coordinator {Coordinator(self)}
     func makeUIView(context:Context)->MKMapView {
@@ -265,11 +278,12 @@ struct NativeRouteMap:UIViewRepresentable {
             }
         }
         let key=mapSceneKey(day)+"|"+String(overview?.coordinates.count ?? 0)+"|"+String(Int(bottomInset))+insightMarkers.map{$0.id+$0.title}.joined()
-        guard context.coordinator.sceneKey != key else {return}
+        guard context.coordinator.sceneKey != key else {context.coordinator.refreshNearby(map);return}
         context.coordinator.sceneKey=key
         context.coordinator.walkingDots?.paths=sections.isEmpty ? [overview?.coordinates ?? []] : sections.filter{$0.mode == "walk"}.map(\.coordinates)
         context.coordinator.walkingDots?.setNeedsDisplay()
         map.removeAnnotations(map.annotations)
+        context.coordinator.nearbyKey="";context.coordinator.refreshNearby(map)
         for item in insightMarkers {let pin=InsightMapPin();pin.kind=item.kind;pin.coordinate = .init(latitude:item.lat,longitude:item.lng);pin.title=(item.kind == "price" ? "💰 ":"⚠️ ")+item.title;pin.subtitle=item.summary+" · "+item.source;map.addAnnotation(pin)}
         map.removeOverlays(map.overlays.filter {!($0 is MKTileOverlay)})
         let start=day?.start ?? .quay,end=day?.end ?? .central
@@ -321,7 +335,15 @@ struct NativeRouteMap:UIViewRepresentable {
         var cameraSceneKey:String?
         var lastSelection:String?
         var lastBottomInset:CGFloat?
+        var nearbyKey=""
+        func refreshNearby(_ map:MKMapView){
+            let key=parent.nearbyPlaces.map(\.id).joined()
+            guard nearbyKey != key else{return};nearbyKey=key
+            map.removeAnnotations(map.annotations.filter{$0 is PoiPin})
+            map.addAnnotations(parent.nearbyPlaces.map(PoiPin.init))
+        }
         func mapView(_ mapView:MKMapView,didSelect view:MKAnnotationView){
+            if let pin=view.annotation as? PoiPin{parent.onPoiSelect(pin.point);return}
             guard let pin=view.annotation as? ItineraryPin,!pin.direction,let title=pin.title else{return}
             let matches=parent.day?.stops.filter{title.contains($0.name)} ?? []
             guard let stop=matches.first(where:{$0.id==parent.selectedStopID}) ?? matches.first else{return}
@@ -340,6 +362,10 @@ struct NativeRouteMap:UIViewRepresentable {
             if let pin=annotation as? InsightMapPin {
                 let view=(mapView.dequeueReusableAnnotationView(withIdentifier:"insight") as? MKMarkerAnnotationView) ?? MKMarkerAnnotationView(annotation:pin,reuseIdentifier:"insight")
                 view.annotation=pin;view.markerTintColor=pin.kind == "price" ? .systemGreen:.systemOrange;view.glyphText=pin.kind == "price" ? "$":"!";view.canShowCallout=true;return view
+            }
+            if let pin=annotation as? PoiPin{
+                let view=(mapView.dequeueReusableAnnotationView(withIdentifier:"nearby-poi") as? MKMarkerAnnotationView) ?? MKMarkerAnnotationView(annotation:pin,reuseIdentifier:"nearby-poi")
+                view.annotation=pin;view.markerTintColor = .systemTeal;view.glyphImage=UIImage(systemName:pin.point.discoverySymbol);view.canShowCallout=true;view.displayPriority = .defaultLow;return view
             }
             guard let pin=annotation as? ItineraryPin else {return nil}
             let id=pin.direction ? "direction" : "itinerary"
@@ -377,21 +403,37 @@ struct ProviderRouteMap:View {
     var expanded = false
     var bottomInset:CGFloat=240
     @EnvironmentObject var store:AppStore
+    @StateObject private var nearby=PoiSearchModel()
+    @State private var placeDetail:ScheduleCandidate?
+    private func moved(_ viewport:MapViewport){
+        if !expanded{store.mapViewport=viewport}
+        nearby.cameraChanged(.init(latitude:viewport.lat,longitude:viewport.lng),zoom:viewport.zoom)
+    }
     var body:some View {
         // A live trip contains Google Places coordinates as well as Google route paths.
-        // Keep that entire overlay on Google; changing the base never triggers provider calls.
+        // Keep provider-owned trip geometry on Google; nearby discovery uses the selected data source.
         let visibleDay=store.trip?.mode=="live" && store.mapProvider != .google ? nil : store.currentDay
         let canShowOverview = (!overviewIsGoogle || store.mapProvider == .google) && (store.trip?.mode != "live" || overviewIsGoogle)
         let safeOverview = canShowOverview ? overview : nil
         let safeSections = canShowOverview ? sections : []
-        switch store.mapProvider {
+        Group {switch store.mapProvider {
         case .osm,.apple:
-            NativeRouteMap(day:visibleDay,overview:safeOverview,expanded:expanded,bottomInset:bottomInset,provider:store.mapProvider,viewport:expanded ? nil : store.mapViewport,onViewport:{if !expanded {store.mapViewport=$0}},sections:safeSections,selectedStopID:store.selectedStopID,onSelect:{if store.selectedStopID != $0{store.selectedStopID=$0}},insightMarkers:showsInsights ? (store.insights?.traffic.items ?? [])+(store.insights?.pricePlaces ?? []) : []).id(store.mapProvider)
+            NativeRouteMap(day:visibleDay,overview:safeOverview,expanded:expanded,bottomInset:bottomInset,provider:store.mapProvider,viewport:expanded ? nil : store.mapViewport,onViewport:moved,sections:safeSections,selectedStopID:store.selectedStopID,onSelect:{if store.selectedStopID != $0{store.selectedStopID=$0}},nearbyPlaces:nearby.places,onPoiSelect:{placeDetail=$0},insightMarkers:showsInsights ? (store.insights?.traffic.items ?? [])+(store.insights?.pricePlaces ?? []) : []).id(store.mapProvider)
         case .google:
-            if SydneyBuddyApp.mapReady {GoogleRouteMap(day:visibleDay,overview:safeOverview,expanded:expanded,bottomInset:bottomInset,viewport:expanded ? nil : store.mapViewport,onViewport:{if !expanded {store.mapViewport=$0}},sections:safeSections,selectedStopID:store.selectedStopID,onSelect:{if store.selectedStopID != $0{store.selectedStopID=$0}},insightMarkers:showsInsights ? (store.insights?.traffic.items ?? [])+(store.insights?.pricePlaces ?? []) : [])}
+            if SydneyBuddyApp.mapReady {GoogleRouteMap(day:visibleDay,overview:safeOverview,expanded:expanded,bottomInset:bottomInset,viewport:expanded ? nil : store.mapViewport,onViewport:moved,sections:safeSections,selectedStopID:store.selectedStopID,onSelect:{if store.selectedStopID != $0{store.selectedStopID=$0}},nearbyPlaces:nearby.places,onPoiSelect:{placeDetail=$0},insightMarkers:showsInsights ? (store.insights?.traffic.items ?? [])+(store.insights?.pricePlaces ?? []) : [])}
             else {Palette.mint.overlay(Text("Google 地图未配置密钥\n请在“我的”选择其他底图").multilineTextAlignment(.center))}
         case .schematic:SchematicMap(day:visibleDay)
+        }}
+        .task(id:store.mapProvider.rawValue+store.travelDataSource.rawValue){
+            if let viewport=store.mapViewport{nearby.center = .init(latitude:viewport.lat,longitude:viewport.lng)}
+            nearby.configure(store.mapProvider,googleMapConfigured:SydneyBuddyApp.mapConfigured,dataSource:store.travelDataSource)
         }
+        .overlay(alignment:.topLeading){
+            if nearby.busy{ProgressView("搜尋附近地點…").font(.caption).padding(8).background(.regularMaterial,in:Capsule()).padding(.top,expanded ? 100:130).padding(.leading,16)}
+            else if let error=nearby.error,store.mapProvider != .schematic{Button{nearby.search()}label:{Label("附近地點未載入・點此重試",systemImage:"arrow.clockwise").font(.caption).padding(8).background(.regularMaterial,in:Capsule())}.accessibilityHint(error).padding(.top,expanded ? 100:130).padding(.leading,16)}
+        }
+        .onDisappear{nearby.stop()}
+        .sheet(item:$placeDetail){SchedulePlaceDetail(candidate:$0)}
     }
 }
 
@@ -436,6 +478,41 @@ struct SchematicMap: View {
         let minLat=(stops.map(\.lat).min() ?? -33.88)-0.006,maxLat=(stops.map(\.lat).max() ?? -33.85)+0.006
         let minLng=(stops.map(\.lng).min() ?? 151.20)-0.006,maxLng=(stops.map(\.lng).max() ?? 151.22)+0.006
         return CGPoint(x:45+(stop.lng-minLng)/(maxLng-minLng)*max(1,size.width-110),y:140+(maxLat-stop.lat)/(maxLat-minLat)*max(1,size.height-420))
+    }
+}
+/// Keep each day readable even on long trips and when English or larger text is selected.
+struct MapDaySelector: View {
+    let dates:[String]
+    @Binding var selection:Int
+    let language:AppLanguage
+    var identifierPrefix="map-day-"
+    var body:some View {
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal,showsIndicators:false) {
+                HStack(spacing:8) {
+                    ForEach(dates.indices,id:\.self) { index in
+                        let selected=index==selection
+                        Button {selection=index} label:{
+                            VStack(spacing:4) {
+                                Text(language.text("第 {0} 天",String(index+1))).font(.subheadline.bold())
+                                Text(String(dates[index].suffix(5))).font(.caption.monospacedDigit())
+                            }
+                            .fixedSize(horizontal:true,vertical:false)
+                            .frame(minWidth:64,minHeight:44)
+                            .padding(.horizontal,10).padding(.vertical,6)
+                            .foregroundStyle(selected ? Color.white:Palette.ink)
+                            .background(selected ? Palette.green:Color.white.opacity(0.96),in:RoundedRectangle(cornerRadius:16))
+                        }
+                        .buttonStyle(.plain).id(index)
+                        .accessibilityIdentifier(identifierPrefix+String(index))
+                        .accessibilityLabel(language.text("第 {0} 天",String(index+1))+", "+dates[index])
+                        .accessibilityAddTraits(selected ? .isSelected:[])
+                    }
+                }.padding(3)
+            }
+            .onAppear {proxy.scrollTo(selection,anchor:.center)}
+            .onChange(of:selection) {_,index in withAnimation{proxy.scrollTo(index,anchor:.center)}}
+        }
     }
 }
 struct HomeView: View {

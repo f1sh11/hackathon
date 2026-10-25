@@ -308,3 +308,185 @@
 "全部分類 · 附近 5 km · 資料限已匯入區域" = "All categories · within 5 km · imported areas only";
 "已顯示部分結果，請輸入名稱或縮小分類。" = "Showing some results. Enter a name or choose a category.";
 "整合已匯入的雪梨地點；底圖原生標記可能不同。探索候選不代表已確認冷門；房價、營業狀態與評論未即時核實。" = "Imported Sydney places combined. Native map labels may differ. Popularity, room prices, opening status and reviews are unverified.";
+"建立於 {0}" = "Created {0}";
+"建立日期未知" = "Creation date unavailable";
+"改名" = "Rename";
+"旅行名称" = "Trip name";
+"保存名称" = "Save name";
+"给旅行起个名字" = "Name your trip";
+"最多 40 个字，只修改名称，地点和日期保持不变。" = "Up to 40 characters. Places and travel dates stay the same.";
+"名稱未儲存，請重試。" = "Name was not saved. Please try again.";
+"細分類" = "Subcategories";
+"餐廳" = "Restaurants";
+"咖啡廳" = "Cafes";
+"甜點烘焙" = "Bakeries & desserts";
+"酒吧夜生活" = "Bars & nightlife";
+"博物館" = "Museums";
+"公園綠地" = "Parks & gardens";
+"海灘" = "Beaches";
+"超市雜貨" = "Groceries";
+"廁所" = "Toilets";
+"飲水點" = "Drinking water";
+"Apple Maps 未提供獨立飲水點分類；請切換開源資料搜尋。" = "Apple Maps has no dedicated drinking-water filter. Switch to open data to search.";
+"Google Places 未提供獨立飲水點分類；請切換開源資料搜尋。" = "Google Places has no dedicated drinking-water filter. Switch to open data to search.";
+"飯店旅館" = "Hotels";
+"青年旅館" = "Hostels";
+
+"搜尋名稱、景點或日期" = "Search trips, places or dates";
+
+"清除搜尋" = "Clear search";
+
+"旅遊月曆" = "Trip calendar";
+
+"顯示全部" = "Show all";
+
+"圓點表示當天有行程；點選日期篩選" = "Dots mark trip dates. Tap a date to filter.";
+
+"找不到符合的行程" = "No matching trips";
+
+"上個月" = "Previous month";
+
+"下個月" = "Next month";
+
+"{0} 天" = "{0} days";
+
+"匯入社群靈感" = "Import travel inspiration";
+
+"匯入失敗，請重試。" = "Import failed. Please try again.";
+
+"JSON 需要貼文來源、text 與 mentions。" = "JSON requires a post source, text and mentions.";
+
+"沒有找到可辨識的景點，請補充內容。" = "No places identified. Please add more detail.";
+
+"已儲存，請逐一比對地圖地點。" = "Saved. Match each place on the map.";
+
+"請輸入有效的搜尋中心座標。" = "Enter valid coordinates for the search centre.";
+
+"找不到地點，請調整名稱或搜尋中心。" = "No places found. Adjust the name or search centre.";
+
+"已發布至本機景點；Zetaris 資料尚待同步。" = "Published locally. Zetaris sync is pending.";
+
+"萃取預覽" = "Extraction preview";
+
+"比對地圖地點" = "Match a map place";
+
+"確認儲存草稿" = "Save draft";
+
+"開始新的匯入" = "Start a new import";
+
+"內容與評論保留原文證據，不代表已核實的價格或評分。" = "Quotes preserve the source. Prices and ratings are unverified.";
+
+"貼文萃取會使用已設定的 AI；JSON 匯入不需 AI。" = "Text extraction uses your configured AI. JSON import does not require AI.";
+
+"讀取已匯入資料" = "Load saved imports";
+
+"匯入方式" = "Import method";
+
+"貼上貼文" = "Paste post";
+
+"匯入 JSON" = "Import JSON";
+
+"選擇 JSON 檔案" = "Choose JSON file";
+
+"平台" = "Platform";
+
+"小紅書" = "Xiaohongshu";
+
+"原貼文網址" = "Original post URL";
+
+"貼上你有權使用的旅遊貼文內容。" = "Paste travel content you have permission to use.";
+
+"預覽資料" = "Preview data";
+
+"地點名稱" = "Place name";
+
+"緯度" = "Latitude";
+
+"經度" = "Longitude";
+
+"搜尋中心預設雪梨，可修改座標。" = "The search centre defaults to Sydney. You can edit the coordinates.";
+
+"確認地點並發布" = "Confirm place and publish";
+
+"匯入菜單與餐廳資料" = "Import menus and restaurant data";
+
+"貼上含 sourceType、sourceUrl、observedAt、license 及 menuItems／reportedSpends／recommendations 的 JSON。" = "Paste JSON with sourceType, sourceUrl, observedAt, license and menuItems, reportedSpends or recommendations.";
+
+"菜單、單次消費與預算分開保存；匯入後不會自動扣預算。" = "Menu prices, reported spending and budgets stay separate. Importing does not deduct your budget.";
+
+"比對餐廳分店" = "Match the restaurant branch";
+
+"確認分店並匯入" = "Confirm branch and import";
+
+"餐廳資料已匯入，請重新搜尋查看。" = "Restaurant data imported. Search again to view it.";
+
+"菜單標價" = "Menu prices";
+
+"來源未提供菜單價格。" = "No menu prices provided by this source.";
+
+"內用" = "Dine-in";
+
+"外送" = "Delivery";
+
+"外帶" = "Takeaway";
+
+"份數：{0}" = "Quantity: {0}";
+
+"網友單次消費" = "Reported spending";
+
+"來源未提供單次消費。" = "No reported spending provided.";
+
+"消費人數：{0}" = "Diners: {0}";
+
+"消費人數未知" = "Number of diners unknown";
+
+"每人預估預算" = "Estimated budget per person";
+
+"尚未選餐，預算待確認。" = "Choose dishes to estimate your budget.";
+
+"用餐人數：{0}" = "People dining: {0}";
+
+"依所選餐點估算" = "Estimate selected dishes";
+
+"估算已儲存，重新試算行程時會套用。" = "Estimate saved. Recalculate the itinerary to apply it.";
+
+"推薦菜色與評論" = "Recommended dishes and reviews";
+
+"資料日期：{0}" = "Data date: {0}";
+
+"來源未提供作者" = "Author not provided";
+
+"發文日期未提供" = "Post date not provided";
+
+"查看原始推薦" = "View original recommendation";
+
+"餐費見上方估算；營業與排隊仍待確認。" = "See the meal estimate above. Opening hours and queues remain unconfirmed.";
+
+"金額未結構化，保留原文供參考。" = "Amount not structured. Original text is provided for reference.";
+
+"目前預算以 AUD 內用價格估算。" = "Budget estimates currently use AUD dine-in prices.";
+
+"估算已儲存；既有行程保留原估算，重新加入可套用。" = "Estimate saved. Existing trips keep their original estimate; add the meal again to apply this one.";
+
+"估算人數：{0}" = "Estimate covers {0} people";
+
+"估算日期：{0}" = "Estimated on {0}";
+"附近活動與參考票價" = "Nearby activities & reference prices";
+"附近活動不代表此商家販售；票種、日期與名額以官網為準，不自動扣預算。" = "Nearby activities may be offered by a different venue. Check official ticket types, dates and availability. Not added to your budget.";
+"附近尚無已整理的活動票價參考。" = "No reviewed activity price references nearby yet.";
+"活動參考暫時無法載入，請重試。" = "Activity references could not load. Please retry.";
+"票價待重新確認，請查看官網。" = "Price needs checking. See the official website.";
+"重新查詢" = "Retry";
+"此景點的活動與參考票價" = "Activities & reference prices for this place";
+"只顯示已配對此景點的活動；票種、日期與名額以官網為準，不自動扣預算。" = "Only activities matched to this place are shown. Check official ticket types, dates and availability. Not added to your budget.";
+"此景點尚無已確認的活動票價資料。" = "No confirmed activity price references for this place yet.";
+"正在載入地點…" = "Loading place…";
+"地點資料暫時無法載入" = "Place details could not load";
+"請再點一次地圖上的地點重試。" = "Tap the place on the map again to retry.";
+"免費" = "Free";
+"票價待確認" = "Price not confirmed";
+"一般入場免費" = "General admission free";
+"活動免費" = "Activity free";
+"成人導覽 {0} 起" = "Adult tour from {0}";
+"成人套裝 {0} 起" = "Adult package from {0}";
+"成人票 {0} 起" = "Adult ticket from {0}";

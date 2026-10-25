@@ -132,6 +132,8 @@ struct SchedulePlaceDetail:View {
                     Text(candidate.name).font(.title2.bold())
                     Text(candidate.category+" · "+(candidate.importedPoi ? (candidate.indoor ? "室內（來源標記）":"室內外未確認"):(candidate.indoor ? "室內":"戶外"))).font(.subheadline).foregroundStyle(Palette.muted)
                     Text(candidate.description ?? "此草案尚未附上景點介紹，可重新試算以更新資料。").lineSpacing(6)
+                    if let data=candidate.restaurantData {RestaurantPriceView(placeId:candidate.id,initial:data)}
+                    if let recommendations=candidate.socialRecommendations {ForEach(Array(recommendations.enumerated()),id:\.offset){_,recommendation in VStack(alignment:.leading,spacing:6){Text(recommendation.author ?? "來源未提供作者");Text(recommendation.claims.quote);Text(recommendation.postedAt ?? "發文日期未提供").font(.caption);if let url=URL(string:recommendation.sourceUrl){Link("查看原始推薦",destination:url)}}}}
                     if let guide=candidate.guide {
                         Text("如何到達").font(.headline)
                         Text(guide.directions.isEmpty ? "來源未提供到達方式，請先查詢導航。":guide.directions)
@@ -145,6 +147,7 @@ struct SchedulePlaceDetail:View {
                         else {Text("此來源未提供旅客評論或評分。").font(.caption)}
                     }
                     if let source=candidate.sourceUrl,let url=URL(string:source){Link("地點資料來源",destination:url).font(.caption)}
+                    ActivityReferencesView(lat:candidate.lat,lng:candidate.lng,placeId:candidate.id,placeName:candidate.name)
                     PlaceMediaView(candidate:candidate)
                     Text("為你推薦").font(.headline)
                     Text(candidate.reason)
@@ -153,7 +156,7 @@ struct SchedulePlaceDetail:View {
                     if let phone=candidate.phone,!phone.isEmpty{Text("電話："+phone)}
                     VStack(alignment:.leading,spacing:10) {
                         Text("建議停留 \(candidate.visitMinutes) 分鐘")
-                        Text(candidate.importedPoi ? "費用與排隊時間未知":"規劃預留 A$\(Int(candidate.cost)) · 排隊時間未知")
+                        Text(candidate.restaurantData != nil ? "餐費見上方估算；營業與排隊仍待確認。":candidate.importedPoi ? "費用與排隊時間未知":"規劃預留 A$\(Int(candidate.cost)) · 排隊時間未知")
                         if let text=candidate.openingHoursText,!text.isEmpty{Text("營業時間標記："+text).font(.caption)}
                         if let open=candidate.openMinute,let close=candidate.closeMinute {Text("示範開放時段 \(time(open))–\(time(close))")}
                         if let note=candidate.note {Text(note).font(.caption)}

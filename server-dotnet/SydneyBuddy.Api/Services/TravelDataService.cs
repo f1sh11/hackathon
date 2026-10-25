@@ -13,9 +13,10 @@ public sealed class TravelDataContext(IHttpContextAccessor accessor) {
     public bool Warehouse=>Mode=="zetaris";
     public TravelSnapshot? Snapshot=>accessor.HttpContext?.Items[typeof(TravelSnapshot)] as TravelSnapshot;
 }
-public sealed record TravelSnapshot(JsonObject Poi,JsonArray Catalog,JsonArray Maps,string ReadAt,JsonArray? Gems=null,JsonArray? Osm=null);
+public sealed record TravelSnapshot(JsonObject Poi,JsonArray Catalog,JsonArray Maps,string ReadAt,JsonArray? Gems=null,JsonArray? Osm=null,JsonArray? Social=null,JsonArray? Restaurants=null);
 public interface ITravelWarehouse {
     Task<TravelSnapshot> ReadAsync(CancellationToken token);
+    Task<JsonArray> ActivityOffersAsync(CancellationToken token)=>throw new ServiceException("Zetaris 活動資料尚未設定。");
     Task<JsonObject> InsightRawAsync(string kind,CancellationToken token)=>throw new ServiceException("Zetaris 尚未設定此公開資料來源。");
     Task<JsonObject> WeatherRawAsync(CancellationToken token)=>throw new ServiceException("Zetaris 即時天氣尚未設定。");
 }
@@ -60,6 +61,17 @@ public sealed class ZetarisTravelWarehouse(HttpClient http,IConfiguration config
         catch(HttpRequestException){throw new ServiceException("無法連接 Zetaris，可切回直接來源。");}
         catch(System.Text.Json.JsonException){throw new ServiceException("Zetaris 回應格式無效。");}
     }
+    public async Task<JsonArray> ActivityOffersAsync(CancellationToken token){
+        // Sentinel preserves an explicitly empty collection; no fallback and no snapshot cache.
+        var rows=await QueryAsync("SELECT 'offer' AS kind,payload FROM sydneybuddy_travel.travel_activity_offers UNION ALL SELECT 'sentinel','{}'",token);
+        var result=new JsonArray();
+        foreach(var row in rows.OfType<JsonArray>()){
+            if(row.Count!=2)throw new ServiceException("Zetaris 活動資料格式無效。");
+            if(row[0]!.GetValue<string>()=="sentinel")continue;
+            result.Add(JsonNode.Parse(row[1]!.GetValue<string>())?.AsObject()??throw new ServiceException("Zetaris 活動資料格式無效。"));
+        }
+        return result;
+    }
     public async Task<JsonObject> WeatherRawAsync(CancellationToken token){
         // Never read travel_weather, snapshot cache, or CACHE TABLE here.
         var rows=await QueryAsync("SELECT to_json(struct(*)) AS payload FROM sydneybuddy_live.weather_sydney",token);
@@ -73,14 +85,16 @@ public sealed class ZetarisTravelWarehouse(HttpClient http,IConfiguration config
         return JsonNode.Parse(row[0]!.GetValue<string>())?.AsObject()??throw new ServiceException("Zetaris 公開資料格式無效。");
     }
     public async Task<TravelSnapshot> ReadAsync(CancellationToken token){
-        var key="travel-public-v3:"+config["Zetaris:BaseUrl"]+":"+config["Zetaris:EnvironmentFile"];
+        var key="travel-public-v5:"+config["Zetaris:RestaurantsEnabled"]+":"+config["Zetaris:SocialEnabled"]+":"+config["Zetaris:BaseUrl"]+":"+config["Zetaris:EnvironmentFile"];
         if(cache.TryGetValue<TravelSnapshot>(key,out var hit))return hit!;
         await Gate.WaitAsync(token);
         try {
             if(cache.TryGetValue<TravelSnapshot>(key,out hit))return hit!;
-            const string sql="SELECT 'poi' AS dataset,payload FROM sydneybuddy_travel.travel_poi UNION ALL SELECT 'catalog',payload FROM sydneybuddy_travel.travel_catalog UNION ALL SELECT 'maps',payload FROM sydneybuddy_travel.travel_map_layers UNION ALL SELECT 'metadata',payload FROM sydneybuddy_travel.travel_metadata UNION ALL SELECT 'gems',payload FROM sydneybuddy_travel.travel_hidden_gems UNION ALL SELECT 'osm',payload FROM sydneybuddy_travel.travel_osm_places";
+            var sql="SELECT 'poi' AS dataset,payload FROM sydneybuddy_travel.travel_poi UNION ALL SELECT 'catalog',payload FROM sydneybuddy_travel.travel_catalog UNION ALL SELECT 'maps',payload FROM sydneybuddy_travel.travel_map_layers UNION ALL SELECT 'metadata',payload FROM sydneybuddy_travel.travel_metadata UNION ALL SELECT 'gems',payload FROM sydneybuddy_travel.travel_hidden_gems UNION ALL SELECT 'osm',payload FROM sydneybuddy_travel.travel_osm_places";
+            if(config.GetValue<bool>("Zetaris:SocialEnabled"))sql+=" UNION ALL SELECT 'social',payload FROM sydneybuddy_travel.travel_social_places";
+            if(config.GetValue<bool>("Zetaris:RestaurantsEnabled"))sql+=" UNION ALL SELECT 'restaurants',payload FROM sydneybuddy_travel.travel_restaurant_places";
             var rows=await QueryAsync(sql,token);
-            var groups=new Dictionary<string,JsonArray>{{"poi",new()},{"catalog",new()},{"maps",new()},{"metadata",new()},{"gems",new()},{"osm",new()}};
+            var groups=new Dictionary<string,JsonArray>{{"poi",new()},{"catalog",new()},{"maps",new()},{"metadata",new()},{"gems",new()},{"osm",new()},{"social",new()},{"restaurants",new()}};
             foreach(var row in rows.OfType<JsonArray>()){
                 if(row.Count!=2||!groups.TryGetValue(row[0]!.GetValue<string>(),out var group))throw new ServiceException("Zetaris 資料格式不一致。");
                 group.Add(JsonNode.Parse(row[1]!.GetValue<string>())?.AsObject()??throw new ServiceException("Zetaris 地點資料無效。"));
@@ -88,7 +102,7 @@ public sealed class ZetarisTravelWarehouse(HttpClient http,IConfiguration config
             if(groups["poi"].Count==0||groups["catalog"].Count==0||groups["maps"].Count==0||groups["metadata"].Count!=1)throw new ServiceException("Zetaris 缺少必要的公開資料表。");
             var poi=groups["metadata"][0]!.DeepClone().AsObject();poi["places"]=groups["poi"];
             if(poi.Str("source")!="Overture Maps"||poi.Array("bbox")?.Count!=4)throw new ServiceException("Zetaris 地點來源或涵蓋範圍無效。");
-            var value=new TravelSnapshot(poi,groups["catalog"],groups["maps"],DateTimeOffset.UtcNow.ToString("O"),groups["gems"],groups["osm"]);
+            var value=new TravelSnapshot(poi,groups["catalog"],groups["maps"],DateTimeOffset.UtcNow.ToString("O"),groups["gems"],groups["osm"],groups["social"],groups["restaurants"]);
             cache.Set(key,value,TimeSpan.FromSeconds(15));return value;
         }finally{Gate.Release();}
     }
@@ -97,7 +111,7 @@ public sealed class TravelDataMiddleware(RequestDelegate next) {
     static readonly string[] Paths=["/poi/search","/poi/media","/catalog","/schedule/editor","/plan","/data/status","/data/map-layers","/pet"];
     public async Task InvokeAsync(HttpContext context,TravelDataContext selection,ITravelWarehouse warehouse){
         var mode=selection.Mode;
-        if(mode=="zetaris"&&(Paths.Any(path=>context.Request.Path.StartsWithSegments(path)) || (HttpMethods.IsPost(context.Request.Method)&&context.Request.Path=="/trips")))context.Items[typeof(TravelSnapshot)]=await warehouse.ReadAsync(context.RequestAborted);
+        if(mode=="zetaris"&&((context.Request.Path=="/restaurants/import")||(context.Request.Path.StartsWithSegments("/social")&&context.Request.Path.Value!.EndsWith("/publish",StringComparison.Ordinal))||Paths.Any(path=>context.Request.Path.StartsWithSegments(path)) || (HttpMethods.IsPost(context.Request.Method)&&context.Request.Path=="/trips")))context.Items[typeof(TravelSnapshot)]=await warehouse.ReadAsync(context.RequestAborted);
         context.Response.Headers[TravelDataContext.Header]=mode;await next(context);
     }
 }

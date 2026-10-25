@@ -53,6 +53,7 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
     var poiToolbox by mutableStateOf(runCatching{JSONArray(prefs.getString("poiToolbox","[]")).objects()}.getOrDefault(emptyList()));private set
     fun addPoi(p:JSONObject){if(poiToolbox.none{it.optString("id")==p.optString("id")}){poiToolbox=poiToolbox+p.copy();prefs.edit().putString("poiToolbox",JSONArray(poiToolbox).toString()).apply()}}
     fun removePoi(id:String){poiToolbox=poiToolbox.filterNot{it.optString("id")==id};prefs.edit().putString("poiToolbox",JSONArray(poiToolbox).toString()).apply()}
+    suspend fun socialRequest(path:String,body:JSONObject?=null)=JSONObject(request(path,if(body==null)"GET"else "POST",body))
     suspend fun poiMedia(body:JSONObject)=JSONObject(request("poi/media","POST",body))
     suspend fun searchPoi(body:JSONObject)=JSONObject(request("poi/search","POST",body))
     val base = "http://127.0.0.1:8787"
@@ -149,6 +150,16 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
             prefs.edit().putBoolean("onboarded", true).apply()
             load()
         }
+    }
+    suspend fun renameTrip(original:JSONObject,value:String):Boolean {
+        if(busy)return false
+        busy=true
+        try{
+            val accepted=JSONObject(request("trips","POST",tripRenamePayload(original,value)))
+            saved=saved.map{if(it.optString("id")==accepted.optString("id"))accepted else it}
+            if(trip?.optString("id")==accepted.optString("id"))trip=accepted
+            return true
+        }catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:Exception){error=e.message ?: "名稱未儲存，請重試。";return false}finally{busy=false}
     }
     fun deleteTrip(value: JSONObject) = operation {
         request("trips/${value.getString("id")}", "DELETE")

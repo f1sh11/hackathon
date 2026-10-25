@@ -2,6 +2,10 @@ using System.Text.Json.Nodes;
 namespace SydneyBuddy.Api.Tests;
 public sealed class UnifiedPoiTests {
     static JsonObject Point(string id,string name,string kind="sights",double lat=-33.865,string source="OpenStreetMap")=>new(){["id"]=id,["name"]=name,["lat"]=lat,["lng"]=151.212,["searchCategory"]=kind,["category"]=kind=="food"?"美食":kind=="lodging"?"住宿":"風景",["source"]=source};
+    [Fact] public void SameProviderBranchesWithDifferentIdsRemainSeparateEvenWhenNearby(){
+        var a=Point("osm:node:1","Cafe","food");var b=Point("osm:node:2","Cafe","food",lat:-33.8651);
+        Assert.Equal(2,UnifiedPoiService.Merge([a,b],-33.865,151.212,500,"food","",default).Array("places")!.Count);
+    }
     [Fact] public void SameNearbyPlaceMergesSourcesAndKeepsCommunityGuidePhotos(){
         var a=Point("osm:node:1","Public Reserve");var b=Point("overture:test","Public Reserve",source:"Overture Maps");var c=Point("gem:test","Public Reserve",source:"Wikivoyage");c["guide"]=new JsonObject{["directions"]="Public path"};c["photos"]=new JsonArray(new JsonObject{["license"]="CC BY 4.0"});
         var result=UnifiedPoiService.Merge([a,b,c],-33.865,151.212,1500,"all","Reserve",default).Array("places")!;

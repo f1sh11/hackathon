@@ -143,3 +143,9 @@ Zetaris__EnvironmentFile=/Users/linziqiao/zetaris-local/zetaris-platform/.env \
 ## 本機與 AWS 服務啟動教學
 
 完整步驟見 [SERVICE-STARTUP.md](migration/SERVICE-STARTUP.md)。在專案根目錄可用 `bash scripts/zetaris_local.sh start` 啟動已安裝的官方平台，`status` 檢查、`verify` 驗證、`stop` 保留資料並暫停。啟動教學會自動加入搬移 ZIP。
+
+## 社群貼文與餐廳推薦
+
+新增可選的 `travel_social_places` view：ASP.NET Core 保存原始匯入和證據，再同步已發布的公開 POI 至專用來源庫。完整操作與目前平台限制見 [社群靈感匯入](../../docs/social/README.md)。既有部署需先同步／註冊表，再開啟 `Zetaris__SocialEnabled=true`。
+
+餐廳菜單與餐費估算：執行 `scripts/sync_social_zetaris.py --restaurants --register --platform-env <私人設定路徑>` 同步至 `travel_restaurant_places`，再開啟 `Zetaris__RestaurantsEnabled=true`。詳見 [餐廳資料流程](../../docs/social/RESTAURANT-DATA.md)。

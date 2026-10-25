@@ -17,6 +17,12 @@ public sealed class GooglePoiTests {
             var result=await service.SearchAsync(input,default);Assert.Single(result.Array("places")!);Assert.Equal("Google Places",result.Str("source"));Assert.Contains("Test data provider",result.Str("attribution"));
             var call=external.Calls.Single();Assert.EndsWith("places:searchNearby",call.Url);Assert.Contains("restaurant",call.Payload!.Array("includedTypes")!.Select(x=>x!.ToString()));Assert.Equal(1500,call.Payload.Object("locationRestriction")!.Object("circle")!.Int("radius"));Assert.True(call.Headers.ContainsKey("X-Goog-FieldMask"));
             await service.SearchAsync(input,default);Assert.Equal(2,external.Calls.Count); // Google is never served from the OSM cache.
+            input["category"]="cafes";var cafes=await service.SearchAsync(input,default);
+            Assert.Equal("美食",Assert.Single(cafes.Array("places")!)!.Str("category"));
+            Assert.Contains("cafe",external.Calls.Last().Payload!.Array("includedTypes")!.Select(x=>x!.ToString()));
+            var count=external.Calls.Count;input["category"]="drinking_water";
+            var unavailable=await service.SearchAsync(input,default);Assert.Empty(unavailable.Array("places")!);Assert.Contains("飲水",unavailable.Str("message"));Assert.Equal(count,external.Calls.Count);
+            input["category"]="food";
             input["query"]="Cafe";await service.SearchAsync(input,default);Assert.EndsWith("places:searchText",external.Calls.Last().Url);Assert.Equal("Cafe",external.Calls.Last().Payload!.Str("textQuery"));Assert.Null(external.Calls.Last().Payload!["includedType"]);
         }finally{Directory.Delete(root,true);}
     }

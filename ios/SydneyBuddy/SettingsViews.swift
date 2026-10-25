@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct JournalView:View {
     var tripID:String? = nil
@@ -39,11 +40,15 @@ struct SettingsView:View {
     @EnvironmentObject var store:AppStore
     @State private var deletingMemory:Memory?
     @State private var editingPersonalPreferences=false
+    @State private var socialImport=false
+    @State private var restaurantImport=false
     @State private var showingLedger=false
     var body:some View {
         NavigationStack {
             Form {
                 Section { HStack(spacing:18){Robot(size:65);VStack(alignment:.leading,spacing:6){Text("你好，旅行家").font(.title2.bold());Text("按自己的节奏，发现悉尼").font(.caption).foregroundStyle(Palette.muted)}}.padding(.vertical,10) }
+                Section {Button("匯入社群靈感",systemImage:"square.and.arrow.down"){socialImport=true}.accessibilityIdentifier("social-import-open").sheet(isPresented:$socialImport){SocialImportView()}}
+                Section {Button("匯入菜單與餐廳資料"){restaurantImport=true}.sheet(isPresented:$restaurantImport){RestaurantImportView()}}
                 Section("我的旅行偏好") {
                     Text(store.personalProfile.summary.isEmpty ? "还没认识你的旅行习惯，来告诉 Buddy 吧。":store.personalProfile.summary).font(.subheadline)
                     Button { editingPersonalPreferences=true } label:{Label("修改旅行习惯",systemImage:"slider.horizontal.3")}
@@ -104,4 +109,265 @@ struct SettingsView:View {
         }.task(id:store.travelDataSource){await store.reloadTravelData()}
     }
     func status(_ name:String,ready:Bool)->some View {HStack{Text(LocalizedStringKey(name));Spacer();Label(LocalizedStringKey(ready ? "已配置" : "待配置"),systemImage:ready ? "checkmark.circle.fill" : "circle.dashed").font(.caption).foregroundStyle(ready ? Palette.green : Palette.muted)}}
+}
+
+@MainActor final class SocialImportModel:ObservableObject {
+    @Published var busy=false
+    @Published var error:String?
+    @Published var message:String?
+    @Published var preview:[String:Any]?
+    @Published var record:[String:Any]?
+    @Published var history:[[String:Any]]=[]
+    @Published var places:[[String:Any]]=[]
+    @Published var matching:Int?
+    func call(_ path:String,body:[String:Any]?=nil,store:AppStore) async throws -> [String:Any] {
+        var request=URLRequest(url:store.base.appendingPathComponent(path));request.httpMethod=body == nil ? "GET":"POST"
+        store.travelDataSource.apply(to:&request);request.setValue("application/json",forHTTPHeaderField:"Content-Type");request.timeoutInterval=100
+        if let body{request.httpBody=try JSONSerialization.data(withJSONObject:body)}
+        let (data,response)=try await store.loader(request)
+        let raw=(try? JSONSerialization.jsonObject(with:data)) as? [String:Any] ?? [:]
+        guard let http=response as? HTTPURLResponse,(200..<300).contains(http.statusCode) else{throw NSError(domain:"SocialImport",code:1,userInfo:[NSLocalizedDescriptionKey:raw["error"] as? String ?? store.language.text("匯入失敗，請重試。")])}
+        return raw
+    }
+    func run(_ action:() async throws -> Void) async {busy=true;error=nil;message=nil;defer{busy=false};do{try await action()}catch{self.error=error.localizedDescription}}
+    func prepare(platform:String,url:String,text:String,json:String,jsonMode:Bool,store:AppStore) async {
+        await run {
+            if jsonMode {
+                guard json.utf8.count<=250000,let body=try JSONSerialization.jsonObject(with:Data(json.utf8)) as? [String:Any],let mentions=body["mentions"] as? [[String:Any]],!mentions.isEmpty else{throw NSError(domain:"SocialImport",code:2,userInfo:[NSLocalizedDescriptionKey:store.language.text("JSON 需要貼文來源、text 與 mentions。")])}
+                preview=body
+            }else{
+                var body:[String:Any]=["platform":platform,"postUrl":url,"text":text]
+                let result=try await call("social/extract",body:body,store:store)
+                guard let mentions=result["mentions"] as? [[String:Any]],!mentions.isEmpty else{message=store.language.text("沒有找到可辨識的景點，請補充內容。");return}
+                body["mentions"]=mentions;preview=body
+            }
+        }
+    }
+    func save(store:AppStore) async {guard let preview else{return};await run{record=try await call("social/import",body:preview,store:store);message=store.language.text("已儲存，請逐一比對地圖地點。")}}
+    func load(store:AppStore) async {await run{history=(try await call("social/imports",store:store))["imports"] as? [[String:Any]] ?? []}}
+    func search(_ query:String,lat:String,lng:String,store:AppStore) async {
+        await run{guard let lat=Double(lat),let lng=Double(lng),abs(lat)<=90,abs(lng)<=180 else{throw NSError(domain:"SocialImport",code:3,userInfo:[NSLocalizedDescriptionKey:store.language.text("請輸入有效的搜尋中心座標。")])}
+            places=(try await call("poi/search",body:["provider":"osm","query":query,"lat":lat,"lng":lng,"radius":1500,"category":"all"],store:store))["places"] as? [[String:Any]] ?? []
+            if places.isEmpty{message=store.language.text("找不到地點，請調整名稱或搜尋中心。")} }
+    }
+    func publish(_ point:[String:Any],store:AppStore) async {guard let id=record?["id"] as? String,let matching else{return};await run{
+        record=try await call("social/\(id)/publish",body:["mentionIndex":matching,"placeId":point["id"] ?? "","placeName":point["name"] ?? "","lat":point["lat"] ?? 0,"lng":point["lng"] ?? 0],store:store)
+        self.matching=nil;places=[];message=store.language.text("已發布至本機景點；Zetaris 資料尚待同步。")
+    }}
+    var mentions:[[String:Any]] {(record ?? preview)?["mentions"] as? [[String:Any]] ?? []}
+    func reset(){preview=nil;record=nil;matching=nil;places=[];error=nil;message=nil}
+}
+struct SocialImportView:View {
+    @EnvironmentObject private var store:AppStore
+    @Environment(\.dismiss) private var dismiss
+    @StateObject private var model=SocialImportModel()
+    @State private var jsonMode=false
+    @State private var platform="instagram"
+    @State private var url=""
+    @State private var text=""
+    @State private var json=""
+    @State private var filePicker=false
+    @State private var query=""
+    @State private var lat="-33.865"
+    @State private var lng="151.212"
+    var body:some View {
+        NavigationStack {
+            Form {
+                if model.preview == nil && model.record == nil {inputSection}
+                else {
+                    Section("萃取預覽") {
+                        Text((model.record ?? model.preview)?["postUrl"] as? String ?? "").font(.caption).textSelection(.enabled)
+                        ForEach(Array(model.mentions.enumerated()),id:\.offset){index,mention in
+                            VStack(alignment:.leading,spacing:8){
+                                Text(mention["name"] as? String ?? "").font(.headline)
+                                Text(mention["quote"] as? String ?? "").font(.subheadline)
+                                ForEach(["dishes","prices","reviews"],id:\.self){field in
+                                    ForEach(Array(((mention[field] as? [[String:Any]]) ?? []).enumerated()),id:\.offset){_,item in Text(item["quote"] as? String ?? "").font(.caption).foregroundStyle(Palette.muted)}
+                                }
+                                if model.record != nil {Button("比對地圖地點"){model.matching=index;query=mention["name"] as? String ?? "";model.places=[]}.accessibilityIdentifier("social-match-\(index)")}
+                            }.padding(.vertical,5)
+                        }
+                        if model.record == nil {Button("確認儲存草稿"){Task{await model.save(store:store)}}.accessibilityIdentifier("social-import-save")}
+                        Button("開始新的匯入"){model.reset()}
+                    }
+                }
+                if model.matching != nil {matchingSection}
+                Section {
+                    Text("內容與評論保留原文證據，不代表已核實的價格或評分。").font(.caption).foregroundStyle(Palette.muted)
+                    Text("貼文萃取會使用已設定的 AI；JSON 匯入不需 AI。").font(.caption).foregroundStyle(Palette.muted)
+                    if model.busy {ProgressView()}
+                    if let error=model.error {Text(error).foregroundStyle(.red).accessibilityIdentifier("social-import-error")}
+                    if let message=model.message {Text(message).foregroundStyle(Palette.green).accessibilityIdentifier("social-import-message")}
+                    Button("讀取已匯入資料"){Task{await model.load(store:store)}}
+                    ForEach(Array(model.history.enumerated()),id:\.offset){_,record in
+                        Button{model.reset();model.record=record}label:{VStack(alignment:.leading){Text((record["mentions"] as? [[String:Any]])?.first?["name"] as? String ?? "");Text(record["postUrl"] as? String ?? "").font(.caption).lineLimit(1)}}
+                    }
+                }
+            }.disabled(model.busy)
+            .navigationTitle("匯入社群靈感").navigationBarTitleDisplayMode(.inline)
+            .toolbar{Button("完成"){dismiss()}.disabled(model.busy)}
+            .interactiveDismissDisabled(model.busy)
+            .fileImporter(isPresented:$filePicker,allowedContentTypes:[.json]){result in
+                do {let file=try result.get();let scoped=file.startAccessingSecurityScopedResource();defer{if scoped{file.stopAccessingSecurityScopedResource()}}
+                    let size=try file.resourceValues(forKeys:[.fileSizeKey]).fileSize ?? 0;guard size<=250000 else{throw CocoaError(.fileReadTooLarge)}
+                    let data=try Data(contentsOf:file);guard data.count<=250000,let value=String(data:data,encoding:.utf8) else{throw CocoaError(.fileReadCorruptFile)}
+                    json=value;jsonMode=true
+                }catch{model.error=error.localizedDescription}
+            }
+        }
+    }
+    private var inputSection:some View {
+        Section {
+            Picker("匯入方式",selection:$jsonMode){Text("貼上貼文").tag(false);Text("匯入 JSON").tag(true)}.pickerStyle(.segmented)
+            if jsonMode {
+                Button("選擇 JSON 檔案"){filePicker=true}
+                TextEditor(text:$json).frame(minHeight:180).accessibilityIdentifier("social-import-json")
+                Text("JSON 需要貼文來源、text 與 mentions。").font(.caption).foregroundStyle(Palette.muted)
+            }else{
+                Picker("平台",selection:$platform){ForEach([("instagram","Instagram"),("tiktok","TikTok"),("threads","Threads"),("xiaohongshu","小紅書")],id:\.0){Text($0.1).tag($0.0)}}
+                TextField("原貼文網址",text:$url).textInputAutocapitalization(.never).keyboardType(.URL).accessibilityIdentifier("social-import-url")
+                TextEditor(text:$text).frame(minHeight:180).accessibilityIdentifier("social-import-text")
+                Text("貼上你有權使用的旅遊貼文內容。").font(.caption).foregroundStyle(Palette.muted)
+            }
+            Button(jsonMode ? "預覽資料":"萃取預覽"){Task{await model.prepare(platform:platform,url:url,text:text,json:json,jsonMode:jsonMode,store:store)}}.disabled(jsonMode ? json.isEmpty:url.isEmpty || text.isEmpty).accessibilityIdentifier("social-import-preview")
+        }
+    }
+    private var matchingSection:some View {
+        Section("比對地圖地點") {
+            TextField("地點名稱",text:$query)
+            HStack{TextField("緯度",text:$lat);TextField("經度",text:$lng)}.textInputAutocapitalization(.never)
+            Text("搜尋中心預設雪梨，可修改座標。").font(.caption).foregroundStyle(Palette.muted)
+            Button("搜尋地圖地點"){Task{await model.search(query,lat:lat,lng:lng,store:store)}}
+            ForEach(Array(model.places.enumerated()),id:\.offset){_,point in
+                VStack(alignment:.leading){Text(point["name"] as? String ?? "").font(.headline);Text(point["address"] as? String ?? "").font(.caption);Button("確認地點並發布"){Task{await model.publish(point,store:store)}}}
+            }
+        }
+    }
+}
+
+struct RestaurantImportView:View {
+    @EnvironmentObject private var store:AppStore
+    @Environment(\.dismiss) private var dismiss
+    @StateObject private var model=SocialImportModel()
+    @State private var json=""
+    @State private var query=""
+    @State private var lat="-33.865"
+    @State private var lng="151.212"
+    var body:some View {
+        NavigationStack {Form {
+            Section("匯入菜單與餐廳資料") {
+                Text("貼上含 sourceType、sourceUrl、observedAt、license 及 menuItems／reportedSpends／recommendations 的 JSON。").font(.caption)
+                TextEditor(text:$json).frame(minHeight:180).accessibilityIdentifier("restaurant-import-json")
+                Text("菜單、單次消費與預算分開保存；匯入後不會自動扣預算。").font(.caption).foregroundStyle(Palette.muted)
+            }
+            Section("比對餐廳分店") {
+                TextField("地點名稱",text:$query)
+                HStack{TextField("緯度",text:$lat);TextField("經度",text:$lng)}
+                Button("搜尋地圖地點"){Task{await model.search(query,lat:lat,lng:lng,store:store)}}
+                ForEach(Array(model.places.filter{($0["category"] as? String)=="美食"}.enumerated()),id:\.offset){_,point in
+                    VStack(alignment:.leading){Text(point["name"] as? String ?? "");Text(point["address"] as? String ?? "").font(.caption)
+                        Button("確認分店並匯入"){Task{await model.run{
+                            guard json.utf8.count<=250000,var body=try JSONSerialization.jsonObject(with:Data(json.utf8)) as? [String:Any] else{throw CocoaError(.fileReadCorruptFile)}
+                            body["placeId"]=point["id"];body["placeName"]=point["name"];body["lat"]=point["lat"];body["lng"]=point["lng"]
+                            _=try await model.call("restaurants/import",body:body,store:store);model.message=store.language.text("餐廳資料已匯入，請重新搜尋查看。")
+                        }}}
+                    }
+                }
+            }
+            if model.busy{ProgressView()};if let error=model.error{Text(error).foregroundStyle(.red)};if let message=model.message{Text(message).foregroundStyle(Palette.green)}
+        }.disabled(model.busy).navigationTitle("匯入菜單與餐廳資料").navigationBarTitleDisplayMode(.inline).toolbar{Button("完成"){dismiss()}.disabled(model.busy)}.interactiveDismissDisabled(model.busy)}
+    }
+}
+struct RestaurantSource:Codable {var type:String?;var url:String;var name:String;var author:String?;var observedAt:String;var license:String?}
+struct RestaurantMenuItem:Codable,Identifiable {var id:String;var name:String;var amount:Double;var currency:String;var channel:String;var source:RestaurantSource}
+struct RestaurantSpend:Codable {var amount:Double?;var currency:String;var people:Int?;var quote:String;var author:String?;var date:String?;var source:RestaurantSource}
+struct RestaurantRecommendation:Codable {var dish:String?;var quote:String;var author:String?;var date:String?;var source:RestaurantSource}
+struct RestaurantEstimate:Codable {var id:String?;var status:String;var perPerson:Double?;var total:Double?;var people:Int?;var currency:String?;var note:String?;var calculatedAt:String?;var basis:[RestaurantEstimateLine]?}
+struct RestaurantEstimateLine:Codable {var name:String;var quantity:Int;var unitPrice:Double}
+struct RestaurantData:Codable {var menuItems:[RestaurantMenuItem];var reportedSpends:[RestaurantSpend];var recommendations:[RestaurantRecommendation];var reviews:[RestaurantRecommendation];var budgetEstimate:RestaurantEstimate}
+struct RestaurantSocialRecommendation:Codable {var author:String?;var postedAt:String?;var sourceUrl:String;var claims:Claims;struct Claims:Codable{var quote:String}}
+struct RestaurantPriceView:View {
+    let placeId:String
+    let initial:RestaurantData
+    @EnvironmentObject private var store:AppStore
+    @StateObject private var model=SocialImportModel()
+    @State private var latest:RestaurantData?
+    @State private var quantities:[String:Int]=[:]
+    @State private var people=1
+    private var data:RestaurantData {latest ?? initial}
+    var body:some View {
+        VStack(alignment:.leading,spacing:12){
+            Text("菜單標價").font(.headline)
+            if data.menuItems.isEmpty{Text("來源未提供菜單價格。")}
+            ForEach(data.menuItems){item in
+                VStack(alignment:.leading,spacing:5){
+                    Text(item.name+" · "+item.currency+String(format:" %.2f",item.amount))
+                    Text(item.channel=="dine_in" ? "內用":item.channel=="delivery" ? "外送":"外帶").font(.caption)
+                    source(item.source)
+                    if item.currency=="AUD" && item.channel=="dine_in" {Stepper(value:Binding(get:{quantities[item.id] ?? 0},set:{quantities[item.id]=$0}),in:0...30){Text(store.language.text("份數：{0}",String(quantities[item.id] ?? 0)))}}
+                }.padding(10).background(Palette.mint.opacity(0.4),in:RoundedRectangle(cornerRadius:12))
+            }
+            Text("網友單次消費").font(.headline)
+            if data.reportedSpends.isEmpty{Text("來源未提供單次消費。")}
+            ForEach(Array(data.reportedSpends.enumerated()),id:\.offset){_,entry in VStack(alignment:.leading){if let amount=entry.amount{Text(entry.currency+String(format:" %.2f",amount))}else{Text("金額未結構化，保留原文供參考。")};Text(entry.quote);Text(entry.people.map{store.language.text("消費人數：{0}",String($0))} ?? store.language.text("消費人數未知"));attribution(entry.author,entry.date);source(entry.source)}}
+            Text("每人預估預算").font(.headline)
+            if data.budgetEstimate.status=="ready",let amount=data.budgetEstimate.perPerson {Text((data.budgetEstimate.currency ?? "AUD")+String(format:" %.2f / 人",amount));Text(data.budgetEstimate.note ?? "").font(.caption);if let people=data.budgetEstimate.people{Text(store.language.text("估算人數：{0}",String(people))).font(.caption)};ForEach(Array((data.budgetEstimate.basis ?? []).enumerated()),id:\.offset){_,line in Text(line.name+" × "+String(line.quantity)+String(format:" · %.2f",line.unitPrice)).font(.caption)};if let date=data.budgetEstimate.calculatedAt{Text(store.language.text("估算日期：{0}",String(date.prefix(10)))).font(.caption)}}else{Text("尚未選餐，預算待確認。")}
+            Text("目前預算以 AUD 內用價格估算。").font(.caption).foregroundStyle(Palette.muted)
+            Stepper(value:$people,in:1...100){Text(store.language.text("用餐人數：{0}",String(people)))}
+            Button("依所選餐點估算"){Task{await model.run{
+                let point=try await model.call("restaurants/estimate",body:["placeId":placeId,"people":people,"currency":"AUD","channel":"dine_in","items":quantities.filter{$0.value>0}.map{["id":$0.key,"quantity":$0.value] as [String:Any]}],store:store)
+                let raw=try JSONSerialization.data(withJSONObject:point["restaurantData"] ?? [:]);latest=try JSONDecoder().decode(RestaurantData.self,from:raw)
+                if let encoded=try? JSONSerialization.data(withJSONObject:point),let candidate=try? JSONDecoder().decode(ScheduleCandidate.self,from:encoded){PoiToolbox.shared.replace(candidate)}
+                model.message=store.language.text("估算已儲存；既有行程保留原估算，重新加入可套用。")
+            }}}.disabled(model.busy||quantities.values.allSatisfy{$0==0})
+            Text("推薦菜色與評論").font(.headline)
+            ForEach(Array((data.recommendations+data.reviews).enumerated()),id:\.offset){_,entry in VStack(alignment:.leading){if let dish=entry.dish{Text(dish).bold()};Text(entry.quote);attribution(entry.author,entry.date);source(entry.source)}}
+            if model.busy{ProgressView()};if let error=model.error{Text(error).foregroundStyle(.red)};if let message=model.message{Text(message).font(.caption).foregroundStyle(Palette.green)}
+        }
+    }
+    private func source(_ value:RestaurantSource)->some View {VStack(alignment:.leading){if let url=URL(string:value.url){Link(value.name,destination:url)};Text(store.language.text("資料日期：{0}",String(value.observedAt.prefix(10)))).font(.caption).foregroundStyle(Palette.muted)}}
+    private func attribution(_ author:String?,_ date:String?)->some View {Text((author ?? store.language.text("來源未提供作者"))+" · "+(date.map{String($0.prefix(10))} ?? store.language.text("發文日期未提供"))).font(.caption).foregroundStyle(Palette.muted)}
+}
+
+struct ActivityReference:Decodable,Identifiable {
+    let id:String;let title:String;let venueName:String;let amount:Double?;let currency:String
+    let ticketType:String;let conditions:String;let sourceName:String;let sourceUrl:String
+    let observedOn:String;let stale:Bool;let distanceMeters:Double
+}
+private struct ActivityReferenceResponse:Decodable {let dataSource:String;let offers:[ActivityReference]}
+struct ActivityReferencesView:View {
+    let lat:Double;let lng:Double;let placeId:String;let placeName:String
+    @EnvironmentObject private var store:AppStore
+    @State private var offers:[ActivityReference]=[]
+    @State private var busy=false
+    @State private var message:String?
+    var body:some View {
+        VStack(alignment:.leading,spacing:12){
+            Text("此景點的活動與參考票價").font(.headline)
+            Text("只顯示已配對此景點的活動；票種、日期與名額以官網為準，不自動扣預算。").font(.caption).foregroundStyle(Palette.muted)
+            if busy{ProgressView()}
+            if let message{Text(store.language.text(message)).font(.caption);Button("重新查詢"){Task{await load()}}}
+            ForEach(offers){offer in
+                VStack(alignment:.leading,spacing:6){
+                    Text(offer.title).bold()
+                    Text(offer.venueName+" · \(Int(offer.distanceMeters)) m")
+                    HStack{if let amount=offer.amount{Text(amount==0 ? store.language.text("免費"):String(format:"%@ %.2f",offer.currency,amount))}else{Text("票價待確認")};Text(offer.ticketType)}.fontWeight(.bold).foregroundStyle(Palette.green)
+                    Text(offer.conditions).font(.caption)
+                    Text(store.language.text("資料日期：{0}",offer.observedOn)).font(.caption).foregroundStyle(Palette.muted)
+                    if offer.stale{Text("票價待重新確認，請查看官網。").font(.caption).foregroundStyle(.orange)}
+                    if let url=URL(string:offer.sourceUrl),url.scheme=="https"{Link(offer.sourceName,destination:url)}
+                }.padding(12).frame(maxWidth:.infinity,alignment:.leading).background(Palette.mint,in:RoundedRectangle(cornerRadius:14))
+            }
+        }.task(id:"\(placeId):\(lat):\(lng):\(store.travelDataSource)"){await load()}
+    }
+    @MainActor private func load() async {
+        let source=store.travelDataSource;busy=true;message=nil;offers=[]
+        do{
+            let raw=try await SocialImportModel().call("activities/search",body:["lat":lat,"lng":lng,"radius":1000,"placeId":placeId,"placeName":placeName],store:store)
+            let response=try JSONDecoder().decode(ActivityReferenceResponse.self,from:JSONSerialization.data(withJSONObject:raw))
+            guard source==store.travelDataSource,response.dataSource==source.rawValue else{return}
+            offers=response.offers;if offers.isEmpty{message="此景點尚無已確認的活動票價資料。"}
+        }catch{if source==store.travelDataSource{message="活動參考暫時無法載入，請重試。"}}
+        if source==store.travelDataSource{busy=false}
+    }
 }

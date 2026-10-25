@@ -29,6 +29,140 @@ import MapKit
         XCTAssertEqual(ScheduleConnection.buffer(day:day,position:1,travel:2),25)
         XCTAssertEqual(ScheduleConnection.buffer(day:day,position:1,travel:30),0)
     }
+    func testRestaurantSocialSpendCanRemainUnknownWithoutBreakingPlaceDecoding() throws {
+        let json="{\"menuItems\":[],\"reportedSpends\":[{\"amount\":null,\"currency\":\"\",\"quote\":\"around forty dollars\",\"source\":{\"url\":\"https://example.com/post\",\"name\":\"Test\",\"observedAt\":\"2026-10-25T00:00:00Z\"}}],\"recommendations\":[],\"reviews\":[],\"budgetEstimate\":{\"status\":\"unknown\"}}"
+        let data=try JSONDecoder().decode(RestaurantData.self,from:Data(json.utf8));XCTAssertNil(data.reportedSpends[0].amount);XCTAssertEqual(data.budgetEstimate.status,"unknown")
+    }
+    func testSocialJsonPreviewDoesNotCallAiAndDraftRequiresConfirmation() async throws {
+        let store=AppStore();let model=SocialImportModel();var paths:[String]=[]
+        store.loader={request in paths.append(request.url!.path);return (Data("{\"id\":\"social:test\",\"status\":\"draft\",\"mentions\":[]}".utf8),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)}
+        let json="{\"platform\":\"threads\",\"postUrl\":\"https://www.threads.com/@test/post/test\",\"text\":\"Cafe\",\"mentions\":[{\"name\":\"Cafe\",\"quote\":\"Cafe\",\"kind\":\"restaurant\"}]}"
+        await model.prepare(platform:"",url:"",text:"",json:json,jsonMode:true,store:store)
+        XCTAssertNotNil(model.preview);XCTAssertNil(model.record);XCTAssertTrue(paths.isEmpty)
+        await model.save(store:store);XCTAssertEqual(paths,["/social/import"]);XCTAssertEqual(model.record?["status"] as? String,"draft")
+    }
+    func testTripLibraryFiltersEveryTravelDayAndSearchesNames() throws {
+        var trip=try fixture();trip.title="Old Sydney adventure"
+        XCTAssertTrue(TripLibrary.matches(trip,query:"sYDney",date:nil))
+        XCTAssertTrue(TripLibrary.matches(trip,query:"  ",date:trip.days.last!.date))
+        XCTAssertTrue(TripLibrary.matches(trip,query:trip.days[0].stops[0].name,date:trip.days[0].date))
+        XCTAssertFalse(TripLibrary.matches(trip,query:"Sydney",date:"1999-01-01"))
+        XCTAssertFalse(TripLibrary.matches(trip,query:"no-such-place",date:nil))
+        trip.days=[]
+        XCTAssertEqual(TripLibrary.dates(trip),[trip.profile.date])
+    }
+    func testDiscoverySubcategoriesRetainParentAndUseExactSearchFilter() async throws {
+        XCTAssertEqual(PoiDiscoveryCategory.details.count,12)
+        XCTAssertEqual(PoiDiscoveryCategory.parent("cafes"),"food")
+        XCTAssertEqual(PoiDiscoveryCategory.filters("toilets").map{$0.0},["toilets","drinking_water"])
+        let model=PoiSearchModel();model.category="cafes"
+        model.loader={request in
+            let input=try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:Any]
+            XCTAssertEqual(input["category"] as? String,"cafes")
+            return(Data("{\"places\":[]}".utf8),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)
+        }
+        model.configure(.osm,dataSource:.zetaris)
+        for _ in 0..<100{if !model.busy{break};try await Task.sleep(nanoseconds:5_000_000)}
+        XCTAssertNil(model.error);model.stop()
+        let unsupported=try await ApplePoiProvider.search(.init(latitude:-33.865,longitude:151.212),"drinking_water","")
+        XCTAssertTrue(unsupported.isEmpty)
+    }
+    func testCreationDateUsesRecordedTimestampAndLocalTimeZone() throws {
+        let utc=try XCTUnwrap(TimeZone(secondsFromGMT:0)),sydney=try XCTUnwrap(TimeZone(identifier:"Australia/Sydney"))
+        XCTAssertEqual(TripCreationDate.formatted("2026-10-24T22:30:00.1234567+00:00",timeZone:utc),"2026-10-24 22:30")
+        XCTAssertEqual(TripCreationDate.formatted("2026-10-24T22:30:00Z",timeZone:sydney),"2026-10-25 09:30")
+        XCTAssertNil(TripCreationDate.formatted("unknown"));XCTAssertNil(TripCreationDate.formatted(""))
+    }
+    func testRenameConflictPreservesExistingNameDatesAndRoute() async throws {
+        let store=AppStore();var trip=try fixture();trip.id="rename-conflict";trip.revision=3
+        store.saved=[trip];store.trip=trip
+        store.loader={request in (Data("{\"error\":\"版本已更新\"}".utf8),HTTPURLResponse(url:request.url!,statusCode:409,httpVersion:nil,headerFields:nil)!)}
+        let success=await store.renameTrip(trip,to:"New name");XCTAssertFalse(success)
+        XCTAssertEqual(store.saved.first?.title,trip.title);XCTAssertEqual(store.trip?.createdAt,trip.createdAt);XCTAssertEqual(store.trip?.profile.date,trip.profile.date);XCTAssertEqual(store.trip?.revision,3)
+    }
+    func testPlaceMediaAutomaticallyLoadsWhenCandidateHasNoPhotos() async throws {
+        let model=PlaceMediaModel();let candidate=try fixture().schedule!.candidates[0];var calls=0
+        let photo=PlacePhoto(url:"https://upload.wikimedia.org/test.jpg",pageUrl:"https://commons.wikimedia.org/wiki/File:Test.jpg",title:"Test photo",artist:"Test author",license:"CC BY-SA")
+        let data=try JSONSerialization.data(withJSONObject:["photos":JSONSerialization.jsonObject(with:JSONEncoder().encode([photo]))])
+        model.loader={request in calls+=1;XCTAssertEqual(request.url?.path,"/poi/media");XCTAssertEqual(request.value(forHTTPHeaderField:"X-Travel-Data-Source"),"zetaris");return(data,HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)}
+        await model.prepare(candidate,dataSource:.zetaris)
+        XCTAssertEqual(calls,1);XCTAssertEqual(model.photos.first?.title,"Test photo");XCTAssertFalse(model.loading);XCTAssertNil(model.message)
+    }
+    func testPlaceMediaUsesExistingPhotosWithoutRequest() async throws {
+        let model=PlaceMediaModel();var candidate=try fixture().schedule!.candidates[0]
+        candidate.photos=[PlacePhoto(url:"https://upload.wikimedia.org/existing.jpg",pageUrl:"https://commons.wikimedia.org/wiki/File:Existing.jpg",title:"Existing",artist:"Author",license:"CC BY-SA")]
+        model.loader={_ in XCTFail("Embedded photos should display immediately");throw URLError(.badServerResponse)}
+        await model.prepare(candidate,dataSource:.direct)
+        XCTAssertEqual(model.photos.first?.title,"Existing");XCTAssertNil(model.message)
+    }
+    func testPlaceMediaFailureCanRetryAndDistinguishesNoPhotos() async throws {
+        let model=PlaceMediaModel();let candidate=try fixture().schedule!.candidates[0];var status=503
+        model.loader={request in (Data("{\"photos\":[]}".utf8),HTTPURLResponse(url:request.url!,statusCode:status,httpVersion:nil,headerFields:nil)!)}
+        await model.prepare(candidate,dataSource:.direct)
+        XCTAssertEqual(model.message,"照片暫時無法載入，請稍後重試。");XCTAssertFalse(model.loading)
+        status=200;await model.load(candidate,dataSource:.direct)
+        XCTAssertEqual(model.message,"附近尚無可用的開放照片。");XCTAssertFalse(model.loading)
+    }
+    func testOldPlaceMediaResponseCannotReplaceNewPlacePhotos() async throws {
+        let model=PlaceMediaModel();let first=try fixture().schedule!.candidates[0];var second=first;second.id="second-place"
+        second.photos=[PlacePhoto(url:"https://upload.wikimedia.org/new.jpg",pageUrl:"https://commons.wikimedia.org/wiki/File:New.jpg",title:"New place",artist:"Author",license:"CC BY-SA")]
+        model.loader={request in try? await Task.sleep(nanoseconds:60_000_000);return(Data("{\"photos\":[]}".utf8),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)}
+        let pending=Task{@MainActor in await model.prepare(first,dataSource:.direct)}
+        try await Task.sleep(nanoseconds:10_000_000)
+        await model.prepare(second,dataSource:.direct);await pending.value
+        XCTAssertEqual(model.photos.first?.title,"New place");XCTAssertNil(model.message);XCTAssertFalse(model.loading)
+    }
+    func testNearbyPinsRefreshWithoutMovingRouteCameraOrSelectingTripStop() throws {
+        let point=try fixture().schedule!.candidates[0]
+        var selected:String?;var selectedPlace:String?
+        var subject=NativeRouteMap(day:nil,provider:.apple,viewport:nil,onViewport:{_ in},onSelect:{selected=$0},nearbyPlaces:[point],onPoiSelect:{selectedPlace=$0.id})
+        let delegate=subject.makeCoordinator(),map=MKMapView()
+        let center=CLLocationCoordinate2D(latitude:-33.9,longitude:151.25)
+        map.setRegion(MKCoordinateRegion(center:center,span:.init(latitudeDelta:0.02,longitudeDelta:0.02)),animated:false)
+        let before=map.region
+        delegate.refreshNearby(map)
+        let pin=try XCTUnwrap(map.annotations.first as? PoiPin)
+        delegate.mapView(map,didSelect:MKAnnotationView(annotation:pin,reuseIdentifier:nil))
+        XCTAssertEqual(selectedPlace,point.id);XCTAssertNil(selected)
+        subject.nearbyPlaces=[];delegate.parent=subject;delegate.refreshNearby(map)
+        XCTAssertTrue(map.annotations.isEmpty)
+        XCTAssertEqual(map.region.center.latitude,before.center.latitude,accuracy:0.000001)
+        XCTAssertEqual(map.region.center.longitude,before.center.longitude,accuracy:0.000001)
+    }
+    func testViewportMovementDebouncesAndUsesLatestCenterAndRadius() async throws {
+        let model=PoiSearchModel();model.cameraDelay=30_000_000
+        var centers:[Double]=[];var radii:[Double]=[]
+        model.appleSearch={point,_,_,radius in centers.append(point.latitude);radii.append(radius ?? 0);return []}
+        model.configure(.apple)
+        try await Task.sleep(nanoseconds:10_000_000);centers=[]
+        model.cameraChanged(.init(latitude:-33.88,longitude:151.22),zoom:15)
+        model.cameraChanged(.init(latitude:-33.90,longitude:151.24),zoom:16)
+        try await Task.sleep(nanoseconds:100_000_000)
+        XCTAssertEqual(centers,[-33.90]);XCTAssertGreaterThan(radii.last ?? 0,500);XCTAssertLessThan(radii.last ?? 0,5000)
+        model.cameraChanged(.init(latitude:-33.90,longitude:151.24),zoom:16)
+        try await Task.sleep(nanoseconds:60_000_000);XCTAssertEqual(centers.count,1)
+        model.stop()
+    }
+    func testViewportMoveCancelsOldResultsBeforeDebouncedRequest() async throws {
+        let model=PoiSearchModel();model.cameraDelay=20_000_000
+        let candidate=try fixture().schedule!.candidates[0]
+        model.appleSearch={point,_,_,_ in
+            if point.latitude > -33.89{try? await Task.sleep(nanoseconds:100_000_000);return [candidate]}
+            return []
+        }
+        model.configure(.apple)
+        model.cameraChanged(.init(latitude:-33.91,longitude:151.23),zoom:15)
+        try await Task.sleep(nanoseconds:160_000_000)
+        XCTAssertTrue(model.places.isEmpty);XCTAssertFalse(model.busy);XCTAssertNil(model.error);model.stop()
+    }
+    func testViewportStopPreventsPendingBackendQuery() async throws {
+        let model=PoiSearchModel();model.cameraDelay=40_000_000
+        var calls=0
+        model.loader={request in calls+=1;return(Data("{\"places\":[]}".utf8),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)}
+        model.configure(.osm);try await Task.sleep(nanoseconds:20_000_000);calls=0
+        model.cameraChanged(.init(latitude:-33.9,longitude:151.25),zoom:15);model.stop()
+        try await Task.sleep(nanoseconds:80_000_000);XCTAssertEqual(calls,0)
+    }
     func makeEditor()->ScheduleEditorModel {
         let model=ScheduleEditorModel()
         model.roadLoader={days in
@@ -497,7 +631,7 @@ import MapKit
         var point=try fixture().schedule!.candidates[0];point.id="gem:"+String(repeating:"a",count:24);point.source="Wikivoyage"
         point.guide=CommunityGuide(directions:"Public path by the wharf",sourceUrl:"https://en.wikivoyage.org/w/index.php?oldid=1",revision:"1",license:"CC BY-SA 4.0",licenseUrl:"https://creativecommons.org/licenses/by-sa/4.0/",attribution:"Wikivoyage contributors",retrievedAt:"now")
         point.photos=[PlacePhoto(url:"https://thumb.wikimedia.org/example.jpg",pageUrl:"https://commons.wikimedia.org/wiki/File:Example.jpg",title:"Example",artist:"Author",license:"CC BY-SA 4.0")];point.reviews=[]
-        model.appleSearch={_,_,_ in XCTFail("Community collection must use backend");return []}
+        model.appleSearch={_,_,_,_ in XCTFail("Community collection must use backend");return []}
         model.loader={request in
             calls+=1;XCTAssertEqual(request.value(forHTTPHeaderField:"X-Travel-Data-Source"),"direct")
             let input=try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:Any];XCTAssertEqual(input["category"] as? String,"gems");XCTAssertEqual(input["radius"] as? Int,5000)
@@ -510,7 +644,7 @@ import MapKit
     }
     func testZetarisSearchUsesBackendEvenWithAppleMap() async throws {
         let model=PoiSearchModel();var calls=0
-        model.appleSearch={_,_,_ in XCTFail("Zetaris must not call native Apple search");return []}
+        model.appleSearch={_,_,_,_ in XCTFail("Zetaris must not call native Apple search");return []}
         model.loader={request in
             calls+=1;XCTAssertEqual(request.value(forHTTPHeaderField:"X-Travel-Data-Source"),"zetaris")
             return(Data("{\"places\":[],\"source\":\"Overture Maps / Zetaris\",\"attribution\":\"Overture Maps Foundation\"}".utf8),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)
@@ -524,7 +658,7 @@ import MapKit
     func testPoiSearchUsesAppleWithoutBackendAndClearsOnGoogleAndOfflineSwitch() async throws {
         let model=PoiSearchModel();var appleCalls=0;var backendCalls=0
         var candidate=try fixture().schedule!.candidates[0];candidate.id="apple:test";candidate.source="Apple Maps"
-        model.appleSearch={_,kind,_ in appleCalls+=1;XCTAssertEqual(kind,"all");return [candidate]}
+        model.appleSearch={_,kind,_,_ in appleCalls+=1;XCTAssertEqual(kind,"all");return [candidate]}
         model.loader={request in backendCalls+=1;let body=try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:Any];XCTAssertEqual(body["provider"] as? String,"google");return(Data("{\"places\":[],\"attribution\":\"Google Maps\"}".utf8),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)}
         model.configure(.apple)
         for _ in 0..<100{if !model.busy{break};try await Task.sleep(nanoseconds:10_000_000)}
@@ -543,7 +677,7 @@ import MapKit
     }
     func testSlowApplePoiCannotOverwriteNewProviderResults() async throws {
         let model=PoiSearchModel();let candidate=try fixture().schedule!.candidates[0]
-        model.appleSearch={_,_,_ in try? await Task.sleep(nanoseconds:100_000_000);return [candidate]}
+        model.appleSearch={_,_,_,_ in try? await Task.sleep(nanoseconds:100_000_000);return [candidate]}
         model.configure(.apple);try await Task.sleep(nanoseconds:10_000_000)
         model.configure(.google)
         try await Task.sleep(nanoseconds:160_000_000)
@@ -558,13 +692,59 @@ import MapKit
         window.makeKeyAndVisible();defer{window.isHidden=true;old?.makeKeyAndVisible()}
         try await Task.sleep(nanoseconds:400_000_000)
         func findMap(_ view:UIView)->MKMapView? {if let map=view as? MKMapView{return map};return view.subviews.compactMap{findMap($0)}.first}
-        let map=try XCTUnwrap(findMap(window));XCTAssertEqual(map.overlays.filter{$0 is OsmTiles}.count,1);XCTAssertEqual(map.annotations.count,points.count)
+        let map=try XCTUnwrap(findMap(window));XCTAssertEqual(map.overlays.filter{$0 is OsmTiles}.count,1);XCTAssertTrue(map.selectableMapFeatures.isEmpty);XCTAssertEqual(map.annotations.count,points.count)
         let center=map.centerCoordinate
         store.mapProvider = .apple;try await Task.sleep(nanoseconds:250_000_000)
-        XCTAssertTrue(map.overlays.isEmpty);XCTAssertEqual(map.annotations.count,points.count)
+        XCTAssertTrue(map.overlays.isEmpty);XCTAssertTrue(map.selectableMapFeatures.contains(.pointsOfInterest));XCTAssertEqual(map.annotations.count,points.count)
         XCTAssertEqual(map.centerCoordinate.latitude,center.latitude,accuracy:0.0001);XCTAssertEqual(map.centerCoordinate.longitude,center.longitude,accuracy:0.0001)
         store.mapProvider = .osm;try await Task.sleep(nanoseconds:250_000_000)
-        XCTAssertEqual(map.overlays.filter{$0 is OsmTiles}.count,1);XCTAssertEqual(map.annotations.count,points.count)
+        XCTAssertEqual(map.overlays.filter{$0 is OsmTiles}.count,1);XCTAssertTrue(map.selectableMapFeatures.isEmpty);XCTAssertEqual(map.annotations.count,points.count)
+    }
+    func testPoiFocusMovesToVisibleAreaAndKeepsSelectionWithoutSearching() async throws {
+        let points=try fixture().schedule!.candidates
+        let state=PoiFocusTestState();let store=AppStore();let original=store.mapProvider;defer{store.mapProvider=original};store.mapProvider = .apple
+        let scene=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.first!
+        let old=scene.windows.first{$0.isKeyWindow};let window=UIWindow(windowScene:scene);window.frame=scene.screen.bounds
+        window.rootViewController=UIHostingController(rootView:PoiFocusTestHost(state:state,store:store,places:points).frame(height:500))
+        window.makeKeyAndVisible();defer{window.isHidden=true;old?.makeKeyAndVisible()}
+        try await Task.sleep(nanoseconds:500_000_000)
+        func findMap(_ view:UIView)->MKMapView?{if let map=view as? MKMapView{return map};return view.subviews.compactMap{findMap($0)}.first}
+        let map=try XCTUnwrap(findMap(window));let baseline=state.cameraChanges
+        let target=points.last!;state.focus=PoiMapFocus(point:target)
+        try await Task.sleep(nanoseconds:1_500_000_000)
+        let pin=try XCTUnwrap(map.annotations.compactMap{$0 as? PoiPin}.first{$0.point.id==target.id})
+        XCTAssertEqual(map.selectedAnnotations.compactMap{$0 as? PoiPin}.first?.point.id,target.id)
+        XCTAssertEqual(state.cameraChanges,baseline,"Programmatic focus must not trigger a fresh search")
+        XCTAssertEqual(map.annotations.compactMap{$0 as? PoiPin}.count,points.count)
+        let position=map.convert(pin.coordinate,toPointTo:map)
+        XCTAssertGreaterThan(position.y,map.bounds.height*0.29);XCTAssertLessThan(position.y,map.bounds.height*0.65)
+        XCTAssertEqual((map.view(for:pin) as? MKMarkerAnnotationView)?.markerTintColor,UIColor.systemBlue)
+        store.mapProvider = .osm;try await Task.sleep(nanoseconds:300_000_000)
+        XCTAssertEqual(map.overlays.filter{$0 is OsmTiles}.count,1)
+        state.focus=PoiMapFocus(point:points.first!)
+        try await Task.sleep(nanoseconds:1_500_000_000)
+        XCTAssertEqual(map.selectedAnnotations.compactMap{$0 as? PoiPin}.first?.point.id,points.first!.id)
+        XCTAssertEqual(state.cameraChanges,baseline)
+    }
+    func testAppleFeatureItemUsesActualIdentityLocationAndContactWithoutInventingPrice() throws {
+        let item=MKMapItem(placemark:MKPlacemark(coordinate:.init(latitude:-33.864,longitude:151.217)))
+        item.name="Visitor Centre";item.phoneNumber="+61 2 0000 0000";item.url=URL(string:"https://example.com/visitor")
+        let point=try XCTUnwrap(ApplePoiProvider.candidate(item))
+        XCTAssertTrue(point.id.hasPrefix("apple:"));XCTAssertEqual(point.name,"Visitor Centre")
+        XCTAssertEqual(point.lat,-33.864,accuracy:0.000001);XCTAssertEqual(point.lng,151.217,accuracy:0.000001)
+        XCTAssertEqual(point.website,item.url?.absoluteString);XCTAssertEqual(point.phone,item.phoneNumber)
+        XCTAssertEqual(point.cost,0);XCTAssertNil(point.openMinute);XCTAssertNotEqual(point.poiKind,"toilets")
+        XCTAssertEqual(ApplePoiProvider.candidate(item)?.id,point.id)
+        item.name="Other Centre";XCTAssertNotEqual(ApplePoiProvider.candidate(item)?.id,point.id)
+    }
+    func testLateAppleFeatureCannotReplaceNewSelectionAndFailureIsVisible() async throws {
+        let points=try fixture().schedule!.candidates;let lookup=AppleFeatureLookup();var selected:String?;var message:String?
+        lookup.load(operation:{try? await Task.sleep(nanoseconds:100_000_000);return points[0]},onResult:{selected=$0.id},onStatus:{_,error in message=error})
+        lookup.load(operation:{points[1]},onResult:{selected=$0.id},onStatus:{_,error in message=error})
+        try await Task.sleep(nanoseconds:150_000_000);XCTAssertEqual(selected,points[1].id);XCTAssertNil(message)
+        lookup.load(operation:{throw URLError(.notConnectedToInternet)},onResult:{selected=$0.id},onStatus:{_,error in message=error})
+        try await Task.sleep(nanoseconds:20_000_000);XCTAssertNotNil(message);XCTAssertEqual(selected,points[1].id)
+        lookup.cancel()
     }
     func testSavedTripNavigationChoosesTodayOrAsksForDate() throws {
         var trip=try fixture()
@@ -755,6 +935,7 @@ import MapKit
             let raw=try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:Any]
             XCTAssertEqual(raw["expectedRevision"] as? Int,3)
             var renamed=try JSONDecoder().decode(Trip.self,from:JSONSerialization.data(withJSONObject:raw["trip"]!))
+            XCTAssertEqual(raw["renameOnly"] as? Bool,true);XCTAssertEqual(renamed.createdAt,original.createdAt);XCTAssertEqual(renamed.profile.date,original.profile.date)
             XCTAssertEqual(renamed.title,"海风假期");XCTAssertEqual(renamed.days.count,original.days.count)
             XCTAssertEqual(renamed.days[0].stops.map(\.id),original.days[0].stops.map(\.id))
             renamed.revision=4
@@ -852,5 +1033,32 @@ final class TravelInsightContractTests:XCTestCase {
         let data=Data(#"{"dataSource":"zetaris","fetchedAt":"now","scope":"current reports","traffic":{"status":"unavailable","summary":"unknown","source":"NSW","items":[]},"places":[{"id":"a","name":"Museum","price":{"status":"unknown","summary":"not included","source":"OSM","amount":null},"crowd":{"status":"unknown","summary":"unknown"},"googleFallback":"paid-services-disabled"}],"pricePlaces":[],"attribution":"OSM"}"#.utf8)
         let result=try JSONDecoder().decode(TravelInsights.self,from:data)
         XCTAssertEqual(result.places[0].price.status,"unknown");XCTAssertEqual(result.places[0].crowd.status,"unknown");XCTAssertTrue(result.traffic.items.isEmpty)
+    }
+}
+
+@MainActor private final class PoiFocusTestState:ObservableObject {@Published var focus:PoiMapFocus?;var cameraChanges=0}
+@MainActor private struct PoiFocusTestHost:View {
+    @ObservedObject var state:PoiFocusTestState
+    @ObservedObject var store:AppStore
+    var places:[ScheduleCandidate]
+    var body:some View{PoiNativeMap(places:places,osm:store.mapProvider == .osm,center:.init(latitude:-33.87,longitude:151.20),zoom:14,onCamera:{_,_ in state.cameraChanges+=1},onSelect:{_ in},focus:state.focus)}
+}
+
+final class ActivityReferenceContractTests:XCTestCase {
+    func testUnknownAndFreePriceDecodeSeparately() throws {
+        let fields:[String:Any] = ["id":"test","title":"Test admission","venueName":"Test venue","currency":"AUD","ticketType":"General entry","conditions":"Test","sourceName":"Official","sourceUrl":"https://example.com","observedOn":"2026-10-25","stale":false,"distanceMeters":0]
+        var unknown=fields;unknown["amount"]=NSNull()
+        XCTAssertNil(try JSONDecoder().decode(ActivityReference.self,from:JSONSerialization.data(withJSONObject:unknown)).amount)
+        var free=fields;free["amount"]=0
+        XCTAssertEqual(try JSONDecoder().decode(ActivityReference.self,from:JSONSerialization.data(withJSONObject:free)).amount,0)
+    }
+}
+
+final class TicketSummaryLabelTests:XCTestCase {
+    func testLabelsDistinguishAdultTourFromFreeAdmission() throws {
+        let tour=try JSONDecoder().decode(TicketPriceSummary.self,from:Data(#"{"amount":50,"currency":"AUD","basis":"guided_tour"}"#.utf8))
+        XCTAssertEqual(tour.label(.traditional),"成人導覽 A$50 起")
+        let admission=try JSONDecoder().decode(TicketPriceSummary.self,from:Data(#"{"amount":0,"currency":"AUD","basis":"general_admission"}"#.utf8))
+        XCTAssertEqual(admission.label(.english),"General admission free")
     }
 }
