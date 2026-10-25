@@ -73,7 +73,7 @@ import SwiftUI
                                     VStack(alignment:.leading,spacing:7) {
                                         Text(String(format:"%02d",index+1)).font(.caption2.bold()).foregroundStyle(Palette.green)
                                         Text(c.name).font(.system(size:12,weight:.semibold)).fixedSize(horizontal:false,vertical:true)
-                                        Text(c.importedPoi ? "\(c.visitMinutes) 分 · 費用未知":"\(c.visitMinutes) 分 · A$\(Int(c.cost))").font(.system(size:10)).foregroundStyle(Palette.muted)
+                                        Text(c.importedPoi ? "\(c.visitMinutes) 分 · "+(c.mappedFoodPriceLabel ?? "費用未知"):"\(c.visitMinutes) 分 · A$\(Int(c.cost))").font(.system(size:10)).foregroundStyle(Palette.muted)
                                         if let d=selected[c.id] {Text("第 \(d+1) 天已排").font(.system(size:10)).foregroundStyle(Palette.green)}
                                         let locked=state.days.flatMap(\.activities).contains{$0.placeId==c.id && $0.locked==true}
                                         if locked{Text("已鎖定").font(.system(size:10)).foregroundStyle(Palette.muted)}
@@ -156,7 +156,7 @@ struct SchedulePlaceDetail:View {
                     if let phone=candidate.phone,!phone.isEmpty{Text("電話："+phone)}
                     VStack(alignment:.leading,spacing:10) {
                         Text("建議停留 \(candidate.visitMinutes) 分鐘")
-                        Text(candidate.restaurantData != nil ? "餐費見上方估算；營業與排隊仍待確認。":candidate.importedPoi ? "費用與排隊時間未知":"規劃預留 A$\(Int(candidate.cost)) · 排隊時間未知")
+                        Text(candidate.restaurantData != nil ? "餐費見上方估算；營業與排隊仍待確認。":candidate.mappedFoodPriceLabel != nil ? "價格等級映射："+candidate.mappedFoodPriceLabel!+" · 排隊時間未知":candidate.importedPoi ? "費用與排隊時間未知":"規劃預留 A$\(Int(candidate.cost)) · 排隊時間未知")
                         if let text=candidate.openingHoursText,!text.isEmpty{Text("營業時間標記："+text).font(.caption)}
                         if let open=candidate.openMinute,let close=candidate.closeMinute {Text("示範開放時段 \(time(open))–\(time(close))")}
                         if let note=candidate.note {Text(note).font(.caption)}

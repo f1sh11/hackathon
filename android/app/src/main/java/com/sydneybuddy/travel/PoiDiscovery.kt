@@ -177,7 +177,7 @@ internal data class PoiFocus(val id:String,val lat:Double,val lng:Double,val nam
                 if(visiblePlaces.isEmpty()&&!busy&&error==null&&hasSearched)Small("此範圍沒有符合的地點。可清空名稱、切換分類，或移動地圖後重新搜尋。")
                 visiblePlaces.sortedBy{if(it.optString("id")==selected)0 else 1}.forEach{p->Column(Modifier.fillMaxWidth().background(if(p.optString("id")==selected)Mint else Color.White).clickable{focusPlace(p)}.padding(8.dp)) {
                     Text((if(p.optString("category")=="美食")"🍴 "else if(p.optString("category")=="設施")"🚻 "else if(p.optString("category")=="住宿")"🛏 "else if(p.optString("category")=="店家")"🛍 "else "📍 ")+p.optString("name"),color=if(p.optString("category")=="美食")Color(0xffa65d12)else Green)
-                    Small(ticketSummaries.optJSONObject(p.optString("id"))?.let{ticketSummaryLabel(it)} ?: ui("費用未知"))
+                    Small(ticketSummaries.optJSONObject(p.optString("id"))?.let{ticketSummaryLabel(it)} ?: p.optString("priceLabel").takeIf{it.isNotBlank()} ?: ui("費用未知"))
                     Small(ui(p.optString("category"))+" · "+(p.optJSONArray("sources")?.strings()?.joinToString(" / ") ?: p.optString("source")))
                     Text(p.optString("description"),fontSize=12.sp,maxLines=2)
                     Row{TextButton(onClick={focusPlace(p);detail=p}){Text(ui("詳細介紹"))};Spacer(Modifier.weight(1f));val added=store.poiToolbox.any{it.optString("id")==p.optString("id")};if(p.optString("source")=="Google Places")Small("Google 地點暫不匯入本機示例時間軸")else TextButton(onClick={if(added)store.removePoi(p.optString("id"))else{store.addPoi(p);onAdd(p)}}){Text(ui(if(added)"移出工具箱"else "＋工具箱"))}}

@@ -26,8 +26,33 @@ struct ScheduleDay:Codable,Identifiable {
 }
 struct CommunityGuide:Codable {var directions:String;var directionsStatus:String?;var sourceUrl:String;var revision:String;var license:String;var licenseUrl:String;var attribution:String;var retrievedAt:String;var coordinateSource:String?}
 struct CommunityReview:Codable,Identifiable {var id:String;var author:String;var text:String;var sourceUrl:String;var publishedAt:String?}
-struct ScheduleCandidate:Codable,Identifiable {var id:String;var name:String;var category:String;var indoor:Bool;var visitMinutes:Int;var cost:Double;var lat:Double;var lng:Double;var reason:String;var description:String?;var note:String?;var openMinute:Int?;var closeMinute:Int?;var source:String?;var poiKind:String?;var openingHoursText:String?;var website:String?;var phone:String?;var address:String?;var sourceRelease:String?;var activityType:String? = nil;var guide:CommunityGuide?;var photos:[PlacePhoto]?;var reviews:[CommunityReview]?;var hiddenGem:Bool?;var accessStatus:String?;var sources:[String]?;var sourceIds:[String]?;var sourceUrl:String?;var sourceLicense:String?;var retrievedAt:String?;var wikidata:String?;var restaurantData:RestaurantData?;var socialRecommendations:[RestaurantSocialRecommendation]?}
+struct ScheduleCandidate:Codable,Identifiable {var id:String;var name:String;var category:String;var indoor:Bool;var visitMinutes:Int;var cost:Double;var lat:Double;var lng:Double;var reason:String;var description:String?;var note:String?;var openMinute:Int?;var closeMinute:Int?;var source:String?;var poiKind:String?;var openingHoursText:String?;var website:String?;var phone:String?;var address:String?;var sourceRelease:String?;var activityType:String? = nil;var guide:CommunityGuide?;var photos:[PlacePhoto]?;var reviews:[CommunityReview]?;var hiddenGem:Bool?;var accessStatus:String?;var sources:[String]?;var sourceIds:[String]?;var sourceUrl:String?;var sourceLicense:String?;var retrievedAt:String?;var wikidata:String?;var restaurantData:RestaurantData?;var socialRecommendations:[RestaurantSocialRecommendation]?;var priceRange:Int? = nil;var priceTier:String? = nil;var estimatedSpendAud:Double? = nil;var avgCostForTwoAud:Double? = nil;var priceLabel:String? = nil}
 extension ScheduleCandidate {
+    var mappedFoodPriceLabel:String? {
+        if let label=priceLabel,!label.isEmpty {return label}
+        guard category=="美食" else{return nil}
+        let kind=(poiKind ?? "restaurant").lowercased()
+        let lower=name.lowercased()
+        let tier:Int
+        if ["fine_dining","haute_cuisine_restaurant","omakase_restaurant"].contains(kind) || ["omakase","fine dining","sixpenny","quay restaurant","aria restaurant","bennelong","tetsuya","firedoor"].contains(where:{lower.contains($0)}) {tier=4}
+        else if ["steakhouse","seafood_restaurant","french_restaurant","fine_dining_restaurant","modern_australian_restaurant","modern_european_restaurant","sushi_restaurant","japanese_bbq_restaurant","korean_bbq_restaurant","wine_bar","cocktail_bar","tapas_bar","bistro","brasserie","oyster_bar"].contains(kind) || ["steakhouse","seafood","bistro","brasserie","oyster","6 head","harbourfront","rockpool","mr. wong","hubert","nomad","chin chin"].contains(where:{lower.contains($0)}) {tier=3}
+        else if ["cafe","coffee_shop","bakery","pastry","dessert_shop","ice_cream_shop","bubble_tea_shop","juice_bar","sandwich_shop","bagel_shop","donut_shop","fast_food","food_court","kebab_shop","burger_restaurant","noodle_restaurant","dumpling_restaurant","ramen_restaurant","pho_restaurant","snack_bar","deli","takeaway"].contains(kind) || ["cafe","café","coffee","espresso","bakery","patisserie","pork roll","banh mi","kebab","mcdonald","kfc","subway","gelato","messina","san churro"].contains(where:{lower.contains($0)}) {tier=1}
+        else {tier=2}
+        switch tier {
+        case 1:return "$ · 預估均消 A$20/人"
+        case 3:return "$$$ · 預估均消 A$75/人"
+        case 4:return "$$$$ · 預估均消 A$120/人"
+        default:return "$$ · 預估均消 A$40/人"
+        }
+    }
+    var mappedFoodCost:Double? {
+        if let spend=estimatedSpendAud,spend>0 {return spend}
+        guard let label=mappedFoodPriceLabel else{return nil}
+        if label.hasPrefix("$$$$") {return 120}
+        if label.hasPrefix("$$$") {return 75}
+        if label.hasPrefix("$$") {return 40}
+        return 20
+    }
     var discoverySymbol:String {switch category{case "住宿":return "bed.double";case "店家":return "bag";case "美食":return "fork.knife";case "設施":return "figure.stand";default:return hiddenGem == true ? "sparkles":"mappin.and.ellipse"}}
     var importedPoi:Bool {source=="OpenStreetMap" || source=="Apple Maps" || source=="Overture Maps" || source=="Wikivoyage" || source=="Restaurant evidence" || source=="Community social recommendation"}
 

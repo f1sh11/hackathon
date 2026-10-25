@@ -37,7 +37,7 @@ public sealed class OverturePoiProvider(ProjectPaths paths,IConfiguration config
         double Distance(JsonObject p){var a=(p.Number("lat")-lat)*Math.PI/180;var z=(p.Number("lng")-lng)*Math.PI/180;var h=Math.Pow(Math.Sin(a/2),2)+Math.Cos(lat*Math.PI/180)*Math.Cos(p.Number("lat")*Math.PI/180)*Math.Pow(Math.Sin(z/2),2);return 6371000*2*Math.Asin(Math.Sqrt(Math.Clamp(h,0,1)));}
         var tokens=text.Split(' ',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
         var found=data.Array("places")!.OfType<JsonObject>().Where(p=>PoiCategories.Matches(p,category)&&tokens.All(q=>CultureInfo.InvariantCulture.CompareInfo.IndexOf(p.Str("searchText",p.Str("name")),q,CompareOptions.IgnoreCase|CompareOptions.IgnoreNonSpace)>=0)).Select(p=>(Point:p,Meters:Distance(p))).Where(x=>x.Meters<=radius).OrderBy(x=>x.Meters).ThenBy(x=>x.Point.Str("id")).Take(80);
-        var result=new JsonArray();foreach(var (point,meters) in found){token.ThrowIfCancellationRequested();var p=point.DeepClone().AsObject();p.Remove("searchText");p.Remove("searchCategory");p["distanceMeters"]=Math.Round(meters);p["source"]="Overture Maps";result.Add(p);}
+        var result=new JsonArray();foreach(var (point,meters) in found){token.ThrowIfCancellationRequested();var p=point.DeepClone().AsObject();PoiCategories.ApplyFoodPriceMapping(p);p.Remove("searchText");p.Remove("searchCategory");p["distanceMeters"]=Math.Round(meters);p["source"]="Overture Maps";result.Add(p);}
         return result;
     }
 }

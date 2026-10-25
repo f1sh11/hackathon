@@ -73,7 +73,7 @@ internal fun toolboxMinute(y:Float,scale:Float,first:Int,start:Int,end:Int):Int?
                         Column(Modifier.fillMaxWidth().background(Color.White,RoundedCornerShape(13.dp)).border(1.dp,Green.copy(alpha=.12f),RoundedCornerShape(13.dp)).padding(8.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
                             Text("%02d".format(i+1),fontSize=10.sp,color=Green,fontWeight=FontWeight.Bold)
                             Text(p.optString("name"),fontSize=12.sp,fontWeight=FontWeight.SemiBold)
-                            Text(if(p.optString("source") in listOf("OpenStreetMap","Apple Maps","Overture Maps","Wikivoyage","Restaurant evidence","Community social recommendation"))"${p.optInt("visitMinutes")} 分 · 費用未知"else "${p.optInt("visitMinutes")} 分 · A$${p.optInt("cost")}",fontSize=10.sp,color=Color.Gray)
+                            Text(if(p.optString("source") in listOf("OpenStreetMap","Apple Maps","Overture Maps","Wikivoyage","Restaurant evidence","Community social recommendation"))"${p.optInt("visitMinutes")} 分 · "+(p.optString("priceLabel").takeIf{it.isNotBlank()} ?: "費用未知")else "${p.optInt("visitMinutes")} 分 · A$${p.optInt("cost")}",fontSize=10.sp,color=Color.Gray)
                             selected[id]?.let{Text("第 ${it+1} 天已排",fontSize=10.sp,color=Green)}
                             if(locked)Text("已鎖定",fontSize=10.sp,color=Color.Gray)
                             Row(verticalAlignment=Alignment.CenterVertically){
@@ -125,7 +125,7 @@ internal fun toolboxMinute(y:Float,scale:Float,first:Int,start:Int,end:Int):Int?
         PlaceMedia(p,store)
         PlaceContact(p)
         Text("為你推薦",fontWeight=FontWeight.Bold);Text(p.optString("reason"))
-        Text("建議停留 ${p.optInt("visitMinutes")} 分鐘\n"+if(p.optJSONObject("restaurantData")!=null)ui("餐費見上方估算；營業與排隊仍待確認。")else if(p.optString("source") in listOf("OpenStreetMap","Apple Maps","Overture Maps","Wikivoyage","Restaurant evidence","Community social recommendation"))"費用與排隊時間未知"else "規劃預留 A$${p.optInt("cost")} · 排隊時間未知")
+        Text("建議停留 ${p.optInt("visitMinutes")} 分鐘\n"+if(p.optJSONObject("restaurantData")!=null)ui("餐費見上方估算；營業與排隊仍待確認。")else if(p.optString("priceLabel").isNotBlank())"價格等級映射：${p.optString("priceLabel")} · 排隊時間未知"else if(p.optString("source") in listOf("OpenStreetMap","Apple Maps","Overture Maps","Wikivoyage","Restaurant evidence","Community social recommendation"))"費用與排隊時間未知"else "規劃預留 A$${p.optInt("cost")} · 排隊時間未知")
         if(p.optString("openingHoursText").isNotBlank())Small("OSM 營業時間標記："+p.optString("openingHoursText"))
         if(!p.isNull("openMinute")&&!p.isNull("closeMinute"))Text("示範開放時段 ${time(p.optInt("openMinute"))}–${time(p.optInt("closeMinute"))}")
         if(p.optString("note").isNotBlank())Small(p.optString("note"))

@@ -54,7 +54,7 @@ public sealed class UnifiedPoiService(TravelDataContext travel,OverturePoiProvid
         var ordered=groups.Values.SelectMany(x=>x).OrderBy(p=>p.Number("distanceMeters")).ThenBy(p=>p.Str("id")).ToList();
         // Reserve slots for each kind so dense cafes don't hide hotels or community places.
         var chosen=category=="all"&&text.Length==0?ordered.GroupBy(Kind).SelectMany(g=>g.Take(13)).OrderBy(p=>p.Number("distanceMeters")).Take(80).ToList():ordered.Take(80).ToList();
-        var result=new JsonArray();foreach(var point in chosen){point.Remove("searchText");point.Remove("searchCategory");result.Add(point);}
+        var result=new JsonArray();foreach(var point in chosen){PoiCategories.ApplyFoodPriceMapping(point);point.Remove("searchText");point.Remove("searchCategory");result.Add(point);}
         return new(){["places"]=result,["totalMatches"]=ordered.Count,["returnedCount"]=result.Count,["limit"]=80,["truncated"]=ordered.Count>result.Count};
     }
 }
