@@ -98,7 +98,7 @@ public sealed class TravelDataMiddleware(RequestDelegate next) {
     static readonly string[] Paths=["/poi/search","/poi/media","/catalog","/schedule/editor","/plan","/data/status","/data/map-layers","/pet"];
     public async Task InvokeAsync(HttpContext context,TravelDataContext selection,ITravelWarehouse warehouse){
         var mode=selection.Mode;
-        if(mode=="zetaris"&&(Paths.Any(path=>context.Request.Path.StartsWithSegments(path)) || (HttpMethods.IsPost(context.Request.Method)&&context.Request.Path=="/trips")))context.Items[typeof(TravelSnapshot)]=await warehouse.ReadAsync(context.RequestAborted);
+        if(mode=="zetaris"&&((context.Request.Path.StartsWithSegments("/social")&&context.Request.Path.Value!.EndsWith("/publish",StringComparison.Ordinal))||Paths.Any(path=>context.Request.Path.StartsWithSegments(path)) || (HttpMethods.IsPost(context.Request.Method)&&context.Request.Path=="/trips")))context.Items[typeof(TravelSnapshot)]=await warehouse.ReadAsync(context.RequestAborted);
         context.Response.Headers[TravelDataContext.Header]=mode;await next(context);
     }
 }

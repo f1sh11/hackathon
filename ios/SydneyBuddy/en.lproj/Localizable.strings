@@ -349,3 +349,61 @@
 "下個月" = "Next month";
 
 "{0} 天" = "{0} days";
+
+"匯入社群靈感" = "Import travel inspiration";
+
+"匯入失敗，請重試。" = "Import failed. Please try again.";
+
+"JSON 需要貼文來源、text 與 mentions。" = "JSON requires a post source, text and mentions.";
+
+"沒有找到可辨識的景點，請補充內容。" = "No places identified. Please add more detail.";
+
+"已儲存，請逐一比對地圖地點。" = "Saved. Match each place on the map.";
+
+"請輸入有效的搜尋中心座標。" = "Enter valid coordinates for the search centre.";
+
+"找不到地點，請調整名稱或搜尋中心。" = "No places found. Adjust the name or search centre.";
+
+"已發布至本機景點；Zetaris 資料尚待同步。" = "Published locally. Zetaris sync is pending.";
+
+"萃取預覽" = "Extraction preview";
+
+"比對地圖地點" = "Match a map place";
+
+"確認儲存草稿" = "Save draft";
+
+"開始新的匯入" = "Start a new import";
+
+"內容與評論保留原文證據，不代表已核實的價格或評分。" = "Quotes preserve the source. Prices and ratings are unverified.";
+
+"貼文萃取會使用已設定的 AI；JSON 匯入不需 AI。" = "Text extraction uses your configured AI. JSON import does not require AI.";
+
+"讀取已匯入資料" = "Load saved imports";
+
+"匯入方式" = "Import method";
+
+"貼上貼文" = "Paste post";
+
+"匯入 JSON" = "Import JSON";
+
+"選擇 JSON 檔案" = "Choose JSON file";
+
+"平台" = "Platform";
+
+"小紅書" = "Xiaohongshu";
+
+"原貼文網址" = "Original post URL";
+
+"貼上你有權使用的旅遊貼文內容。" = "Paste travel content you have permission to use.";
+
+"預覽資料" = "Preview data";
+
+"地點名稱" = "Place name";
+
+"緯度" = "Latitude";
+
+"經度" = "Longitude";
+
+"搜尋中心預設雪梨，可修改座標。" = "The search centre defaults to Sydney. You can edit the coordinates.";
+
+"確認地點並發布" = "Confirm place and publish";

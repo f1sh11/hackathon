@@ -289,6 +289,8 @@ internal fun savedTripNavigationDay(trip:JSONObject,today:String=java.time.Local
 }
 
 @Composable fun SettingsScreen(store:BuddyStore,onDelete:(JSONObject)->Unit) {
+    var socialImport by remember{mutableStateOf(false)}
+    if(socialImport)SocialImportDialog(store,onDismiss={socialImport=false})
     var consent by rememberSaveable {mutableStateOf(false)}
     LaunchedEffect(Unit){store.reloadTravelData()}
     Page {
@@ -304,6 +306,7 @@ internal fun savedTripNavigationDay(trip:JSONObject,today:String=java.time.Local
             Small("語言切換後立即生效，並保存在這台裝置。")
             Small("景點名稱與已儲存的行程內容保留原始語言。")
         }
+        TextButton(onClick={socialImport=true},modifier=Modifier.testTag("social-import-open")){Icon(Icons.Outlined.FileDownload,null);Text(ui("匯入社群靈感"))}
         Panel {
             Text(ui("旅遊資料來源"),fontWeight=FontWeight.Bold)
             listOf("direct" to "直接來源","zetaris" to "透過 Zetaris").forEach{(route,label)->TextButton(onClick={store.chooseTravelDataSource(route)},modifier=Modifier.testTag("travel-data-$route")){Text((if(store.travelDataSource==route)"✓ "else "")+ui(label))}}

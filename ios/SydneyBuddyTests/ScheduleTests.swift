@@ -4,6 +4,14 @@ import MapKit
 @testable import SydneyBuddy
 
 @MainActor final class ScheduleTests:XCTestCase {
+    func testSocialJsonPreviewDoesNotCallAiAndDraftRequiresConfirmation() async throws {
+        let store=AppStore();let model=SocialImportModel();var paths:[String]=[]
+        store.loader={request in paths.append(request.url!.path);return (Data("{\"id\":\"social:test\",\"status\":\"draft\",\"mentions\":[]}".utf8),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)}
+        let json="{\"platform\":\"threads\",\"postUrl\":\"https://www.threads.com/@test/post/test\",\"text\":\"Cafe\",\"mentions\":[{\"name\":\"Cafe\",\"quote\":\"Cafe\",\"kind\":\"restaurant\"}]}"
+        await model.prepare(platform:"",url:"",text:"",json:json,jsonMode:true,store:store)
+        XCTAssertNotNil(model.preview);XCTAssertNil(model.record);XCTAssertTrue(paths.isEmpty)
+        await model.save(store:store);XCTAssertEqual(paths,["/social/import"]);XCTAssertEqual(model.record?["status"] as? String,"draft")
+    }
     func testTripLibraryFiltersEveryTravelDayAndSearchesNames() throws {
         var trip=try fixture();trip.title="Old Sydney adventure"
         XCTAssertTrue(TripLibrary.matches(trip,query:"sYDney",date:nil))

@@ -1368,5 +1368,150 @@
     "en": "{0} days",
     "zh-Hans": "{0} 天",
     "zh-Hant": "{0} 天"
+  },
+  "匯入社群靈感": {
+    "en": "Import travel inspiration",
+    "zh-Hans": "匯入社群靈感",
+    "zh-Hant": "匯入社群靈感"
+  },
+  "匯入失敗，請重試。": {
+    "en": "Import failed. Please try again.",
+    "zh-Hans": "匯入失敗，請重試。",
+    "zh-Hant": "匯入失敗，請重試。"
+  },
+  "JSON 需要貼文來源、text 與 mentions。": {
+    "en": "JSON requires a post source, text and mentions.",
+    "zh-Hans": "JSON 需要貼文來源、text 與 mentions。",
+    "zh-Hant": "JSON 需要貼文來源、text 與 mentions。"
+  },
+  "沒有找到可辨識的景點，請補充內容。": {
+    "en": "No places identified. Please add more detail.",
+    "zh-Hans": "沒有找到可辨識的景點，請補充內容。",
+    "zh-Hant": "沒有找到可辨識的景點，請補充內容。"
+  },
+  "已儲存，請逐一比對地圖地點。": {
+    "en": "Saved. Match each place on the map.",
+    "zh-Hans": "已儲存，請逐一比對地圖地點。",
+    "zh-Hant": "已儲存，請逐一比對地圖地點。"
+  },
+  "請輸入有效的搜尋中心座標。": {
+    "en": "Enter valid coordinates for the search centre.",
+    "zh-Hans": "請輸入有效的搜尋中心座標。",
+    "zh-Hant": "請輸入有效的搜尋中心座標。"
+  },
+  "找不到地點，請調整名稱或搜尋中心。": {
+    "en": "No places found. Adjust the name or search centre.",
+    "zh-Hans": "找不到地點，請調整名稱或搜尋中心。",
+    "zh-Hant": "找不到地點，請調整名稱或搜尋中心。"
+  },
+  "已發布至本機景點；Zetaris 資料尚待同步。": {
+    "en": "Published locally. Zetaris sync is pending.",
+    "zh-Hans": "已發布至本機景點；Zetaris 資料尚待同步。",
+    "zh-Hant": "已發布至本機景點；Zetaris 資料尚待同步。"
+  },
+  "萃取預覽": {
+    "en": "Extraction preview",
+    "zh-Hans": "萃取預覽",
+    "zh-Hant": "萃取預覽"
+  },
+  "比對地圖地點": {
+    "en": "Match a map place",
+    "zh-Hans": "比對地圖地點",
+    "zh-Hant": "比對地圖地點"
+  },
+  "確認儲存草稿": {
+    "en": "Save draft",
+    "zh-Hans": "確認儲存草稿",
+    "zh-Hant": "確認儲存草稿"
+  },
+  "開始新的匯入": {
+    "en": "Start a new import",
+    "zh-Hans": "開始新的匯入",
+    "zh-Hant": "開始新的匯入"
+  },
+  "內容與評論保留原文證據，不代表已核實的價格或評分。": {
+    "en": "Quotes preserve the source. Prices and ratings are unverified.",
+    "zh-Hans": "內容與評論保留原文證據，不代表已核實的價格或評分。",
+    "zh-Hant": "內容與評論保留原文證據，不代表已核實的價格或評分。"
+  },
+  "貼文萃取會使用已設定的 AI；JSON 匯入不需 AI。": {
+    "en": "Text extraction uses your configured AI. JSON import does not require AI.",
+    "zh-Hans": "貼文萃取會使用已設定的 AI；JSON 匯入不需 AI。",
+    "zh-Hant": "貼文萃取會使用已設定的 AI；JSON 匯入不需 AI。"
+  },
+  "讀取已匯入資料": {
+    "en": "Load saved imports",
+    "zh-Hans": "讀取已匯入資料",
+    "zh-Hant": "讀取已匯入資料"
+  },
+  "匯入方式": {
+    "en": "Import method",
+    "zh-Hans": "匯入方式",
+    "zh-Hant": "匯入方式"
+  },
+  "貼上貼文": {
+    "en": "Paste post",
+    "zh-Hans": "貼上貼文",
+    "zh-Hant": "貼上貼文"
+  },
+  "匯入 JSON": {
+    "en": "Import JSON",
+    "zh-Hans": "匯入 JSON",
+    "zh-Hant": "匯入 JSON"
+  },
+  "選擇 JSON 檔案": {
+    "en": "Choose JSON file",
+    "zh-Hans": "選擇 JSON 檔案",
+    "zh-Hant": "選擇 JSON 檔案"
+  },
+  "平台": {
+    "en": "Platform",
+    "zh-Hans": "平台",
+    "zh-Hant": "平台"
+  },
+  "小紅書": {
+    "en": "Xiaohongshu",
+    "zh-Hans": "小紅書",
+    "zh-Hant": "小紅書"
+  },
+  "原貼文網址": {
+    "en": "Original post URL",
+    "zh-Hans": "原貼文網址",
+    "zh-Hant": "原貼文網址"
+  },
+  "貼上你有權使用的旅遊貼文內容。": {
+    "en": "Paste travel content you have permission to use.",
+    "zh-Hans": "貼上你有權使用的旅遊貼文內容。",
+    "zh-Hant": "貼上你有權使用的旅遊貼文內容。"
+  },
+  "預覽資料": {
+    "en": "Preview data",
+    "zh-Hans": "預覽資料",
+    "zh-Hant": "預覽資料"
+  },
+  "地點名稱": {
+    "en": "Place name",
+    "zh-Hans": "地點名稱",
+    "zh-Hant": "地點名稱"
+  },
+  "緯度": {
+    "en": "Latitude",
+    "zh-Hans": "緯度",
+    "zh-Hant": "緯度"
+  },
+  "經度": {
+    "en": "Longitude",
+    "zh-Hans": "經度",
+    "zh-Hant": "經度"
+  },
+  "搜尋中心預設雪梨，可修改座標。": {
+    "en": "The search centre defaults to Sydney. You can edit the coordinates.",
+    "zh-Hans": "搜尋中心預設雪梨，可修改座標。",
+    "zh-Hant": "搜尋中心預設雪梨，可修改座標。"
+  },
+  "確認地點並發布": {
+    "en": "Confirm place and publish",
+    "zh-Hans": "確認地點並發布",
+    "zh-Hant": "確認地點並發布"
   }
 }
