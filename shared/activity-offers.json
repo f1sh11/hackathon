@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "offers": [
+    {
+      "venueName": "Sydney Opera House",
+      "lat": -33.8568,
+      "lng": 151.2153,
+      "currency": "AUD",
+      "sourceName": "Sydney Opera House official website",
+      "observedOn": "2026-10-25",
+      "reviewBy": "2026-11-24",
+      "ticketType": "Adult · Pre-book",
+      "priceType": "reference_ticket_price",
+      "budgetEligible": false,
+      "license": "Factual price reference; source page rights retained. No photos or reviews copied.",
+      "id": "soh:standard-adult-prebook",
+      "title": "Sydney Opera House Tour",
+      "amount": 50,
+      "sourceUrl": "https://www.sydneyoperahouse.com/tours/sydney-opera-house-tour",
+      "conditions": "Adult advance-booking reference, subject to date and availability. Approximately 60 minutes; up to 2.5 km and around 300 stairs. Rates change from 1 April 2027. Not a performance ticket."
+    },
+    {
+      "venueName": "Sydney Opera House",
+      "lat": -33.8568,
+      "lng": 151.2153,
+      "currency": "AUD",
+      "sourceName": "Sydney Opera House official website",
+      "observedOn": "2026-10-25",
+      "reviewBy": "2026-11-24",
+      "ticketType": "Adult · Pre-book",
+      "priceType": "reference_ticket_price",
+      "budgetEligible": false,
+      "license": "Factual price reference; source page rights retained. No photos or reviews copied.",
+      "id": "soh:tour-dine-adult-prebook",
+      "title": "Sydney Opera House Tour & Dine",
+      "amount": 84,
+      "sourceUrl": "https://www.sydneyoperahouse.com/tours/tour-and-dine",
+      "conditions": "Adult advance-booking reference for tour plus a meal and beverage. Dining 11:30–18:00, subject to venue availability. Not a restaurant à-la-carte price. Review by 24 November 2026; not a guaranteed offer end date."
+    }
+  ]
+}

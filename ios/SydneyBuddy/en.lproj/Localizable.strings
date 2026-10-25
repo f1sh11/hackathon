@@ -471,3 +471,9 @@
 "估算人數：{0}" = "Estimate covers {0} people";
 
 "估算日期：{0}" = "Estimated on {0}";
+"附近活動與參考票價" = "Nearby activities & reference prices";
+"附近活動不代表此商家販售；票種、日期與名額以官網為準，不自動扣預算。" = "Nearby activities may be offered by a different venue. Check official ticket types, dates and availability. Not added to your budget.";
+"附近尚無已整理的活動票價參考。" = "No reviewed activity price references nearby yet.";
+"活動參考暫時無法載入，請重試。" = "Activity references could not load. Please retry.";
+"票價待重新確認，請查看官網。" = "Price needs checking. See the official website.";
+"重新查詢" = "Retry";

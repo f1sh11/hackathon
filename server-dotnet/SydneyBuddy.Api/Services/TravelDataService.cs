@@ -16,6 +16,7 @@ public sealed class TravelDataContext(IHttpContextAccessor accessor) {
 public sealed record TravelSnapshot(JsonObject Poi,JsonArray Catalog,JsonArray Maps,string ReadAt,JsonArray? Gems=null,JsonArray? Osm=null,JsonArray? Social=null,JsonArray? Restaurants=null);
 public interface ITravelWarehouse {
     Task<TravelSnapshot> ReadAsync(CancellationToken token);
+    Task<JsonArray> ActivityOffersAsync(CancellationToken token)=>throw new ServiceException("Zetaris 活動資料尚未設定。");
     Task<JsonObject> InsightRawAsync(string kind,CancellationToken token)=>throw new ServiceException("Zetaris 尚未設定此公開資料來源。");
     Task<JsonObject> WeatherRawAsync(CancellationToken token)=>throw new ServiceException("Zetaris 即時天氣尚未設定。");
 }
@@ -59,6 +60,17 @@ public sealed class ZetarisTravelWarehouse(HttpClient http,IConfiguration config
         }catch(OperationCanceledException)when(!token.IsCancellationRequested){throw new ServiceException("Zetaris 連線逾時，可切回直接來源。");}
         catch(HttpRequestException){throw new ServiceException("無法連接 Zetaris，可切回直接來源。");}
         catch(System.Text.Json.JsonException){throw new ServiceException("Zetaris 回應格式無效。");}
+    }
+    public async Task<JsonArray> ActivityOffersAsync(CancellationToken token){
+        // Sentinel preserves an explicitly empty collection; no fallback and no snapshot cache.
+        var rows=await QueryAsync("SELECT 'offer' AS kind,payload FROM sydneybuddy_travel.travel_activity_offers UNION ALL SELECT 'sentinel','{}'",token);
+        var result=new JsonArray();
+        foreach(var row in rows.OfType<JsonArray>()){
+            if(row.Count!=2)throw new ServiceException("Zetaris 活動資料格式無效。");
+            if(row[0]!.GetValue<string>()=="sentinel")continue;
+            result.Add(JsonNode.Parse(row[1]!.GetValue<string>())?.AsObject()??throw new ServiceException("Zetaris 活動資料格式無效。"));
+        }
+        return result;
     }
     public async Task<JsonObject> WeatherRawAsync(CancellationToken token){
         // Never read travel_weather, snapshot cache, or CACHE TABLE here.

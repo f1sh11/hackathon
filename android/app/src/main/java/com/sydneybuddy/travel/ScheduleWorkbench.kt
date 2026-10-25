@@ -106,6 +106,7 @@ internal fun toolboxMinute(y:Float,scale:Float,first:Int,start:Int,end:Int):Int?
         Text(p.optString("name"),fontSize=21.sp,fontWeight=FontWeight.Bold)
         Text(p.optString("category")+" · "+if(p.optBoolean("indoor"))"室內"else "戶外",color=Color.Gray)
         Text(p.optString("description").takeIf{it.isNotBlank()} ?: "此草案尚未附上景點介紹，可重新試算以更新資料。")
+        ActivityReferencesPanel(p,store)
         p.optJSONObject("restaurantData")?.let{RestaurantPricePanel(p,store)}
         p.array("socialRecommendations").objects().forEach{recommendation->Text(recommendation.optString("author").ifBlank{ui("來源未提供作者")});Text(recommendation.optJSONObject("claims")?.optString("quote") ?: "");Small(recommendation.optString("postedAt").ifBlank{ui("發文日期未提供")})}
         p.optJSONObject("guide")?.let{guide->

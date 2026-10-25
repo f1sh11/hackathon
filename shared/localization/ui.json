@@ -1673,5 +1673,35 @@
     "en": "Estimated on {0}",
     "zh-Hans": "估算日期：{0}",
     "zh-Hant": "估算日期：{0}"
+  },
+  "附近活動與參考票價" : {
+    "en" : "Nearby activities & reference prices",
+    "zh-Hant" : "附近活動與參考票價",
+    "zh-Hans" : "附近活动与参考票价"
+  },
+  "附近活動不代表此商家販售；票種、日期與名額以官網為準，不自動扣預算。" : {
+    "en" : "Nearby activities may be offered by a different venue. Check official ticket types, dates and availability. Not added to your budget.",
+    "zh-Hant" : "附近活動不代表此商家販售；票種、日期與名額以官網為準，不自動扣預算。",
+    "zh-Hans" : "附近活动不代表此商家销售；票种、日期与名额以官网为准，不自动扣预算。"
+  },
+  "附近尚無已整理的活動票價參考。" : {
+    "en" : "No reviewed activity price references nearby yet.",
+    "zh-Hant" : "附近尚無已整理的活動票價參考。",
+    "zh-Hans" : "附近尚无已整理的活动票价参考。"
+  },
+  "活動參考暫時無法載入，請重試。" : {
+    "en" : "Activity references could not load. Please retry.",
+    "zh-Hant" : "活動參考暫時無法載入，請重試。",
+    "zh-Hans" : "活动参考暂时无法加载，请重试。"
+  },
+  "票價待重新確認，請查看官網。" : {
+    "en" : "Price needs checking. See the official website.",
+    "zh-Hant" : "票價待重新確認，請查看官網。",
+    "zh-Hans" : "票价待重新确认，请查看官网。"
+  },
+  "重新查詢" : {
+    "en" : "Retry",
+    "zh-Hant" : "重新查詢",
+    "zh-Hans" : "重新查詢"
   }
 }

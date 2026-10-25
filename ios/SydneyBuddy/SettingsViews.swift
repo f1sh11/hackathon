@@ -320,3 +320,46 @@ struct RestaurantPriceView:View {
     private func source(_ value:RestaurantSource)->some View {VStack(alignment:.leading){if let url=URL(string:value.url){Link(value.name,destination:url)};Text(store.language.text("資料日期：{0}",String(value.observedAt.prefix(10)))).font(.caption).foregroundStyle(Palette.muted)}}
     private func attribution(_ author:String?,_ date:String?)->some View {Text((author ?? store.language.text("來源未提供作者"))+" · "+(date.map{String($0.prefix(10))} ?? store.language.text("發文日期未提供"))).font(.caption).foregroundStyle(Palette.muted)}
 }
+
+struct ActivityReference:Decodable,Identifiable {
+    let id:String;let title:String;let venueName:String;let amount:Double;let currency:String
+    let ticketType:String;let conditions:String;let sourceName:String;let sourceUrl:String
+    let observedOn:String;let stale:Bool;let distanceMeters:Double
+}
+private struct ActivityReferenceResponse:Decodable {let dataSource:String;let offers:[ActivityReference]}
+struct ActivityReferencesView:View {
+    let lat:Double;let lng:Double
+    @EnvironmentObject private var store:AppStore
+    @State private var offers:[ActivityReference]=[]
+    @State private var busy=false
+    @State private var message:String?
+    var body:some View {
+        VStack(alignment:.leading,spacing:12){
+            Text("附近活動與參考票價").font(.headline)
+            Text("附近活動不代表此商家販售；票種、日期與名額以官網為準，不自動扣預算。").font(.caption).foregroundStyle(Palette.muted)
+            if busy{ProgressView()}
+            if let message{Text(store.language.text(message)).font(.caption);Button("重新查詢"){Task{await load()}}}
+            ForEach(offers){offer in
+                VStack(alignment:.leading,spacing:6){
+                    Text(offer.title).bold()
+                    Text(offer.venueName+" · \(Int(offer.distanceMeters)) m")
+                    Text(String(format:"%@ %.2f",offer.currency,offer.amount)+" · "+offer.ticketType).bold().foregroundStyle(Palette.green)
+                    Text(offer.conditions).font(.caption)
+                    Text(store.language.text("資料日期：{0}",offer.observedOn)).font(.caption).foregroundStyle(Palette.muted)
+                    if offer.stale{Text("票價待重新確認，請查看官網。").font(.caption).foregroundStyle(.orange)}
+                    if let url=URL(string:offer.sourceUrl),url.scheme=="https"{Link(offer.sourceName,destination:url)}
+                }.padding(12).frame(maxWidth:.infinity,alignment:.leading).background(Palette.mint,in:RoundedRectangle(cornerRadius:14))
+            }
+        }.task(id:"\(lat):\(lng):\(store.travelDataSource)"){await load()}
+    }
+    @MainActor private func load() async {
+        let source=store.travelDataSource;busy=true;message=nil;offers=[]
+        do{
+            let raw=try await SocialImportModel().call("activities/search",body:["lat":lat,"lng":lng,"radius":1000],store:store)
+            let response=try JSONDecoder().decode(ActivityReferenceResponse.self,from:JSONSerialization.data(withJSONObject:raw))
+            guard source==store.travelDataSource,response.dataSource==source.rawValue else{return}
+            offers=response.offers;if offers.isEmpty{message="附近尚無已整理的活動票價參考。"}
+        }catch{if source==store.travelDataSource{message="活動參考暫時無法載入，請重試。"}}
+        if source==store.travelDataSource{busy=false}
+    }
+}
