@@ -10,12 +10,13 @@ public sealed class ProjectPaths
     public string ServerDirectory => Path.Combine(RepoRoot, "server");
     public string DataDirectory { get; }
     public string HmemDirectory => Path.Combine(DataDirectory, ".hmem");
-    public string SecretsFile => Path.Combine(RepoRoot, ".secrets.json");
+    public string SecretsFile { get; }
 
     public ProjectPaths(string repoRoot, string? dataDirectory = null)
     {
         RepoRoot = Path.GetFullPath(repoRoot);
         DataDirectory = Path.GetFullPath(dataDirectory ?? ServerDirectory);
+        SecretsFile = Path.Combine(dataDirectory is null ? RepoRoot : DataDirectory, ".secrets.json");
     }
 
     public static string DiscoverRoot()

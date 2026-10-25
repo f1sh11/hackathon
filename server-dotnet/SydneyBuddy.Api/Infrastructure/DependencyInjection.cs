@@ -7,7 +7,10 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddBuddyServices(this IServiceCollection services)
     {
-        services.AddSingleton(provider => new ProjectPaths(provider.GetRequiredService<IConfiguration>()["SYDNEYBUDDY_ROOT"] ?? ProjectPaths.DiscoverRoot()));
+        services.AddSingleton(provider => {
+            var configuration = provider.GetRequiredService<IConfiguration>();
+            return new ProjectPaths(configuration["SYDNEYBUDDY_ROOT"] ?? ProjectPaths.DiscoverRoot(), configuration["SYDNEYBUDDY_DATA"]);
+        });
         services.AddSingleton<SecretStore>();
         services.AddSingleton<PaidServicePolicy>();
         services.AddHttpClient<NavigationService>(client => client.Timeout = Timeout.InfiniteTimeSpan)

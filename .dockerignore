@@ -1,0 +1,26 @@
+# Allow only backend source and reviewed public datasets into the build context.
+**
+!server-dotnet/
+!server-dotnet/SydneyBuddy.Api/
+!server-dotnet/SydneyBuddy.Api/**
+server-dotnet/**/bin/
+server-dotnet/**/obj/
+!server/
+!server/places.json
+!server/hmem_bridge.ts
+!server/vendor/
+!server/vendor/hmem/
+!server/vendor/hmem/**
+!shared/
+!shared/**
+!infra/
+!infra/oracle/
+!infra/oracle/Dockerfile
+!infra/oracle/healthcheck.mjs
+!infra/poi/
+!infra/poi/data/
+!infra/poi/data/places.json
+!infra/zetaris/
+!infra/zetaris/data/
+!infra/zetaris/data/hidden-gems.json
+!infra/zetaris/data/osm-map-places.json

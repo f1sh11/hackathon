@@ -1,0 +1,53 @@
+name: sydneybuddy-oracle
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: sydneybuddy
+      POSTGRES_USER: sydneybuddy
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set a private database password}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U sydneybuddy -d sydneybuddy]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    mem_limit: 1g
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: '3'}
+  api:
+    image: sydneybuddy-api:oracle
+    build:
+      context: ../..
+      dockerfile: infra/oracle/Dockerfile
+    env_file:
+      - ${APP_ENV_FILE:-.env}
+    environment:
+      ConnectionStrings__SydneyBuddy: Host=db;Port=5432;Database=sydneybuddy;Username=sydneybuddy;Password=${POSTGRES_PASSWORD};Maximum Pool Size=20
+      SYDNEYBUDDY_DATA: /var/lib/sydneybuddy
+    ports:
+      - 127.0.0.1:${API_PORT:-8787}:8787
+    volumes:
+      - app-state:/var/lib/sydneybuddy
+    depends_on:
+      db: {condition: service_healthy}
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD, node, /app/infra/oracle/healthcheck.mjs]
+      interval: 20s
+      timeout: 5s
+      start_period: 30s
+      retries: 6
+    mem_limit: 3g
+    init: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: '3'}
+volumes:
+  postgres-data:
+  app-state:

@@ -1,4 +1,7 @@
 .env.local
+infra/oracle/.env
+infra/oracle/*.private.json
+infra/oracle/bundles/
 .secrets.json
 ios/Config/Secrets.xcconfig
 server/state.sqlite3*
