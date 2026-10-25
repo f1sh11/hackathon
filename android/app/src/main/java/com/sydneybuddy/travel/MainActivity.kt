@@ -312,7 +312,7 @@ internal fun savedTripNavigationDay(trip:JSONObject,today:String=java.time.Local
         TextButton(onClick={socialImport=true},modifier=Modifier.testTag("social-import-open")){Icon(Icons.Outlined.FileDownload,null);Text(ui("匯入社群靈感"))}
         Panel {
             Text(ui("旅遊資料來源"),fontWeight=FontWeight.Bold)
-            listOf("direct" to "直接來源","zetaris" to "透過 Zetaris").forEach{(route,label)->TextButton(onClick={store.chooseTravelDataSource(route)},modifier=Modifier.testTag("travel-data-$route")){Text((if(store.travelDataSource==route)"✓ "else "")+ui(label))}}
+            listOf("direct" to "直接來源","zetaris" to "本機 Zetaris","zetaris-cloud" to "雲端 Zetaris（雪梨）").forEach{(route,label)->TextButton(onClick={store.chooseTravelDataSource(route)},modifier=Modifier.testTag("travel-data-$route")){Text((if(store.travelDataSource==route)"✓ "else "")+ui(label))}}
             Small(ui("店家、景點、天氣與地圖設定可切換來源；底圖與導航仍由地圖服務提供。"))
             Small(ui("Zetaris 連線失敗時可手動切回直接來源。"))
             store.dataConnection?.let{Small(it)}

@@ -42,10 +42,10 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
         mapProvider = value
         prefs.edit().putString("mapProvider", value.name).apply()
     }
-    var travelDataSource by mutableStateOf(prefs.getString("travelDataSource","direct")?.takeIf{it in listOf("direct","zetaris")} ?: "direct");private set
+    var travelDataSource by mutableStateOf(prefs.getString("travelDataSource","direct")?.takeIf{it in listOf("direct","zetaris","zetaris-cloud")} ?: "direct");private set
     var dataConnection by mutableStateOf<String?>(null);private set
     var mapLayerIds by mutableStateOf<Set<String>?>(null);private set
-    fun chooseTravelDataSource(value:String){require(value in listOf("direct","zetaris"));travelDataSource=value;prefs.edit().putString("travelDataSource",value).apply();weather=null;insights=null;dataConnection=null;mapLayerIds=null;reloadTravelData()}
+    fun chooseTravelDataSource(value:String){require(value in listOf("direct","zetaris","zetaris-cloud"));travelDataSource=value;prefs.edit().putString("travelDataSource",value).apply();weather=null;insights=null;dataConnection=null;mapLayerIds=null;reloadTravelData()}
     fun reloadTravelData(){val selected=travelDataSource;viewModelScope.launch{try{
         val maps=JSONObject(request("data/map-layers"));val status=JSONObject(request("data/status"))
         if(selected==travelDataSource){require(maps.optString("dataSource")==selected&&status.optString("dataSource")==selected);mapLayerIds=maps.array("layers").objects().map{it.getString("id")}.toSet();dataConnection=translated(JSONObject(getApplication<Application>().assets.open("ui-localizations.json").bufferedReader().use{it.readText()}),language,"資料來源已連線 · {0} 個行程景點",status.optInt("catalogCount").toString())}
@@ -56,7 +56,7 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
     suspend fun socialRequest(path:String,body:JSONObject?=null)=JSONObject(request(path,if(body==null)"GET"else "POST",body))
     suspend fun poiMedia(body:JSONObject)=JSONObject(request("poi/media","POST",body))
     suspend fun searchPoi(body:JSONObject)=JSONObject(request("poi/search","POST",body))
-    val base = "http://127.0.0.1:8787"
+    val base = BuildConfig.BACKEND_URL
     val day: JSONObject? get() = trip?.array("days")?.objects()?.getOrNull(dayIndex)
 
     init { reload() }
@@ -196,7 +196,7 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
     fun refreshWeather() {
         if(weatherBusy)return
         weatherBusy=true;val selected=travelDataSource
-        weather=JSONObject().put("summary","正在查詢即時天氣…").put("rainy",false).put("status","loading").put("source",if(selected=="zetaris")"Open-Meteo / Zetaris"else "Open-Meteo / direct")
+        weather=JSONObject().put("summary","正在查詢即時天氣…").put("rainy",false).put("status","loading").put("source",if(selected!="direct")"Open-Meteo / Zetaris"else "Open-Meteo / direct")
         val source=trip?.getJSONObject("profile") ?: profile.json()
         viewModelScope.launch{try {
             val result=JSONObject(request("weather","POST",source));if(selected==travelDataSource){weather=result;if(result.optString("status")=="ok")mark("weather")}

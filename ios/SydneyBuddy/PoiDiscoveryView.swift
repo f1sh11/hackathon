@@ -119,17 +119,17 @@ enum PoiDiscoveryCategory {
     }
     private var job:Task<Void,Never>?
     private var generation=UUID()
-    var source:String {if dataSource == .zetaris{return "Open travel data / Zetaris"};if category == "gems" {return "Open travel data / local"};switch provider{case .apple:return "Apple Maps / MapKit";case .google:return "Google Places";case .osm:return openSource;case .schematic:return "離線示意 · 不搜尋地點"}}
+    var source:String {if dataSource.warehouse{return "Open travel data / Zetaris"};if category == "gems" {return "Open travel data / local"};switch provider{case .apple:return "Apple Maps / MapKit";case .google:return "Google Places";case .osm:return openSource;case .schematic:return "離線示意 · 不搜尋地點"}}
     func configure(_ value:MapProvider,googleMapConfigured:Bool=true,dataSource:TravelDataSource = .direct) {
         stop();lastCamera=nil;viewportRadius=nil;provider=value;self.dataSource=dataSource;self.googleMapConfigured=googleMapConfigured;places=[];selected=nil;error=nil;hasSearched=false
-        attribution=dataSource == .zetaris ? "Overture Maps Foundation":value == .apple ? "Apple Maps":value == .google ? "Google Maps":value == .osm ? "Overture Maps Foundation":""
+        attribution=dataSource.warehouse ? "Overture Maps Foundation":value == .apple ? "Apple Maps":value == .google ? "Google Maps":value == .osm ? "Overture Maps Foundation":""
         dataVersion=nil
-        if category == "gems" || value == .osm || value == .apple || dataSource == .zetaris{search()}
+        if category == "gems" || value == .osm || value == .apple || dataSource.warehouse{search()}
     }
     func search(){
         stop();error=nil;searchSummary=nil;hasSearched=true;places=[];selected=nil
         guard provider != .schematic else{error="離線示意圖不提供地點搜尋，請切換其他底圖。";return}
-        guard category == "gems" || dataSource == .zetaris || provider != .google || googleMapConfigured else{error="Google 地圖尚未設定金鑰，請選擇其他底圖。";return}
+        guard category == "gems" || dataSource.warehouse || provider != .google || googleMapConfigured else{error="Google 地圖尚未設定金鑰，請選擇其他底圖。";return}
         busy=true
         let point=center,text=query.trimmingCharacters(in:.whitespacesAndNewlines),kind=category,current=provider,route=dataSource,token=generation,radius=viewportRadius
         job=Task {@MainActor in
@@ -146,10 +146,10 @@ enum PoiDiscoveryCategory {
                     guard (response as? HTTPURLResponse)?.statusCode==200 else {let raw=(try? JSONSerialization.jsonObject(with:data)) as? [String:Any];throw NSError(domain:"POI",code:1,userInfo:[NSLocalizedDescriptionKey:raw?["error"] as? String ?? "地點搜尋失敗，請重試。"])}
                     struct Response:Decodable{struct Metadata:Decodable{var release:String?};var places:[ScheduleCandidate];var attribution:String?;var source:String?;var metadata:Metadata?;var message:String?;var truncated:Bool?}
                     let parsed=try JSONDecoder().decode(Response.self,from:data)
-                    guard kind == "gems" || route == .zetaris || current != .google || parsed.places.allSatisfy({$0.source=="Google Places"}) else{throw NSError(domain:"POI",code:2,userInfo:[NSLocalizedDescriptionKey:"搜尋來源不一致，請更新後端後重試。"])}
+                    guard kind == "gems" || route.warehouse || current != .google || parsed.places.allSatisfy({$0.source=="Google Places"}) else{throw NSError(domain:"POI",code:2,userInfo:[NSLocalizedDescriptionKey:"搜尋來源不一致，請更新後端後重試。"])}
                     result=parsed.places
                     guard token==generation else{return};if let credit=parsed.attribution{attribution=credit};searchSummary=parsed.truncated == true ? "已顯示部分結果，請輸入名稱或縮小分類。":parsed.message
-                    if kind == "gems" || current == .osm || route == .zetaris{openSource=parsed.source ?? "開放地點資料";dataVersion=parsed.metadata?.release}
+                    if kind == "gems" || current == .osm || route.warehouse{openSource=parsed.source ?? "開放地點資料";dataVersion=parsed.metadata?.release}
                 }
                 try Task.checkCancellation();guard token==generation else{return}
                 places=result;busy=false

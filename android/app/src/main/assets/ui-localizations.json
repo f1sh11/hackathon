@@ -1,4 +1,6 @@
 {
+  "本機 Zetaris": {"en": "Local Zetaris", "zh-Hans": "本机 Zetaris", "zh-Hant": "本機 Zetaris"},
+  "雲端 Zetaris（雪梨）": {"en": "Cloud Zetaris (Sydney)", "zh-Hans": "云端 Zetaris（悉尼）", "zh-Hant": "雲端 Zetaris（雪梨）"},
   "{0} · {1} {2} 分": {
     "en": "{0} · {1} {2} min",
     "zh-Hans": "{0} · {1} {2} 分",

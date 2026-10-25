@@ -115,7 +115,7 @@ internal data class PoiFocus(val id:String,val lat:Double,val lng:Double,val nam
             ensureActive();if(route==store.travelDataSource&&provider==store.mapProvider&&response.optString("dataSource")==route)ticketSummaries=response.optJSONObject("summaries") ?: JSONObject()
         }catch(e:CancellationException){throw e}catch(e:Exception){/* Optional reference unavailable; no fabricated price. */}
     }
-    val source=if(store.travelDataSource=="zetaris")"Open travel data / Zetaris"else if(category=="gems")"Open travel data / local"else when(store.mapProvider){MapProvider.OSM->openSource;MapProvider.GOOGLE->"Google Places";MapProvider.SCHEMATIC->"離線示意 · 不搜尋地點"}
+    val source=if(store.travelDataSource!="direct")"Open travel data / Zetaris"else if(category=="gems")"Open travel data / local"else when(store.mapProvider){MapProvider.OSM->openSource;MapProvider.GOOGLE->"Google Places";MapProvider.SCHEMATIC->"離線示意 · 不搜尋地點"}
     fun search(){
         searchJob?.cancel();places=emptyList();selected=null;focus=null;detail=null;error=null;hasSearched=true;busy=false;resultProvider=null
         summary=null;val provider=store.mapProvider;val route=store.travelDataSource
@@ -127,9 +127,9 @@ internal data class PoiFocus(val id:String,val lat:Double,val lng:Double,val nam
             val result=withTimeout(30000){requester(input)}
             ensureActive();if(store.mapProvider!=provider||store.travelDataSource!=route)return@launch
             val found=result.array("places").objects()
-            require(category=="gems"||route=="zetaris"||provider!=MapProvider.GOOGLE || found.all{it.optString("source")=="Google Places"}){"搜尋來源不一致，請更新後端後重試。"}
+            require(category=="gems"||route!="direct"||provider!=MapProvider.GOOGLE || found.all{it.optString("source")=="Google Places"}){"搜尋來源不一致，請更新後端後重試。"}
             summary=if(result.optBoolean("truncated"))"已顯示部分結果，請輸入名稱或縮小分類。"else result.optString("message").takeIf{it.isNotBlank()};places=found;resultProvider=provider;resultDataSource=route;attribution=result.optString("attribution",if(provider==MapProvider.GOOGLE)"Google Maps"else "Overture Maps Foundation")
-            if(category=="gems"||provider==MapProvider.OSM||route=="zetaris"){openSource=result.optString("source","開放地點資料");dataVersion=result.optJSONObject("metadata")?.optString("release") ?: ""}
+            if(category=="gems"||provider==MapProvider.OSM||route!="direct"){openSource=result.optString("source","開放地點資料");dataVersion=result.optJSONObject("metadata")?.optString("release") ?: ""}
         }catch(e:CancellationException){if(e is TimeoutCancellationException)error="地點服務逾時，請重試。"else throw e}catch(e:Exception){error=e.message ?: "搜尋失敗"}finally{if(isActive)busy=false}}
     }
     fun focusPlace(p:JSONObject){center=p.getDouble("lat") to p.getDouble("lng");zoom=17.0;selected=p.getString("id");focus=PoiFocus(selected!!,p.getDouble("lat"),p.getDouble("lng"),p.optString("name"))}
@@ -190,7 +190,7 @@ internal data class PoiFocus(val id:String,val lat:Double,val lng:Double,val nam
                 }
                 if(dataVersion.isNotBlank())Text(ui("本機地點資料快照：{0}",dataVersion),fontSize=10.sp)
             }
-            else if(store.travelDataSource=="zetaris") {Small(attribution.ifBlank{"Overture Maps Foundation"});if(dataVersion.isNotBlank())Small(ui("本機地點資料快照：{0}",dataVersion))}
+            else if(store.travelDataSource!="direct") {Small(attribution.ifBlank{"Overture Maps Foundation"});if(dataVersion.isNotBlank())Small(ui("本機地點資料快照：{0}",dataVersion))}
             else if(store.mapProvider==MapProvider.GOOGLE)Small(attribution.ifBlank{"Google Maps"})
         }}
     }
