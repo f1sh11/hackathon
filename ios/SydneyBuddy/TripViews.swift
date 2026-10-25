@@ -52,6 +52,80 @@ struct DaySummary:View {
 struct AgentView:View {
     var body:some View { PetChatView() }
 }
+struct WorldModelView: View {
+    @EnvironmentObject var store: AppStore
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    VStack(alignment: .leading, spacing: 7) {
+                        Label("旅行数字分身", systemImage: "sparkles").font(.title2.bold()).foregroundStyle(Palette.green)
+                        Text("先让 Buddy 按已保存行程走一遍。状态快照、风险和你的决定会保存到 World Model；原行程不会被静默修改。")
+                            .font(.caption).foregroundStyle(Palette.muted)
+                    }
+                    if let trip = store.trip, trip.id != nil {
+                        VStack(alignment: .leading, spacing: 13) {
+                            Text(trip.title).font(.headline)
+                            Text("已确认行程 · 版本 \(trip.revision ?? 1)").font(.caption).foregroundStyle(Palette.muted)
+                            PrimaryButton(title:"让数字分身先走一遍", symbol:"figure.walk") { Task { await store.simulateWorld() } }
+                        }.padding(20).background(Palette.mint,in:RoundedRectangle(cornerRadius:24))
+                        if let run = store.worldRun { WorldRunContent(run: run) }
+                        else { Text("还没有模拟记录。开始后会展示步行、预算、天气和交通四项结果。")
+                            .font(.caption).foregroundStyle(Palette.muted).padding(18).frame(maxWidth:.infinity,alignment:.leading).background(.white,in:RoundedRectangle(cornerRadius:20)) }
+                    } else {
+                        ContentUnavailableView("还没有可模拟的行程",systemImage:"suitcase",description:Text("先在“行程”保存一份路线，再回来让数字分身提前体验。"))
+                    }
+                }.padding(24)
+            }.background(Palette.cream).navigationTitle("数字分身").task(id: store.trip?.id) { await store.loadWorld() }
+        }
+    }
+}
+private struct WorldRunContent: View {
+    @EnvironmentObject var store: AppStore
+    let run: WorldRun
+    private var decisions: [String:String] { Dictionary(uniqueKeysWithValues: run.decisions.map { ($0.suggestionId, $0.decision) }) }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment:.leading,spacing:8) {
+                Text("模拟结果").font(.headline)
+                Text("步行 \(run.summary.walkingSteps) 步 · A$\(Int(run.summary.cost))").font(.subheadline.bold())
+                Text("交通 \(run.summary.transportMinutes) 分钟 · 室外 \(run.summary.outdoorMinutes) 分钟").font(.caption).foregroundStyle(Palette.muted)
+                Text("体力 \(risk(run.summary.energyRisk)) · 预算 \(risk(run.summary.budgetRisk)) · 天气 \(risk(run.summary.weatherRisk))").font(.caption).foregroundStyle(Palette.muted)
+                HStack(spacing:12) { metric("步行",before:run.summary.before.walkingSteps,after:run.summary.after.walkingSteps); metric("交通",before:run.summary.before.transportMinutes,after:run.summary.after.transportMinutes) }
+            }.padding(20).frame(maxWidth:.infinity,alignment:.leading).background(.white,in:RoundedRectangle(cornerRadius:24))
+            VStack(alignment:.leading,spacing:12) {
+                Text("优化建议").font(.headline)
+                ForEach(run.suggestions) { suggestion in
+                    Divider()
+                    Text(suggestion.title).font(.subheadline.bold())
+                    Text(suggestion.detail).font(.caption).foregroundStyle(Palette.muted)
+                    if let decision = decisions[suggestion.id] {
+                        Text(decision == "accepted" ? "你已接受这条建议；下一次规划可据此调整。" : "你选择保留原安排；该约束会留在本次世界状态中。")
+                            .font(.caption).foregroundStyle(Palette.green)
+                    } else {
+                        HStack { Button("接受") { Task { await store.decideWorld(suggestion.id, decision:"accepted") } }.buttonStyle(.borderedProminent).tint(Palette.green)
+                            Button("保留原安排") { Task { await store.decideWorld(suggestion.id, decision:"rejected") } }.buttonStyle(.bordered).tint(Palette.green) }
+                    }
+                }
+            }.padding(20).frame(maxWidth:.infinity,alignment:.leading).background(.white,in:RoundedRectangle(cornerRadius:24))
+            VStack(alignment:.leading,spacing:11) {
+                Text("模拟时间线").font(.headline)
+                ForEach(Array(run.snapshots.suffix(8))) { state in
+                    Divider()
+                    Text("第 \(state.day) 天 · \(state.time.isEmpty ? "完成" : state.time) · \(state.location)").font(.subheadline.bold())
+                    Text("\(state.eventType) · 已花 A$\(Int(state.spent)) · \(state.steps) 步 · 下一站 \(state.nextStop)").font(.caption).foregroundStyle(Palette.muted)
+                }
+            }.padding(20).frame(maxWidth:.infinity,alignment:.leading).background(.white,in:RoundedRectangle(cornerRadius:24))
+            Text("当前 MVP 记录建议与选择；确认后的行程仍需在规划流程中由你接受后才会更新。")
+                .font(.caption2).foregroundStyle(Palette.muted)
+        }
+    }
+    private func metric(_ title: String, before: Int, after: Int) -> some View {
+        VStack(alignment:.leading,spacing:3) { Text(title).font(.caption2).foregroundStyle(Palette.muted); Text("\(before) → \(after)").font(.caption.bold()).foregroundStyle(Palette.green) }
+            .padding(10).background(Palette.mint.opacity(0.6),in:RoundedRectangle(cornerRadius:12))
+    }
+    private func risk(_ value: String) -> String { value == "high" ? "高" : value == "medium" ? "中" : "低" }
+}
 struct TripDetailView:View {
     @EnvironmentObject var store:AppStore
     var body:some View { NavigationStack { ScrollView {VStack(alignment:.leading,spacing:20){if let t=store.trip {Text(t.explanation).font(.subheadline);WeatherCard(weather:store.refreshedWeather ?? t.weather);ForEach(t.days){DaySummary(day:$0)};ForEach(t.warnings,id:\.self){Text($0).font(.caption).foregroundStyle(Palette.muted)};DisclosureGroup("规划与验证记录"){ForEach(t.trace){r in VStack(alignment:.leading,spacing:6){Text(r.title).font(.headline);Text(r.detail).font(.caption);Text(r.source).font(.caption2).foregroundStyle(Palette.green)}.padding(.vertical,8)}}}}.padding(24)}.background(Palette.cream).navigationTitle("这次的小冒险").onAppear {store.markPrepared("route")} } }

@@ -41,7 +41,7 @@ val Muted = Color(0xFF6B7D73)
 }
 
 @Composable fun IosNavigation(store: BuddyStore) {
-    val items=listOf(Triple(1,"行程",Icons.Outlined.Luggage),Triple(0,"地图",Icons.Outlined.Map),Triple(3,"记账",Icons.Outlined.CreditCard),Triple(4,"我的",Icons.Outlined.AccountCircle))
+    val items=listOf(Triple(1,"行程",Icons.Outlined.Luggage),Triple(0,"地图",Icons.Outlined.Map),Triple(2,"分身",Icons.Outlined.AutoAwesome),Triple(3,"记账",Icons.Outlined.CreditCard),Triple(4,"我的",Icons.Outlined.AccountCircle))
     Surface(color=Color.White.copy(alpha=.98f),shadowElevation=2.dp) {
         Row(Modifier.fillMaxWidth().navigationBarsPadding().height(66.dp),verticalAlignment=Alignment.CenterVertically) {
             items.forEach { (index,label,icon) ->

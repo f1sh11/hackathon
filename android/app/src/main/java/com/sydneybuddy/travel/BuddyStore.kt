@@ -27,6 +27,8 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
     var notice by mutableStateOf<String?>(null)
     var busy by mutableStateOf(false); private set
     var weather by mutableStateOf<JSONObject?>(null); private set
+    // The backend owns this state. Android only renders the latest append-only World Model projection.
+    var worldRun by mutableStateOf<JSONObject?>(null); private set
     var online by mutableStateOf(false)
     var language by mutableStateOf(AppLanguage.fromStored(prefs.getString("appLanguage",null)));private set
     fun chooseLanguage(value:AppLanguage){language=value;prefs.edit().putString("appLanguage",value.code).apply()}
@@ -94,7 +96,7 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
     }
     fun reload() = operation { load() }
     fun select(value: JSONObject) {
-        trip = value; weather = null; dayIndex = 0
+        trip = value; weather = null; worldRun = null; dayIndex = 0
         prefs.edit().putString("selectedTrip", value.getString("id")).apply()
     }
     fun rememberProfile() { prefs.edit().putString("profile", profile.json().toString()).apply() }
@@ -158,6 +160,26 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
         val source = trip?.getJSONObject("profile") ?: profile.json()
         weather = JSONObject(request("weather", "POST", source))
         if (weather?.optString("status") == "ok") mark("weather")
+    }
+    fun loadWorld() {
+        val id = trip?.optString("id")?.takeIf { it.isNotBlank() } ?: return
+        operation {
+            val result = JSONObject(request("trips/$id/world"))
+            worldRun = result.optJSONObject("run")
+        }
+    }
+    fun simulateWorld() {
+        val id = trip?.optString("id")?.takeIf { it.isNotBlank() } ?: run { error = "请先保存行程，再启动数字分身。"; return }
+        operation {
+            worldRun = JSONObject(request("trips/$id/simulation-runs", "POST", JSONObject().put("requestId", UUID.randomUUID().toString())))
+        }
+    }
+    fun decideWorld(suggestionId: String, decision: String) {
+        val run = worldRun ?: return
+        operation {
+            worldRun = JSONObject(request("simulation-runs/${run.getString("id")}/decisions", "POST",
+                JSONObject().put("suggestionId", suggestionId).put("decision", decision)))
+        }
     }
     fun saveMemory(consent: Boolean) {
         if (!consent) return

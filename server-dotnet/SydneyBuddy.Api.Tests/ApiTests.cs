@@ -176,6 +176,48 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
         Assert.DoesNotContain((await fixture.Client.GetFromJsonAsync<JsonArray>("/memories"))!, item => item!.Str("id") == id);
     }
 
+    [Fact]
+    public async Task WorldModelPersistsSimulationSnapshotsAndUserDecisionWithoutChangingTrip()
+    {
+        var saved = await SaveAsync(await PlanAsync(), 0);
+        var id = saved.Str("id");
+        try
+        {
+            var empty = await fixture.Client.GetFromJsonAsync<JsonObject>("/trips/" + id + "/world");
+            Assert.False(empty!.Bool("available"));
+
+            var request = "simulation_" + Guid.NewGuid().ToString("N");
+            var response = await fixture.Client.PostAsJsonAsync("/trips/" + id + "/simulation-runs", new { requestId = request });
+            response.EnsureSuccessStatusCode();
+            var run = (await response.Content.ReadFromJsonAsync<JsonObject>())!;
+            Assert.Equal("completed", run.Str("status"));
+            Assert.Equal(id, run.Str("tripId"));
+            Assert.NotEmpty(run.Array("snapshots")!);
+            Assert.NotEmpty(run.Array("suggestions")!);
+            Assert.Equal(saved.Int("revision"), run.Int("tripRevision"));
+
+            var retry = await fixture.Client.PostAsJsonAsync("/trips/" + id + "/simulation-runs", new { requestId = request });
+            var sameRun = (await retry.Content.ReadFromJsonAsync<JsonObject>())!;
+            Assert.Equal(run.Str("id"), sameRun.Str("id"));
+
+            var suggestion = run.Array("suggestions")![0]!.AsObject().Str("id");
+            var decision = await fixture.Client.PostAsJsonAsync("/simulation-runs/" + run.Str("id") + "/decisions",
+                new { suggestionId = suggestion, decision = "rejected" });
+            decision.EnsureSuccessStatusCode();
+            var decided = (await decision.Content.ReadFromJsonAsync<JsonObject>())!;
+            var eventData = Assert.Single(decided.Array("decisions")!.OfType<JsonObject>());
+            Assert.Equal("rejected", eventData.Str("decision"));
+            Assert.True(eventData.Bool("preserveUserChoice"));
+
+            var latest = await fixture.Client.GetFromJsonAsync<JsonObject>("/trips/" + id + "/world");
+            Assert.True(latest!.Bool("available"));
+            Assert.Equal(run.Str("id"), latest.Object("run")!.Str("id"));
+            var unchanged = Assert.Single((await ListAsync()).OfType<JsonObject>(), trip => trip.Str("id") == id);
+            Assert.Equal(saved.Int("revision"), unchanged.Int("revision"));
+        }
+        finally { await fixture.Client.DeleteAsync("/trips/" + id); }
+    }
+
     [Theory]
     [InlineData("not-json")]
     [InlineData("[]")]

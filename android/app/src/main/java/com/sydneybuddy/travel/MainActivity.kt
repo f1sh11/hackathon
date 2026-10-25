@@ -53,7 +53,7 @@ class MainActivity : ComponentActivity() {
     Scaffold(containerColor = Cream,
         topBar = {
             if (!store.onboarding && store.tab != 0) Row(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 22.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(ui(when(store.tab){1->"我的行程";3->"旅行小账本";4->"我的 Buddy";else->"Buddy"}),style=MaterialTheme.typography.headlineMedium,fontWeight=FontWeight.Bold)
+                Text(ui(when(store.tab){1->"我的行程";2->"旅行数字分身";3->"旅行小账本";4->"我的 Buddy";else->"Buddy"}),style=MaterialTheme.typography.headlineMedium,fontWeight=FontWeight.Bold)
                 Spacer(Modifier.weight(1f))
                 if (store.tab==1) TextButton(onClick = store::newTrip,enabled=!store.busy) { Icon(Icons.Outlined.Add,null);Text(ui("新建")) }
             }
@@ -70,7 +70,7 @@ class MainActivity : ComponentActivity() {
             else when (store.tab) {
                 0 -> HomeScreen(store)
                 1 -> TripsScreen(store) { delete = "trip" to it }
-                2 -> AgentScreen(store)
+                2 -> WorldModelScreen(store)
                 3 -> LedgerScreen(store) { delete = "expense" to it }
                 else -> SettingsScreen(store) { delete = "memory" to it }
             }
@@ -231,6 +231,64 @@ internal fun savedTripNavigationDay(trip:JSONObject,today:String=java.time.Local
         Action("帮我调整",!store.busy && store.trip!=null && message.isNotBlank()){store.generate(message)}
     }
 }
+
+@Composable fun WorldModelScreen(store: BuddyStore) {
+    val selectedTripId = store.trip?.optString("id")
+    LaunchedEffect(selectedTripId) { if (!selectedTripId.isNullOrBlank()) store.loadWorld() }
+    Page {
+        Heading("旅行数字分身")
+        Small("先让 Buddy 走一遍已保存行程。每个状态快照、风险和你的选择都会写入 World Model；它不会擅自改动原行程。")
+        val trip = store.trip
+        if (trip == null) {
+            Panel { Text("还没有可模拟的行程", fontWeight = FontWeight.Bold); Small("先在“行程”保存一份路线，再回来让数字分身提前体验。") }
+            return@Page
+        }
+        Panel {
+            Text(trip.optString("title"), fontWeight = FontWeight.Bold)
+            Small("已确认行程 · 版本 ${trip.optInt("revision", 1)}")
+            Action("让数字分身先走一遍", !store.busy, store::simulateWorld)
+        }
+        val run = store.worldRun
+        if (run == null) {
+            Panel { Small("还没有模拟记录。开始后会展示步行、预算、天气和交通四项结果。") }
+            return@Page
+        }
+        val summary = run.optJSONObject("summary") ?: JSONObject()
+        Panel {
+            Text("模拟结果", fontWeight = FontWeight.Bold)
+            Text("步行 ${summary.optInt("walkingSteps")} 步 · A$${"%.0f".format(summary.optDouble("cost"))}")
+            Text("交通 ${summary.optInt("transportMinutes")} 分钟 · 室外 ${summary.optInt("outdoorMinutes")} 分钟")
+            Small("体力 ${riskLabel(summary.optString("energyRisk"))} · 预算 ${riskLabel(summary.optString("budgetRisk"))} · 天气 ${riskLabel(summary.optString("weatherRisk"))}")
+        }
+        val decisions = run.array("decisions").objects().associate { it.optString("suggestionId") to it.optString("decision") }
+        Panel {
+            Text("优化建议", fontWeight = FontWeight.Bold)
+            run.array("suggestions").objects().forEach { suggestion ->
+                HorizontalDivider(color = Mint)
+                val id = suggestion.optString("id")
+                val choice = decisions[id]
+                Text(suggestion.optString("title"), fontWeight = FontWeight.Bold)
+                Small(suggestion.optString("detail"))
+                if (choice == null) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { store.decideWorld(id, "accepted") }, enabled = !store.busy) { Text("接受") }
+                    TextButton(onClick = { store.decideWorld(id, "rejected") }, enabled = !store.busy) { Text("保留原安排") }
+                } else Small(if (choice == "accepted") "你已接受这条建议；下一次规划可据此调整。" else "你选择保留原安排；该约束会留在本次世界状态中。")
+            }
+        }
+        Panel {
+            Text("模拟时间线", fontWeight = FontWeight.Bold)
+            run.array("snapshots").objects().takeLast(8).forEach { snapshot ->
+                HorizontalDivider(color = Mint)
+                val displayedTime = snapshot.optString("time").ifBlank { "完成" }
+                Text("第 ${snapshot.optInt("day")} 天 · $displayedTime · ${snapshot.optString("location")}", fontWeight = FontWeight.Bold)
+                Small("${snapshot.optString("eventType")} · 已花 A$${"%.0f".format(snapshot.optDouble("spent"))} · ${snapshot.optInt("steps")} 步 · 下一站 ${snapshot.optString("nextStop")}")
+            }
+        }
+        Small("当前 MVP 记录建议与选择；确认后的行程仍由你在规划流程中接受后才会更新。")
+    }
+}
+
+private fun riskLabel(value: String) = when (value) { "high" -> "高"; "medium" -> "中"; else -> "低" }
 
 @Composable fun LedgerScreen(store:BuddyStore,onDelete:(JSONObject)->Unit) {
     var title by rememberSaveable {mutableStateOf("午餐")}; var amount by rememberSaveable {mutableStateOf("")};var people by rememberSaveable {mutableIntStateOf(2)}

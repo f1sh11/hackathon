@@ -68,10 +68,74 @@ struct Expense: Codable, Identifiable {
     var id = UUID(); var title: String; var cents: Int; var participants: Int
     var shares: [Int] { (0..<participants).map { cents/participants + ($0 < cents%participants ? 1 : 0) } }
 }
+// MARK: - Meterless World Model read projection
+// These are deliberately read models: the server keeps the append-only event/snapshot history in PostgreSQL.
+struct WorldMetrics: Codable {
+    var walkingSteps: Int
+    var cost: Double
+    var transportMinutes: Int
+    var outdoorMinutes: Int
+}
+struct WorldSummary: Codable {
+    var walkingSteps: Int
+    var cost: Double
+    var transportMinutes: Int
+    var outdoorMinutes: Int
+    var energyRisk: String
+    var budgetRisk: String
+    var weatherRisk: String
+    var before: WorldMetrics
+    var after: WorldMetrics
+}
+struct WorldSuggestion: Codable, Identifiable {
+    var id: String
+    var title: String
+    var detail: String
+    var status: String
+}
+struct WorldSnapshot: Codable, Identifiable {
+    var id: String
+    var sequence: Int
+    var day: Int
+    var eventType: String
+    var time: String
+    var location: String
+    var spent: Double
+    var steps: Int
+    var transportMinutes: Int
+    var energyRisk: String
+    var weatherRisk: String
+    var nextStop: String
+    var occurredAt: String
+}
+struct WorldDecision: Codable, Identifiable {
+    var id: String
+    var type: String
+    var actor: String
+    var occurredAt: String
+    var suggestionId: String
+    var decision: String
+    var preserveUserChoice: Bool
+}
+struct WorldRun: Codable, Identifiable {
+    var id: String
+    var worldId: String
+    var tripId: String
+    var kind: String
+    var tripRevision: Int
+    var status: String
+    var createdAt: String
+    var completedAt: String?
+    var summary: WorldSummary
+    var suggestions: [WorldSuggestion]
+    var snapshots: [WorldSnapshot]
+    var decisions: [WorldDecision]
+}
+struct WorldRunEnvelope: Codable { var available: Bool; var run: WorldRun? }
 
 @MainActor final class AppStore: ObservableObject {
     @Published var preparations: [String] = UserDefaults.standard.stringArray(forKey:"preparations") ?? []
-    @Published var trip: Trip? { didSet { refreshedWeather = nil } }
+    @Published var trip: Trip? { didSet { refreshedWeather = nil; worldRun = nil } }
     @Published var proposal: Trip?
     @Published var saved: [Trip] = []
     @Published var pendingTripFields: [String:String] = UserDefaults.standard.dictionary(forKey:"pendingTripFields") as? [String:String] ?? [:] {
@@ -81,6 +145,7 @@ struct Expense: Codable, Identifiable {
     @Published var profile = TripProfile()
     @Published var weatherBusy = false
     @Published var refreshedWeather: WeatherInfo?
+    @Published var worldRun: WorldRun?
     @Published var busy = false
     @Published var errorMessage: String?
     @Published var health: Health?
@@ -133,6 +198,30 @@ struct Expense: Codable, Identifiable {
             if refreshedWeather?.status == "ok" { markPrepared("weather") }
         }
         catch { errorMessage = error.localizedDescription }
+    }
+    func loadWorld() async {
+        guard let id = trip?.id else { worldRun = nil; return }
+        do {
+            let result: WorldRunEnvelope = try await api("trips/" + id + "/world")
+            worldRun = result.run
+        } catch { errorMessage = error.localizedDescription }
+    }
+    func simulateWorld() async {
+        guard let id = trip?.id else { errorMessage = "请先保存行程，再启动数字分身。"; return }
+        guard !busy else { return }; busy = true; defer { busy = false }
+        do {
+            let body = try JSONSerialization.data(withJSONObject: ["requestId": UUID().uuidString])
+            let run: WorldRun = try await api("trips/" + id + "/simulation-runs", method: "POST", body: body)
+            worldRun = run
+        } catch { errorMessage = error.localizedDescription }
+    }
+    func decideWorld(_ suggestionId: String, decision: String) async {
+        guard let id = worldRun?.id, !busy else { return }; busy = true; defer { busy = false }
+        do {
+            let body = try JSONSerialization.data(withJSONObject: ["suggestionId": suggestionId, "decision": decision])
+            let run: WorldRun = try await api("simulation-runs/" + id + "/decisions", method: "POST", body: body)
+            worldRun = run
+        } catch { errorMessage = error.localizedDescription }
     }
     func generate(_ message: String = "", rain: Bool = false, profileOverride:TripProfile? = nil) async {
         guard !busy else { return }; busy = true; defer { busy = false }

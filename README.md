@@ -14,6 +14,19 @@
 - 多行程管理、逐日天气刷新，以及需用户同意的偏好保存和撤回。
 - Google Places 提供坐标与常规营业时段，Routes 提供步行路线，Weather 提供未来 10 天逐日预报。
 - Android 原有引导、准备清单与整数分记账保留，准备进度与账本保存在设备本机。
+- **旅行数字分身（World Model）**：对已确认行程生成追加式模拟快照，计算步行、预算、天气、交通四项风险，保存建议及用户“接受 / 保留原安排”的决定；不会静默重写行程。
+
+## Meterless World Model：本次新增
+
+World Model 的作用是让系统先经历一次旅行，而不是再生成一份不可追踪的聊天文字。一个已保存行程有一个稳定的 world；每次模拟创建一个 run，并把每个到站状态作为快照、把用户决定作为事件追加到 PostgreSQL。Android 与 iOS 都有底部的“分身”入口，读取同一份后端投影。
+
+```text
+已确认行程 → simulation run → 状态 snapshots → 风险 / 建议 → 用户接受或拒绝 → decision event
+```
+
+- PostgreSQL 表：`travel_worlds`、`world_runs`、`world_snapshots`、`world_events`。
+- 迁移会在启动 API 时自动执行；因此只需先运行 `docker compose up -d db`，再启动 .NET API，不需要额外部署一个 World Model 容器。
+- 当前 MVP 的“优化后”数值是可解释的规则试算。接受或拒绝会被保存；实际替换行程仍须回到规划流程并由用户确认，避免系统擅改酒店、门票或必去地点。
 
 ## 本机启动：PostgreSQL + .NET API
 
@@ -225,6 +238,10 @@ Google 项目需要启用计费及对应服务。地图 SDK 与服务端 API 分
 | `GET /trips` | 已保存行程 |
 | `POST /trips` | `{ "trip": <草案>, "expectedRevision": 0 }`；修改时传当前 revision |
 | `DELETE /trips/{id}` | 删除指定行程 |
+| `GET /trips/{id}/world` | 读取该行程最新的 World Model 模拟投影 |
+| `POST /trips/{id}/simulation-runs` | `{ "requestId": "可重试的客户端编号" }`，创建或重取一次模拟 |
+| `GET /simulation-runs/{id}` | 读取模拟状态、快照、建议和决定 |
+| `POST /simulation-runs/{id}/decisions` | `{ "suggestionId": "…", "decision": "accepted\|rejected" }`，追加用户选择 |
 | `GET /memories` | 已保存的授权偏好 |
 | `POST /memories` | `{ "consent": true, "summary": "喜欢艺术", "profile": {"interests":["艺术"],"maxSteps":5000} }` |
 | `DELETE /memories/{id}` | 从可检索记忆撤回，保留追加审计历史 |
@@ -290,6 +307,7 @@ Google 地图底图由 Android / iOS 各自的 Maps SDK 显示；后端的 Place
 | 数据 | 保存位置 | 负责部分 |
 |---|---|---|
 | 已确认行程、revision、授权偏好摘要 | PostgreSQL | C# Repository / EF Core |
+| World Model world、模拟 runs、状态快照、用户决定 | PostgreSQL | `WorldRepository` / `TravelWorldModelService` |
 | 偏好检索内容与追加审计记录 | `server/.hmem/` | 官方 H-MEM，经 C# 调用 Node |
 | 默认旅行偏好、准备进度、记账 | 各自手机的本机存储 | Android `BuddyStore`、iOS `AppStore` |
 | 服务端配置与密钥 | 环境变量或被 Git 忽略的 `.secrets.json` | `SecretStore` |
@@ -477,7 +495,7 @@ iOS 的首頁與全天地圖共用交通面板的成功規劃結果；Apple / OS
 
 ### 介面語言與首頁
 
-- iOS／Android 底部分頁依序為「行程、地圖、記帳、我的」，開啟 App 預設先顯示行程列表；選擇行程的「查看地圖」可帶入該行程。新行程確認儲存後仍可進入地圖。
+- iOS／Android 底部分頁依序為「行程、地圖、分身、記帳、我的」，開啟 App 預設先顯示行程列表；選擇行程的「查看地圖」可帶入該行程。新行程確認儲存後仍可進入地圖。
 - 在「我的 → 語言」選擇繁體中文、簡體中文或 English，立即套用並保存在裝置；不改變已儲存行程或重新呼叫規劃服務。預設使用繁體中文。
 - 目前翻譯涵蓋主要導覽、設定頁、行程列表、地圖常用操作與交通摘要；尚未收錄的細部文案、後端回傳內容、使用者輸入及景點名稱保留原文。地圖圖磚與第三方導航提示的語言由資料來源決定。
 - 共用翻譯來源為 `shared/localization/ui.json`。編輯後執行 `python3 scripts/generate_localizations.py`，產生 iOS `.strings` 與 Android 資源；新增 Swift 檔案或重建專案時執行 `python3 scripts/generate_project.py`。
