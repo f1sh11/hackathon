@@ -18,13 +18,15 @@ struct TravelInspiration:Codable,Equatable {
 struct KokoQuickReplies:View {
     let replies:[PetQuickReply]
     let busy:Bool
+    var stacked=false
+    var compact=false
     let choose:(PetQuickReply)->Void
     @State private var selectedID:String?
     var body:some View {
-        LazyVGrid(columns:Array(repeating:GridItem(.flexible(),spacing:8),count:replies.count>=3 ? 2:max(1,replies.count)),spacing:8) {
+        LazyVGrid(columns:Array(repeating:GridItem(.flexible(),spacing:8),count:stacked && !compact ? 1:replies.count>=3 ? 2:max(1,replies.count)),spacing:8) {
             ForEach(replies){reply in
-                Button{guard selectedID==nil else{return}; selectedID=reply.id; UISelectionFeedbackGenerator().selectionChanged(); choose(reply)}label:{Text(reply.text).font(.subheadline.weight(.medium)).multilineTextAlignment(.center).frame(maxWidth:.infinity,minHeight:44).padding(.horizontal,8).padding(.vertical,5).background(selectedID==reply.id ? Palette.mint:Color.white,in:RoundedRectangle(cornerRadius:15)).overlay(RoundedRectangle(cornerRadius:15).stroke(Palette.green.opacity(0.25)))}
-                    .buttonStyle(BuddyPressStyle()).disabled(busy || selectedID != nil).accessibilityIdentifier("koko-reply-"+reply.intent)
+                Button{guard selectedID==nil else{return}; selectedID=reply.id; UISelectionFeedbackGenerator().selectionChanged(); choose(reply)}label:{Text(reply.text).font(.subheadline.weight(.semibold)).multilineTextAlignment(.center).frame(maxWidth:.infinity,minHeight:44).padding(.horizontal,8).padding(.vertical,5)}
+                    .buttonStyle(KokoOptionButtonStyle(prominent:selectedID==reply.id,compact:compact)).disabled(busy || selectedID != nil).accessibilityIdentifier("koko-reply-"+reply.intent)
             }
         }.padding(.top,8).accessibilityIdentifier("koko-contextual-replies")
         .onChange(of:replies){_,_ in selectedID=nil}
@@ -64,5 +66,29 @@ struct KokoInspirationCard:View {
             Text(TripDraftSummary(fields:session.fields).subtitle).font(.caption).foregroundStyle(Palette.muted)
             Text("具体场所、日期、费用和交通尚需核实；这份灵感可以随时改，出行资料可以之后一起补。").font(.caption).foregroundStyle(Palette.muted)
         }}.font(.subheadline).padding(14).frame(maxWidth:.infinity,alignment:.leading).background(Palette.mint.opacity(0.7),in:RoundedRectangle(cornerRadius:20)).accessibilityIdentifier("koko-inspiration")
+    }
+}
+
+
+
+// UI projection intentionally exposes one current assistant utterance, never a transcript.
+enum KokoConversationPresentation {
+    static let preferenceFields:Set<String>=["interests","pace","rhythm","energy","queueTolerance","notes"]
+    static func tripSeed(from session:PetSession?)->[String:String] {
+        guard let session else{return [:]}
+        var result=session.fields.filter{preferenceFields.contains($0.key) && TravelRequirements.known($0.value)}
+        var notes=[result["notes"] ?? ""].filter{!$0.isEmpty}
+        for fact in (session.pendingPreferences ?? [])+(session.tripPreferences ?? []) where fact.source != "ai_inference" {
+            let target=["daily_steps":"pace","rhythm":"rhythm","interests":"interests","queue_tolerance_minutes":"queueTolerance"][fact.key]
+            if let target,fact.condition.isEmpty,result[target]==nil{result[target]=fact.key=="daily_steps" ? "约"+fact.value+"步":fact.value}
+            else{notes.append(fact.summary)}
+        }
+        if !notes.isEmpty{result["notes"]=Array(Set(notes)).sorted().joined(separator:"；")}
+        return result
+    }
+    static func utterance(session:PetSession?,streaming:String,busy:Bool,personalSetup:Bool)->String {
+        if !streaming.isEmpty{return streaming}
+        if busy{return "让我想一想，咱们怎么接着安排。"}
+        return session?.replyQuestion?.text ?? (personalSetup ? "嗨，我叫 Koko。咱们先认识一下？":"我在这里，咱们一起准备这趟旅行。")
     }
 }

@@ -6,93 +6,163 @@ enum KoalaAction:String,Codable,CaseIterable {
     case thumbsUp="thumbs-up"
     static func forMood(_ mood:PetMood)->Self {.idle}
 }
-/// Semantic events are emitted by successful actions or real engine results, never by the LLM's mood.
+/// Work/risk events reflect real results; conversation reactions are explicitly separate playful gestures.
 enum KoalaEvent:String,CaseIterable {
     case welcome="app.welcome",chatReady="chat.ready",dnaCompleted="profile.confirmed",preferenceConfirmed="user.confirmed"
     case planningStarted="plan.started",optimizationStarted="optimization.started",simulationStarted="simulation.started"
     case weatherRisk="risk.weather",budgetRisk="risk.budget",fatigueRisk="risk.energy",tripSaved="trip.saved"
+    case choiceAccepted="conversation.choice",rainConversation="conversation.rain",playfulTired="conversation.long-walk"
+    case informationSubmitted="information.submitted",stepCompleted="step.completed",optimizationProgress="optimization.progress",journeyStarted="journey.started"
     var action:KoalaAction {
         switch self {
         case .welcome:return .wave
         case .chatReady:return .idle
-        case .dnaCompleted:return .clap
-        case .preferenceConfirmed:return .thumbsUp
+        case .informationSubmitted:return .clap
+        case .preferenceConfirmed,.choiceAccepted,.stepCompleted,.optimizationProgress:return .thumbsUp
         case .planningStarted,.optimizationStarted:return .map
-        case .simulationStarted:return .departure
-        case .weatherRisk:return .weather
+        case .simulationStarted:return .map
+        case .journeyStarted:return .departure
+        case .weatherRisk,.rainConversation:return .weather
         case .budgetRisk:return .budget
-        case .fatigueRisk:return .tired
-        case .tripSaved:return .celebrate
+        case .fatigueRisk,.playfulTired:return .tired
+        case .dnaCompleted,.tripSaved:return .celebrate
         }
+    }
+    var returnsToIdle:Bool {self == .choiceAccepted || self == .rainConversation || self == .playfulTired}
+}
+/// Conservative presentation hints from the current utterance/choice, never profile facts or risk analysis.
+enum KoalaConversationFeedback {
+    static func event(text:String,scene:String="")->KoalaEvent? {
+        let normalized=text.folding(options:[.widthInsensitive],locale:nil).replacingOccurrences(of:",",with:"").replacingOccurrences(of:"，",with:"").replacingOccurrences(of:" ",with:"")
+            .replacingOccurrences(of:"一万五千",with:"15000").replacingOccurrences(of:"一万五",with:"15000")
+        let walkingScene=scene.contains("步") || scene.contains("步行") || scene.contains("走多少")
+        let walkingExpression=try? NSRegularExpression(pattern:"([0-9]+)步")
+        let quantities=walkingExpression?.matches(in:normalized,range:NSRange(normalized.startIndex...,in:normalized)).compactMap{match in
+            Range(match.range(at:1),in:normalized).map{String(normalized[$0])}
+        } ?? []
+        let longWalk=quantities.last == "15000" || walkingScene && normalized == "15000"
+        let negatedWalk=normalized.range(of:"(?:不是|不走|不想走|不打算走|不愿走|不要超过|不要|不超过|不到|少于|不满|别走|取消|不选)15000",options:.regularExpression) != nil
+        if longWalk && !negatedWalk{return .playfulTired}
+        let rainScene=scene.contains("雨") || scene.contains("伞") || normalized.contains("雨") || normalized.contains("伞")
+        let declines=["不要","不想","不去","不行","不愿","不可以","不喜欢","不用","不需要","先不","不打算","换","改","等","躲","避","室内","晴天","看天气","再定","再决定"]
+        let accepts=["带伞","带上伞","撑伞","没关系","不怕","可以","愿意","都行","照样","照常","也能","喜欢","走吧","去吧"]
+        if rainScene && !declines.contains(where:normalized.contains) && accepts.contains(where:normalized.contains){return .rainConversation}
+        return nil
     }
 }
 struct KoalaCue:Equatable {
     var action:KoalaAction
     var id:String=UUID().uuidString
-    init(action:KoalaAction,id:String=UUID().uuidString){self.action=action;self.id=id}
-    init(event:KoalaEvent,id:String=UUID().uuidString){self.action=event.action;self.id=id}
+    var event:KoalaEvent? = nil
+    var returnsToIdle=false
+    init(action:KoalaAction,id:String=UUID().uuidString,returnsToIdle:Bool=false){self.action=action;self.id=id;self.returnsToIdle=returnsToIdle}
+    init(event:KoalaEvent,id:String=UUID().uuidString){self.action=event.action;self.id=id;self.event=event;self.returnsToIdle=event.returnsToIdle}
 }
 struct KoalaClip:Decodable {
     var id:String;var fps:Int;var frames:Int;var playback:String;var ending:String;var recovery:String
     var framePath:String;var poster:String
+    var recoveryId:String? = nil
+    func path(_ frame:Int)->String {framePath.replacingOccurrences(of:"{frame:03}",with:String(format:"%03d",frame))}
+}
+struct KoalaRecoveryClip:Decodable {
+    var id:String;var sourceAction:String;var fps:Int;var frames:Int;var framePath:String;var quality:String
     func path(_ frame:Int)->String {framePath.replacingOccurrences(of:"{frame:03}",with:String(format:"%03d",frame))}
 }
 struct KoalaManifest:Decodable {
     var animations:[KoalaClip]
+    var recoveries:[KoalaRecoveryClip]? = nil
     static func load(bundle:Bundle = .main)->Self? {
         guard let url=bundle.url(forResource:"manifest",withExtension:"json",subdirectory:"koala"),let data=try? Data(contentsOf:url) else{return nil}
         return try? JSONDecoder().decode(Self.self,from:data)
     }
 }
 
-/// Frame-only playback: finish a gesture, coalesce new events, and reverse reversible props.
-/// Unsupported recoveries HOLD; a crossfade must not turn a lying koala into a standing one.
+/// Finish gestures and supplied return clips before starting a queued action.
+/// Unavailable physical recoveries still HOLD; no reset or dissolve stands a lying koala up.
 struct KoalaPlayback {
     let clips:[String:KoalaClip]
+    let recoveries:[String:KoalaRecoveryClip]
     private(set) var action:KoalaAction = .idle
     private(set) var frame=1
     private(set) var reversing=false
+    private(set) var recovering=false
     private var pending:KoalaAction?
+    private var pendingReturnToIdle=false
+    private var releaseQueuedWork=false
+    private var returnAfterPlayback=false
     private var lastToken=""
-    init(_ manifest:KoalaManifest){clips=Dictionary(uniqueKeysWithValues:manifest.animations.map{($0.id,$0)})}
+    init(_ manifest:KoalaManifest){clips=Dictionary(uniqueKeysWithValues:manifest.animations.map{($0.id,$0)});recoveries=Dictionary(uniqueKeysWithValues:(manifest.recoveries ?? []).map{($0.id,$0)})}
     var clip:KoalaClip? {clips[action.rawValue]}
-    mutating func request(_ action:KoalaAction,token:String) {
+    var recoveryClip:KoalaRecoveryClip? {
+        guard let id=clip?.recoveryId,let recovery=recoveries[id],recovery.sourceAction==action.rawValue,recovery.quality=="source_frame_reversal" else{return nil}
+        return recovery
+    }
+    var framePath:String? {recovering ? recoveryClip?.path(frame):clip?.path(frame)}
+    var fps:Int {recovering ? recoveryClip?.fps ?? 12:clip?.fps ?? 12}
+    var isSettledAtIdle:Bool {action == .idle && (pending == nil || pending == .idle)}
+    mutating func request(_ action:KoalaAction,token:String,returnToIdle:Bool=false) {
         guard token != lastToken,clips[action.rawValue] != nil else{return}
         lastToken=token
+        if action == .idle,self.action == .idle,let queued=pending,let queuedClip=clips[queued.rawValue],queuedClip.ending=="hold",
+           queuedClip.recovery=="reverse" || queuedClip.recoveryId.flatMap({recoveries[$0]})?.quality=="source_frame_reversal" {
+            releaseQueuedWork=true;return
+        }
         if action == .idle,let pending,pending != .idle,pending != .map{return}
-        if action==self.action && pending==nil{return}
-        pending=action
+        if action==self.action && !recovering && !reversing {
+            // A newer real risk must revoke a previous playful auto-return, even for the same action.
+            returnAfterPlayback=returnToIdle;pending=nil;pendingReturnToIdle=false;releaseQueuedWork=false;return
+        }
+        pending=action;pendingReturnToIdle=returnToIdle;releaseQueuedWork=false
     }
+    private mutating func finishAtIdle(){action = .idle;frame=1;reversing=false;recovering=false;returnAfterPlayback=false;if pending == .idle{pending=nil}}
     mutating func advance() {
         guard let clip else{return}
-        if action == .idle,let next=pending {pending=nil;action=next;frame=1;reversing=false;return}
-        if clip.recovery=="reverse",pending != nil,pending != action {reversing=true}
+        if action == .idle,let next=pending {pending=releaseQueuedWork ? .idle:nil;releaseQueuedWork=false;action=next;frame=1;reversing=false;recovering=false;returnAfterPlayback=pendingReturnToIdle;return}
+        if recovering {
+            if let recovery=recoveryClip,frame<recovery.frames{frame+=1}else{finishAtIdle()}
+            return
+        }
+        let nextRequested=pending != nil && pending != action
+        // Early exit from an opening map/umbrella uses the frames already reached, without jumping to its terminal.
+        if clip.recovery=="reverse",nextRequested,frame<clip.frames{reversing=true}
         if reversing {
-            if frame>1{frame-=1}else{action = .idle;frame=1;reversing=false}
+            if frame>1{frame-=1}else{finishAtIdle()}
         } else if frame<clip.frames {frame+=1}
         else if clip.playback=="loop" {frame=1}
-        else if clip.ending=="idle" {action = .idle;frame=1}
+        else if clip.ending=="idle" {finishAtIdle()}
+        else if nextRequested || returnAfterPlayback {
+            if recoveryClip != nil{recovering=true;frame=1}
+            else if clip.recovery=="reverse"{reversing=true;if frame>1{frame-=1}}
+        }
         // A non-reversible held endpoint intentionally keeps its support and props.
     }
 }
 
 @MainActor final class KoalaPlayer:ObservableObject {
     @Published private(set) var image:UIImage?
+    var onIdle:(()->Void)?
     private var playback:KoalaPlayback?
-    private static let cache:NSCache<NSString,UIImage> = {let cache=NSCache<NSString,UIImage>();cache.totalCostLimit=12*1024*1024;return cache}()
-    init(){if let manifest=KoalaManifest.load(){playback=KoalaPlayback(manifest)};render()}
-    func request(_ action:KoalaAction,token:String){playback?.request(action,token:token)}
+    private static let cache:NSCache<NSString,UIImage> = {let cache=NSCache<NSString,UIImage>();cache.countLimit=90;cache.totalCostLimit=24*1024*1024;return cache}()
+    init(manifest:KoalaManifest?=KoalaManifest.load()){if let manifest{playback=KoalaPlayback(manifest)};render()}
+    func request(_ action:KoalaAction,token:String,returnToIdle:Bool=false){playback?.request(action,token:token,returnToIdle:returnToIdle)}
     private func render() {
-        guard let playback,let clip=playback.clip,let url=Bundle.main.resourceURL?.appendingPathComponent("koala/"+clip.path(playback.frame)) else{return}
+        guard let playback,let path=playback.framePath,let url=Bundle.main.resourceURL?.appendingPathComponent("koala/"+path) else{return}
         let key=url.path as NSString
         if let cached=Self.cache.object(forKey:key){image=cached;return}
-        if let value=UIImage(contentsOfFile:url.path){Self.cache.setObject(value,forKey:key,cost:256*256*4);image=value}
+        if let value=UIImage(contentsOfFile:url.path){Self.cache.setObject(value,forKey:key,cost:Int(value.size.width*value.scale)*Int(value.size.height*value.scale)*4);image=value}
+    }
+    func advance() {
+        let previous=playback?.action
+        playback?.advance();render()
+        // A return can pass through Idle before an already queued gesture. Keep the view alive
+        // until that gesture also finishes, otherwise an incoming acknowledgement is never seen.
+        if let previous,previous != .idle,playback?.isSettledAtIdle == true{onIdle?()}
     }
     func run() async {
         do {
             while !Task.isCancelled {
-                playback?.advance();render()
-                try await Task.sleep(nanoseconds:UInt64(1_000_000_000/max(1,playback?.clip?.fps ?? 12)))
+                advance()
+                try await Task.sleep(nanoseconds:UInt64(1_000_000_000/max(1,playback?.fps ?? 12)))
             }
         }catch{}
     }
@@ -103,27 +173,23 @@ struct PetAvatar:View {
     var cue:KoalaCue? = nil
     var animated=true
     var size:CGFloat=108
+    var onIdle:(()->Void)? = nil
     @StateObject private var player=KoalaPlayer()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
-    private var interactionLabel:String {
-        switch mood {case .thinking:return "正在思考";case .listening:return "正在听你说";case .speaking:return "正在回复";case .pouting,.confused:return "等你补充信息";default:return "陪你准备旅行"}
-    }
-    private var interactionSymbol:String? {
-        switch mood {case .thinking:return "ellipsis";case .listening:return "ear";case .speaking:return "waveform";case .pouting,.confused:return "questionmark";default:return nil}
-    }
     var body:some View {
         Group {
             if let image=player.image{Image(uiImage:image).resizable().interpolation(.high).scaledToFit()}
             else {Image(systemName:"leaf.circle.fill").resizable().scaledToFit().foregroundStyle(Palette.green)}
         }.frame(width:size,height:size*116/108)
-        .overlay(alignment:.bottomTrailing) {
-            if animated,let symbol=interactionSymbol {Image(systemName:symbol).font(.system(size:11,weight:.semibold)).foregroundStyle(Palette.green).padding(6).background(Palette.cream,in:Circle()).offset(x:-3,y:-5)}
-        }
-        .accessibilityElement(children:.ignore).accessibilityLabel("旅行伙伴 Koko，"+interactionLabel)
-        .onAppear{player.request(cue?.action ?? KoalaAction.forMood(mood),token:cue?.id ?? "mood:"+mood.rawValue)}
+        .accessibilityElement(children:.ignore).accessibilityLabel("旅行伙伴 Koko，"+(mood == .thinking ? "正在思考":mood == .listening ? "正在听你说":"陪你准备旅行"))
+        .onAppear{player.onIdle=onIdle;player.request(cue?.action ?? KoalaAction.forMood(mood),token:cue?.id ?? "mood:"+mood.rawValue,returnToIdle:cue?.returnsToIdle ?? false)}
         .onChange(of:mood){_,value in player.request(KoalaAction.forMood(value),token:"mood:"+value.rawValue)}
-        .onChange(of:cue){_,value in if let value{player.request(value.action,token:value.id)}}
+        .onChange(of:cue){_,value in
+            player.onIdle=onIdle
+            if let value{player.request(value.action,token:value.id,returnToIdle:value.returnsToIdle)}
+            else{player.request(.idle,token:"cue-cleared:"+UUID().uuidString)}
+        }
         .task(id:animated && !reduceMotion && scenePhase == .active){
             if animated && !reduceMotion && scenePhase == .active{await player.run()}
         }
@@ -133,23 +199,38 @@ struct PetAvatar:View {
 struct KoalaFeedbackBanner:View {
     let cue:KoalaCue
     let dismiss:()->Void
-    private var held:Bool {[.map,.weather,.budget,.tired,.departure].contains(cue.action)}
+    @State private var closing=false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private var visibleCue:KoalaCue {closing ? KoalaCue(event:.chatReady,id:"dismiss:"+cue.id):cue}
+    private var held:Bool {!cue.returnsToIdle && [.map,.weather,.budget,.tired,.departure].contains(cue.action)}
     private var title:String {
+        if cue.event == .playfulTired{return "多走也记得歇一歇"}
+        if cue.event == .rainConversation{return "带上伞，按天气调整"}
+        if cue.event == .choiceAccepted{return "听到你的选择啦"}
+        if cue.event == .dnaCompleted{return "Travel DNA 已完成"}
+        if cue.event == .journeyStarted{return "咱们出发吧"}
         switch cue.action {
-        case .clap:return "旅行灵感整理好了"
-        case .thumbsUp:return "已保存你的修改"
+        case .clap:return "听到了，咱们继续"
+        case .thumbsUp:return "已确认你的选择"
         case .celebrate:return "行程已保存"
         case .budget:return "预计费用超出预算"
         case .weather:return "有天气风险"
         case .tired:return "模拟发现高疲劳风险"
-        case .departure:return "旅行模拟已开始"
-        default:return "Buddy 陪着你"
+        case .departure:return "咱们出发吧"
+        default:return "Koko 陪着你"
         }
     }
+    private func close() {
+        guard !closing else{return}
+        // Departure has no physical return. End this scene instead of pretending the suitcase vanished.
+        if reduceMotion || cue.action == .departure || cue.action == .idle{dismiss()}
+        else{closing=true}
+    }
     var body:some View {
-        HStack(spacing:10){PetAvatar(cue:cue).scaleEffect(0.65).frame(width:70,height:72);VStack(alignment:.leading,spacing:8){Text(title).font(.subheadline.bold());if held{Text("你可以检查详情后继续调整").font(.caption).foregroundStyle(Palette.muted)}};Spacer(minLength:0);Button(action:dismiss){Image(systemName:"xmark.circle.fill")}.accessibilityLabel("关闭 Koko 提示")}
-            .padding(.horizontal,14).background(Palette.cream,in:RoundedRectangle(cornerRadius:24))
-            .task(id:cue.id){if !held{do{try await Task.sleep(nanoseconds:cue.action == .celebrate ? 2_200_000_000:1_700_000_000);dismiss()}catch{}}}
+        HStack(spacing:8){PetAvatar(cue:visibleCue,onIdle:{if closing || !held{dismiss()}});VStack(alignment:.leading,spacing:8){Text(title).font(.subheadline.bold());if held{Button(closing ? "咱们继续":"知道了",action:close).font(.caption).disabled(closing)}}}
+            .padding(.horizontal,18).background(Palette.cream,in:RoundedRectangle(cornerRadius:24))
+            .onChange(of:cue.id){_,_ in closing=false}
+            .task(id:cue.id){if reduceMotion && !held{do{try await Task.sleep(nanoseconds:1_700_000_000);dismiss()}catch{}}}
     }
 }
 
@@ -186,5 +267,54 @@ struct KokoCompanionScene:View {
     }
     private func packingCard(_ symbol:String,angle:Double)->some View {
         Image(systemName:symbol).font(.title2).foregroundStyle(Palette.green).frame(width:42,height:52).background(.white,in:RoundedRectangle(cornerRadius:9)).overlay(RoundedRectangle(cornerRadius:9).stroke(Palette.green.opacity(0.15))).rotationEffect(.degrees(angle))
+    }
+}
+
+import SwiftUI
+
+enum KokoCompanionSizing {
+    // The approved Idle body spans y=50...233 inside its transparent 256px canvas.
+    static let background:UIImage = {
+        guard let url=Bundle.main.resourceURL?.appendingPathComponent("koala/coastal-background.png"),let image=UIImage(contentsOfFile:url.path) else{return UIImage()};return image
+    }()
+    static let visibleHeightRatio:CGFloat = 183.0/256.0
+    static func characterSize(viewport:CGSize)->CGFloat {
+        let bodyHeight=viewport.height*(viewport.height<700 ? 0.22:0.28)
+        return max(110,min(viewport.width*0.80,bodyHeight/visibleHeightRatio))
+    }
+}
+
+struct KokoCompanionStage:View {
+    let cue:KoalaCue?
+    let size:CGFloat
+    var mood:PetMood = .listening
+    var body:some View {
+        GeometryReader { space in
+            ZStack(alignment:.bottom){
+                Image(uiImage:KokoCompanionSizing.background).resizable().scaledToFill()
+                    .frame(width:space.size.width,height:space.size.height).clipped()
+                    .mask(LinearGradient(stops:[.init(color:.clear,location:0),.init(color:.white,location:0.16),.init(color:.white,location:0.86),.init(color:.clear,location:1)],startPoint:.top,endPoint:.bottom))
+                    .accessibilityHidden(true)
+                // Anchor the character's feet, rather than the transparent canvas edge.
+                PetAvatar(mood:mood,cue:cue,size:size)
+                    .offset(y:size*(23.0/256.0+4.0/108.0)).padding(.bottom,8)
+            }.frame(width:space.size.width,height:space.size.height)
+        }.frame(minHeight:size*233.0/256.0+16)
+    }
+}
+
+struct KokoOptionButtonStyle:ButtonStyle {
+    var prominent=false
+    var compact=false
+    func makeBody(configuration:Configuration)->some View {
+        configuration.label
+            .foregroundStyle(prominent ? .white:Palette.ink)
+            .frame(maxWidth:.infinity,minHeight:compact ? 34:44)
+            .padding(.horizontal,16).padding(.vertical,compact ? 5:7)
+            .background(RoundedRectangle(cornerRadius:18).fill(prominent ? Palette.green:Palette.cream))
+            .overlay(RoundedRectangle(cornerRadius:18).stroke(Palette.green.opacity(0.8),lineWidth:1.5))
+            .background(RoundedRectangle(cornerRadius:18).fill(Palette.green).offset(y:configuration.isPressed ? 0:5))
+            .offset(y:configuration.isPressed ? 4:0).padding(.bottom,5)
+            .animation(.easeOut(duration:0.10),value:configuration.isPressed)
     }
 }

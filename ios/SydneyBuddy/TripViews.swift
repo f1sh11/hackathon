@@ -182,10 +182,14 @@ struct TripsView:View {
             }){PlanningTaskDetails{action in planningAction=action;showingPlanning=false}.environmentObject(store)}
     }
     private var homeTrip:Trip? {TripHomeFocus.pick(store.saved,lastOpenedID:UserDefaults.standard.string(forKey:"lastOpenedTripID"),today:TripProfile.dateString(Date()))}
+    private var homeCue:KoalaCue {
+        if let task=store.travelTask,task.status=="completed",task.tripID==homeTrip?.id {return KoalaCue(event:.tripSaved,id:"saved:"+task.id)}
+        return KoalaCue(event:.welcome,id:"home-welcome")
+    }
     private var homeHeader:some View {
         VStack(alignment:.leading,spacing:12){
             HStack(spacing:16){
-                KokoCompanionScene(cue:KoalaCue(event:.welcome,id:"home-welcome"),height:homeTrip == nil ? 144:104).frame(width:homeTrip == nil ? 144:108)
+                KokoCompanionScene(cue:homeCue,height:homeTrip == nil ? 144:104).frame(width:homeTrip == nil ? 144:108)
                 VStack(alignment:.leading,spacing:7){
                     Text(homeTrip == nil ? "今天想怎么过？":"小背包在，Koko 也在").font(.system(.title2,design:.rounded,weight:.bold)).foregroundStyle(Palette.ink)
                     Text(store.isGeneratingTrip ? "我去核对路线，你可以先看看之前的小旅行。":hasDraft ? "上次的小想法还在，我们接着聊。":homeTrip.map{TripCompanionContext.speech($0)} ?? "想吃点好的，还是慢慢逛？告诉我一个念头就好。")
@@ -264,6 +268,9 @@ struct TripsView:View {
         let title:String = "查看行程：" + trip.title + "，" + trip.profile.date
         let identifier:String = "view-trip-" + (trip.id ?? "draft")
         return VStack(spacing:0){
+            if let task=store.travelTask,task.status=="completed",task.tripID==trip.id {
+                HStack(spacing:10){PetAvatar(cue:KoalaCue(event:.tripSaved,id:"saved:"+task.id),size:52);Text("路线收好啦，一起看看吧～").font(.subheadline.bold());Spacer()}.padding(.horizontal,16).accessibilityIdentifier("trip-saved-celebration")
+            }
             Button(action:{store.trip=trip;selectedTrip=trip}) {TripListRow(trip:trip,featured:featured)}
                 .buttonStyle(PlainButtonStyle())
                 .accessibilityLabel(Text(title)).accessibilityIdentifier(identifier)

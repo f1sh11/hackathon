@@ -4,6 +4,21 @@ import MapKit
 @testable import SydneyBuddy
 
 @MainActor final class ScheduleTests:XCTestCase {
+    func testPersonalConversationSkipPreservesTripDraftAndDoesNotClaimMemoryWasSaved() throws {
+        let defaults=UserDefaults.standard
+        let keys=["koko.personalChat.finished","pendingTripFields","userTravelProfile","personalPreferences.v2.completed","personalPreferences.completed","onboarded","travelPlanningTask"]
+        let old=keys.map{defaults.object(forKey:$0)};defer{for (key,value) in zip(keys,old){if let value{defaults.set(value,forKey:key)}else{defaults.removeObject(forKey:key)}}}
+        defaults.removeObject(forKey:"travelPlanningTask")
+        let completedBefore=defaults.bool(forKey:"personalPreferences.v2.completed")
+        let store=AppStore();store.showPersonalPreferences=true;store.pendingTripFields=["destination":"悉尼","budget":"120"];let profile=store.personalProfile
+        store.finishPersonalConversation(nil,useClues:false)
+        XCTAssertFalse(store.showPersonalPreferences);XCTAssertTrue(store.showOnboarding)
+        XCTAssertEqual(store.pendingTripFields,["destination":"悉尼","budget":"120"])
+        let encoder=JSONEncoder();encoder.outputFormatting = .sortedKeys
+        XCTAssertEqual(try encoder.encode(store.personalProfile),try encoder.encode(profile))
+        XCTAssertEqual(defaults.bool(forKey:"personalPreferences.v2.completed"),completedBefore)
+        XCTAssertFalse(AppStore().showPersonalPreferences)
+    }
     func testWorldReviewCarriesActualPlacesWithoutPretendingTheyAreVerified() throws {
         let trip=try fixture()
         let suggestion=WorldSuggestion(id:"verify-0",dayIndex:0,title:"待确认",detail:"费用未知",action:"review",status:"pending")

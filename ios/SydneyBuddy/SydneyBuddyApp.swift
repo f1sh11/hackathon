@@ -56,7 +56,8 @@ struct RootView: View {
         ZStack {
             Palette.cream.ignoresSafeArea()
             Group {
-            if store.showPersonalPreferences || store.showOnboarding { NavigationStack{PetChatView(onboarding:true)} }
+            if store.showPersonalPreferences {NavigationStack{PetChatView(personalSetup:true)}}
+            else if store.showOnboarding {NavigationStack{PetChatView(onboarding:true)}}
             else {
                 TabView(selection:$store.tab) {
                     TripsView().tabItem { Label(store.language.text("行程"),systemImage:"suitcase.rolling.fill") }.tag(1)

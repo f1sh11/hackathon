@@ -216,6 +216,8 @@ struct WalkingNavigationView: View {
     @State private var reset = false
     @State private var skipping=false
     @State private var autoStarted = false
+    @State private var journeyCue:KoalaCue?
+    @State private var announcedJourney=false
     var autoStart:Bool
     var dayDate:String
     init(day: DayPlan, tripID: String,autoStart:Bool=false,apple:Bool?=nil) {
@@ -226,6 +228,7 @@ struct WalkingNavigationView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
+                    if let cue=journeyCue {KoalaFeedbackBanner(cue:cue){journeyCue=nil}}
                     Text("導航日期："+dayDate).font(.caption).foregroundStyle(Palette.muted)
                     Text("第 \(navigator.progress.leg + 1) / \(navigator.count) 段 · 步行").font(.headline)
                     Text(navigator.progress.finished ? "今天的行程已完成" : "前往 " + navigator.target.name).font(.title2.bold())
@@ -292,6 +295,9 @@ struct WalkingNavigationView: View {
                 .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("关闭") { dismiss() } } }
                 .confirmationDialog("跳过当前地点，直接前往下一站？",isPresented:$skipping){Button("跳过这一站",role:.destructive){navigator.skip()}}
                 .confirmationDialog("重置今天的导航进度？", isPresented: $reset) { Button("重置", role: .destructive) { navigator.reset() } }
+        }
+        .onChange(of:navigator.active){_,active in
+            if active && !navigator.simulation && !announcedJourney {announcedJourney=true;journeyCue=KoalaCue(event:.journeyStarted)}
         }
         .onDisappear { navigator.pause() }
         // A system location prompt makes the scene inactive; keep the pending start alive until authorization returns.

@@ -280,7 +280,7 @@ struct TravelPlanningTask:Codable {
     @Published var tab = 1
     @Published var dayIndex = 0
     @Published var expenses: [Expense] = [] { didSet { saveExpenses() } }
-    @Published var showPersonalPreferences = !UserDefaults.standard.bool(forKey:"personalPreferences.v2.completed") && !UserDefaults.standard.bool(forKey:"onboarded")
+    @Published var showPersonalPreferences = !UserDefaults.standard.bool(forKey:"personalPreferences.v2.completed") && !UserDefaults.standard.bool(forKey:"onboarded") && !UserDefaults.standard.bool(forKey:"koko.personalChat.finished")
     @Published var showOnboarding = !UserDefaults.standard.bool(forKey: "onboarded")
     @Published var agentText = "你好！我是你的旅行小伙伴。告诉我你的想法，一起把悉尼安排得刚刚好。"
     let base = BackendConnection.base
@@ -726,3 +726,14 @@ struct WorldRun:Codable,Identifiable {
     func matches(_ trip:Trip)->Bool {trip.id==tripId && trip.revision==tripRevision && !stale && status=="completed"}
 }
 struct WorldRunEnvelope:Codable {var available:Bool;var run:WorldRun?}
+
+@MainActor extension AppStore {
+    func finishPersonalConversation(_ session:PetSession?,useClues:Bool) {
+        if useClues {
+            for (key,value) in KokoConversationPresentation.tripSeed(from:session) where !TravelRequirements.known(pendingTripFields[key]) {pendingTripFields[key]=value}
+        }
+        // Completing/skipping the introduction does not claim that long-term memory was saved.
+        UserDefaults.standard.set(true,forKey:"koko.personalChat.finished")
+        showPersonalPreferences=false;showOnboarding=true;tab=1
+    }
+}

@@ -25,6 +25,16 @@ final class KokoDialogueTests:XCTestCase {
         result.dialogue=ProfilingDialogueState(version:2,responseCount:inspiration ? 4:2,phase:inspiration ? "inspiration":"exploring",nickname:"小鱼",ideas:["如果有合适的展览，顺路看看。"],inspiration:inspiration ? TravelInspiration(title:"目的地待定 · 旅行灵感",ideas:["如果有合适的展览，顺路看看。"],status:"inspiration",placesVerified:false):nil)
         return result
     }
+    @MainActor func testPersonalConversationHasSeparateScopeAndNoTripDefaults() async throws {
+        let defaults=UserDefaults.standard;let key="petSession.personalProfile";let prior=defaults.object(forKey:key)
+        defer{if let prior{defaults.set(prior,forKey:key)}else{defaults.removeObject(forKey:key)}};defaults.removeObject(forKey:key)
+        let chat=PetChatStore();var body:[String:Any]=[:];let value=session()
+        chat.loader={request in body=try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:Any];return(try JSONEncoder().encode(value),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)}
+        await chat.load(scope:"personalProfile",profiling:true)
+        XCTAssertNil(chat.error);XCTAssertEqual(body["companionVersion"] as? Int,0)
+        XCTAssertTrue((body["fields"] as! [String:String]).isEmpty)
+        XCTAssertNil(body["consent"]);XCTAssertNil(body["travelDna"])
+    }
     func testV2DraftRestoresContextualChoicesWithoutMakingUnknownTravelDataReady() throws {
         let original=session(inspiration:true)
         let restored=try JSONDecoder().decode(PetSession.self,from:JSONEncoder().encode(original))

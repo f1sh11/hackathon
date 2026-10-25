@@ -6,7 +6,7 @@
     256
   ],
   "fps": 12,
-  "note": "Local prototype assets derived from the user's original ZIP; do not treat hold frames as an idle loop.",
+  "note": "Approved action frames plus four supplied source-frame return sequences. Return sequences are reused reversal assets, not newly drawn bridges; departure remains held without a physical recovery.",
   "animations": [
     {
       "id": "wave",
@@ -66,7 +66,9 @@
       "framePath": "animations/weather/frames/{frame:03}.png",
       "poster": "animations/weather/poster.png",
       "preview": "animations/weather/preview.webp",
-      "terminal": "animations/weather/terminal.png"
+      "terminal": "animations/weather/terminal.png",
+      "recoveryId": "weather-to-idle",
+      "recoveryNote": "Existing source-frame return sequence; iOS uses recoveryId. Legacy recovery policy remains for older clients."
     },
     {
       "id": "budget",
@@ -87,7 +89,8 @@
       "poster": "animations/budget/poster.png",
       "preview": "animations/budget/preview.webp",
       "terminal": "animations/budget/terminal.png",
-      "recoveryNote": "No authored bridge to idle; do not reset or crossfade this held endpoint."
+      "recoveryNote": "Existing source-frame return sequence; iOS uses recoveryId. Legacy recovery policy remains for older clients.",
+      "recoveryId": "budget-to-idle"
     },
     {
       "id": "tired",
@@ -108,7 +111,8 @@
       "poster": "animations/tired/poster.png",
       "preview": "animations/tired/preview.webp",
       "terminal": "animations/tired/terminal.png",
-      "recoveryNote": "No authored bridge to idle; do not reset or crossfade this held endpoint."
+      "recoveryNote": "Existing source-frame return sequence; iOS uses recoveryId. Legacy recovery policy remains for older clients.",
+      "recoveryId": "tired-to-idle"
     },
     {
       "id": "map",
@@ -128,7 +132,9 @@
       "framePath": "animations/map/frames/{frame:03}.png",
       "poster": "animations/map/poster.png",
       "preview": "animations/map/preview.webp",
-      "terminal": "animations/map/terminal.png"
+      "terminal": "animations/map/terminal.png",
+      "recoveryId": "map-to-idle",
+      "recoveryNote": "Existing source-frame return sequence; iOS uses recoveryId. Legacy recovery policy remains for older clients."
     },
     {
       "id": "celebrate",
@@ -210,6 +216,88 @@
       "poster": "animations/idle/poster.png",
       "preview": "animations/idle/preview.webp",
       "terminal": "animations/idle/terminal.png"
+    }
+  ],
+  "recoveries": [
+    {
+      "id": "weather-to-idle",
+      "sourceAction": "weather",
+      "purpose": "recover_to_idle",
+      "method": "close_umbrella_reverse",
+      "fps": 12,
+      "frames": 26,
+      "durationMs": 2167,
+      "canvas": [
+        256,
+        256
+      ],
+      "playback": "once",
+      "ending": "idle",
+      "framePath": "recoveries/weather-to-idle/frames/{frame:03}.png",
+      "poster": "recoveries/weather-to-idle/poster.png",
+      "preview": "recoveries/weather-to-idle/preview.webp",
+      "terminal": "recoveries/weather-to-idle/terminal.png",
+      "quality": "source_frame_reversal"
+    },
+    {
+      "id": "map-to-idle",
+      "sourceAction": "map",
+      "purpose": "recover_to_idle",
+      "method": "fold_map_reverse",
+      "fps": 12,
+      "frames": 30,
+      "durationMs": 2500,
+      "canvas": [
+        256,
+        256
+      ],
+      "playback": "once",
+      "ending": "idle",
+      "framePath": "recoveries/map-to-idle/frames/{frame:03}.png",
+      "poster": "recoveries/map-to-idle/poster.png",
+      "preview": "recoveries/map-to-idle/preview.webp",
+      "terminal": "recoveries/map-to-idle/terminal.png",
+      "quality": "source_frame_reversal"
+    },
+    {
+      "id": "budget-to-idle",
+      "sourceAction": "budget",
+      "purpose": "recover_to_idle",
+      "method": "put_money_away_reverse",
+      "fps": 12,
+      "frames": 32,
+      "durationMs": 2667,
+      "canvas": [
+        256,
+        256
+      ],
+      "playback": "once",
+      "ending": "idle",
+      "framePath": "recoveries/budget-to-idle/frames/{frame:03}.png",
+      "poster": "recoveries/budget-to-idle/poster.png",
+      "preview": "recoveries/budget-to-idle/preview.webp",
+      "terminal": "recoveries/budget-to-idle/terminal.png",
+      "quality": "source_frame_reversal"
+    },
+    {
+      "id": "tired-to-idle",
+      "sourceAction": "tired",
+      "purpose": "recover_to_idle",
+      "method": "sit_up_and_stand_reverse",
+      "fps": 12,
+      "frames": 36,
+      "durationMs": 3000,
+      "canvas": [
+        256,
+        256
+      ],
+      "playback": "once",
+      "ending": "idle",
+      "framePath": "recoveries/tired-to-idle/frames/{frame:03}.png",
+      "poster": "recoveries/tired-to-idle/poster.png",
+      "preview": "recoveries/tired-to-idle/preview.webp",
+      "terminal": "recoveries/tired-to-idle/terminal.png",
+      "quality": "source_frame_reversal"
     }
   ]
 }
