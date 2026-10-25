@@ -187,6 +187,7 @@ public static class PetExplicitFacts
 
     public static void Apply(string message,JsonObject fields)
     {
+        message=System.Text.RegularExpressions.Regex.Replace(message,@"(?:没有|无)(?:什么|特别|任何)?(?:的)?必去(?:地点|的地方|景点)?(?:和|或|、)(?:需要)?避开(?:的安排|的地方|安排)?","没有必去地点，没有需要避开的安排");
         bool Ambiguous(System.Text.RegularExpressions.Match match) {
             char[] separators=['，',',','。','；',';','！','!','？','?','\n'];
             var left=match.Index==0 ? -1:message.LastIndexOfAny(separators,match.Index-1);
@@ -195,16 +196,17 @@ public static class PetExplicitFacts
             return System.Text.RegularExpressions.Regex.IsMatch(clause,@"不是|不要|不想|还没确定|或者|或|到|至");
         }
         // Explicit hard constraints must survive a model omitting optional fields once essentials are complete.
-        void Extract(string key,string pattern) {
+        bool Extract(string key,string pattern) {
             var values=System.Text.RegularExpressions.Regex.Matches(message,pattern)
-                .Where(m=>!System.Text.RegularExpressions.Regex.IsMatch(message[..m.Index],@"(?:不是|没有|无需|不用|不需要|不必|不指定|不设定|不要求|不强求|不)\s*$"))
+                .Where(m=>!System.Text.RegularExpressions.Regex.IsMatch(message[..m.Index],@"(?:(?:没有|无)(?:什么|特别|任何)?|不是|无需|不用|不需要|不必|不指定|不设定|不要求|不强求|不)\s*$"))
                 .Select(m=>System.Text.RegularExpressions.Regex.Split(m.Groups[1].Value,"但是|不过|但")[0].Trim())
                 .Where(v=>v.Length is >0 and <=120)
                 .Where(v=>key!="mustDo" || !System.Text.RegularExpressions.Regex.IsMatch(v,@"哪|什么|不确定|未确定|待定|或者|或|随便|都行|^(?:悉尼|Sydney)(?:旅行|旅游|玩\s*[0-9一二两三四五六七八九十]+\s*天)?$",System.Text.RegularExpressions.RegexOptions.IgnoreCase)).Distinct().ToArray();
             if(values.Length>0)fields[key]=string.Join("、",values);
+            return values.Length>0;
         }
         Extract("mustDo",@"(?:必须去|一定要去|特别想去|想去|想逛|想参观|必去(?:地点)?(?:是|：|:)?)\s*([^，,。；;！？\n]+)");
-        Extract("avoid",@"(?:必须避开|需要避开|不去|不逛|不参观|不想(?:去|逛|参观)|不要(?:去|逛|参观)|避免(?:去|逛|参观)|避开)\s*([^，,。；;！？\n]+)");
+        var hasExplicitAvoid=Extract("avoid",@"(?:必须避开|需要避开|不去|不逛|不参观|不想(?:去|逛|参观)|不要(?:去|逛|参观)|避免(?:去|逛|参观)|避开)\s*([^，,。；;！？\n]+)");
         // Explicit trip interests must not disappear when the model extracts only essential fields.
         var interestClauses=System.Text.RegularExpressions.Regex.Split(message,@"[，,。；;！？\n]")
             .Where(c=>System.Text.RegularExpressions.Regex.IsMatch(c,"想|喜欢|喜歡|兴趣|興趣|体验|體驗|偏好|主要") &&
@@ -214,7 +216,7 @@ public static class PetExplicitFacts
             .ToArray();
         if(explicitInterests.Length>0)fields["interests"]=string.Join("、",explicitInterests);
         // Keep unambiguous travel facts even when the conversational model omits fields.
-        if(System.Text.RegularExpressions.Regex.IsMatch(message,@"(?:去|目的地(?:是|：|:)?)\s*(?:悉尼|Sydney)(?=[，,。\s]|$)",System.Text.RegularExpressions.RegexOptions.IgnoreCase) &&
+        if(System.Text.RegularExpressions.Regex.IsMatch(message,@"(?:去|目的地(?:是|：|:)?)\s*(?:悉尼|Sydney)(?=[，,。\s]|玩|旅行|旅游|旅遊|待|呆|出发|出發|$)",System.Text.RegularExpressions.RegexOptions.IgnoreCase) &&
             !System.Text.RegularExpressions.Regex.IsMatch(message,@"(?:不去|不要去|不想去|不是)\s*(?:悉尼|Sydney)",System.Text.RegularExpressions.RegexOptions.IgnoreCase))fields["destination"]="悉尼";
         var durations=System.Text.RegularExpressions.Regex.Matches(message,@"(?:玩|旅行|待|呆|停留|行程|总共|共)\s*([1-9]\d{0,2})\s*天")
             .Where(m=>!Ambiguous(m)).Select(m=>m.Groups[1].Value).Distinct().ToArray();
@@ -243,7 +245,7 @@ public static class PetExplicitFacts
 
 
         if(System.Text.RegularExpressions.Regex.IsMatch(message,@"(?:没有|无|不指定|不设定?|不要求|不强求)(?:什么|特别|任何|固定|特定)?(?:的)?必去(?:地点|的地方|景点)?") && !message.Contains("但是") && !message.Contains("但想"))fields["mustDo"]="无";
-        if(System.Text.RegularExpressions.Regex.IsMatch(message,@"(?:没有|无)(?:什么|特别|任何)?(?:需要)?避开(?:的安排|的地方|安排)?"))fields["avoid"]="无";
+        if(!hasExplicitAvoid && System.Text.RegularExpressions.Regex.IsMatch(message,@"(?:没有|无)(?:什么|特别|任何)?(?:需要)?避开(?:的安排|的地方|安排)?"))fields["avoid"]="无";
         var amount=System.Text.RegularExpressions.Regex.Matches(message,@"(?<![0-9.])([0-9]+(?:\.[0-9]+)?)\s*(澳元|澳币|AUD|人民币|CNY|美元|USD)",System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         var amountExplicit=amount.Count==1 && !System.Text.RegularExpressions.Regex.IsMatch(message[..amount[0].Index],@"(?:不是|并非|不要|别用|还是|或者|或|到|至|[-~–])\s*$");
         if(amountExplicit){fields["budget"]=amount[0].Groups[1].Value;fields["budgetCurrency"]=amount[0].Groups[2].Value;}

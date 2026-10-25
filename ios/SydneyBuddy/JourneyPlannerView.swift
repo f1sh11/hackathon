@@ -62,7 +62,7 @@ func journeyTime(_ raw:String)->String {
         task=Task {
             do {
                 if routingProvider == "apple" {
-                    let parsed=try await AppleJourneyProvider.plan(day:day,modes:modes,departure:departure)
+                    let parsed=try await AppleJourneyProvider.plan(day:day,modes:modes,departure:departure,useSavedTransit:false)
                     try Task.checkCancellation();guard token==generation else{return}
                     plan=parsed;busy=false;return
                 }
@@ -99,7 +99,7 @@ struct JourneyPlannerView:View {
     init(day:DayPlan,tripID:String,provider:MapProvider,departure:Date = Date(),fixture:JourneyPlan? = nil,contentSource:String = "open",onPlan:((JourneyPlan)->Void)? = nil){
         self.day=day;self.tripID=tripID;self.provider=provider;self.fixture=fixture;self.contentSource=contentSource;self.onPlan=onPlan
         _routingProvider=State(initialValue:provider == .google ? "google" : provider == .apple ? "apple" : "open")
-        _model=StateObject(wrappedValue:JourneyModel());_modes=State(initialValue:fixture?.legs.map(\.mode) ?? Array(repeating:"walk",count:day.stops.count+1));_departure=State(initialValue:departure)
+        _model=StateObject(wrappedValue:JourneyModel());_modes=State(initialValue:fixture?.legs.map(\.mode) ?? (provider == .apple ? day.transportModes:Array(repeating:"walk",count:day.stops.count+1)));_departure=State(initialValue:departure)
     }
     private var result:JourneyPlan? {fixture ?? model.plan}
     private var points:[(String,String)] {[("起",day.start.name)]+day.stops.enumerated().map{(String($0.offset+1),$0.element.name)}+[("终",day.end.name)]}
@@ -148,8 +148,7 @@ struct JourneyPlannerView:View {
                             if provider == .apple && contentSource != "google" {Text("Apple Maps").tag("apple")}
                         }.font(.caption)
                         if routingProvider == "apple" && modes.contains("transit") {
-                            Text("Apple 仅提供 App 内步行／开车路线。公交请选 NSW 资料，或在 Apple Maps 查询；不会自动改用其他来源。").font(.caption).foregroundStyle(Palette.muted)
-                            Button("在 Apple Maps 查询首个公交区间") {AppleJourneyProvider.openTransit(day:day,modes:modes)}.font(.caption)
+                            Text("步行使用 Apple，公共交通按所选出发时间查询 NSW 班次，路线仍在 App 内显示。").font(.caption).foregroundStyle(Palette.muted)
                         }
                         DatePicker("出发时间（悉尼）",selection:$departure).environment(\.timeZone,TimeZone(identifier:"Australia/Sydney")!).font(.caption)
                         HStack {ForEach(["walk","drive","transit"],id:\.self){mode in Button {modes=Array(repeating:mode,count:modes.count)} label:{Label(transportLabel(mode),systemImage:transportSymbol(mode)).font(.caption.bold()).padding(8).background(modes.allSatisfy{$0==mode} ? Palette.mint : Color.gray.opacity(0.08),in:Capsule())}.accessibilityValue(modes.allSatisfy{$0==mode} ? "已选择" : "未选择")}}
@@ -171,7 +170,7 @@ struct JourneyPlannerView:View {
             }
             if let error=model.error {Text(error).font(.caption).foregroundStyle(.red).accessibilityIdentifier("journey-error").fixedSize(horizontal:false,vertical:true)}
             HStack {
-                Button(model.busy ? "正在查询交通…" : result == nil ? "规划交通路线" : "重新查询"){model.load(day:day,modes:modes,departure:departure,routingProvider:routingProvider,mapProvider:provider.rawValue,contentSource:contentSource)}.disabled(model.busy || fixture != nil || (routingProvider == "apple" && modes.contains("transit"))).buttonStyle(.borderedProminent)
+                Button(model.busy ? "正在查询交通…" : result == nil ? "规划交通路线" : "重新查询"){model.load(day:day,modes:modes,departure:departure,routingProvider:routingProvider,mapProvider:provider.rawValue,contentSource:contentSource)}.disabled(model.busy || fixture != nil).buttonStyle(.borderedProminent)
                 if model.busy {Button("取消"){model.invalidate()}}
                 if fixture == nil,routingProvider == "open",result != nil,modes.allSatisfy({$0=="walk"}) {Button("开始步行导航"){navigation=true}}
                 Spacer()
@@ -194,9 +193,18 @@ struct JourneyPlannerView:View {
     }
 }
 
-/// MapKit exposes complete walking/driving geometry. Transit directions are handed to Apple Maps.
+/// Apple supplies road geometry; NSW supplies in-app transit. Saved plans and fresh queries stay separate.
 @MainActor enum AppleJourneyProvider {
-    static func plan(day:DayPlan,modes:[String],departure:Date) async throws -> JourneyPlan {
+    static func transitSteps(from:Coordinate,to:Coordinate,departure:Date) async throws -> [JourneyStep] {
+        var request=URLRequest(url:BackendConnection.url("journey/plan"));request.httpMethod="POST";request.timeoutInterval=95;request.setValue("application/json",forHTTPHeaderField:"Content-Type")
+        request.httpBody=try JSONSerialization.data(withJSONObject:["points":[["name":from.name,"lat":from.lat,"lng":from.lng,"stayMinutes":0],["name":to.name,"lat":to.lat,"lng":to.lng,"stayMinutes":0]],"modes":["transit"],"departureTime":ISO8601DateFormatter().string(from:departure),"routingProvider":"nsw","mapProvider":"apple","contentSource":"open"])
+        let (data,response)=try await URLSession.shared.data(for:request)
+        guard (response as? HTTPURLResponse)?.statusCode==200 else{let raw=(try? JSONSerialization.jsonObject(with:data)) as? [String:Any];throw NSError(domain:"Journey",code:5,userInfo:[NSLocalizedDescriptionKey:raw?["error"] as? String ?? "NSW 班次暂时无法核实，已保留原安排。"])}
+        let result=try JSONDecoder().decode(JourneyPlan.self,from:data)
+        guard result.legs.count==1,!result.legs[0].steps.isEmpty else{throw URLError(.cannotParseResponse)}
+        return result.legs[0].steps
+    }
+    static func plan(day:DayPlan,modes:[String],departure:Date,useSavedTransit:Bool=true,transitLookup:(Coordinate,Coordinate,Date) async throws -> [JourneyStep] = transitSteps) async throws -> JourneyPlan {
         guard modes.count == day.stops.count+1, modes.allSatisfy({$0 == "walk" || $0 == "drive" || $0 == "transit"}) else {
             throw NSError(domain:"Journey",code:2,userInfo:[NSLocalizedDescriptionKey:"Apple App 内路线仅支持步行／开车；公交请选择 NSW 资料或在 Apple Maps 查询。"])
         }
@@ -204,7 +212,7 @@ struct JourneyPlannerView:View {
         let names=[day.start.name]+day.stops.map(\.name)+[day.end.name]
         let formatter=ISO8601DateFormatter()
         var cursor=departure
-        let verified=day.legs.count==modes.count && day.legs.allSatisfy{$0.source.contains("Apple") || $0.source.contains("Transport for NSW")}
+        let verified=useSavedTransit && day.legs.count==modes.count && day.legs.allSatisfy{$0.source.contains("Apple") || $0.source.contains("Transport for NSW")}
         let calendar=Calendar(identifier:.gregorian)
         func scheduleTime(_ time:String)->Date? {
             let f=DateFormatter();f.timeZone=TimeZone(identifier:"Australia/Sydney");f.dateFormat="yyyy-MM-dd HH:mm";return f.date(from:day.date+" "+time)
@@ -219,7 +227,16 @@ struct JourneyPlannerView:View {
         for i in modes.indices {
             try Task.checkCancellation()
             if modes[i]=="transit" {
-                guard day.legs.indices.contains(i),let steps=day.legs[i].steps,!steps.isEmpty,steps.contains(where:{$0.mode != "walk"}),let start=day.legs[i].departureTime,let end=day.legs[i].arrivalTime,let arrival=journeyDate(end) else{throw NSError(domain:"Journey",code:3,userInfo:[NSLocalizedDescriptionKey:"公交资料不完整，请重新查询 NSW 公共交通班次。"])}
+                let steps:[JourneyStep];let start:String;let end:String
+                if useSavedTransit {
+                    guard day.legs.indices.contains(i),let saved=day.legs[i].steps,!saved.isEmpty,let begins=day.legs[i].departureTime,let ends=day.legs[i].arrivalTime,let at=journeyDate(begins),at.timeIntervalSince(cursor)>=(-60) else{throw NSError(domain:"Journey",code:3,userInfo:[NSLocalizedDescriptionKey:"这段保存的 NSW 班次已无法衔接，请按新的出发时间刷新交通。原行程仍保留。"])}
+                    steps=saved;start=begins;end=ends
+                }else {
+                    steps=try await transitLookup(Coordinate(name:names[i],lat:coordinates[i].latitude,lng:coordinates[i].longitude),Coordinate(name:names[i+1],lat:coordinates[i+1].latitude,lng:coordinates[i+1].longitude),cursor)
+                    guard let first=steps.first,let last=steps.last,let at=journeyDate(first.departureTime),at.timeIntervalSince(cursor)>=(-60) else{throw NSError(domain:"Journey",code:6,userInfo:[NSLocalizedDescriptionKey:"最新班次无法衔接，未使用旧班次替代。请调整出发时间。"])}
+                    start=formatter.string(from:cursor);end=last.arrivalTime
+                }
+                guard let arrival=journeyDate(end),arrival>=cursor else{throw URLError(.cannotParseResponse)}
                 let stay=i<day.stops.count ? Double(day.stops[i].visitMinutes*60):0
                 legs.append(JourneyLeg(index:i,mode:"transit",from:names[i],to:names[i+1],departureTime:start,arrivalTime:end,staySeconds:stay,steps:steps))
                 cursor=afterStop(arrival,i,stay);continue
@@ -260,7 +277,7 @@ struct JourneyPlannerView:View {
             legs.append(JourneyLeg(index:i,mode:modes[i],from:names[i],to:names[i+1],departureTime:formatter.string(from:cursor),arrivalTime:formatter.string(from:arrival),staySeconds:stay,steps:[step]))
             cursor=afterStop(verified ? cursor.addingTimeInterval(ceil(route.expectedTravelTime/60)*60):arrival,i,stay)
         }
-        return JourneyPlan(departureTime:formatter.string(from:departure),arrivalTime:formatter.string(from:cursor),travelSeconds:legs.flatMap(\.steps).reduce(0){$0+$1.seconds+$1.waitSeconds},elapsedSeconds:cursor.timeIntervalSince(departure),meters:legs.flatMap(\.steps).reduce(0){$0+$1.meters},legs:legs,warnings:["Apple 预估路线；重新查询才会更新。不修改原行程。"],source:day.hasTransit ? "Apple Maps / Transport for NSW":"Apple Maps / MapKit")
+        return JourneyPlan(departureTime:formatter.string(from:departure),arrivalTime:formatter.string(from:cursor),travelSeconds:legs.flatMap(\.steps).reduce(0){$0+$1.seconds+$1.waitSeconds},elapsedSeconds:cursor.timeIntervalSince(departure),meters:legs.flatMap(\.steps).reduce(0){$0+$1.meters},legs:legs,warnings:["Apple 预估路线；重新查询才会更新。不修改原行程。"],source:modes.contains("transit") ? "Apple Maps / Transport for NSW":"Apple Maps / MapKit")
     }
     static func openTransit(day:DayPlan,modes:[String]) {
         // Multi-stop transit is not exposed by MapKit; hand off the first selected itinerary leg honestly.
@@ -285,6 +302,9 @@ struct AppleTripWalkingView:View {
     @StateObject private var overview=ItineraryOverview()
     @State private var dayIndex:Int
     @State private var navigating=false
+    @State private var choosingTransport=false
+    @StateObject private var refreshedJourney=JourneyModel()
+    @State private var refreshed=false
     @State private var updated=false
     @State private var updateError:String?
     init(trip:Trip,initialDay:Int=0,initialPlan:JourneyPlan?=nil,onPlan:((JourneyPlan,DayPlan)->Void)?=nil) {
@@ -301,12 +321,12 @@ struct AppleTripWalkingView:View {
                 Text(day.date+(day.hasTransit ? " · 步行与公共交通":" · 步行路线预览")).font(.subheadline.bold())
                 NativeRouteMap(day:day,overview:overview.route,expanded:false,bottomInset:28,provider:.apple,viewport:nil,onViewport:{_ in},sections:overview.plan?.sections ?? []).frame(height:300).clipShape(RoundedRectangle(cornerRadius:20)).accessibilityIdentifier("apple-walking-map")
                 if !day.hasWalkingJourney{Text("当天为自由安排，先在行程中添加地点。").foregroundStyle(Palette.muted)}
-                else if overview.busy {ProgressView("Apple 正在查询当天步行路线…").accessibilityIdentifier("apple-walking-loading")}
+                else if overview.busy {ProgressView(day.hasTransit ? "正在读取当天步行与公共交通路线…":"Apple 正在查询当天步行路线…").accessibilityIdentifier("apple-walking-loading")}
                 else if let plan=overview.plan {
                     Label(day.hasTransit ? "步行＋公共交通 · 约 \(Int(ceil(plan.travelSeconds/60))) 分钟":"约 \(Int(plan.meters.rounded())) 米 · 步行 \(Int(ceil(plan.travelSeconds/60))) 分钟",systemImage:day.hasTransit ? "tram.fill":"figure.walk").font(.headline).accessibilityIdentifier("apple-walking-summary")
                     Text(day.hasTransit ? "交通总计包含接驳和等车，不含游览停留；各段班次见下方。":"步行总计不含停留和等待；开始导航后跟随当前位置，偏离路线会重新查询。").font(.caption).foregroundStyle(Palette.muted)
                     if !day.hasTransit {Button("开始步行导航",systemImage:"location.fill"){navigating=true}.buttonStyle(.borderedProminent)}
-                    if day.hasTransit {Text("班次为生成行程时的查询结果，请出发前刷新。下面列出上车站、线路、下车站和接驳；票价未知。").font(.caption)}
+                    if day.hasTransit {Text(refreshed ? "这是按新出发时间查询的路线预览；尚未修改已保存日程，票价未知。":"已保存的计划班次，不能保证现在仍能赶上。出发前请刷新交通；票价未知。").font(.caption)}
                     else if day.legs.count==plan.legs.count && zip(day.legs,plan.legs).allSatisfy({ old,new in old.source.contains("Apple") && old.minutes==Int(ceil(new.steps.reduce(0){$0+$1.seconds}/60)) }) {Label("当天安排已按 Apple 步行时间校准",systemImage:"checkmark.circle").font(.caption).foregroundStyle(Palette.green)}
                     else {
                         Text("行程里的到达与返回时间尚未按这条道路路线校准。").font(.caption).foregroundStyle(Palette.muted)
@@ -330,23 +350,41 @@ struct AppleTripWalkingView:View {
                     Label(store.language.display(error),systemImage:"exclamationmark.circle").font(.subheadline).foregroundStyle(Palette.muted).accessibilityIdentifier("apple-walking-error")
                     Button("重试步行路线"){overview.load(day,provider:.apple)}.buttonStyle(.borderedProminent).accessibilityIdentifier("apple-walking-retry")
                 }
+                if day.hasTransit {
+                    Button(refreshedJourney.busy ? "正在查询最新班次…":"刷新交通路线") {
+                        let f=DateFormatter();f.timeZone=TimeZone(identifier:"Australia/Sydney");f.dateFormat="yyyy-MM-dd HH:mm"
+                        let minute=day.planningStartMinute ?? trip.profile.startMinute
+                        let scheduled=f.date(from:day.date+String(format:" %02d:%02d",minute/60,minute%60)) ?? Date()
+                        refreshedJourney.load(day:day,modes:day.transportModes,departure:max(Date(),scheduled),routingProvider:"apple",mapProvider:"apple")
+                    }.buttonStyle(.borderedProminent).disabled(refreshedJourney.busy).accessibilityIdentifier("refresh-transit-route")
+                    if let error=refreshedJourney.error{Text(error).font(.caption).foregroundStyle(.red)}
+                }
                 if overview.plan != nil {
                     if day.hasTransit {Button("按最新班次重新安排"){store.trip=trip;store.dayIndex=dayIndex;dismiss();Task{await store.generate("重新核对第 \(dayIndex+1) 天剩余行程的公共交通和时间，保留已完成活动与固定安排。",profileOverride:trip.profile)}}.font(.subheadline)}
                     else{Button("重新查询路线"){overview.clear();overview.load(day,provider:.apple)}.font(.subheadline)}
                 }
+                Button("选择出发时间与交通方式",systemImage:"slider.horizontal.3"){choosingTransport=true}.font(.subheadline).accessibilityIdentifier("route-transport-options")
                 Text(day.hasTransit ? "路线来源：Apple Maps＋Transport for NSW · 原行程保持不变":"路线来源：Apple Maps / MapKit · 原行程安排保持不变").font(.caption2).foregroundStyle(Palette.muted)
             }
         }.padding(18)}.fullScreenCover(isPresented:$navigating){if let day {WalkingNavigationView(day:day,tripID:trip.id ?? "draft",apple:true)}}.background(Palette.cream).navigationTitle(day?.hasTransit == true ? "步行与公共交通":"App 内步行路线").navigationBarTitleDisplayMode(.inline).toolbar{Button("关闭"){dismiss()}}.tint(Palette.green)}
+        .sheet(isPresented:$choosingTransport){if let day{JourneyPlannerView(day:day,tripID:trip.id ?? "draft",provider:.apple,departure:transportDeparture(day))}}
+        .onReceive(refreshedJourney.$plan){value in if let value,let day{refreshed=true;overview.accept(value,day:day)}}
+        .onDisappear{refreshedJourney.invalidate()}
         .task(id:day.map{mapSceneKey($0)} ?? "empty"){
-            overview.clear();updateError=nil
+            overview.clear();updateError=nil;refreshedJourney.invalidate();refreshed=false
             guard let day,day.hasWalkingJourney else{return}
             if dayIndex==initialDay,let initialPlan{overview.accept(initialPlan,day:day)}else{overview.load(day,provider:.apple)}
         }
         .onDisappear{
             store.dayIndex=dayIndex;store.selectedStopID=nil
-            if !updated,let day,let plan=overview.plan{onPlan?(plan,day)}
+            if !updated && !refreshed,let day,let plan=overview.plan{onPlan?(plan,day)}
             overview.cancel()
         }
+    }
+    private func transportDeparture(_ day:DayPlan)->Date {
+        let format=DateFormatter();format.timeZone=TimeZone(identifier:"Australia/Sydney");format.dateFormat="yyyy-MM-dd HH:mm"
+        let minute=day.planningStartMinute ?? trip.profile.startMinute
+        return max(Date(),format.date(from:day.date+String(format:" %02d:%02d",minute/60,minute%60)) ?? Date())
     }
 }
 

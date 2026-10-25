@@ -22,12 +22,20 @@ public static class RecommendationQuality
         double Rank(JsonObject p) => InterestScore(p,interests) + (MealWindow(profile)!=null && IsMeal(p)?18:0)
             + (ranks.Count-ranks.GetValueOrDefault(p.Str("id"),ranks.Count))*0.8
             - RouteService.Distance(profile.Object("start")!,p)/250;
-        var all=places.OrderByDescending(Rank).ThenBy(p=>p.Str("id"),StringComparer.Ordinal).ToArray();
+        var all=places.Where(p=>must.Contains(p.Str("id")) || !DuplicatesEndpoint(p,profile)).OrderByDescending(Rank).ThenBy(p=>p.Str("id"),StringComparer.Ordinal).ToArray();
         var result=all.Where(p=>must.Contains(p.Str("id"))).ToList();
         // Keep both genuine meals and visits in the bounded search, even for a food-only trip.
         foreach(var p in all.Where(IsMeal).Take(3).Concat(all.Where(p=>!IsMeal(p)).Take(5)))
             if(result.All(x=>x.Str("id")!=p.Str("id")))result.Add(p);
         return result.ToArray();
+    }
+    public static bool DuplicatesEndpoint(JsonObject place,JsonObject profile) {
+        static string Name(string raw) {
+            var s=System.Text.RegularExpressions.Regex.Replace(raw.ToLowerInvariant(),@"[\s，,、。；;！!]+","");
+            return s switch {"环形码头" or "環形碼頭" or "circularquay"=>"circularquay","中央车站" or "中央車站" or "centralstation" or "sydneycentralstation"=>"centralstation",_=>s};
+        }
+        return new[]{profile.Object("start"),profile.Object("end")}.Where(p=>p is not null).Any(p=>
+            RouteService.Distance(place,p!)<50 && Name(place.Str("name")).Length>0 && Name(place.Str("name"))==Name(p!.Str("name")));
     }
     public static void Assess(JsonObject profile,JsonArray days)
     {
@@ -40,7 +48,7 @@ public static class RecommendationQuality
             if(MealWindow(profile)!=null&&!stops.Any(IsMeal))warnings.Add("当天未安排具体餐厅：现有餐饮候选不满足预算、步数或时间条件，请另行安排用餐。");
             var finish=day.Str("finishTime");var shortDay=profile.Int("endMinute")-profile.Int("startMinute")>=360 && string.CompareOrdinal(finish,"14:00")<0;
             if(shortDay)warnings.Add("当前仅安排了半日活动，余下时间留白；按轻松节奏及现有地点、步数和预算限制，没有凑满全天。");
-            var incompleteDay=shortDay&&profile.Str("energy")!="低精力"&&profile.Str("rhythm")!="轻松随意";
+            var incompleteDay=shortDay&&(profile.Str("dayStyle")=="fullDay" || (profile.Str("energy")!="低精力"&&profile.Str("rhythm")!="轻松随意"));
             day["recommendationStatus"]=incompleteDay||warnings.OfType<JsonValue>().Any(w=>w.GetValue<string>().Contains("未覆盖")||w.GetValue<string>().Contains("未安排具体餐厅"))?"partial":"ready";
         }
     }

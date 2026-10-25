@@ -236,6 +236,9 @@ struct PetChatView:View {
     var conversationOnly=false
     var draftScope=false
     var initialMessage=""
+    var autoSendInitial=false
+    @State private var sentInitial=false
+    @State private var parkedMessage=""
     private var scope:String {(onboarding || draftScope) ? "draft" : (store.trip?.id ?? "draft")}
     private var displayedMessages:[PetMessage] {
         let messages=chat.session?.messages ?? []
@@ -268,10 +271,11 @@ struct PetChatView:View {
                 Spacer()
                 Menu{
                     Button("我的记忆",systemImage:"brain.head.profile"){memories=true}
+                    if !parkedMessage.isEmpty{Button("恢复未发送的内容",systemImage:"text.bubble"){message=parkedMessage;parkedMessage="";UserDefaults.standard.removeObject(forKey:"petComposer.parked."+scope)}}
                     if chat.session?.dialogue==nil{Button(chat.choices ? "收起快捷填写":"展开快捷填写"){chat.mode(!chat.choices)}}
                     Button("清空本次对话",systemImage:"trash",role:.destructive){clearing=true}
                 }label:{Image(systemName:"ellipsis").frame(width:44,height:44)}.accessibilityLabel("聊天更多操作")
-            }.padding(.horizontal,12).disabled(chat.busy)
+            }.padding(.horizontal,12)
             backpack
             ScrollViewReader { proxy in
                 ScrollView {
@@ -322,11 +326,12 @@ struct PetChatView:View {
                 .onChange(of:chat.streaming.isEmpty){_,_ in if !historyExpanded{proxy.scrollTo("companion-turn",anchor:.top)}}
                 .onChange(of:chat.busy){_,value in if value && !historyExpanded{proxy.scrollTo("companion-turn",anchor:.top)}}
             }
+            if !chat.busy,chat.session != nil {planningShortcuts}
             if let issue=generationIssue {
                 VStack(alignment:.leading,spacing:6) {
                     Label("暂时还不能生成",systemImage:"info.circle.fill").font(.subheadline.bold())
                     Text(issue).font(.caption).fixedSize(horizontal:false,vertical:true)
-                    Button("修改相关资料"){composing=false;detailRoute=TripDetailRoute(id:correctionStage)}.font(.subheadline.bold())
+                    if liveFields["adjustmentNeed"] != "endTime",liveFields["adjustmentEndMinute"]==nil{Button("修改相关资料"){composing=false;detailRoute=TripDetailRoute(id:correctionStage)}.font(.subheadline.bold())}
                 }.padding(12).frame(maxWidth:.infinity,alignment:.leading).background(Palette.mint,in:RoundedRectangle(cornerRadius:14)).padding(.horizontal,20).accessibilityIdentifier("chat-generation-issue")
             }
             if canPlanDirectly {
@@ -356,10 +361,18 @@ struct PetChatView:View {
         .task(id:scope){
             var seed:[String:String]=(onboarding || draftScope) ? store.pendingTripFields:[:]
             // Legacy habits remain context; only explicit trip answers populate fields.
-            if !onboarding && !draftScope,let t=store.trip{seed=["destination":"悉尼","date":t.profile.date,"days":String(t.profile.days),"budget":String(t.profile.budget),"budgetCurrency":"AUD","budgetBasis":"perPersonPerDay","interests":t.profile.interests.joined(separator:"、"),"pace":"约\(t.profile.maxSteps)步","transportPreference":t.profile.transportPreference ?? "walk"];if let people=t.profile.travelers{seed["travelers"]=String(people)}}
+            if !onboarding && !draftScope,let t=store.trip{seed=TripConversationSeed.fields(t.profile)}
             let pendingMessage=UserDefaults.standard.string(forKey:"petComposer."+scope) ?? ""
-            message=initialMessage.isEmpty || pendingMessage.hasPrefix(initialMessage) ? pendingMessage:initialMessage+(pendingMessage.isEmpty ? "":"\n"+pendingMessage)
+            parkedMessage=UserDefaults.standard.string(forKey:"petComposer.parked."+scope) ?? ""
+            if autoSendInitial {
+                if !pendingMessage.isEmpty{parkedMessage=pendingMessage;UserDefaults.standard.set(pendingMessage,forKey:"petComposer.parked."+scope)}
+                message=""
+            }else{message=initialMessage.isEmpty || pendingMessage.hasPrefix(initialMessage) ? pendingMessage:initialMessage+(pendingMessage.isEmpty ? "":"\n"+pendingMessage)}
             await chat.load(scope:scope,seed:seed,personal:(onboarding || draftScope) ? store.pendingPersonalProfile:nil,profiling:onboarding || draftScope)
+            if autoSendInitial,!sentInitial,!initialMessage.isEmpty,chat.error==nil {
+                sentInitial=true;await chat.send(initialMessage)
+                if chat.error != nil{message=initialMessage+(message.isEmpty ? "":"\n"+message)}
+            }
         }
         .onChange(of:message){_,value in UserDefaults.standard.set(value,forKey:"petComposer."+scope)}
         .onChange(of:chat.session?.fields){_,value in
@@ -377,6 +390,11 @@ struct PetChatView:View {
         }
         .sheet(isPresented:$memories){PetMemoryView(chat:chat)}
         .confirmationDialog("清空本次对话和旅行草稿？已保存行程与长期偏好保留。",isPresented:$clearing,titleVisibility:.visible){Button("清空",role:.destructive){Task{await chat.clear();if chat.error==nil{message=""}}}}
+    }
+    private var planningShortcuts:some View {
+        ScrollView(.horizontal,showsIndicators:false){HStack(spacing:8){ForEach(TripPlanningShortcuts.items(liveFields,ready:canPlanDirectly),id:\.stage){item in
+            Button{composing=false;detailRoute=TripDetailRoute(id:item.stage)}label:{Label(item.title,systemImage:"pencil").font(.caption.weight(.semibold)).padding(.horizontal,13).frame(minHeight:44).background(Palette.mint.opacity(0.6),in:Capsule())}.buttonStyle(BuddyPressStyle()).accessibilityIdentifier("chat-edit-stage-"+String(item.stage))
+        }}}.padding(.horizontal,20).padding(.vertical,4)
     }
     private var preparationStatus:String {
         if !onboarding && !draftScope{return "告诉 Koko 你想怎么调整～"}
@@ -396,7 +414,7 @@ struct PetChatView:View {
     private var directProfile:TripProfile? {
         guard chat.session != nil else{return nil}
         if onboarding || draftScope{return try? TravelRequirements.readyProfile(liveFields,personal:store.pendingPersonalProfile)}
-        return try? PetTripDraft.profile(liveFields,base:store.trip?.profile ?? store.profile)
+        return try? TripConversationSeed.profile(liveFields,base:store.trip?.profile ?? store.profile)
     }
     private var canPlanDirectly:Bool{directProfile != nil}
     private var generationIssue:String? {
@@ -409,10 +427,10 @@ struct PetChatView:View {
     }
     private var correctionStage:Int {GuidedTripDetails.correctionStage(liveFields)}
     private var directPlanningBlocker:String? {
-        guard (!conversationOnly || onboarding),(onboarding || draftScope),let session=chat.session else{return nil}
+        guard (!conversationOnly || onboarding),let session=chat.session else{return nil}
         let missing=TravelRequirements.missingFields(liveFields)
         if !missing.isEmpty{return session.nextField.isEmpty ? "还需要确认："+missing.joined(separator:"、")+"。直接在下面告诉 Koko 就好。":nil}
-        do{_=try TravelRequirements.readyProfile(liveFields,personal:store.pendingPersonalProfile);return nil}catch{return error.localizedDescription}
+        do{if onboarding || draftScope{_=try TravelRequirements.readyProfile(liveFields,personal:store.pendingPersonalProfile)}else{_=try TripConversationSeed.profile(liveFields,base:store.trip?.profile ?? store.profile)};return nil}catch{return error.localizedDescription}
     }
     private func quickAnswers(_ session:PetSession)->some View {
         VStack(alignment:.leading,spacing:7){
@@ -439,8 +457,8 @@ struct PetChatView:View {
     }
     private var directPlanningCard:some View {
         VStack(alignment:.leading,spacing:8){
-            Label("准备好啦",systemImage:"checkmark.circle.fill").font(.subheadline.bold()).foregroundStyle(Palette.green)
-            Text(TripDraftSummary(fields:liveFields).title+" · "+(liveFields["date"] ?? "")).font(.subheadline)
+            Label(onboarding || draftScope ? "可以开始核对路线啦":"可以试算这次调整",systemImage:"checkmark.circle.fill").font(.subheadline.bold()).foregroundStyle(Palette.green)
+            Text(onboarding || draftScope ? "我先核对真实地点和交通，准备好后放回你的小旅行。":"先看看这一天会怎样变化，确认后才修改已保存的行程。").font(.caption).foregroundStyle(Palette.muted)
             if let profile=directProfile{
                 Text("\(profile.travelers ?? 1) 人同行 · "+profile.activityBudgetSummary).font(.caption).foregroundStyle(Palette.muted)
             }
@@ -527,7 +545,7 @@ struct PetChatView:View {
                 let missing=TravelRequirements.missingFields(fields)
                 if !missing.isEmpty{return "还需要确认："+missing.joined(separator:"、")+"。可以返回对话继续聊，或逐项补充。"}
                 _=try TravelRequirements.profile(fields,personal:store.pendingPersonalProfile)
-            } else {_=try PetTripDraft.profile(fields)}
+            } else {_=try TripConversationSeed.profile(fields,base:store.trip?.profile ?? store.profile)}
             return nil
         }catch{return error.localizedDescription}
     }
@@ -535,7 +553,7 @@ struct PetChatView:View {
         guard assumptionsConfirmed else{return}
         await chat.update(fields);guard chat.error==nil else{return}
         let profile:TripProfile
-        do {profile=try (onboarding || draftScope) ? TravelRequirements.readyProfile(fields,personal:store.pendingPersonalProfile):PetTripDraft.profile(fields,base:store.trip?.profile ?? store.profile)}
+        do {profile=try (onboarding || draftScope) ? TravelRequirements.readyProfile(fields,personal:store.pendingPersonalProfile):TripConversationSeed.profile(fields,base:store.trip?.profile ?? store.profile)}
         catch {chat.error=error.localizedDescription;review=true;return}
         review=false
         if onboarding || draftScope {
@@ -952,5 +970,39 @@ struct PersonalPreferencesView:View {
         let latest=messages.last{message in message.role=="user" && !acknowledgements.contains(message.text.trimmingCharacters(in:.whitespacesAndNewlines).lowercased())}?.text ?? fallback
         // The backend bounds requests by UTF-16 length; keep the latest intent ahead of old summaries.
         return String(decoding:Array(latest.utf16.prefix(1400)),as:UTF16.self)
+    }
+}
+
+struct TripPlanningShortcut {let stage:Int;let title:String}
+enum TripPlanningShortcuts {
+    static func items(_ fields:[String:String],ready:Bool)->[TripPlanningShortcut] {
+        if ready{return [.init(stage:1,title:"改日期／天数"),.init(stage:3,title:"改预算"),.init(stage:2,title:"改同行人")]}
+        let groups:[(Int,String,[String])]=[(0,"选目的地",["destination"]),(1,"定日期／天数",["date","days"]),(2,"同行人数",["travelers"]),(3,"活动预算",["budget","budgetCurrency","budgetBasis"])]
+        return Array(groups.filter{$0.2.contains{!TravelRequirements.known(fields[$0])}}.prefix(2)).map{.init(stage:$0.0,title:$0.1)}
+    }
+}
+enum TripConversationSeed {
+    static func profile(_ fields:[String:String],base:TripProfile) throws -> TripProfile {
+        if fields["adjustmentNeed"]=="endTime"{throw NSError(domain:"TripConversation",code:1,userInfo:[NSLocalizedDescriptionKey:"先告诉 Koko 这一天最晚几点结束，或选择‘先不改时间’。"])}
+        var result=try TravelRequirements.profile(fields,personal:UserTravelProfile())
+        result.start=base.start;result.end=base.end
+        result.startMinute=base.startMinute;result.endMinute=base.endMinute
+        result.mustVisit=base.mustVisit;result.weatherOverride=base.weatherOverride
+        // Changing an origin requires coordinate resolution; the saved-trip editor owns that flow.
+        guard !TravelRequirements.known(fields["origin"]) || fields["origin"]==base.origin || fields["origin"]==base.start.name else {
+            throw NSError(domain:"TripConversation",code:1,userInfo:[NSLocalizedDescriptionKey:"更换出发地点请打开‘完整时间与住宿设置’，选定地图位置后再重算。其他修改已保留。"])
+        }
+        if fields["dayStyle"]=="halfDay"{result.endMinute=min(result.endMinute,900)}
+        if let raw=fields["adjustmentEndMinute"],let minute=Int(raw) {
+            guard minute>result.startMinute,minute<1440 else{throw NSError(domain:"TripConversation",code:1,userInfo:[NSLocalizedDescriptionKey:"结束时间需要晚于当天出发时间。请告诉 Koko 一个更晚的结束时间。"])}
+            result.endMinute=minute
+        }
+        return result
+    }
+
+    static func fields(_ p:TripProfile)->[String:String] {
+        var fields=["destination":"悉尼","date":p.date,"days":String(p.days),"travelers":String(p.travelers ?? 1),"budget":String(p.budget),"budgetCurrency":"AUD","budgetBasis":"perPersonPerDay","budgetCoverage":"activities","interests":p.interests.joined(separator:"、"),"pace":"约\(p.maxSteps)步","transportPreference":p.transportPreference ?? "balanced","origin":p.origin ?? p.start.name,"mustDo":p.mustDo ?? "无","avoid":p.avoid ?? "无","dayStyle":p.dayStyle ?? "fullDay"]
+        if let energy=p.energy{fields["energy"]=energy};if let rhythm=p.rhythm{fields["rhythm"]=rhythm};if let queue=p.queueTolerance{fields["queueTolerance"]=queue}
+        return fields
     }
 }

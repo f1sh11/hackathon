@@ -440,6 +440,7 @@ struct SchematicMap: View {
 }
 struct HomeView: View {
     var showsDayPicker=true
+    var sharedCompanion=false
     @EnvironmentObject var store:AppStore
     @State var poiSearch=false
     @State private var showInsights=false
@@ -450,6 +451,16 @@ struct HomeView: View {
     @State var journey=false
     @State var navigation=false
     @StateObject private var overview=ItineraryOverview()
+    private var nextStop:Stop? {
+        guard let day=store.currentDay else{return nil}
+        let id=store.trip?.id ?? "draft"
+        let handled=JourneyExecution.completed(tripID:id,date:day.date).union(JourneyExecution.skipped(tripID:id,date:day.date))
+        return day.stops.first{!handled.contains($0.id)}
+    }
+    private var routeTitle:String {
+        if let selected=store.currentDay?.stops.first(where:{$0.id==store.selectedStopID}){return selected.name}
+        return nextStop.map{"接下来："+$0.name} ?? "这一天留给自由安排"
+    }
     var body:some View {
         VStack(spacing:0){
             if showsDayPicker,let trip=store.trip{TripDayPicker(trip:trip).padding(.horizontal,20).padding(.bottom,10)}
@@ -462,7 +473,7 @@ struct HomeView: View {
                         HStack(alignment:.center,spacing:12){
                             VStack(alignment:.leading,spacing:5){
                                 Text("第 \(store.dayIndex+1) 天 · \(store.currentDay?.stops.count ?? 0) 个地点").font(.caption).foregroundStyle(Palette.muted)
-                                Text(store.currentDay?.stops.first(where:{$0.id==store.selectedStopID})?.name ?? "今天，慢慢走走").font(.headline).lineLimit(1)
+                                Text(routeTitle).font(.headline).lineLimit(1)
                                 if let route=overview.route {
                                     Text(store.currentDay?.hasTransit == true ? "步行＋公共交通 · 约 \(Int(ceil(route.seconds/60))) 分钟":"步行约 \(Int(route.meters.rounded())) 米 · \(Int(ceil(route.seconds/60))) 分钟").font(.caption).foregroundStyle(Palette.muted).accessibilityIdentifier("home-walking-summary")
                                 }else if overview.busy{Label("正在查询真实步行路线…",systemImage:"figure.walk").font(.caption).foregroundStyle(Palette.muted)}
@@ -472,9 +483,8 @@ struct HomeView: View {
                                 Button{UIImpactFeedbackGenerator(style:.soft).impactOccurred();if store.trip?.mode != "live",store.mapProvider != .apple,!TripNavigationAvailability.canNavigate(configured:store.health?.navigationConfigured,mode:store.trip?.mode ?? "demo"){store.mapProvider = .apple};navigation=true}label:{Text("查看路线").font(.subheadline.bold()).padding(.horizontal,14).padding(.vertical,13)}.buttonStyle(KokoPrimaryStyle()).accessibilityIdentifier("trip-walking-route")
                             }
                             Menu{
-                                Button("找 Koko",systemImage:"bubble.left.and.bubble.right"){chat=true}
-                                Button("调整当天",systemImage:"slider.horizontal.3"){adjusting=true}
-                                Button("交通路线规划",systemImage:"tram"){journey=true}
+                                if !sharedCompanion{Button("找 Koko",systemImage:"bubble.left.and.bubble.right"){chat=true};Button("调整当天",systemImage:"slider.horizontal.3"){adjusting=true}}
+                                if store.mapProvider != .apple{Button("交通路线规划",systemImage:"tram"){journey=true}}
                                 Button("附近地点",systemImage:"magnifyingglass"){poiSearch=true}
                                 Button("天气与出发准备",systemImage:"backpack"){details=true}
                                 Button("交通、人潮与费用",systemImage:"info.circle"){showInsights=true}

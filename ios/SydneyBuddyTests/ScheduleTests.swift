@@ -4,6 +4,31 @@ import MapKit
 @testable import SydneyBuddy
 
 @MainActor final class ScheduleTests:XCTestCase {
+    func testHomeFocusResumesCurrentTripAndDoesNotChoosePastOrDuplicateFuture() throws {
+        var today=try fixture();today.id="current";today.profile.date="2026-10-25";today.days=Array(today.days.prefix(1));today.days[0].date="2026-10-25"
+        var future=today;future.id="future";future.profile.date="2026-10-28";future.days[0].date="2026-10-28"
+        var past=today;past.id="past";past.profile.date="2026-10-23";past.days[0].date="2026-10-23"
+        XCTAssertEqual(TripHomeFocus.pick([future,past,today],lastOpenedID:"past",today:"2026-10-25")?.id,"current")
+        XCTAssertEqual(TripHomeFocus.pick([past,future],lastOpenedID:"past",today:"2026-10-25")?.id,"future")
+        XCTAssertNil(TripHomeFocus.pick([past],lastOpenedID:"past",today:"2026-10-25"))
+        var other=today;other.id="other-current";XCTAssertEqual(TripHomeFocus.pick([today,other],lastOpenedID:other.id,today:"2026-10-25")?.id,other.id)
+    }
+    func testCompanionQuickActionsCarrySelectedDayAndRequireConfirmation() throws {
+        let trip=try fixture();let index=min(1,trip.days.count-1)
+        let request=TripCompanionContext.request(trip:trip,dayIndex:index,intent:.shortOnTime)
+        XCTAssertTrue(request.contains(trip.days[index].date));XCTAssertTrue(request.contains("还剩多久"));XCTAssertTrue(request.contains("确认后再保存"));XCTAssertTrue(request.contains("保留其余日期"))
+        XCTAssertTrue(TripCompanionContext.request(trip:trip,dayIndex:-1,intent:.replace).contains(trip.days[0].date))
+    }
+    func testConnectionsExplainBuffersWithoutChangingTheSchedule() throws {
+        var trip=try fixture();trip.profile.startMinute=600
+        var day=ScheduleState.preserving(trip).days[0]
+        guard !day.activities.isEmpty else{return XCTFail("Fixture needs activities")}
+        day.startMinute=600;day.activities[0].arrival="10:11"
+        XCTAssertEqual(ScheduleConnection.buffer(day:day,position:0,travel:1),10)
+        day.activities=Array(day.activities.prefix(1));day.activities[0].departure="11:11";day.finishTime="11:38"
+        XCTAssertEqual(ScheduleConnection.buffer(day:day,position:1,travel:2),25)
+        XCTAssertEqual(ScheduleConnection.buffer(day:day,position:1,travel:30),0)
+    }
     func makeEditor()->ScheduleEditorModel {
         let model=ScheduleEditorModel()
         model.roadLoader={days in

@@ -24,4 +24,17 @@ public sealed class KokoCompanionTests
     [Fact] public void RhythmRecallOffersRhythmChoicesRatherThanInventingSteps(){var s=Session();s.ConfirmedDna.Add(new(){Key="rhythm",Value="轻松随意",Status="confirmed",MemoryId="rhythm"});Choose(s,"mood_rest");var change=Choose(s,"recall_change");Assert.Contains(KokoCompanion.Options(change),x=>x.Intent=="trip_rhythm_busy");Choose(s,"trip_rhythm_busy");Assert.Equal("紧凑充实",s.Fields["rhythm"]);Assert.False(s.Fields.ContainsKey("pace"));Assert.Equal("轻松随意",s.ConfirmedDna.Single().Value);}
     [Fact] public void MoodWithoutRecallAsksDestinationWithMatchingOptions(){var s=Session();var result=Choose(s,"mood_rest");var reply=KokoDialogue.CompleteTurn(s,result,result.Str("reply"),"relaxed");Assert.Contains("哪个城市",reply.Text);Assert.Contains(reply.QuickReplies!,x=>x.Intent=="choose_sydney");Assert.DoesNotContain(reply.QuickReplies!,x=>x.Intent=="accept_direction");}
     [Fact] public void LegacyClientsKeepTheirOriginalExperience(){var s=new PetSession();KokoDialogue.Enable(s,new(){["profilingVersion"]=2,["hasMetKoko"]=true});Assert.False(KokoCompanion.Enabled(s));Assert.Equal(3,s.Messages.Single().QuickReplies!.Length);var r=new PetMessage("r","assistant","原回复");Assert.Equal(r,KokoCompanion.RespondWithCare(s,r,"最近很累"));}
+    [Fact] public void ShortOnTimeRequiresAnExplicitEndBeforeReplanning() {
+        var s=Session();s.Fields["date"]="2026-11-01";
+        var result=KokoCompanion.Direct(s,"关于「测试」第 1 天。时间不够了",null)!;
+        Assert.Equal("endTime",s.Fields["adjustmentNeed"]);Assert.Contains("最晚几点结束",result.Str("reply"));
+        var choice=KokoCompanion.Options(result).Single(x=>x.Intent=="adjust_end_840");
+        KokoCompanion.Direct(s,choice.Text,choice);
+        Assert.Equal("840",s.Fields["adjustmentEndMinute"]);Assert.False(s.Fields.ContainsKey("adjustmentNeed"));
+        KokoCompanion.Direct(s,"改成 16:30 结束",null);
+        Assert.Equal("990",s.Fields["adjustmentEndMinute"]);
+        KokoCompanion.Direct(s,"先不改时间",null);
+        Assert.False(s.Fields.ContainsKey("adjustmentEndMinute"));Assert.Empty(s.Preferences);
+    }
+
 }

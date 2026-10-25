@@ -52,7 +52,7 @@ import CryptoKit
             let kind=category == "all" ? (item.pointOfInterestCategory == .hotel ? "lodging":item.pointOfInterestCategory == .store ? "shops":[MKPointOfInterestCategory.restaurant,.cafe,.bakery,.foodMarket].contains(where:{$0==item.pointOfInterestCategory}) ? "food":"sights"):category
             let actual=item.pointOfInterestCategory
             let interest=kind=="food" ? "美食":kind=="facilities" ? "設施":kind=="lodging" ? "住宿":kind=="shops" ? "购物":actual == .park || actual == .nationalPark || actual == .beach ? "自然":actual == .museum || actual == .library ? "文化":actual == .theater ? "艺术":"风景"
-            return ScheduleCandidate(id:id,name:name,category:interest,indoor:false,visitMinutes:category=="food" ? 45:category=="facilities" ? 10:60,cost:0,lat:point.latitude,lng:point.longitude,reason:"Apple Maps 地點搜尋",description:address.isEmpty ? "Apple Maps 未提供詳細介紹。":address,note:"Apple Maps 地點；費用、排隊與營業時間未知。設施用途及開放情況請另行確認。",source:"Apple Maps",poiKind:category=="food" ? "restaurant":category=="facilities" ? "facility":"attraction",openingHoursText:"",website:item.url?.absoluteString,phone:item.phoneNumber,address:address)
+            return ScheduleCandidate(id:id,name:name,category:interest,indoor:false,visitMinutes:category=="food" ? 45:category=="facilities" ? 10:60,cost:0,lat:point.latitude,lng:point.longitude,reason:"Apple Maps 地點搜尋",description:address.isEmpty ? "Apple Maps 未提供詳細介紹。":address,note:"Apple Maps 地點；費用、排隊與營業時間未知。設施用途及開放情況請另行確認。",source:"Apple Maps",poiKind:actual == .restaurant ? "restaurant":actual == .publicTransport ? "transport":category=="facilities" ? "facility":"attraction",openingHoursText:"",website:item.url?.absoluteString,phone:item.phoneNumber,address:address)
         }
     }
 }
@@ -117,6 +117,7 @@ import CryptoKit
     var embedded=false
     var initialQuery=""
     var addingToDay=false
+    var replacingPlace=false
     var onAdd:(ScheduleCandidate)->Void = {PoiToolbox.shared.add($0)}
     @EnvironmentObject var store:AppStore
     @Environment(\.dismiss) var dismiss
@@ -204,7 +205,7 @@ import CryptoKit
             }
         }
         .background(Palette.cream)
-        .navigationTitle(addingToDay ? "寻找餐厅，加入当天":"探索目的地")
+        .navigationTitle(replacingPlace ? "寻找替代地点":addingToDay ? "寻找餐厅，加入当天":"探索目的地")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if !embedded {
@@ -224,7 +225,7 @@ import CryptoKit
             model.center = CLLocationCoordinate2D(latitude: viewport.lat, longitude: viewport.lng)
         }
         model.query=initialQuery
-        if addingToDay{model.category="food"}
+        if addingToDay{model.category=replacingPlace ? "all":"food"}
         model.configure(searchProvider, googleMapConfigured: SydneyBuddyApp.mapConfigured,dataSource:store.travelDataSource)
     }
     .onChange(of:localProvider){_,provider in if addingToDay{detail=nil;areaChanged=false;model.configure(provider,googleMapConfigured:SydneyBuddyApp.mapConfigured,dataSource:store.travelDataSource)}}
@@ -282,13 +283,13 @@ import CryptoKit
                 Text("Google 地點暫不匯入本機示例時間軸").font(.caption2).foregroundStyle(Palette.muted)
             } else {
                 Button {
-                    if addingToDay {toolbox.add(p);onAdd(p)}
+                    if addingToDay {if !replacingPlace{toolbox.add(p)};onAdd(p)}
                     else if isAdded(p) { toolbox.remove(p.id) }
                     else { toolbox.add(p); onAdd(p) }
                 } label: {
                     Image(systemName:addingToDay ? "plus":isAdded(p) ? "checkmark":"plus").font(.headline).frame(width:44,height:44).background(.white,in:Circle())
                 }
-                .accessibilityLabel((addingToDay ? "加入当天":store.language.text(isAdded(p) ? "移出工具箱":"＋工具箱")) + "：" + p.name)
+                .accessibilityLabel((replacingPlace ? "用这个替换":addingToDay ? "加入当天":store.language.text(isAdded(p) ? "移出工具箱":"＋工具箱")) + "：" + p.name)
                 .accessibilityIdentifier("poi-toggle-"+p.id)
             }
         }.padding(.horizontal,16).padding(.vertical,12).background(model.selected==p.id ? Palette.mint.opacity(0.5):.clear)
@@ -428,13 +429,24 @@ struct PlaceMediaView:View {
     static func primaryMealName(_ name:String)->Bool {
         name.range(of:"bakery|bakehouse|patisserie|juice|fruit|food market|mini.?mart|grocery|supermarket|catering|coffee|café|cafe|面包|烘焙|果汁|咖啡",options:[.regularExpression,.caseInsensitive]) == nil
     }
-    static func search(_ profile:TripProfile) async throws -> [ScheduleCandidate] {
+    static func isTransportAccess(_ p:ScheduleCandidate)->Bool {
+        guard p.poiKind != "restaurant",p.category != "美食" else{return false}
+        return p.poiKind=="transport" || p.name.range(of:#"\b(station|ferry terminal|bus stop|bus interchange|pontoon|wharf)\b|车站|車站|公交站|巴士站|登船点|登船點"#,options:[.regularExpression,.caseInsensitive]) != nil
+    }
+    static func planningCandidate(_ value:ScheduleCandidate)->ScheduleCandidate {
+        var p=value
+        let meal=p.poiKind=="restaurant" && primaryMealName(p.name)
+        p.activityType=meal ? "meal":"attraction";p.cost=meal ? 30:0
+        if meal{p.category="美食";p.visitMinutes=45}
+        return p
+    }
+    static func search(_ profile:TripProfile,lookup:(CLLocationCoordinate2D,String,String) async throws -> [ScheduleCandidate] = ApplePoiProvider.search) async throws -> [ScheduleCandidate] {
         var groups:[(String,String)]=[]
         let interests=profile.interests
         if interests.contains("美食"){groups.append(("food","restaurants"))}
         if interests.contains("购物"){groups.append(("shops",""))}
         for interest in interests where interest != "美食" && interest != "购物" {
-            let query=interest=="自然" ? "parks":interest=="艺术" ? "art gallery":interest=="文化" ? "museum historic landmark":interest=="城市" ? "Sydney landmarks":"tourist attractions"
+            let query=interest=="自然" ? "parks":interest=="艺术" ? "art galleries":interest=="文化" ? "museums":interest=="城市" ? "Sydney landmarks":"tourist attractions"
             groups.append(("sights",query))
         }
         if !groups.contains(where:{$0.0=="sights"}){groups.append(("sights","tourist attractions"))}
@@ -443,11 +455,17 @@ struct PlaceMediaView:View {
         var found:[ScheduleCandidate]=[];var seen=Set<String>()
         for (category,query) in groups.prefix(5) {
             try Task.checkCancellation()
-            let results=try await ApplePoiProvider.search(profile.start.location,category,query)
-            for var p in results.filter({category != "food" || primaryMealName($0.name)}).prefix(12) where seen.insert(p.id).inserted {
-                p.cost=category=="food" ? 30:0;p.activityType=category=="food" ? "meal":"attraction"
+            var results=try await lookup(profile.start.location,category,query)
+            // Keyword search can miss nearby museums/parks. Enrich from actual local POIs,
+            // preserving their real categories instead of filling gaps with catalogue examples.
+            if category=="sights",!query.isEmpty {results += try await lookup(profile.start.location,category,"")}
+            var added=0
+            for var p in results.filter({category != "food" || primaryMealName($0.name)}) where seen.insert(p.id).inserted {
+                p=planningCandidate(p)
+                if category != "all" && isTransportAccess(p){continue}
                 if category=="shops"{p.category="购物"}
-                found.append(p)
+                found.append(p);added+=1
+                if added>=12{break}
             }
         }
         return Array(found.prefix(60))

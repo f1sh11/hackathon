@@ -9,6 +9,14 @@ namespace SydneyBuddy.Api.Tests;
 public sealed class PetConversationTests(ApiFixture fixture):IClassFixture<ApiFixture>
 {
     [Theory]
+    [InlineData("2026-10-28去悉尼玩2天", "悉尼")]
+    [InlineData("去Sydney旅行3天", "悉尼")]
+    [InlineData("不想去悉尼玩", "")]
+    [InlineData("去悉尼或者墨尔本", "")]
+    public void DestinationWithoutPunctuationDoesNotLoseTheCity(string message,string expected) {
+        var fields=new JsonObject();PetExplicitFacts.Apply(message,fields);Assert.Equal(expected,fields.Str("destination"));
+    }
+    [Theory]
     [InlineData("这次想去歌剧院，不去博物馆。", "歌剧院", "博物馆")]
     [InlineData("想逛岩石区，不参观博物馆。", "岩石区", "博物馆")]
     public void OrdinaryWantAndAvoidPhrasesSurviveMissingModelFields(string message,string wanted,string avoided)
@@ -175,6 +183,8 @@ public sealed class PetConversationTests(ApiFixture fixture):IClassFixture<ApiFi
         var fields=new JsonObject();
         PetExplicitFacts.Apply("这次没有必去地点，也没有特别需要避开的安排。",fields);
         Assert.Equal("无",fields.Str("mustDo"));Assert.Equal("无",fields.Str("avoid"));
+        PetExplicitFacts.Apply("没有必去和避开的安排。",fields);Assert.Equal("无",fields.Str("avoid"));
+        PetExplicitFacts.Apply("没有必去和避开的安排，但不去酒吧。",fields);Assert.Equal("酒吧",fields.Str("avoid"));
     }
     [Theory]
     [InlineData("destination","还没想好")]

@@ -53,11 +53,11 @@ public sealed class PlannerTests : IDisposable
         Assert.Throws<ServiceException>(()=>WalkingTimeUpdate.Apply(trip,0,new JsonArray(),catalog));
     }
     [Fact]
-    public async Task LowEnergyAndRelaxedRhythmLimitDailyActivities()
+    public async Task LowEnergyAndRelaxedRhythmAllowUsefulThirdStop()
     {
         var profile=TestSupport.Profile();profile["energy"]="低精力";profile["rhythm"]="轻松随意";
         var result=await Create().PlanAsync(profile,"demo");
-        Assert.InRange(result.Array("days")![0]!.Array("stops")!.Count,1,2);
+        Assert.InRange(result.Array("days")![0]!.Array("stops")!.Count,1,3);
     }
     [Fact]
     public async Task FifteenDayTripCanBeGeneratedAndSaved()

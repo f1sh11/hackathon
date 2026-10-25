@@ -40,10 +40,17 @@ public sealed class RouteScheduler(RouteService routes)
             }).ToArray();
             HashSet<string> required = day == profile.Int("days") - 1
                 ? mustVisit.Except(used).ToHashSet(StringComparer.Ordinal) : [];
-            var activityLimit=profile.Str("energy")=="低精力" || profile.Str("rhythm")=="轻松随意" ? 2:4;
+            var relaxed=profile.Str("energy")=="低精力" || profile.Str("rhythm")=="轻松随意";
+            var activityLimit=relaxed ? 3:4;
+            if(context.DayCandidateIds is null && profile.Int("days")-day>1) {
+                // Do not spend all suitable visits on early days and leave only a meal later.
+                var visits=available.Count(p=>!RecommendationQuality.IsMeal(p));
+                var meal=available.Any(RecommendationQuality.IsMeal) && RecommendationQuality.MealWindow(daily) is not null ? 1:0;
+                activityLimit=Math.Min(activityLimit,Math.Max(1,(int)Math.Ceiling((double)visits/(profile.Int("days")-day))+meal));
+            }
             var dailyLimit = Math.Min(Math.Max(activityLimit,required.Count),pool.Length);
             if(dailyLimit>5)throw new ServiceException("单日必去地点过多，请分散到多天后再生成。");
-            var options = new List<(double Score, JsonObject[] Order)>();
+            var options = new List<(double Score, JsonObject[] Order, double Travel, int Waiting)>();
 
             for (var length = 1; length <= dailyLimit; length++)
             {
@@ -65,17 +72,23 @@ public sealed class RouteScheduler(RouteService routes)
                     score -= estimate.Array("legs")!.OfType<JsonObject>().Sum(x => x.Number("minutes")) * 0.35;
                     score -= estimate.Int("waitingMinutes")*0.1;
                     score += 100 * order.Count(x => mustVisit.Contains(x.Str("id")));
-                    options.Add((score, order));
+                    if(relaxed)score-=Math.Max(0,order.Length-2)*4;
+                    options.Add((score, order,estimate.Array("legs")!.OfType<JsonObject>().Sum(x=>x.Number("minutes")),estimate.Int("waitingMinutes")));
                 }
             }
 
             JsonObject? selected = null;
-            // 只对排名最高的 8 条初筛路线请求实际路段；保留稳定顺序，便于迁移前后比较。
-            // Check actual legs for the top eight estimates; stable ties preserve Python's catalog/permutation order.
-            foreach (var option in options.OrderByDescending(x => x.Score).Take(context.CompareTransit ? 3:context.Walking is null ? 8 : int.MaxValue))
+            // Compare bounded, verified alternatives instead of accepting the first feasible estimate.
+            // Reserve timetable calls for later days; cache hits remain shared within this request.
+            var limit=context.CompareTransit ? Math.Clamp((40-context.TransitQueries)/Math.Max(1,(profile.Int("days")-day)*(dailyLimit+1)),1,3):context.Walking is null ? 8:int.MaxValue;
+            var best=double.NegativeInfinity;
+            foreach (var option in options.OrderByDescending(x => x.Score).Take(limit))
             {
                 var candidate = await ScheduleAsync(option.Order, daily, context, exact: true, ct);
-                if(candidate is not null){selected=candidate;break;}
+                if(candidate is null)continue;
+                var actual=candidate.Array("legs")!.OfType<JsonObject>().Sum(x=>x.Number("minutes"));
+                var score=option.Score-(actual-option.Travel)*0.35-(candidate.Int("waitingMinutes")-option.Waiting)*0.1;
+                if(score>best){selected=candidate;best=score;}
             }
             if (selected is null && required.Count == 0 && (used.Count > 0 || pool.Length == 0))
             {

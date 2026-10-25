@@ -134,7 +134,7 @@ struct OverviewRoute {
             } catch {
                 guard token == generation, !Task.isCancelled else { return }
                 busy = false
-                message = provider == .apple ? "Apple 步行路线暂时无法载入，请检查网络后重试。当前仅显示站点顺序，未取得真实道路路线。":"道路路线无法载入："+error.localizedDescription.trimmingCharacters(in:CharacterSet(charactersIn:"。.!"))+"。当前仅显示站点顺序。"
+                message = provider == .apple ? (day.hasTransit ? "交通路线暂时无法衔接："+error.localizedDescription+" 可以刷新交通路线，原行程仍保留。":"Apple 步行路线暂时无法载入，请检查网络后重试。当前仅显示站点顺序，未取得真实道路路线。") : "道路路线无法载入："+error.localizedDescription.trimmingCharacters(in:CharacterSet(charactersIn:"。.!"))+"。当前仅显示站点顺序。"
             }
         }
     }

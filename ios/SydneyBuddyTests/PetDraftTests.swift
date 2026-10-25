@@ -2,6 +2,18 @@ import XCTest
 @testable import SydneyBuddy
 
 final class PetDraftTests:XCTestCase {
+    func testSavedTripConversationKeepsKnownFactsAndNormalizedBudget() {
+        var p=TripProfile();p.days=5;p.travelers=2;p.budget=80;p.budgetAmount=800;p.budgetBasis="groupTrip";p.origin="中央车站";p.mustDo="悉尼歌剧院";p.avoid="购物";p.transportPreference="lessWalking"
+        let fields=TripConversationSeed.fields(p)
+        XCTAssertEqual(fields["days"],"5");XCTAssertEqual(fields["travelers"],"2");XCTAssertEqual(fields["origin"],"中央车站");XCTAssertEqual(fields["mustDo"],"悉尼歌剧院");XCTAssertEqual(fields["avoid"],"购物")
+        XCTAssertEqual(fields["budget"],"80.0");XCTAssertEqual(fields["budgetBasis"],"perPersonPerDay");XCTAssertEqual(fields["transportPreference"],"lessWalking");XCTAssertTrue(TravelRequirements.missingFields(fields).isEmpty)
+    }
+    func testChatShortcutsExposeOnlyMissingGroupsAndReadyEditsDirectly() {
+        let initial=TripPlanningShortcuts.items([:],ready:false);XCTAssertEqual(initial.map(\.stage),[0,1])
+        let partial=["destination":"悉尼","date":"2026-10-28","days":"3"]
+        XCTAssertEqual(TripPlanningShortcuts.items(partial,ready:false).map(\.stage),[2,3])
+        XCTAssertEqual(TripPlanningShortcuts.items(partial,ready:true).map(\.stage),[1,3,2])
+    }
     func testAdjustmentUsesLatestUserIntentRatherThanOldProfileSummary() {
         let messages=[PetMessage(id:"1",role:"user",text:"有点累，今天接下来少走些，明天不改"),PetMessage(id:"2",role:"assistant",text:"我会调整剩余安排"),PetMessage(id:"3",role:"user",text:"好的")]
         XCTAssertEqual(TripAdjustmentRequest.make(messages:messages,fallback:"旧行程资料"),messages[0].text)
@@ -267,6 +279,29 @@ final class PetDraftTests:XCTestCase {
         XCTAssertEqual(reviewed.maxSteps,5000)
         XCTAssertTrue(reviewed.request?.contains("阴凉")==true)
         XCTAssertNil(session.fields["pace"])
+    }
+
+    func testExistingTripEditsNormalizeGroupBudgetAndPreserveAnchors() throws {
+        var base=TripProfile();base.days=2;base.startMinute=660;base.endMinute=1020;base.start = .central;base.end = .airport
+        var fields=TripConversationSeed.fields(base)
+        fields["travelers"]="3";fields["budget"]="600";fields["budgetBasis"]="groupTrip";fields["transportPreference"]="lessWalking"
+        let edited=try TripConversationSeed.profile(fields,base:base)
+        XCTAssertEqual(edited.budget,100);XCTAssertEqual(edited.travelers,3)
+        XCTAssertEqual(edited.budgetAmount,600);XCTAssertEqual(edited.transportPreference,"lessWalking")
+        XCTAssertEqual(edited.start.name,base.start.name);XCTAssertEqual(edited.end.name,base.end.name)
+        XCTAssertEqual(edited.startMinute,660);XCTAssertEqual(edited.endMinute,1020)
+        fields["origin"]="另一家酒店"
+        XCTAssertThrowsError(try TripConversationSeed.profile(fields,base:base))
+    }
+
+    func testTimeAdjustmentNeedsAnExplicitEndAndRejectsBeforeDeparture() throws {
+        let base=TripProfile();var fields=TripConversationSeed.fields(base)
+        fields["adjustmentNeed"]="endTime"
+        XCTAssertThrowsError(try TripConversationSeed.profile(fields,base:base))
+        fields.removeValue(forKey:"adjustmentNeed");fields["adjustmentEndMinute"]="840"
+        XCTAssertEqual(try TripConversationSeed.profile(fields,base:base).endMinute,840)
+        fields["adjustmentEndMinute"]="540"
+        XCTAssertThrowsError(try TripConversationSeed.profile(fields,base:base))
     }
 
 }

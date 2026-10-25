@@ -40,6 +40,21 @@ public static class KokoCompanion
     {
         if(!Enabled(s))return null;
         var d=s.Dialogue!;var intent=choice?.Intent ?? "";
+        if(text.StartsWith("关于「") && text.Contains("时间不够了")) {
+            s.Fields["adjustmentNeed"]="endTime";s.Fields.Remove("adjustmentEndMinute");
+            return Turn("别赶啦，我们把重要的留下。第几站先不急着删——这一天最晚几点结束？选个时间，也可以告诉我 HH:mm。",Q("14:00 结束","adjust_end_840"),Q("16:00 结束","adjust_end_960"),Q("18:00 结束","adjust_end_1080"),Q("我自己说时间","compose_idea"));
+        }
+        if(s.Fields.GetValueOrDefault("adjustmentNeed")=="endTime" || s.Fields.ContainsKey("adjustmentEndMinute") && (Regex.IsMatch(text,@"(?<!\d)([01]?\d|2[0-3])[:：]([0-5]\d)(?!\d)") || text is "先不改时间" or "取消调整")) {
+            int? minute=null;
+            if(intent.StartsWith("adjust_end_") && int.TryParse(intent[11..],out var chosen))minute=chosen;
+            else {var clock=Regex.Match(text,@"(?<!\d)([01]?\d|2[0-3])[:：]([0-5]\d)(?!\d)");if(clock.Success)minute=int.Parse(clock.Groups[1].Value)*60+int.Parse(clock.Groups[2].Value);}
+            if(minute is >=0 and <1440) {
+                s.Fields["adjustmentEndMinute"]=minute.Value.ToString();s.Fields.Remove("adjustmentNeed");
+                return Next("这一天按 "+$"{minute/60:00}:{minute%60:00}"+" 前结束来试算。先看建议，确认后才保存；其他日期和长期习惯保留。");
+            }
+            if(text is "先不改时间" or "取消调整") {s.Fields.Remove("adjustmentNeed");s.Fields.Remove("adjustmentEndMinute");return Next("好，结束时间沿用原安排，我们不赶着改。");}
+            return Turn("我还没确定你想几点结束。告诉我例如 14:00，或者先不改时间，原行程都在。",Q("14:00 结束","adjust_end_840"),Q("16:00 结束","adjust_end_960"),Q("先不改时间","adjust_end_cancel"));
+        }
         if(intent.StartsWith("mood_")) {
             d.MoodAnswered=true;
             var warmth=intent switch {

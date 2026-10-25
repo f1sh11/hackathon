@@ -16,6 +16,32 @@ private final class JourneyStub:URLProtocol {
     override func stopLoading(){}
 }
 @MainActor final class JourneyTests:XCTestCase {
+    func testEmptyKeywordSearchStillUsesRealNearbyMuseum() async throws {
+        let data=Data(#"{"id":"apple:museum","name":"Real Nearby Museum","category":"文化","indoor":false,"visitMinutes":60,"cost":0,"lat":-33.86,"lng":151.21,"reason":"test","source":"Apple Maps","poiKind":"attraction"}"#.utf8)
+        let museum=try JSONDecoder().decode(ScheduleCandidate.self,from:data)
+        var profile=TripProfile();profile.interests=["文化"]
+        var queries:[String]=[]
+        let results=try await ApplePlanningDiscovery.search(profile,lookup:{_,_,query in queries.append(query);return query.isEmpty ? [museum]:[]})
+        XCTAssertEqual(queries,["museums",""]);XCTAssertEqual(results.map(\.id),[museum.id]);XCTAssertEqual(results.first?.category,"文化")
+    }
+    func testNamedRestaurantKeepsMealClassificationFromAllSearch() throws {
+        let data=Data(#"{"id":"apple:test","name":"Named Restaurant","category":"美食","indoor":false,"visitMinutes":60,"cost":0,"lat":-33.86,"lng":151.21,"reason":"test","source":"Apple Maps","poiKind":"restaurant"}"#.utf8)
+        let result=ApplePlanningDiscovery.planningCandidate(try JSONDecoder().decode(ScheduleCandidate.self,from:data))
+        XCTAssertEqual(result.activityType,"meal");XCTAssertEqual(result.cost,30);XCTAssertEqual(result.visitMinutes,45)
+        var pontoon=result;pontoon.name="Eastern Pontoon Circular Quay";pontoon.category="风景";pontoon.poiKind="attraction"
+        XCTAssertTrue(ApplePlanningDiscovery.isTransportAccess(pontoon));pontoon.name="Sydney Opera House";XCTAssertFalse(ApplePlanningDiscovery.isTransportAccess(pontoon))
+        var restaurant=result;restaurant.name="Wharf Restaurant";XCTAssertFalse(ApplePlanningDiscovery.isTransportAccess(restaurant))
+    }
+    func testLateDepartureRejectsSavedTransitAndFreshLookupUsesRequestedTime() async throws {
+        var d=day();let start=journeyDate("2026-10-23T10:00:00+11:00")!,late=start.addingTimeInterval(3600)
+        func step(_ date:Date)->JourneyStep {let f=ISO8601DateFormatter();return JourneyStep(mode:"bus",line:"fresh",headsign:nil,from:d.start.name,to:d.end.name,departureTime:f.string(from:date),arrivalTime:f.string(from:date.addingTimeInterval(900)),realtime:false,stopCount:nil,meters:1000,seconds:900,waitSeconds:0,platform:nil,agency:nil,geometry:[])}
+        let old=step(start);d.legs=[RouteLeg(meters:1000,minutes:15,polyline:"",source:"Transport for NSW",mode:"transit",steps:[old],departureTime:old.departureTime,arrivalTime:old.arrivalTime)]
+        do{_ = try await AppleJourneyProvider.plan(day:d,modes:["transit"],departure:late);XCTFail("Old bus must be rejected")}catch{XCTAssertTrue(error.localizedDescription.contains("刷新"))}
+        var requested:Date?
+        let result=try await AppleJourneyProvider.plan(day:d,modes:["transit"],departure:late,useSavedTransit:false,transitLookup:{_,_,date in requested=date;return [step(date)]})
+        XCTAssertEqual(requested,late);XCTAssertEqual(journeyDate(result.legs[0].departureTime),late);XCTAssertEqual(result.legs[0].steps[0].line,"fresh")
+        do{_ = try await AppleJourneyProvider.plan(day:d,modes:["transit"],departure:late,useSavedTransit:false,transitLookup:{_,_,_ in throw URLError(.notConnectedToInternet)});XCTFail("Failed lookup must not reuse old bus")}catch{}
+    }
     func testPrimaryMealsExcludeStationGroceriesAndSnackCounters() {
         XCTAssertFalse(ApplePlanningDiscovery.primaryMealName("CFM BAKERY - Central Food Market"))
         XCTAssertFalse(ApplePlanningDiscovery.primaryMealName("Central Fruit Juice"))

@@ -424,11 +424,14 @@ struct InlineTripSchedule:View {
     var onMap:()->Void
     var onAdvanced:()->Void
     var showsDayPicker=true
+    var sharedCompanion=false
+    var onCompanion:((String)->Void)?=nil
     var onDraftChange:(Bool)->Void = {_ in}
     var onSavingChange:(Bool)->Void = {_ in}
     @EnvironmentObject private var store:AppStore
     @StateObject private var model=ScheduleEditorModel()
     @State private var expanded:String?
+    @State private var routePreview=false
     @State private var durationActivity:ScheduleActivity?
     @State private var candidateRequest:ScheduleCandidateRequest?
     @State private var ledger=false
@@ -470,8 +473,8 @@ struct InlineTripSchedule:View {
                     }
                     issues
                     Divider().padding(.vertical,22)
-                    Button{ledger=true}label:{HStack{Label("预算与花费",systemImage:"creditcard");Spacer();Image(systemName:"chevron.right").font(.caption)}}.font(.subheadline).frame(minHeight:44).buttonStyle(BuddyPressStyle()).accessibilityIdentifier("trip-budget")
-                    Button{askKoko(nil)}label:{HStack(spacing:12){PetAvatar(mood:.curious,size:48).frame(width:48,height:54);VStack(alignment:.leading,spacing:4){Text("要不要一起调整一下？").font(.subheadline.bold());Text("换个地点，或留一点发呆的时间").font(.caption).foregroundStyle(Palette.muted)};Spacer();Image(systemName:"bubble.left.and.bubble.right")}.padding(12).background(Palette.lavender.opacity(0.6),in:RoundedRectangle(cornerRadius:20))}.buttonStyle(BuddyPressStyle()).padding(.vertical,12).disabled(changed || saving).accessibilityIdentifier("schedule-ask-koko")
+                    if !sharedCompanion{Button{askKoko(nil)}label:{HStack(spacing:12){PetAvatar(mood:.curious,size:48).frame(width:48,height:54);VStack(alignment:.leading,spacing:4){Text("要不要一起调整一下？").font(.subheadline.bold());Text("换个地点，或留一点发呆的时间").font(.caption).foregroundStyle(Palette.muted)};Spacer();Image(systemName:"bubble.left.and.bubble.right")}.padding(12).background(Palette.lavender.opacity(0.6),in:RoundedRectangle(cornerRadius:20))}.buttonStyle(BuddyPressStyle()).padding(.vertical,12).disabled(changed || saving).accessibilityIdentifier("schedule-ask-koko")}
+
                     DisclosureGroup("旅行说明"){VStack(alignment:.leading,spacing:10){Text(store.language.display(trip.explanation));if trip.days.indices.contains(index){if let past=trip.days[index].completedStops,!past.isEmpty {Text("已完成："+past.map(\.name).joined(separator:"、"))};if let skipped=trip.days[index].skippedStops,!skipped.isEmpty {Text("已跳过："+skipped.map(\.name).joined(separator:"、"))}};ForEach(trip.warnings,id:\.self){Text(store.language.display($0))}}.font(.caption).foregroundStyle(Palette.muted).padding(.top,8)}.font(.caption)
                 }.padding(20)
             }
@@ -490,6 +493,7 @@ struct InlineTripSchedule:View {
         }}
         .sheet(item:$candidateRequest){request in candidatePicker(request)}
         .sheet(isPresented:$ledger){JournalView(tripID:trip.id)}
+        .sheet(isPresented:$routePreview){AppleTripWalkingView(trip:trip,initialDay:index)}
         .sheet(item:$chatRequest){request in AgentView(context:request.text)}
         .confirmationDialog("放弃这次尚未保存的调整？",isPresented:$discard,titleVisibility:.visible){Button("放弃修改",role:.destructive){model.restore();expanded=nil};Button("继续调整",role:.cancel){}}
         .sensoryFeedback(.success,trigger:savedMessage)
@@ -497,7 +501,7 @@ struct InlineTripSchedule:View {
     private func heading(_ day:ScheduleDay)->some View {
         VStack(alignment:.leading,spacing:8){
             HStack{Text("第 \(index+1) 天").font(.system(.title2,design:.rounded,weight:.bold));Text(day.date).font(.subheadline).foregroundStyle(Palette.muted);Spacer();if editable{Menu{Button("添加安排",systemImage:"plus"){openAdd(day.activities.count)};Button("完整时间与住宿设置",systemImage:"slider.horizontal.3"){onAdvanced()}.disabled(changed)}label:{Image(systemName:"slider.horizontal.3").frame(width:44,height:44)}.accessibilityLabel("当天调整")}}
-            HStack(spacing:14){Button{ledger=true}label:{Label("每人估算 A$\(Int(day.estimatedCost))",systemImage:"creditcard")}.buttonStyle(.plain);Label("约 \(day.estimatedSteps.formatted()) 步",systemImage:"figure.walk")}.font(.caption).foregroundStyle(Palette.muted)
+            HStack(spacing:14){Button{ledger=true}label:{Label("预算／花费 · A$\(Int(day.estimatedCost))",systemImage:"creditcard").frame(minHeight:44)}.buttonStyle(BuddyPressStyle()).accessibilityLabel("预算与花费，每人当天估算 A$\(Int(day.estimatedCost))，点击查看账本").accessibilityIdentifier("trip-budget");Label("约 \(day.estimatedSteps.formatted()) 步",systemImage:"figure.walk")}.font(.caption).foregroundStyle(Palette.muted)
             if changed{Label("修改预览 · 原行程仍保留",systemImage:"pencil.line").font(.caption.bold()).foregroundStyle(Palette.berry)}
             if savedMessage{Label("收好啦，新的安排已经保存",systemImage:"checkmark.circle.fill").font(.caption).foregroundStyle(Palette.berry)}
         }.padding(.bottom,24)
@@ -510,7 +514,9 @@ struct InlineTripSchedule:View {
         return "交通"
     }
     private func connection(position:Int,minutes:Int?)->some View {
-        HStack(spacing:12){Color.clear.frame(width:46,height:1);Rectangle().fill(Palette.berry.opacity(0.18)).frame(width:1,height:32).frame(width:24);if let minutes,minutes>0{Text("\(transportTitle(position))约 \(minutes) 分钟").font(.caption).foregroundStyle(Palette.muted)};Spacer();if editable{Button{openAdd(position)}label:{Image(systemName:"plus").font(.caption.bold()).frame(width:44,height:44)}.buttonStyle(BuddyPressStyle()).disabled(blocked).accessibilityLabel("在第 \(position+1) 个位置添加安排").accessibilityIdentifier("schedule-insert-\(position)")}}
+        let travel=minutes ?? (model.trip?.days.indices.contains(index)==true ? model.trip!.days[index].legs.last?.minutes: nil) ?? 0
+        let buffer=day.map{ScheduleConnection.buffer(day:$0,position:position,travel:travel)} ?? 0
+        return HStack(spacing:12){Color.clear.frame(width:46,height:1);Rectangle().fill(Palette.berry.opacity(0.18)).frame(width:1,height:32).frame(width:24);VStack(alignment:.leading,spacing:3){if travel>0{Text("\(transportTitle(position))约 \(travel) 分钟")};if buffer>0{Text("休息与衔接 \(buffer) 分钟")}}.font(.caption).foregroundStyle(Palette.muted);Spacer();if editable{Button{openAdd(position)}label:{Image(systemName:"plus").font(.caption.bold()).frame(width:44,height:44)}.buttonStyle(BuddyPressStyle()).disabled(blocked).accessibilityLabel("在第 \(position+1) 个位置添加安排").accessibilityIdentifier("schedule-insert-\(position)")}}
     }
     private func activityRow(_ activity:ScheduleActivity,position:Int)->some View {
         VStack(alignment:.leading,spacing:0){
@@ -547,7 +553,12 @@ struct InlineTripSchedule:View {
     @ViewBuilder private var issues:some View {
         if model.busy{Label("正在更新当天时间与步数…",systemImage:"hourglass").font(.caption).foregroundStyle(Palette.berry).padding(.top,16)}
         if let error=model.error{VStack(alignment:.leading,spacing:8){Text(error).font(.caption);Button("保留草稿并重试"){model.recompute()}.font(.subheadline.bold())}.padding(14).background(Palette.peach,in:RoundedRectangle(cornerRadius:14)).padding(.top,16)}
-        ForEach(model.state?.issues.filter{$0.day==index || $0.day == -1} ?? []){issue in Label(store.language.display(issue.message),systemImage:issue.blocking ? "exclamationmark.triangle":"info.circle").font(.caption).foregroundStyle(issue.blocking ? Color.red:Palette.muted).padding(.top,10)}
+        let current=model.state?.issues.filter{$0.day==index || $0.day == -1} ?? []
+        ForEach(current.filter(\.blocking)){issue in Label(store.language.display(issue.message),systemImage:"exclamationmark.triangle").font(.caption).foregroundStyle(Color.red).padding(.top,10)}
+        let notes=current.filter{!$0.blocking}
+        if !notes.isEmpty {
+            DisclosureGroup("估算与待确认信息（\(notes.count)）") {ForEach(notes){issue in Text(store.language.display(issue.message)).font(.caption).foregroundStyle(Palette.muted).padding(.top,6)}}.font(.caption).padding(.top,12)
+        }
         if let error=store.adjustmentError{Text(error).font(.caption).foregroundStyle(.red).padding(.top,12)}
     }
     private var footer:some View {
@@ -556,7 +567,7 @@ struct InlineTripSchedule:View {
                 Text(model.busy ? "正在计算调整影响…":impact).font(.caption).foregroundStyle(Palette.muted).frame(maxWidth:.infinity,alignment:.leading)
                 HStack(spacing:12){Button("撤销"){model.undo()}.frame(minWidth:44,minHeight:44).disabled(!model.canUndo || saving);Button("取消"){discard=true}.frame(minWidth:44,minHeight:44).disabled(saving);PrimaryButton(title:saving ? "正在保存…":"保存调整",symbol:"checkmark"){save()}.disabled(!canSave)}
             }else{
-                HStack{Text("第 \(index+1) 天 · \(day?.activities.count ?? 0) 个安排").font(.caption).foregroundStyle(Palette.muted);Spacer();Button{onMap()}label:{Label("查看路线",systemImage:"map").font(.subheadline.bold()).padding(.horizontal,16).frame(minHeight:48)}.buttonStyle(KokoPrimaryStyle())}
+                HStack{Text("第 \(index+1) 天 · \(day?.activities.count ?? 0) 个安排").font(.caption).foregroundStyle(Palette.muted);Spacer();Button{if store.mapProvider == .apple{routePreview=true}else{onMap()}}label:{Label("查看路线",systemImage:"map").font(.subheadline.bold()).padding(.horizontal,16).frame(minHeight:48)}.buttonStyle(KokoPrimaryStyle())}
             }
         }.padding(16).background(.white).accessibilityIdentifier("schedule-action-bar")
     }
@@ -589,7 +600,7 @@ struct InlineTripSchedule:View {
     private func askKoko(_ activity:ScheduleActivity?){
         guard !changed else{return}
         let context="关于「\(trip.title)」第 \(index+1) 天（\(day?.date ?? "")）"+(activity.map{"的「\($0.name)」"} ?? "的安排")+"，我想调整一下。请先给我建议，确认后再修改。"
-        chatRequest=ScheduleChatRequest(text:context)
+        if let onCompanion{onCompanion(context)}else{chatRequest=ScheduleChatRequest(text:context)}
     }
     private func save(){
         guard canSave,let candidate=model.trip else{return};saving=true
@@ -618,5 +629,16 @@ private struct InlineDurationSheet:View {
             PrimaryButton(title:"预览调整",symbol:"clock"){apply(minutes);dismiss()}.accessibilityIdentifier("schedule-duration-apply")
         }.padding(24)}.background(Palette.cream).navigationTitle("留一点喜欢的时间").navigationBarTitleDisplayMode(.inline).toolbar{Button("取消"){dismiss()}}}
         .presentationDetents([.height(560),.large]).onAppear{minutes=activity.duration}
+    }
+}
+
+// Explain the existing schedule gap; never invent extra time or change the saved plan.
+enum ScheduleConnection {
+    static func buffer(day:ScheduleDay,position:Int,travel:Int)->Int {
+        func minute(_ time:String)->Int? {let p=time.split(separator:":").compactMap{Int($0)};return p.count==2 ? p[0]*60+p[1]:nil}
+        guard position>=0,position<=day.activities.count else{return 0}
+        let previous=position==0 ? day.startMinute:minute(day.activities[position-1].departure)
+        let next=position<day.activities.count ? minute(day.activities[position].arrival):minute(day.finishTime)
+        guard let previous,let next else{return 0};return max(0,next-previous-travel)
     }
 }
