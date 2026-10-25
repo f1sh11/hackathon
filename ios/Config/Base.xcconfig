@@ -1,1 +1,2 @@
+SYDNEYBUDDY_BACKEND_URL =
 #include? "Secrets.xcconfig"

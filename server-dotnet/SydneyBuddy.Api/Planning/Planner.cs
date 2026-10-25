@@ -8,7 +8,7 @@ namespace SydneyBuddy.Api;
 /// Orchestrates validation, evidence, recommendations and scheduling; returns drafts without persistence.
 /// </summary>
 public sealed class Planner(PlaceService places, RecommendationService recommendations, RouteScheduler scheduler,
-    WeatherService weather, SecretStore secrets,TravelDataContext? travel=null,PublicTravelWeather? publicWeather=null)
+    WeatherService weather, SecretStore secrets,TravelDataContext? travel=null,PublicTravelWeather? publicWeather=null,PlanningAgent? agent=null)
 {
     public IReadOnlyList<JsonObject> Catalog => places.Catalog;
 
@@ -23,20 +23,93 @@ public sealed class Planner(PlaceService places, RecommendationService recommend
     /// 输入客户端约束与模式，返回兼容原客户端的未保存行程。
     /// Takes constraints and mode; returns an unsaved itinerary with the original mobile JSON contract.
     /// </summary>
-    public async Task<JsonObject> PlanAsync(JsonObject raw, string mode, CancellationToken ct = default)
+    public async Task<JsonObject> PlanAsync(JsonObject raw, string mode, CancellationToken ct = default,bool shortlist=false)
     {
         if (mode is not ("demo" or "assisted" or "live")) throw new ServiceException("模式不合法");
         var context = new PlanningContext(mode, secrets.Read());
-        var profile = PlanValidator.Validate(raw, Catalog);
-        var candidates = TravelConstraints.Apply(profile, await places.GetCandidatesAsync(context, ct));
+        var imported=raw.Array("planningCandidates");
+        var planningCatalog=PlanningCandidates.Merge(Catalog,imported);
+        var evidence=raw.Array("walkingRoutes");
+        var candidateDays=raw.Array("walkingDayCandidateIds");
+        raw=(JsonObject)raw.DeepClone();raw.Remove("walkingRoutes");raw.Remove("walkingDayCandidateIds");raw.Remove("planningCandidates");
+        if(mode=="live" && evidence is not null)throw new ServiceException("Google 来源行程不能混用 Apple 步行数据。");
+        if(evidence is not null)context.Walking=new WalkingEvidence(evidence);
+        context.CompareTransit=evidence is not null && raw.Str("transportPreference","walk")!="walk";
+        var profile = PlanValidator.Validate(raw, planningCatalog);
+        var candidates = TravelConstraints.Apply(profile, imported is null ? await places.GetCandidatesAsync(context, ct):planningCatalog.Where(p=>PoiService.IsImported(p)||profile.Array("mustVisit")!.Any(id=>id!.GetValue<string>()==p.Str("id"))||profile.Str("mustDo").Contains(p.Str("name"))).ToArray());
+        if(candidateDays is not null) {
+            var known=planningCatalog.Select(p=>p.Str("id")).ToHashSet(StringComparer.Ordinal);
+            if(context.Walking is null || candidateDays.Count!=profile.Int("days"))throw new ServiceException("逐日步行候选不完整，请重新生成。");
+            var groups=new List<HashSet<string>>();
+            foreach(var value in candidateDays) {
+                if(value is not JsonArray ids || ids.Count>10)throw new ServiceException("逐日步行候选不合法。");
+                var group=new HashSet<string>(StringComparer.Ordinal);
+                foreach(var node in ids) {
+                    if(node is not JsonValue v || !v.TryGetValue<string>(out var id)||!known.Contains(id)||!group.Add(id))throw new ServiceException("逐日步行候选包含无效地点。");
+                }
+                groups.Add(group);
+            }
+            if(!profile.Array("mustVisit")!.All(id=>groups.Any(g=>g.Contains(id!.GetValue<string>()))))throw new ServiceException("步行候选遗漏了必去地点。");
+            context.DayCandidateIds=groups;
+            context.Record("按片区核对道路","先筛选每天的主题活动与附近备选，再用真实步行时间比较当天顺序；未穷举全城路线。","本地推荐规则 + Apple Maps");
+        }
+
+        if(raw.Array("walkingCandidateIds") is {} selected) {
+            var ids=selected.Select(x=>x?.GetValue<string>()??"").ToHashSet();
+            if(context.Walking is null || ids.Count==0 || ids.Any(id=>!planningCatalog.Any(p=>p.Str("id")==id)) || profile.Array("mustVisit")!.Any(x=>!ids.Contains(x!.GetValue<string>())))throw new ServiceException("候选地点不完整，请重新查询步行路线。");
+            candidates=candidates.Where(p=>ids.Contains(p.Str("id"))).ToArray();
+            context.Record("初筛步行候选",$"比较 {candidates.Count} 个候选地点的有方向道路耗时；保留必去地点。","Apple Maps / MapKit 客户端道路查询");
+        }
+        profile.Remove("walkingCandidateIds");
+        profile.Remove("useAgent");
         var forecast = await WeatherForProfileAsync(profile, context, ct);
-        var choice = await recommendations.SelectAsync(profile, candidates, forecast, context, ct);
+        var choice = raw.Bool("useAgent") ? await (agent??throw new ServiceException("旅行 Agent 尚未启动。")).RankAsync(profile,candidates,ct):await recommendations.SelectAsync(profile, candidates, forecast, context, ct);
+        if(raw.Bool("useAgent"))context.Record("Koko Agent 推荐",choice.Str("explanation"),"NVIDIA NIM / "+secrets.Read().GetValueOrDefault("NVIDIA_MODEL",SecretStore.DefaultModel));
         var ranks = choice.Array("preferredIds")!.Select((id, index) => (id: id!.GetValue<string>(), index))
             .ToDictionary(x => x.id, x => x.index, StringComparer.Ordinal);
-        if (new[] { "少走", "累", "轻松" }.Any(x => profile.Str("request").Contains(x, StringComparison.Ordinal)))
+        if (!shortlist && TravelAdjustmentIntent.Lighter(profile.Str("request")))
             profile["maxSteps"] = Math.Min(profile.Int("maxSteps"), 7000);
         var days = await scheduler.ScheduleDaysAsync(profile, candidates, forecast, ranks, context, ct);
-        return BuildDraft(profile, days, forecast, context);
+        context.Record("交通方式比较",context.CompareTransit ? "在候选道路上比较 TfNSW 班次、等候、接驳步行和换乘。票价未知。":"用户选择只步行或兼容旧请求。","交通规划器");
+        var draft=BuildDraft(profile, days, forecast, context);
+        var transportEvidence=new JsonArray();
+        foreach(var day in days.OfType<JsonObject>()) {
+            var stops=day.Array("stops")!.OfType<JsonObject>().ToArray();var previous=day.Object("start")!;var clock=day.Int("planningStartMinute");var index=0;
+            foreach(var leg in day.Array("legs")!.OfType<JsonObject>()) {
+                var next=index<stops.Length?stops[index]:day.Object("end")!;
+                if(leg.Str("mode")=="transit")transportEvidence.Add(new JsonObject{["from"]=previous.DeepClone(),["to"]=next.DeepClone(),["date"]=day.Str("date"),["minute"]=clock,["leg"]=leg.DeepClone()});
+                if(index<stops.Length){var t=stops[index].Str("departure").Split(':');clock=int.Parse(t[0])*60+int.Parse(t[1])+15;}
+                previous=next;index++;
+            }
+        }
+        if(context.CompareTransit)draft["transportRoutes"]=transportEvidence;
+        if(imported is not null){draft["planningCandidates"]=new JsonArray(planningCatalog.Where(PoiService.IsImported).Select(p=>p.DeepClone()).ToArray());draft.Array("warnings")!.Add("地点来自本次真实搜索；未知门票、营业时间和餐饮价格未核实，预算可能不完整。");}
+        return draft;
+    }
+
+    // This shortlist is not a final itinerary: the client must verify its directed road legs.
+    public async Task<JsonObject> PrepareWalkingAsync(JsonObject raw,CancellationToken ct=default)
+    {
+        var input=(JsonObject)raw.DeepClone();input.Remove("mode");input.Remove("walkingRoutes");input.Remove("walkingDayCandidateIds");input.Remove("walkingCandidateIds");
+        // A far must-see must reach the transit comparison instead of being rejected by a walking-only prefilter.
+        if(input.Str("transportPreference","walk")!="walk"){input["maxSteps"]=60000;input["endMinute"]=1439;}
+        var seed=await PlanAsync(input,"demo",ct,shortlist:true);
+        var profile=seed.Object("profile")!;var eligible=TravelConstraints.Apply((JsonObject)profile.DeepClone(),PlanningCandidates.Merge(Catalog,raw.Array("planningCandidates")));
+        var days=seed.Array("days")!.OfType<JsonObject>().ToArray();
+        if(raw.Array("planningCandidates") is not null)eligible=eligible.Where(PoiService.IsImported).ToArray();
+        var assigned=days.SelectMany(d=>d.Array("stops")!.OfType<JsonObject>()).Select(p=>p.Str("id")).ToHashSet();
+        var groups=new JsonArray();var interests=profile.Array("interests")!.Select(i=>i!.GetValue<string>()).ToArray();
+        foreach(var day in days) {
+            var picks=day.Array("stops")!.OfType<JsonObject>().ToArray();var ids=picks.Select(p=>p.Str("id")).ToList();
+            if(picks.Length>0) {
+                var backup=eligible.Where(p=>!assigned.Contains(p.Str("id")))
+                    .OrderByDescending(p=>RecommendationQuality.InterestScore(p,interests)-picks.Min(s=>RouteService.Distance(s,p))/100)
+                    .ThenBy(p=>p.Str("id"),StringComparer.Ordinal).FirstOrDefault();
+                if(backup is not null)ids.Add(backup.Str("id"));
+            }
+            groups.Add(new JsonArray(ids.Select(id=>JsonValue.Create(id)).ToArray()));
+        }
+        return new JsonObject{["candidates"]=seed["planningCandidates"]?.DeepClone(),["candidateDays"]=groups,["source"]=raw.Bool("useAgent")?"Koko Agent 从真实搜索候选初筛，尚未完成道路与班次校验":"本地主题与片区初筛，尚未完成道路校验"};
     }
 
     private static JsonObject BuildDraft(JsonObject profile, JsonArray days, JsonObject weather, PlanningContext context)
@@ -45,7 +118,7 @@ public sealed class Planner(PlaceService places, RecommendationService recommend
         var warnings = new JsonArray
         {
             "花费、场内步数与停留时间为估算；未包含酒店、交通票价、全部餐饮或特殊展门票。",
-            "步行模式；未评估无障碍、坡度、排队与道路临时封闭。"
+            context.CompareTransit?"已比较步行与公共交通；未评估无障碍、坡度、排队与道路临时封闭。":"步行模式；未评估无障碍、坡度、排队与道路临时封闭。"
         };
         if (profile.Array("mustVisit")!.Count>0 && !string.IsNullOrEmpty(profile.Str("mustDo")))warnings.Add("特别想去／想做："+profile.Str("mustDo")+"。已作为必去约束检查并排入路线。");
         if (!string.IsNullOrEmpty(profile.Str("avoid")) && profile.Str("avoid") is not ("无" or "未确定" or "暂不确定" or "无特别要求"))warnings.Add("避开／出行需求："+profile.Str("avoid")+"。已按可识别地点和类别筛选；无障碍、临时封路等仍需另行核实。");
@@ -55,14 +128,26 @@ public sealed class Planner(PlaceService places, RecommendationService recommend
             warnings.Add("部分日期为自由安排：现有候选景点无法在预算、步数及营业时间约束下每天安排不重复活动，请检查日程并补充地点。");
         if (weather.Bool("rainy") && days.OfType<JsonObject>()
                 .SelectMany(x => x.Array("stops")!.OfType<JsonObject>()).Any(x => !x.Bool("indoor")))
-            warnings.Add("你选择的必去地点包含户外活动，请自行确认天气并准备替代安排。");
-        if (context.Mode == "demo") warnings.Insert(0, JsonValue.Create("演示模式：未调用 Google 或 Nemotron；路线不是导航路径。"));
+            warnings.Add("行程包含户外活动，请出发前确认天气并准备室内替代安排。");
+        if(context.CompareTransit)warnings.Add("已比较步行与 NSW 公共交通；班次是查询时结果，出发前需刷新。票价未提供，预算不包含公交费用。");
+        if(context.Walking is not null)warnings.Insert(0,JsonValue.Create("步行已按 Apple 道路查询验证；地点费用与未核实营业时间仍为估算。"));
+        else if (context.Mode == "demo") warnings.Insert(0, JsonValue.Create("演示模式：未调用 Google 或 Nemotron；路线不是导航路径。"));
         else if (context.Mode == "assisted") warnings.Insert(0, JsonValue.Create("Nemotron 已真实调用；地点、营业时段与路线仍为示例估算；天氣以畫面標示來源為準，未查询 Google。"));
-        var explanation = $"按你的兴趣、每天 A${profile.Number("budget").ToString("G", CultureInfo.InvariantCulture)} 活动预算和 {profile.Int("maxSteps")} 步上限安排了 {days.Count} 天路线。已计入步行、参观、休息和返回{profile.Object("end")!.Str("name")}的时间。";
-        if (weather.Bool("rainy")) explanation += "下雨情景优先安排室内地点，必去地点除外。";
+        var allStops=days.OfType<JsonObject>().SelectMany(d=>d.Array("stops")!.OfType<JsonObject>()).ToArray();
+        var unmet=profile.Array("interests")!.Select(i=>i!.GetValue<string>()).Where(i=>!allStops.Any(p=>RecommendationQuality.Matches(p,i))).ToArray();
+        foreach(var interest in unmet)warnings.Add("未满足「"+interest+"」偏好：当前候选或出行限制不足，没有用其他活动冒充。");
+        foreach(var day in days.OfType<JsonObject>())foreach(var w in day.Array("warnings")?.OfType<JsonValue>()??[]) {
+            var text=w.GetValue<string>();if(text.Contains("未覆盖")||text.Contains("未安排具体餐厅")||text.Contains("半日活动"))warnings.Add(day.Str("date")+"："+text);
+        }
+        var partial=unmet.Length>0||days.OfType<JsonObject>().Any(d=>d.Bool("freeTime")||d.Str("recommendationStatus")=="partial");
+        if(allStops.Any(RecommendationQuality.IsMeal))warnings.Add("具体餐厅已安排；餐费为每人估算并计入本日预算，不代表菜单报价、订位或有空位。营业时间出发前仍需确认。");
+        var explanation = $"共安排 {allStops.Length} 项活动，其中 {allStops.Count(RecommendationQuality.IsMeal)} 次具体用餐。每天 A${profile.Number("budget").ToString("G", CultureInfo.InvariantCulture)} 活动预算和 {profile.Int("maxSteps")} 步上限，规划 {days.Count} 天路线。已计入交通、参观、休息和返回{profile.Object("end")!.Str("name")}的时间。";
+        if (weather.Bool("rainy")) explanation += "预报有雨，优先室内，缩短可选户外停留；出发前确认天气。";
+        if(days.OfType<JsonObject>().Any(d=>d.Array("warnings")!.Any(w=>w!.GetValue<string>().Contains("半日活动"))))explanation+="部分日期仅安排半日活动和用餐，下午留白，未视为全天已排满。";
+        if(partial)explanation="这是一份待补充草案，部分需求尚未满足。"+explanation;
         return new JsonObject
         {
-            ["title"] = "悉尼小冒险", ["mode"] = context.Mode, ["profile"] = profile, ["days"] = days,
+            ["recommendationStatus"]=partial?"partial":"ready",["title"] = "悉尼小冒险", ["mode"] = context.Mode, ["profile"] = profile, ["days"] = days,
             ["dataSource"] = weather.Str("dataSource","legacy"), ["weather"] = weather, ["explanation"] = explanation, ["warnings"] = warnings,
             ["trace"] = context.Trace.DeepClone(), ["createdAt"] = context.Now
         };

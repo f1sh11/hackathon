@@ -26,12 +26,23 @@ public sealed class RouteScheduler(RouteService routes)
             // Apply rain filtering per date, rather than excluding outdoor places for the entire trip.
             var forecast = weather.Array("days")?.OfType<JsonObject>().FirstOrDefault(x => x.Str("date") == daily.Str("date"));
             var rainy = forecast?.Bool("rainy") ?? weather.Bool("rainy");
-            var pool = places.Where(x => !used.Contains(x.Str("id")) &&
-                (!rainy || x.Bool("indoor") || mustVisit.Contains(x.Str("id")))).ToArray();
+            var available = places.Where(x => !used.Contains(x.Str("id")) &&
+                (context.DayCandidateIds is null || context.DayCandidateIds[day].Contains(x.Str("id"))) &&
+                (profile.Str("weatherOverride")!="rain" || x.Bool("indoor") || mustVisit.Contains(x.Str("id")))).ToArray();
+            // Forecast rain changes preference and outdoor duration, not the entire purpose of a trip.
+            var pool=RecommendationQuality.DailyPool(available,daily,mustVisit,ranks).Select(x=> {
+                var p=(JsonObject)x.DeepClone();
+                if(rainy&&!p.Bool("indoor")&&(p["indoorKnown"] is null||p.Bool("indoorKnown"))&&!mustVisit.Contains(p.Str("id"))) {
+                    p["visitMinutes"]=Math.Min(p.Int("visitMinutes"),30);
+                    p["note"]=p.Str("note")+"；预报有雨，缩短户外停留，出发前确认天气。";
+                }
+                return p;
+            }).ToArray();
             HashSet<string> required = day == profile.Int("days") - 1
                 ? mustVisit.Except(used).ToHashSet(StringComparer.Ordinal) : [];
             var activityLimit=profile.Str("energy")=="低精力" || profile.Str("rhythm")=="轻松随意" ? 2:4;
-            var dailyLimit = Math.Min(activityLimit, (int)Math.Ceiling((double)pool.Length / (profile.Int("days") - day)));
+            var dailyLimit = Math.Min(Math.Max(activityLimit,required.Count),pool.Length);
+            if(dailyLimit>5)throw new ServiceException("单日必去地点过多，请分散到多天后再生成。");
             var options = new List<(double Score, JsonObject[] Order)>();
 
             for (var length = 1; length <= dailyLimit; length++)
@@ -40,13 +51,20 @@ public sealed class RouteScheduler(RouteService routes)
                 {
                     ct.ThrowIfCancellationRequested();
                     if (!required.IsSubsetOf(order.Select(x => x.Str("id")))) continue;
+                    var mealCount=order.Count(RecommendationQuality.IsMeal);
+                    if(mealCount>1 || (mealCount>0 && RecommendationQuality.MealWindow(daily) is null))continue;
                     var estimate = await ScheduleAsync(order, daily, context, exact: false, ct);
                     if (estimate is null) continue;
-                    var score = order.Sum(point => 10d + (interests.Contains(point.Str("category")) ? 5 : 0)
-                        + (ranks.Count - ranks.GetValueOrDefault(point.Str("id"), ranks.Count)) * 2
-                        - (rainy && !point.Bool("indoor") ? 14 : 0));
-                    score -= estimate.Array("legs")!.OfType<JsonObject>().Sum(x => x.Number("minutes")) * 0.09;
-                    score += 50 * order.Count(x => mustVisit.Contains(x.Str("id")));
+                    var score = order.Sum(point => 10d + RecommendationQuality.InterestScore(point,interests)
+                        + (ranks.Count - ranks.GetValueOrDefault(point.Str("id"), ranks.Count)) * 0.8
+                        - (rainy && !point.Bool("indoor") ? 18 : 0));
+                    // One real meal plus visits beats either skipping lunch or filling a day with restaurants.
+                    if(mealCount>0)score+=35;
+                    if(order.Any(p=>!RecommendationQuality.IsMeal(p)))score+=15;
+                    score += order.SelectMany(p=>interests.Where(i=>RecommendationQuality.Matches(p,i))).Distinct().Count()*120;
+                    score -= estimate.Array("legs")!.OfType<JsonObject>().Sum(x => x.Number("minutes")) * 0.35;
+                    score -= estimate.Int("waitingMinutes")*0.1;
+                    score += 100 * order.Count(x => mustVisit.Contains(x.Str("id")));
                     options.Add((score, order));
                 }
             }
@@ -54,10 +72,10 @@ public sealed class RouteScheduler(RouteService routes)
             JsonObject? selected = null;
             // 只对排名最高的 8 条初筛路线请求实际路段；保留稳定顺序，便于迁移前后比较。
             // Check actual legs for the top eight estimates; stable ties preserve Python's catalog/permutation order.
-            foreach (var option in options.OrderByDescending(x => x.Score).Take(8))
+            foreach (var option in options.OrderByDescending(x => x.Score).Take(context.CompareTransit ? 3:context.Walking is null ? 8 : int.MaxValue))
             {
-                selected = await ScheduleAsync(option.Order, daily, context, exact: true, ct);
-                if (selected is not null) break;
+                var candidate = await ScheduleAsync(option.Order, daily, context, exact: true, ct);
+                if(candidate is not null){selected=candidate;break;}
             }
             if (selected is null && required.Count == 0 && (used.Count > 0 || pool.Length == 0))
             {
@@ -78,6 +96,7 @@ public sealed class RouteScheduler(RouteService routes)
         }
 
         if (!mustVisit.IsSubsetOf(used)) throw new ServiceException("无法安排全部必去地点，请放宽约束。");
+        RecommendationQuality.Assess(profile,days);
         return days;
     }
 
@@ -85,6 +104,7 @@ public sealed class RouteScheduler(RouteService routes)
     {
         var clock = profile.Int("startMinute");
         var totalSteps = 0;
+        var waitingMinutes=0;
         var totalCost = 0d;
         var stops = new JsonArray();
         var legs = new JsonArray();
@@ -92,21 +112,27 @@ public sealed class RouteScheduler(RouteService routes)
         var previous = profile.Object("start")!;
         foreach (var point in order)
         {
-            var leg = exact ? await routes.LegAsync(previous, point, context, ct) : RouteService.EstimateLeg(previous, point);
-            var steps = (int)Math.Ceiling(leg.Number("meters") / 0.75) + (int)Math.Ceiling(point.Number("visitMinutes") * 12);
+            var leg = exact ? await routes.TimedLegAsync(previous,point,profile,clock,context,ct):context.Walking is not null ? await routes.LegAsync(previous, point, context, ct):RouteService.EstimateLeg(previous, point);
+            if(leg.Bool("unreachable")){if(context.CompareTransit&&!exact)leg=RouteService.EstimateLeg(previous,point);else return null;}
+            var steps = (int)Math.Ceiling(leg.Number("walkingMeters",leg.Number("meters")) / 0.75) + (int)Math.Ceiling(point.Number("visitMinutes") * (RecommendationQuality.IsMeal(point)?2:12));
             // 预留 10 分钟衔接及每站 15 分钟休息；步数包含场内参观和最后返程。
             // Account for transfer/rest buffers, internal walking, and the final return leg.
             var arrival = clock + (int)leg.Number("minutes") + 10;
             var windows = OpeningWindows(point, profile.Str("date"), out var verified);
+            if(RecommendationQuality.IsMeal(point)) {
+                if(RecommendationQuality.MealWindow(profile) is not {} meal)return null;
+                windows=windows.Select(w=>(Open:Math.Max(w.Open,meal.Open),Close:Math.Min(w.Close,meal.Close))).ToArray();
+            }
             var feasible = windows.Select(x => (Start: Math.Max(arrival, x.Open), x.Close))
                 .Where(x => x.Start + point.Int("visitMinutes") <= x.Close).OrderBy(x => x.Start).ThenBy(x => x.Close).ToArray();
             if (feasible.Length == 0) return null;
             var start = feasible[0].Start;
+            waitingMinutes+=Math.Max(0,start-arrival);
             clock = start + point.Int("visitMinutes") + 15;
             totalSteps += steps;
             totalCost += point.Number("cost");
-            if (totalCost > profile.Number("budget") || totalSteps > profile.Int("maxSteps")) return null;
-            var stop = CopyFields(point, "id", "name", "lat", "lng", "category", "indoor", "visitMinutes", "cost", "note");
+            if (totalCost > profile.Number("budget") || (exact||!context.CompareTransit)&&totalSteps > profile.Int("maxSteps")) return null;
+            var stop = CopyFields(point, "id", "name", "lat", "lng", "category", "indoor", "visitMinutes", "cost", "note", "activityType", "tags", "sourceURL", "source", "website", "costKnown", "indoorKnown", "openingHoursText");
             stop["arrival"] = TimeLabel(start);
             stop["departure"] = TimeLabel(start + point.Int("visitMinutes"));
             stop["hoursVerified"] = verified;
@@ -115,15 +141,18 @@ public sealed class RouteScheduler(RouteService routes)
             stops.Add(stop);
             legs.Add(leg);
             previous = point;
+            if(point["costKnown"] is not null&&!point.Bool("costKnown"))warnings.Add(point.Str("name")+"：费用未知，预算仅含已知或预留金额，不代表免费。");
             if (!verified) warnings.Add(point.Str("name") + "：营业时间未核实");
         }
-        var back = exact ? await routes.LegAsync(previous, profile.Object("end")!, context, ct) : RouteService.EstimateLeg(previous, profile.Object("end")!);
-        totalSteps += (int)Math.Ceiling(back.Number("meters") / 0.75);
+        var back = exact ? await routes.TimedLegAsync(previous,profile.Object("end")!,profile,clock,context,ct):context.Walking is not null ? await routes.LegAsync(previous, profile.Object("end")!, context, ct):RouteService.EstimateLeg(previous,profile.Object("end")!);
+        if(back.Bool("unreachable")){if(context.CompareTransit&&!exact)back=RouteService.EstimateLeg(previous,profile.Object("end")!);else return null;}
+        totalSteps += (int)Math.Ceiling(back.Number("walkingMeters",back.Number("meters")) / 0.75);
         clock += (int)back.Number("minutes") + 10;
-        if (clock > profile.Int("endMinute") || totalSteps > profile.Int("maxSteps")) return null;
+        if (clock > profile.Int("endMinute") || (exact||!context.CompareTransit)&&totalSteps > profile.Int("maxSteps")) return null;
         legs.Add(back);
         return new JsonObject
         {
+            ["planningStartMinute"]=profile.Int("startMinute"),["waitingMinutes"]=waitingMinutes,
             ["stops"] = stops, ["legs"] = legs, ["estimatedCost"] = totalCost, ["estimatedSteps"] = totalSteps,
             ["finishTime"] = TimeLabel(clock), ["warnings"] = warnings,
             ["start"] = profile["start"]!.DeepClone(), ["end"] = profile["end"]!.DeepClone()

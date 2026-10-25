@@ -11,7 +11,7 @@ public static class WalkingTimeUpdate
         if(dayIndex<0 || dayIndex>=days.Count)throw new ServiceException("更新日期无效。");
         var day=days[dayIndex]!.AsObject();var stops=day.Array("stops")!;var profile=result.Object("profile")!;
         if(legs.Count!=stops.Count+1 || stops.Count==0)throw new ServiceException("步行路线已变化，请重新查询。");
-        var normalized=new JsonArray();var clock=profile.Int("startMinute");var steps=0;
+        var normalized=new JsonArray();var clock=day.Int("planningStartMinute",profile.Int("startMinute"));var steps=0;
         static string Time(int n)=>$"{n/60:00}:{n%60:00}";
         for(var i=0;i<legs.Count;i++) {
             var leg=legs[i] as JsonObject ?? throw new ServiceException("步行路段无效。");
@@ -35,7 +35,7 @@ public static class WalkingTimeUpdate
             steps+=stop.Int("visitMinutes")*12;stop["steps"]=(int)Math.Ceiling(meters/0.75)+stop.Int("visitMinutes")*12;
         }
         if(clock>profile.Int("endMinute") || steps>profile.Int("maxSteps"))throw new ServiceException("实际步行路线超过当天的返程时间或步数上限，请先减少地点或调整限制。原行程已保留。");
-        day["legs"]=normalized;day["estimatedSteps"]=steps;day["finishTime"]=Time(clock);
+        day["planningStartMinute"]=day.Int("planningStartMinute",profile.Int("startMinute"));day["legs"]=normalized;day["estimatedSteps"]=steps;day["finishTime"]=Time(clock);
         day.Array("warnings")!.Add("已按 Apple 实际步行查询更新；包含每站10分钟衔接、15分钟休息。开放时间和排队仍需核实。");
         var snapshot=(JsonObject)original.DeepClone();snapshot.Remove("previousAdjustment");result["previousAdjustment"]=snapshot;
         TripContractValidator.Validate(result);return result;

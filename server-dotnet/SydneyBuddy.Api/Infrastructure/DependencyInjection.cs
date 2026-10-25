@@ -47,7 +47,11 @@ public static class DependencyInjection
         services.AddScoped<RecommendationService>();
         services.AddScoped<RouteService>();
         services.AddScoped<RouteScheduler>();
+        services.AddHttpClient<PlanningAgent>(client=>client.Timeout=Timeout.InfiniteTimeSpan);
         services.AddScoped<Planner>();
+        services.AddScoped<TripTransportRouter>();
+        services.AddScoped<TransportScheduleService>();
+        services.AddScoped<RemainingJourneyService>();
         services.AddScoped<ScheduleEditorService>();
         services.AddHttpClient<OsmPoiProvider>(client=>client.Timeout=TimeSpan.FromSeconds(25)).ConfigurePrimaryHttpMessageHandler(()=>new HttpClientHandler{AllowAutoRedirect=false});
         services.AddSingleton<OverturePoiProvider>();

@@ -1,0 +1,101 @@
+SydneyBuddy iOS：真实地点与公共交通接入交接
+更新：2026-10-25；本次 main 发布配套接口清单。
+
+1. 当前实际使用的服务
+- 地点：Apple MapKit MKLocalSearch / MKLocalPointsOfInterestRequest，在 iOS 端检索本次候选。
+- 道路步行：Apple MKDirections，带方向的真实路段距离、预计耗时；不能用直线距离代替最终路段。
+- 推荐 Agent：现有 NVIDIA NIM 配置；新增 PlanningAgent 只对本次检索到的候选 ID 排序，不能生成不存在的地点 ID。没有新增 OpenAI API。
+- 公共交通：Transport for NSW Trip Planner API。
+  GET https://api.transport.nsw.gov.au/v1/tp/trip
+  Authorization: apikey <本地 TFNSW_API_KEY>
+  使用实际出发日期、时间、起终点坐标查询，解析火车、地铁、轻轨、公车、渡轮及步行接驳、等候、线路、上下车站、可用实时估计和路线几何。
+- 天气：保留现有 Open-Meteo。
+- Apple 地图继续在 App 内显示；混合交通路线不调用 MapKit 虚构公交路线，也不自动跳出 App。
+
+2. 密钥配置
+- TfNSW token 已写入后端本机 .secrets.json，权限 0600，git 忽略；运行环境也已更新。
+- 不将密钥放进 iOS bundle、Git、报告、接口示例或截图。
+- 队友应在各自获授权的后端私密配置中设置 TFNSW_API_KEY；此清单不包含密钥。
+- NVIDIA 沿用原有 NVIDIA_API_KEY / NVIDIA_MODEL 配置。不会因本次接入开启 Google 付费服务。
+
+3. 接口契约增量
+POST /plan/prepare
+- 原行程 profile 字段。
+- planningCandidates：Apple 搜索候选数组；最多 60 个，包含 id、name、lat、lng、category、source、poiKind 等。
+- useAgent: true：真实调用 NVIDIA，仅接受候选中的 ID。
+- transportPreference: walk | balanced | lessWalking。
+- 返回 candidateDays（逐日地点 ID）和规范化 candidates；仍是初筛，不可直接当最终行程。
+
+POST /plan
+- 在上述字段基础上，加入 walkingDayCandidateIds 与 walkingRoutes。
+- walkingRoutes 每项：from、to、meters、seconds、fetchedAt、可选 unreachable。
+- 服务端在有限候选顺序上比较真实道路步行与 TfNSW 班次，计算接驳步数、等车和换乘，不承诺全城全局最优。
+- 返回 Trip，包括 planningCandidates、walkingRoutes、transportRoutes。
+- 每个 transit leg：mode、source、meters、walkingMeters、minutes、departureTime、arrivalTime、fetchedAt、steps、fareKnown=false。
+- transportRoutes 保留对应 from、to、date、minute、leg，供保存及时间轴复核。
+- 旧 mode="demo" 是兼容旧接口的模式字段；判断是否实际调用服务，应看 useAgent、trace、leg.source 和真实查询证据，不能只凭这个字段。
+
+POST /schedule/editor
+- 原 trip、days、settings、walkingRoutes；可传 transportDays 指定调整日期。
+- 混合交通会按每一段新的实际出发时间重新查班次，再重算后续时间。
+- 未调整日期保留交通证据；已有搜索候选保留来源及身份。
+- 返回草案，调用 /trips 确认保存后才更改原行程。
+
+POST /plan/remaining
+- tripId、expectedRevision、day、completedIds、skippedIds、walkingRoutes、request。
+- 途中调整还需 currentMinute 和 origin；通过有序完成进度校验，保留历史活动。
+- constraints 可含 budget、maxSteps、endMinute、mustDo、avoid、interests、transportPreference。
+- 可传 planningCandidates，支持新需求补入真实检索结果。
+- 返回提案；确认 /trips 时按 revision 校验并重新核实，不静默覆盖新版本。
+
+4. 产品边界（需要团队明确）
+- 地点是真实搜索结果，但门票、菜单、营业时间、排队、室内外和预约余位仍可能未知；未知不等于免费、全天营业或已确认室内。
+- 餐费 A$30 是规划预留金额，不是实际菜单报价。
+- 公交票价尚未纳入预算。班次为查询时证据，实时预估仅在上游提供时显示，不保证未来不变。
+- 已支持 App 内乘车与接驳指引；没有完整公交背景导航、到站推送、车票或打车服务。
+- 目前支持悉尼范围；地点检索和路线候选有范围与数量限制，15 天不保证每天有足够不重复地点。
+- Apple 步行观测来自客户端，不是服务端签名证明。
+- 服务不可用、条件不满足时应保留草稿和原行程，不能用模拟班次伪装成功。
+
+5. 给队友的完整服务接线表
+- iOS -> 自有 .NET 后端：模拟器默认 http://127.0.0.1:8787；真机通过 ios/Config/Secrets.xcconfig 设置 SYDNEYBUDDY_BACKEND_URL。后端默认仅监听本机，真机部署需另配可访问地址、HTTPS 和访问控制。
+- iOS -> Apple：MKLocalSearch/MKLocalPointsOfInterestRequest 查地点，MKDirections 查步行，不需要把 TfNSW/NVIDIA 密钥放进手机。
+- 后端 -> NVIDIA：POST https://integrate.api.nvidia.com/v1/chat/completions，Authorization: Bearer <NVIDIA_API_KEY>。NVIDIA_MODEL 指定模型；用于聊天及候选推荐，路线时间由工具核验。
+- 后端 -> TfNSW：见第 1 节；新增的主要外部 API 就是此接口。
+- 后端 -> Open-Meteo：GET https://api.open-meteo.com/v1/forecast；天气不是活动营业时间或预约余位。
+- 后端 -> Zetaris（已有可选路径）：X-Travel-Data-Source: direct | zetaris，默认 direct。zetaris 模式需本地实例、账户及公开数据表齐全；不可把公开快照理解为实时商家资料。
+  .NET 环境变量配置名：Zetaris__BaseUrl、Zetaris__LoginUrl、Zetaris__Username、Zetaris__Password，或 Zetaris__EnvironmentFile 指向私密配置文件。当前适配器只接受回环 HTTP 地址。
+  现有适配默认登录地址 http://127.0.0.1:3000/api/auth/login，查询基址 http://127.0.0.1:8888；SQL 路径 /api/v1.0/sql-editor/sqls/run。这些是项目现有部署适配，不保证所有 Zetaris 云版本通用。
+- Google Maps/Routes：保留兼容配置 GOOGLE_SERVER_KEY、GOOGLE_IOS_KEY 及 iOS GOOGLE_MAPS_API_KEY；Apple 默认流程不要求新增 Google key。付费服务有独立开关，不要因看到代码就认为已启用。
+- Viator：尚未完成账号注册及密钥获取；本版没有接入，没有新增 Viator endpoint。Agent + Zetaris 解析活动集合点仍是后续方案。
+
+6. App 调用的主要后端接口
+GET /health：服务与配置状态；状态不代表所有真实 API 调用一定成功。
+GET /catalog：已有地点目录。
+POST /pet/sessions：创建 Koko 对话；传 fields / personalProfile 等。
+GET /pet/sessions/{id}：恢复对话。
+POST /pet/sessions/{id}/turn：继续问答；返回对话、字段和可用下一步。
+POST /pet/sessions/{id}/profile/complete：确认本次需求完成。
+POST /pet/sessions/{id}/memory：经用户同意保存长期偏好。
+DELETE /pet/sessions/{id}：删除会话。
+GET/POST /memories，PUT/DELETE /memories/{id}：记忆查询、新增、修改、删除。
+GET /trips：读取已保存行程。
+POST /trips：新建或保存经确认的修改；更新需保留 expectedRevision 等服务端要求，冲突不应覆盖。
+DELETE /trips/{id}：删除行程。
+POST /plan/prepare、/plan、/plan/remaining、/schedule/editor：见第 3 节。
+POST /journey/plan：单段多方式出行查询。
+POST /navigation/route：兼容导航服务入口；iOS Apple 步行默认由客户端 MapKit 处理，不等于所有路线都走此接口。
+POST /poi/search、/poi/media：地点查询与媒体兼容入口。
+POST /weather：天气。
+GET /data/status、/data/map-layers，POST /data/insights：公开数据状态、图层及洞察。
+GET/POST /setup：仅本机配置页；不要直接公开到互联网。
+具体请求必填项以 server-dotnet/SydneyBuddy.Api/Api 中的处理器和测试为准；本清单不是独立 OpenAPI 规范。
+
+7. 本次生成进度改动
+生成任务与进度目前在 iOS 管理，并非新增后端任务队列 API。
+生成中可切换页面，完成不自动跳转；强制退出后不会继续计算，重开保留需求并允许重试。
+
+8. 安全交接
+本文件只包含接口和配置项，不含实际密钥、账户密码、用户聊天和行程记录。
+本机后端密钥文件：仓库根目录 .secrets.json（Git 忽略）；队友使用自己的获授权配置。
+不要将此开发后端未经认证和用户隔离就直接作为公开生产服务。

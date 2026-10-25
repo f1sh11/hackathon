@@ -155,6 +155,20 @@ public sealed class PetConversationTests(ApiFixture fixture):IClassFixture<ApiFi
         Assert.Equal("budget",last.Str("nextField"));Assert.False(last.Object("fields")!.ContainsKey("budget"));
         Assert.DoesNotContain("准备好",last.Array("messages")!.Last()!.Str("text"));
     }
+    [Fact] public void ExplicitTripRhythmSurvivesModelOmissionWithoutOverwritingNegatedRequests() {
+        var fields=new JsonObject();PetExplicitFacts.Apply("轻松随意，每天最多5000步。",fields);Assert.Equal("轻松随意",fields.Str("rhythm"));Assert.Equal("约5000步",fields.Str("pace"));
+        var negative=new JsonObject();PetExplicitFacts.Apply("不想轻松随意。",negative);Assert.Null(negative["rhythm"]);
+    }
+    [Fact] public void ExplicitFoodInterestSurvivesModelOmissionAndDoesNotIncludeAvoidedArt() {
+        var fields=new JsonObject();PetExplicitFacts.Apply("主要想吃当地美食，不喜欢艺术馆。",fields);Assert.Equal("美食",fields.Str("interests"));
+    }
+    [Theory]
+    [InlineData("不指定必去地点，没有其他特别要求。")]
+    [InlineData("没有固定的必去景点。")]
+    [InlineData("不要求必去地点。")]
+    public void NoMandatoryPlaceCannotBecomeAPlaceNamedPlace(string message) {
+        var fields=new JsonObject{["mustDo"]="地点"};PetExplicitFacts.Apply(message,fields);Assert.Equal("无",fields.Str("mustDo"));
+    }
     [Fact]
     public void ExplicitNoMustDoOrAvoidCountsAsAnswered()
     {

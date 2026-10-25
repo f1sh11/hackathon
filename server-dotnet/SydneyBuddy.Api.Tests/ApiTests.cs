@@ -16,6 +16,23 @@ namespace SydneyBuddy.Api.Tests;
 public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
 {
     [Fact]
+    public async Task MultiDayInlineAdjustmentPreservesUntouchedDayAndRejectsStaleSave() {
+        var profile=TestSupport.Profile(3);profile["mode"]="demo";profile["budget"]=500;
+        var planned=(await (await fixture.Client.PostAsJsonAsync("/plan",profile)).Content.ReadFromJsonAsync<JsonObject>())!;
+        var saved=(await (await fixture.Client.PostAsJsonAsync("/trips",new{trip=planned,expectedRevision=0})).Content.ReadFromJsonAsync<JsonObject>())!;
+        var proposed=(await (await fixture.Client.PostAsJsonAsync("/schedule/editor",new{trip=saved})).Content.ReadFromJsonAsync<JsonObject>())!;
+        var body=new{trip=proposed,expectedRevision=saved.Int("revision"),adjustedDays=new[]{0,2}};
+        var response=await fixture.Client.PostAsJsonAsync("/trips",body);response.EnsureSuccessStatusCode();
+        var accepted=(await response.Content.ReadFromJsonAsync<JsonObject>())!;
+        Assert.True(JsonNode.DeepEquals(saved.Array("days")![1],accepted.Array("days")![1]));
+        Assert.True(JsonNode.DeepEquals(saved["profile"],accepted["profile"]));Assert.Equal(2,accepted.Int("revision"));
+        Assert.Equal(HttpStatusCode.Conflict,(await fixture.Client.PostAsJsonAsync("/trips",body)).StatusCode);
+        var invalid=await fixture.Client.PostAsJsonAsync("/trips",new{trip=accepted,expectedRevision=2,adjustedDays=Array.Empty<int>()});
+        Assert.False(invalid.IsSuccessStatusCode);
+        var undo=await fixture.Client.PostAsJsonAsync("/trips",new{trip=accepted,expectedRevision=2,undoAdjustment=true});undo.EnsureSuccessStatusCode();
+        Assert.True(JsonNode.DeepEquals(saved["days"],(await undo.Content.ReadFromJsonAsync<JsonObject>())!["days"]));
+    }
+    [Fact]
     public async Task AppleWalkingTimesPersistOnlySelectedDayAndRejectStaleRevision() {
         var profile=TestSupport.Profile(3);profile["mode"]="demo";
         var plan=(await (await fixture.Client.PostAsJsonAsync("/plan",profile)).Content.ReadFromJsonAsync<JsonObject>())!;
@@ -91,7 +108,8 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
         Assert.False(health.ContainsKey("NVIDIA_API_KEY"));
         Assert.False(health.ContainsKey("GOOGLE_SERVER_KEY"));
         var mobile = await fixture.Client.GetFromJsonAsync<JsonArray>("/catalog");
-        Assert.Equal(8, mobile!.Count);
+        Assert.True(mobile!.Count>=14);
+        Assert.Contains(mobile.OfType<JsonObject>(),p=>p.Str("activityType")=="meal"&&!string.IsNullOrEmpty(p.Str("sourceURL")));
     }
 
     [Theory]

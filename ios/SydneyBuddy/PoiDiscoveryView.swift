@@ -17,11 +17,11 @@ import CryptoKit
         case "lodging":categories=[.hotel]
         case "shops":categories=[.store,.foodMarket]
         case "all":categories=[.hotel,.store,.restaurant,.cafe,.museum,.park,.library,.bakery,.foodMarket]
-        case "food":categories=[.restaurant,.cafe,.bakery,.foodMarket]
+        case "food":categories=[.restaurant] // Primary meal candidates must be restaurants, not groceries or snack counters.
         case "facilities":categories=[] // MapKit has no public-toilet/drinking-water POI category on iOS 17.
         default:categories=[.museum,.park,.nationalPark,.amusementPark,.aquarium,.zoo,.theater,.library]
         }
-        if #available(iOS 18.0,*),category=="sights" {categories += [.landmark,.nationalMonument,.musicVenue]}
+        if #available(iOS 18.0,*),(category=="sights" || category=="all") {categories += [.landmark,.nationalMonument,.musicVenue]}
         let radius:Double=category == "all" ? 5000:1500
         let search:MKLocalSearch
         if query.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty && category != "facilities" {
@@ -33,7 +33,7 @@ import CryptoKit
             request.naturalLanguageQuery=query.isEmpty ? "public toilets drinking water" : query
             request.resultTypes = .pointOfInterest
             request.region=MKCoordinateRegion(center:center,latitudinalMeters:radius*2,longitudinalMeters:radius*2)
-            if !categories.isEmpty{request.pointOfInterestFilter=MKPointOfInterestFilter(including:categories)}
+            if !categories.isEmpty && category != "all" {request.pointOfInterestFilter=MKPointOfInterestFilter(including:categories)}
             search=MKLocalSearch(request:request)
         }
         let response=try await withTaskCancellationHandler {try await search.start()} onCancel:{Task{@MainActor in search.cancel()}}
@@ -50,7 +50,9 @@ import CryptoKit
             let address=[item.placemark.thoroughfare,item.placemark.locality,item.placemark.postalCode].compactMap{$0}.joined(separator:", ")
             // A facility keyword match is not proof of a verified public restroom.
             let kind=category == "all" ? (item.pointOfInterestCategory == .hotel ? "lodging":item.pointOfInterestCategory == .store ? "shops":[MKPointOfInterestCategory.restaurant,.cafe,.bakery,.foodMarket].contains(where:{$0==item.pointOfInterestCategory}) ? "food":"sights"):category
-            return ScheduleCandidate(id:id,name:name,category:kind=="food" ? "美食":kind=="facilities" ? "設施":kind=="lodging" ? "住宿":kind=="shops" ? "店家":"風景",indoor:false,visitMinutes:category=="food" ? 45:category=="facilities" ? 10:60,cost:0,lat:point.latitude,lng:point.longitude,reason:"Apple Maps 地點搜尋",description:address.isEmpty ? "Apple Maps 未提供詳細介紹。":address,note:"Apple Maps 地點；費用、排隊與營業時間未知。設施用途及開放情況請另行確認。",source:"Apple Maps",poiKind:category=="food" ? "restaurant":category=="facilities" ? "facility":"attraction",openingHoursText:"",website:item.url?.absoluteString,phone:item.phoneNumber,address:address)
+            let actual=item.pointOfInterestCategory
+            let interest=kind=="food" ? "美食":kind=="facilities" ? "設施":kind=="lodging" ? "住宿":kind=="shops" ? "购物":actual == .park || actual == .nationalPark || actual == .beach ? "自然":actual == .museum || actual == .library ? "文化":actual == .theater ? "艺术":"风景"
+            return ScheduleCandidate(id:id,name:name,category:interest,indoor:false,visitMinutes:category=="food" ? 45:category=="facilities" ? 10:60,cost:0,lat:point.latitude,lng:point.longitude,reason:"Apple Maps 地點搜尋",description:address.isEmpty ? "Apple Maps 未提供詳細介紹。":address,note:"Apple Maps 地點；費用、排隊與營業時間未知。設施用途及開放情況請另行確認。",source:"Apple Maps",poiKind:category=="food" ? "restaurant":category=="facilities" ? "facility":"attraction",openingHoursText:"",website:item.url?.absoluteString,phone:item.phoneNumber,address:address)
         }
     }
 }
@@ -93,7 +95,7 @@ import CryptoKit
                 let result:[ScheduleCandidate]
                 if current == .apple && route == .direct && kind != "gems" {result=try await appleSearch(point,kind,text)}
                 else {
-                    var request=URLRequest(url:URL(string:"http://127.0.0.1:8787/poi/search")!);request.httpMethod="POST";route.apply(to:&request);request.setValue("application/json",forHTTPHeaderField:"Content-Type");request.timeoutInterval=30
+                    var request=URLRequest(url:BackendConnection.url("poi/search"));request.httpMethod="POST";route.apply(to:&request);request.setValue("application/json",forHTTPHeaderField:"Content-Type");request.timeoutInterval=30
                     request.httpBody=try JSONSerialization.data(withJSONObject:["lat":point.latitude,"lng":point.longitude,"radius":["gems","all"].contains(kind) ? 5000:1500,"category":kind,"query":text,"provider":current == .google && route == .direct && kind != "gems" ? "google":"osm","language":language])
                     let (data,response)=try await loader(request);try Task.checkCancellation()
                     guard (response as? HTTPURLResponse)?.statusCode==200 else {let raw=(try? JSONSerialization.jsonObject(with:data)) as? [String:Any];throw NSError(domain:"POI",code:1,userInfo:[NSLocalizedDescriptionKey:raw?["error"] as? String ?? "地點搜尋失敗，請重試。"])}
@@ -409,7 +411,7 @@ struct PlaceMediaView:View {
         loading=true;message=nil
         defer{loading=false}
         do{
-            var request=URLRequest(url:URL(string:"http://127.0.0.1:8787/poi/media")!)
+            var request=URLRequest(url:BackendConnection.url("poi/media"))
             request.httpMethod="POST";store.travelDataSource.apply(to:&request);request.timeoutInterval=22;request.setValue("application/json",forHTTPHeaderField:"Content-Type")
             request.httpBody=try JSONSerialization.data(withJSONObject:["lat":candidate.lat,"lng":candidate.lng,"id":candidate.id])
             let (data,response)=try await URLSession.shared.data(for:request)
@@ -418,5 +420,36 @@ struct PlaceMediaView:View {
             photos=try JSONDecoder().decode(Media.self,from:data).photos
             if photos.isEmpty{message="附近尚無可用的開放照片。"}
         }catch{message="照片暫時無法載入，請稍後重試。"}
+    }
+}
+
+@MainActor enum ApplePlanningDiscovery {
+    /// MapKit may label station groceries and snack counters as restaurants.
+    static func primaryMealName(_ name:String)->Bool {
+        name.range(of:"bakery|bakehouse|patisserie|juice|fruit|food market|mini.?mart|grocery|supermarket|catering|coffee|café|cafe|面包|烘焙|果汁|咖啡",options:[.regularExpression,.caseInsensitive]) == nil
+    }
+    static func search(_ profile:TripProfile) async throws -> [ScheduleCandidate] {
+        var groups:[(String,String)]=[]
+        let interests=profile.interests
+        if interests.contains("美食"){groups.append(("food","restaurants"))}
+        if interests.contains("购物"){groups.append(("shops",""))}
+        for interest in interests where interest != "美食" && interest != "购物" {
+            let query=interest=="自然" ? "parks":interest=="艺术" ? "art gallery":interest=="文化" ? "museum historic landmark":interest=="城市" ? "Sydney landmarks":"tourist attractions"
+            groups.append(("sights",query))
+        }
+        if !groups.contains(where:{$0.0=="sights"}){groups.append(("sights","tourist attractions"))}
+        let must=(profile.mustDo ?? "").trimmingCharacters(in:.whitespacesAndNewlines)
+        if !["","无","没有","未确定","暂不确定","无特别要求"].contains(must){groups.insert(("all",must),at:0)}
+        var found:[ScheduleCandidate]=[];var seen=Set<String>()
+        for (category,query) in groups.prefix(5) {
+            try Task.checkCancellation()
+            let results=try await ApplePoiProvider.search(profile.start.location,category,query)
+            for var p in results.filter({category != "food" || primaryMealName($0.name)}).prefix(12) where seen.insert(p.id).inserted {
+                p.cost=category=="food" ? 30:0;p.activityType=category=="food" ? "meal":"attraction"
+                if category=="shops"{p.category="购物"}
+                found.append(p)
+            }
+        }
+        return Array(found.prefix(60))
     }
 }

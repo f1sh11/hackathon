@@ -29,8 +29,10 @@ public static class PlanningEndpoints
         routes.MapGet("/data/map-layers",(TravelDataContext travel,ProjectPaths paths)=>Results.Json(new JsonObject{["dataSource"]=travel.Mode,["layers"]=travel.Warehouse?travel.Snapshot!.Maps.DeepClone():JsonNode.Parse(File.ReadAllText(Path.Combine(paths.RepoRoot,"shared","travel-map-layers.json")))}));
         routes.MapPost("/data/insights",async (HttpContext context,TravelInsightService insights)=>{context.Response.Headers.CacheControl="no-store";return Results.Json(await insights.GetAsync(await RequestJson.ReadAsync(context),context.RequestAborted));});
         routes.MapGet("/data/status",(TravelDataContext travel,PlaceCatalog catalog)=>Results.Json(new {dataSource=travel.Mode,status="ok",catalogCount=catalog.Get().Count,readAt=travel.Snapshot?.ReadAt,poiCount=travel.Snapshot?.Poi.Array("places")?.Count,hiddenGemCount=travel.Snapshot?.Gems?.Count,osmCount=travel.Snapshot?.Osm?.Count}));
-        routes.MapPost("/schedule/editor", async (HttpContext context, ScheduleEditorService editor) => Results.Json(editor.Build(await RequestJson.ReadAsync(context))));
+        routes.MapPost("/schedule/editor", async (HttpContext context, TransportScheduleService editor) => Results.Json(await editor.BuildAsync(await RequestJson.ReadAsync(context),context.RequestAborted)));
         routes.MapGet("/catalog", (Planner planner) => Results.Json(planner.Catalog));
+        routes.MapPost("/plan/remaining",async (HttpContext context,TripRepository trips,RemainingJourneyService remaining)=>{var input=await RequestJson.ReadAsync(context);var original=await trips.FindAsync(input.Str("tripId"),context.RequestAborted)??throw new ServiceException("行程不存在。");if(original.Int("revision")!=input.Int("expectedRevision"))throw new RevisionConflictException();return Results.Json(await remaining.BuildAsync(original,input,context.RequestAborted));});
+        routes.MapPost("/plan/prepare",async (HttpContext context,Planner planner)=>Results.Json(await planner.PrepareWalkingAsync(await RequestJson.ReadAsync(context),context.RequestAborted)));
         routes.MapPost("/plan", async (HttpContext context, Planner planner, PaidServicePolicy paidServices) =>
         {
             var input = await RequestJson.ReadAsync(context);

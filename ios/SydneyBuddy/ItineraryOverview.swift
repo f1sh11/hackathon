@@ -59,13 +59,13 @@ struct OverviewRoute {
     private var homeIdentity=""
     private var routeIdentity=""
     private func walkingIdentity(_ day:DayPlan)->String {
-        day.date+"|"+(["\(day.start.name):\(day.start.lat),\(day.start.lng)"]+day.stops.map{"\($0.id):\($0.name):\($0.lat),\($0.lng):\($0.visitMinutes)"}+["\(day.end.name):\(day.end.lat),\(day.end.lng)"]).joined(separator:"|")
+        day.date+"|"+day.legs.map{"\($0.mode ?? "walk"):\($0.departureTime ?? ""):\($0.minutes)"}.joined(separator:"|")+"|"+(["\(day.start.name):\(day.start.lat),\(day.start.lng)"]+day.stops.map{"\($0.id):\($0.name):\($0.lat),\($0.lng):\($0.visitMinutes)"}+["\(day.end.name):\(day.end.lat),\(day.end.lng)"]).joined(separator:"|")
     }
     private var routeProvider:MapProvider?
     var loader:(URLRequest) async throws -> (Data,URLResponse) = {try await URLSession.shared.data(for:$0)}
     private let applePlan:(DayPlan,Date) async throws -> JourneyPlan
     init(applePlan:@escaping (DayPlan,Date) async throws -> JourneyPlan = {day,departure in
-        try await AppleJourneyProvider.plan(day:day,modes:Array(repeating:"walk",count:day.stops.count+1),departure:departure)
+        try await AppleJourneyProvider.plan(day:day,modes:day.transportModes,departure:departure)
     }) {self.applePlan=applePlan}
     var summary:String {route.map{"路线约 \(Int($0.meters.rounded())) 米 · \(Int(ceil($0.seconds/60))) 分钟"} ?? "显示步行路线"}
     func loadHome(_ day:DayPlan,provider:MapProvider,contentSource:String) {
@@ -74,7 +74,7 @@ struct OverviewRoute {
         // Updating display times or undoing a calibration does not change the walking path.
         if provider == .apple,contentSource != "google",routeProvider == .apple,route != nil,plan?.source=="Apple Maps / MapKit",plan?.legs.flatMap(\.steps).allSatisfy({$0.mode=="walk"})==true,routeIdentity==walkingIdentity(day){key=mapSceneKey(day);return}
         clear();key=mapSceneKey(day)
-        if !day.stops.isEmpty,contentSource != "google" && (provider == .osm || provider == .apple){load(day,provider:provider)}
+        if day.hasWalkingJourney,contentSource != "google" && (provider == .osm || provider == .apple){load(day,provider:provider)}
     }
     func clear(){cancel();route=nil;plan=nil;message=nil}
     func accept(_ result:JourneyPlan,day:DayPlan) {
@@ -99,7 +99,8 @@ struct OverviewRoute {
             do {
                 if provider == .apple {
                     let formatter=DateFormatter();formatter.dateFormat="yyyy-MM-dd HH:mm";formatter.timeZone=TimeZone(identifier:"Australia/Sydney")
-                    let departure=formatter.date(from:day.date+" 10:00") ?? Date()
+                    let start=day.planningStartMinute ?? 600
+                    let departure=formatter.date(from:day.date+String(format:" %02d:%02d",start/60,start%60)) ?? Date()
                     let result=try await applePlan(day,departure)
                     try Task.checkCancellation();guard token==generation else{return}
                     routeIdentity=walkingIdentity(day);plan=result;route=result.overview;busy=false;message="路线来源："+result.source
@@ -118,7 +119,7 @@ struct OverviewRoute {
                     try Task.checkCancellation();guard token == generation else{return}
                     route=OverviewRoute(coordinates:[points[0],points[0]],meters:0,seconds:0,legSeconds:edgeMap.map{_ in 0});busy=false;return
                 }
-                var request = URLRequest(url: URL(string: "http://127.0.0.1:8787/navigation/route")!)
+                var request = URLRequest(url: BackendConnection.url("navigation/route"))
                 request.httpMethod = "POST"; request.timeoutInterval = 25
                 request.setValue("application/json", forHTTPHeaderField: "Content-Type")
                 request.httpBody = try JSONSerialization.data(withJSONObject: ["locations": compact.map { ["lat": $0.latitude, "lon": $0.longitude] }])
@@ -199,7 +200,7 @@ struct OverviewTransportLeg:Identifiable {
 }
 func overviewTransportLegs(_ day:DayPlan,route:OverviewRoute?,plan:JourneyPlan?)->[OverviewTransportLeg] {
     if let plan{return plan.legs.map{leg in
-        OverviewTransportLeg(id:leg.index,label:"\(leg.index==0 ? "起":String(leg.index))→\(leg.index==day.stops.count ? "終":String(leg.index+1))",from:leg.from,to:leg.to,mode:leg.steps.first?.mode ?? leg.mode,transport:leg.steps.map(\.title).joined(separator:" · "),minutes:Int(ceil(leg.steps.reduce(0){$0+$1.seconds+$1.waitSeconds}/60)))
+        OverviewTransportLeg(id:leg.index,label:"\(leg.index==0 ? "起":String(leg.index))→\(leg.index==day.stops.count ? "終":String(leg.index+1))",from:leg.from,to:leg.to,mode:leg.steps.first(where:{$0.mode != "walk"})?.mode ?? leg.mode,transport:leg.steps.map(\.title).joined(separator:" · "),minutes:Int(ceil(leg.steps.reduce(0){$0+$1.seconds+$1.waitSeconds}/60)))
     }}
     guard let route,route.legSeconds.count==day.stops.count+1 else{return []}
     let names=[day.start.name]+day.stops.map(\.name)+[day.end.name]

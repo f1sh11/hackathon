@@ -27,7 +27,7 @@ let travelExtraFields:[(String,String)]=[("budgetCoverage","预算包含范围")
     private var scope = "draft"
     private var profiling = false
     var loader:(URLRequest) async throws -> (Data,URLResponse) = {try await URLSession.shared.data(for:$0)}
-    private let base = URL(string:"http://127.0.0.1:8787")!
+    private let base = BackendConnection.base
     private var pendingRequest: (String,String)?
     private var storageKey: String { "petSession." + scope }
     private func request<T:Decodable>(_ path:String, method:String="GET", body:[String:Any]?=nil) async throws -> T {
@@ -235,6 +235,7 @@ struct PetChatView:View {
     var onboarding=false
     var conversationOnly=false
     var draftScope=false
+    var initialMessage=""
     private var scope:String {(onboarding || draftScope) ? "draft" : (store.trip?.id ?? "draft")}
     private var displayedMessages:[PetMessage] {
         let messages=chat.session?.messages ?? []
@@ -330,7 +331,8 @@ struct PetChatView:View {
             }
             if canPlanDirectly {
                 PrimaryButton(title:chat.busy ? "正在确认最新需求…":onboarding || draftScope ? "生成行程":"按这些信息调整行程",symbol:chat.busy ? "hourglass":"sparkles"){composing=false;fields=liveFields;assumptionsConfirmed=true;Task{await preparePlan()}}
-                    .disabled(chat.busy || store.busy || !message.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty).padding(.horizontal,20).padding(.top,8).accessibilityIdentifier("chat-generate")
+                    .disabled(chat.busy || store.busy || store.isGeneratingTrip || !message.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty).padding(.horizontal,20).padding(.top,8).accessibilityIdentifier("chat-generate")
+                if store.isGeneratingTrip{Text("另一段旅行正在准备，你可以继续聊天；完成后再生成新的安排。").font(.caption).foregroundStyle(Palette.muted)}
                 if !chat.busy && !message.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty{Text("先发送新想法，再按最新需求生成").font(.caption).foregroundStyle(Palette.muted)}
             }
 
@@ -354,8 +356,9 @@ struct PetChatView:View {
         .task(id:scope){
             var seed:[String:String]=(onboarding || draftScope) ? store.pendingTripFields:[:]
             // Legacy habits remain context; only explicit trip answers populate fields.
-            if !onboarding && !draftScope,let t=store.trip{seed=["destination":"悉尼","date":t.profile.date,"days":String(t.profile.days),"budget":String(t.profile.budget),"budgetCurrency":"AUD","budgetBasis":"perPersonPerDay","interests":t.profile.interests.joined(separator:"、"),"pace":"约\(t.profile.maxSteps)步"];if let people=t.profile.travelers{seed["travelers"]=String(people)}}
-            message=UserDefaults.standard.string(forKey:"petComposer."+scope) ?? ""
+            if !onboarding && !draftScope,let t=store.trip{seed=["destination":"悉尼","date":t.profile.date,"days":String(t.profile.days),"budget":String(t.profile.budget),"budgetCurrency":"AUD","budgetBasis":"perPersonPerDay","interests":t.profile.interests.joined(separator:"、"),"pace":"约\(t.profile.maxSteps)步","transportPreference":t.profile.transportPreference ?? "walk"];if let people=t.profile.travelers{seed["travelers"]=String(people)}}
+            let pendingMessage=UserDefaults.standard.string(forKey:"petComposer."+scope) ?? ""
+            message=initialMessage.isEmpty || pendingMessage.hasPrefix(initialMessage) ? pendingMessage:initialMessage+(pendingMessage.isEmpty ? "":"\n"+pendingMessage)
             await chat.load(scope:scope,seed:seed,personal:(onboarding || draftScope) ? store.pendingPersonalProfile:nil,profiling:onboarding || draftScope)
         }
         .onChange(of:message){_,value in UserDefaults.standard.set(value,forKey:"petComposer."+scope)}
@@ -441,6 +444,9 @@ struct PetChatView:View {
             if let profile=directProfile{
                 Text("\(profile.travelers ?? 1) 人同行 · "+profile.activityBudgetSummary).font(.caption).foregroundStyle(Palette.muted)
             }
+            Picker("这次怎么出行",selection:Binding(get:{liveFields["transportPreference"] ?? "balanced"},set:{value in Task{await chat.update(["transportPreference":value])}})){
+                Text("步行＋公交").tag("balanced");Text("尽量少走").tag("lessWalking");Text("只步行").tag("walk")
+            }.pickerStyle(.segmented).accessibilityIdentifier("trip-transport-preference")
             DisclosureGroup("查看安排细节与临时假设"){
                 if let profile=directProfile{
                 if let must=profile.mustDo,TravelRequirements.known(must),must != "无"{Text("想去："+must).font(.caption)}
@@ -539,7 +545,7 @@ struct PetChatView:View {
             return
         }
         dismiss()
-        await store.generateFromPet(profile,request:profile.request ?? "")
+        await store.generateFromPet(profile,request:TripAdjustmentRequest.make(messages:chat.session?.messages ?? [],fallback:profile.request ?? ""))
     }
 
 }
@@ -850,7 +856,7 @@ struct TravelRequirements {
         result.energy=known(fields["energy"]) ? fields["energy"]:personal.energy
         result.rhythm=known(fields["rhythm"]) ? fields["rhythm"]:personal.rhythm
         result.queueTolerance=known(fields["queueTolerance"]) ? fields["queueTolerance"]:personal.queueTolerance
-        result.dayStyle=fields["dayStyle"]
+        result.dayStyle=fields["dayStyle"];result.transportPreference=["walk","balanced","lessWalking"].contains(fields["transportPreference"] ?? "") ? fields["transportPreference"]:"balanced"
         if fields["dayStyle"]=="halfDay"{result.endMinute=900}
         switch fields["origin"] {
         case "中央车站","中央車站":result.start = .central;result.end = .central
@@ -937,5 +943,14 @@ struct PersonalPreferencesView:View {
         if let memory=chat.memories.filter({$0.profile.habits != nil}).sorted(by:{($0.provenance?.createdAt ?? "") > ($1.provenance?.createdAt ?? "")}).first{UserDefaults.standard.set(memory.id,forKey:"personalProfile.memoryID")}
         store.koalaFeedback=KoalaCue(event:.dnaCompleted)
         if editing{dismiss()}else{store.completePersonalPreferences()}
+    }
+}
+
+ enum TripAdjustmentRequest {
+    static func make(messages:[PetMessage],fallback:String)->String {
+        let acknowledgements=Set(["好","好的","可以","谢谢","谢谢你","ok","okay","yes"])
+        let latest=messages.last{message in message.role=="user" && !acknowledgements.contains(message.text.trimmingCharacters(in:.whitespacesAndNewlines).lowercased())}?.text ?? fallback
+        // The backend bounds requests by UTF-16 length; keep the latest intent ahead of old summaries.
+        return String(decoding:Array(latest.utf16.prefix(1400)),as:UTF16.self)
     }
 }

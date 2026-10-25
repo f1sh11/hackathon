@@ -24,6 +24,7 @@ public static class PlanValidator
                     DateTimeStyles.None, out var date))
                 throw new FormatException();
 
+            if(profile.Str("transportPreference","walk") is not ("walk" or "balanced" or "lessWalking"))throw new FormatException();
             var budget = ReadNumber(profile, "budget", 100);
             var maxSteps = ReadInteger(profile, "maxSteps", 10000);
             var startMinute = ReadInteger(profile, "startMinute", 600);
