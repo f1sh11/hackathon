@@ -474,6 +474,32 @@ import MapKit
         store.mapProvider = .osm;try await Task.sleep(nanoseconds:250_000_000)
         XCTAssertEqual(map.overlays.filter{$0 is OsmTiles}.count,1);XCTAssertEqual(map.annotations.count,points.count)
     }
+    func testPoiFocusMovesToVisibleAreaAndKeepsSelectionWithoutSearching() async throws {
+        let points=try fixture().schedule!.candidates
+        let state=PoiFocusTestState();let store=AppStore();let original=store.mapProvider;defer{store.mapProvider=original};store.mapProvider = .apple
+        let scene=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.first!
+        let old=scene.windows.first{$0.isKeyWindow};let window=UIWindow(windowScene:scene);window.frame=scene.screen.bounds
+        window.rootViewController=UIHostingController(rootView:PoiFocusTestHost(state:state,store:store,places:points).frame(height:500))
+        window.makeKeyAndVisible();defer{window.isHidden=true;old?.makeKeyAndVisible()}
+        try await Task.sleep(nanoseconds:500_000_000)
+        func findMap(_ view:UIView)->MKMapView?{if let map=view as? MKMapView{return map};return view.subviews.compactMap{findMap($0)}.first}
+        let map=try XCTUnwrap(findMap(window));let baseline=state.cameraChanges
+        let target=points.last!;state.focus=PoiMapFocus(point:target)
+        try await Task.sleep(nanoseconds:1_500_000_000)
+        let pin=try XCTUnwrap(map.annotations.compactMap{$0 as? PoiPin}.first{$0.point.id==target.id})
+        XCTAssertEqual(map.selectedAnnotations.compactMap{$0 as? PoiPin}.first?.point.id,target.id)
+        XCTAssertEqual(state.cameraChanges,baseline,"Programmatic focus must not trigger a fresh search")
+        XCTAssertEqual(map.annotations.compactMap{$0 as? PoiPin}.count,points.count)
+        let position=map.convert(pin.coordinate,toPointTo:map)
+        XCTAssertGreaterThan(position.y,map.bounds.height*0.29);XCTAssertLessThan(position.y,map.bounds.height*0.65)
+        XCTAssertEqual((map.view(for:pin) as? MKMarkerAnnotationView)?.markerTintColor,UIColor.systemBlue)
+        store.mapProvider = .osm;try await Task.sleep(nanoseconds:300_000_000)
+        XCTAssertEqual(map.overlays.filter{$0 is OsmTiles}.count,1)
+        state.focus=PoiMapFocus(point:points.first!)
+        try await Task.sleep(nanoseconds:1_500_000_000)
+        XCTAssertEqual(map.selectedAnnotations.compactMap{$0 as? PoiPin}.first?.point.id,points.first!.id)
+        XCTAssertEqual(state.cameraChanges,baseline)
+    }
     func testSavedTripNavigationChoosesTodayOrAsksForDate() throws {
         var trip=try fixture()
         XCTAssertEqual(savedTripNavigationDay(trip,today:trip.days[1].date),1)
@@ -762,4 +788,12 @@ final class TravelInsightContractTests:XCTestCase {
         let result=try JSONDecoder().decode(TravelInsights.self,from:data)
         XCTAssertEqual(result.places[0].price.status,"unknown");XCTAssertEqual(result.places[0].crowd.status,"unknown");XCTAssertTrue(result.traffic.items.isEmpty)
     }
+}
+
+@MainActor private final class PoiFocusTestState:ObservableObject {@Published var focus:PoiMapFocus?;var cameraChanges=0}
+@MainActor private struct PoiFocusTestHost:View {
+    @ObservedObject var state:PoiFocusTestState
+    @ObservedObject var store:AppStore
+    var places:[ScheduleCandidate]
+    var body:some View{PoiNativeMap(places:places,osm:store.mapProvider == .osm,center:.init(latitude:-33.87,longitude:151.20),zoom:14,onCamera:{_,_ in state.cameraChanges+=1},onSelect:{_ in},focus:state.focus)}
 }

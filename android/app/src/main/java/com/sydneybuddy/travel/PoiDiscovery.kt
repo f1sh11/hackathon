@@ -27,6 +27,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import com.google.maps.android.compose.*
 import com.google.android.gms.maps.model.LatLng as GoogleLatLng
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.CameraUpdateFactory as GoogleCameraUpdate
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.MapLibreMap
@@ -76,9 +77,20 @@ internal class NearbyPoiState {
     return state
 }
 internal fun poiActivityKind(p:JSONObject):String=if(p.optString("source") !in listOf("OpenStreetMap","Apple Maps","Overture Maps","Wikivoyage","Restaurant evidence","Community social recommendation"))"attraction"else when {p.optString("poiKind")=="toilets"->"restroom";p.optString("poiKind")=="drinking_water"->"rest";p.optString("category")=="美食"->"meal";else->"attraction"}
+private fun focusedPoiIcon():android.graphics.Bitmap {
+    val image=android.graphics.Bitmap.createBitmap(100,100,android.graphics.Bitmap.Config.ARGB_8888)
+    val canvas=android.graphics.Canvas(image);val paint=android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+    paint.color=android.graphics.Color.WHITE;canvas.drawCircle(50f,50f,48f,paint)
+    paint.color=android.graphics.Color.rgb(0,122,255);canvas.drawCircle(50f,50f,40f,paint)
+    paint.color=android.graphics.Color.WHITE;canvas.drawCircle(50f,50f,13f,paint)
+    return image
+}
+internal data class PoiFocus(val id:String,val lat:Double,val lng:Double,val name:String,val token:Long=System.nanoTime())
+
 @Composable internal fun PoiDiscoveryDialog(store:BuddyStore,onDismiss:()->Unit,requester:suspend(JSONObject)->JSONObject={store.searchPoi(it)},onAdd:(JSONObject)->Unit={store.addPoi(it)},googleMapConfigured:Boolean=BuildConfig.MAPS_CONFIGURED) {
     var showInsights by remember{mutableStateOf(false)}
     var query by remember{mutableStateOf("")};var category by remember{mutableStateOf("all")}
+    var focus by remember{mutableStateOf<PoiFocus?>(null)}
     var places by remember{mutableStateOf<List<JSONObject>>(emptyList())};var selected by remember{mutableStateOf<String?>(null)}
     var center by remember{mutableStateOf(-33.865 to 151.212)};var busy by remember{mutableStateOf(false)};var error by remember{mutableStateOf<String?>(null)};var detail by remember{mutableStateOf<JSONObject?>(null)}
     var zoom by remember{mutableDoubleStateOf(14.0)}
@@ -96,7 +108,7 @@ internal fun poiActivityKind(p:JSONObject):String=if(p.optString("source") !in l
     val visiblePlaces=if(resultProvider==store.mapProvider&&resultDataSource==store.travelDataSource)places else emptyList()
     val source=if(store.travelDataSource=="zetaris")"Open travel data / Zetaris"else if(category=="gems")"Open travel data / local"else when(store.mapProvider){MapProvider.OSM->openSource;MapProvider.GOOGLE->"Google Places";MapProvider.SCHEMATIC->"離線示意 · 不搜尋地點"}
     fun search(){
-        searchJob?.cancel();places=emptyList();selected=null;detail=null;error=null;hasSearched=true;busy=false;resultProvider=null
+        searchJob?.cancel();places=emptyList();selected=null;focus=null;detail=null;error=null;hasSearched=true;busy=false;resultProvider=null
         summary=null;val provider=store.mapProvider;val route=store.travelDataSource
         if(provider==MapProvider.SCHEMATIC){error="離線示意圖不提供地點搜尋，請切換其他底圖。";return}
         if(category!="gems"&&route=="direct"&&provider==MapProvider.GOOGLE&&!googleMapConfigured){error="Google 地圖尚未設定金鑰，請選擇其他底圖。";return}
@@ -111,15 +123,16 @@ internal fun poiActivityKind(p:JSONObject):String=if(p.optString("source") !in l
             if(category=="gems"||provider==MapProvider.OSM||route=="zetaris"){openSource=result.optString("source","開放地點資料");dataVersion=result.optJSONObject("metadata")?.optString("release") ?: ""}
         }catch(e:CancellationException){if(e is TimeoutCancellationException)error="地點服務逾時，請重試。"else throw e}catch(e:Exception){error=e.message ?: "搜尋失敗"}finally{if(isActive)busy=false}}
     }
+    fun focusPlace(p:JSONObject){center=p.getDouble("lat") to p.getDouble("lng");zoom=17.0;selected=p.getString("id");focus=PoiFocus(selected!!,p.getDouble("lat"),p.getDouble("lng"),p.optString("name"))}
     fun moved(point:Pair<Double,Double>,value:Double){
         center=point;zoom=value
         val next=PoiViewport(point.first,point.second,value)
-        if(next.differs(cameraRequest)){searchJob?.cancel();places=emptyList();selected=null;cameraRequest=next}
+        if(next.differs(cameraRequest)){searchJob?.cancel();places=emptyList();selected=null;focus=null;cameraRequest=next}
     }
     LaunchedEffect(cameraRequest){if(cameraRequest!=null){delay(800);search()}}
     LaunchedEffect(category,store.mapProvider,store.travelDataSource){
         cameraRequest=null
-        searchJob?.cancel();places=emptyList();selected=null;detail=null;error=null;busy=false;hasSearched=false;resultProvider=null;attribution="";dataVersion=""
+        searchJob?.cancel();places=emptyList();selected=null;focus=null;detail=null;error=null;busy=false;hasSearched=false;resultProvider=null;attribution="";dataVersion=""
         if(store.mapProvider!=MapProvider.SCHEMATIC)search()
     }
     Dialog(onDismissRequest=onDismiss,properties=DialogProperties(usePlatformDefaultWidth=false)) {
@@ -143,8 +156,8 @@ internal fun poiActivityKind(p:JSONObject):String=if(p.optString("source") !in l
             }){Text("交通・人潮・費用")}
 
             when(store.mapProvider) {
-                MapProvider.OSM->PoiOsmMap(visiblePlaces,onCenter={moved(it,zoom)},onSelect={selected=it},Modifier.fillMaxWidth().height(230.dp),initialCenter=center,initialZoom=zoom,onZoom={moved(center,it)},insightMarkers=(store.insights?.optJSONObject("traffic")?.array("items")?.objects() ?: emptyList())+(store.insights?.array("pricePlaces")?.objects() ?: emptyList()))
-                MapProvider.GOOGLE->if(BuildConfig.MAPS_CONFIGURED)PoiGoogleMap(visiblePlaces,center,zoom,onCamera={point,z->moved(point,z)},onSelect={selected=it},insightMarkers=(store.insights?.optJSONObject("traffic")?.array("items")?.objects() ?: emptyList())+(store.insights?.array("pricePlaces")?.objects() ?: emptyList()))else Box(Modifier.fillMaxWidth().height(230.dp),contentAlignment=Alignment.Center){Text(ui("Google 地圖尚未設定金鑰，請選擇其他底圖。"))}
+                MapProvider.OSM->PoiOsmMap(visiblePlaces,onCenter={moved(it,zoom)},onSelect={id->visiblePlaces.firstOrNull{it.optString("id")==id}?.let{focusPlace(it)}},Modifier.fillMaxWidth().height(230.dp),initialCenter=center,initialZoom=zoom,focus=focus,onZoom={moved(center,it)},insightMarkers=(store.insights?.optJSONObject("traffic")?.array("items")?.objects() ?: emptyList())+(store.insights?.array("pricePlaces")?.objects() ?: emptyList()))
+                MapProvider.GOOGLE->if(BuildConfig.MAPS_CONFIGURED)PoiGoogleMap(visiblePlaces,center,zoom,focus=focus,onCamera={point,z->moved(point,z)},onSelect={id->visiblePlaces.firstOrNull{it.optString("id")==id}?.let{focusPlace(it)}},insightMarkers=(store.insights?.optJSONObject("traffic")?.array("items")?.objects() ?: emptyList())+(store.insights?.array("pricePlaces")?.objects() ?: emptyList()))else Box(Modifier.fillMaxWidth().height(230.dp),contentAlignment=Alignment.Center){Text(ui("Google 地圖尚未設定金鑰，請選擇其他底圖。"))}
                 MapProvider.SCHEMATIC->Box(Modifier.fillMaxWidth().height(230.dp),contentAlignment=Alignment.Center){Text(ui("離線示意圖沒有街道底圖，請切換聯網底圖來移動搜尋範圍。"))}
             }
             Small(if(category=="all")"全部分類 · 附近 5 km · 資料限已匯入區域"else if(category=="gems")"社群探索候選 · 附近 5 km · 非熱門度評分"else if(store.mapProvider==MapProvider.GOOGLE&&store.travelDataSource=="direct")"Google Places · 移動地圖後自動搜尋 · 最遠 5 km"else "切換分類自動搜尋 · 移動地圖後自動搜尋 · 附近 1.5 km")
@@ -153,11 +166,11 @@ internal fun poiActivityKind(p:JSONObject):String=if(p.optString("source") !in l
             error?.let{Text("地點資料暫時無法載入："+it,color=Color.Red,fontSize=12.sp);Small("地圖底圖仍可顯示；地點清單尚未取得，並非附近沒有地點。");TextButton(onClick=::search){Text(ui("重新搜尋"))}}
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)) {
                 if(visiblePlaces.isEmpty()&&!busy&&error==null&&hasSearched)Small("此範圍沒有符合的地點。可清空名稱、切換分類，或移動地圖後重新搜尋。")
-                visiblePlaces.sortedBy{if(it.optString("id")==selected)0 else 1}.forEach{p->Column(Modifier.fillMaxWidth().background(if(p.optString("id")==selected)Mint else Color.White).clickable{detail=p}.padding(8.dp)) {
+                visiblePlaces.sortedBy{if(it.optString("id")==selected)0 else 1}.forEach{p->Column(Modifier.fillMaxWidth().background(if(p.optString("id")==selected)Mint else Color.White).clickable{focusPlace(p)}.padding(8.dp)) {
                     Text((if(p.optString("category")=="美食")"🍴 "else if(p.optString("category")=="設施")"🚻 "else if(p.optString("category")=="住宿")"🛏 "else if(p.optString("category")=="店家")"🛍 "else "📍 ")+p.optString("name"),color=if(p.optString("category")=="美食")Color(0xffa65d12)else Green)
                     Small(ui(p.optString("category"))+" · "+(p.optJSONArray("sources")?.strings()?.joinToString(" / ") ?: p.optString("source")))
                     Text(p.optString("description"),fontSize=12.sp,maxLines=2)
-                    Row{TextButton(onClick={detail=p}){Text(ui("詳細介紹"))};Spacer(Modifier.weight(1f));val added=store.poiToolbox.any{it.optString("id")==p.optString("id")};if(p.optString("source")=="Google Places")Small("Google 地點暫不匯入本機示例時間軸")else TextButton(onClick={if(added)store.removePoi(p.optString("id"))else{store.addPoi(p);onAdd(p)}}){Text(ui(if(added)"移出工具箱"else "＋工具箱"))}}
+                    Row{TextButton(onClick={focusPlace(p);detail=p}){Text(ui("詳細介紹"))};Spacer(Modifier.weight(1f));val added=store.poiToolbox.any{it.optString("id")==p.optString("id")};if(p.optString("source")=="Google Places")Small("Google 地點暫不匯入本機示例時間軸")else TextButton(onClick={if(added)store.removePoi(p.optString("id"))else{store.addPoi(p);onAdd(p)}}){Text(ui(if(added)"移出工具箱"else "＋工具箱"))}}
                 }}
             }
             if(store.mapProvider==MapProvider.OSM)Column {
@@ -178,31 +191,55 @@ internal fun poiActivityKind(p:JSONObject):String=if(p.optString("source") !in l
     }
     detail?.let{p->SchedulePlaceDetail(p,store){detail=null}}
 }
-@Composable private fun PoiOsmMap(places:List<JSONObject>,onCenter:(Pair<Double,Double>)->Unit,onSelect:(String)->Unit,modifier:Modifier,initialCenter:Pair<Double,Double>,initialZoom:Double,onZoom:(Double)->Unit,insightMarkers:List<JSONObject> = emptyList()) {
+@Composable private fun PoiOsmMap(places:List<JSONObject>,onCenter:(Pair<Double,Double>)->Unit,onSelect:(String)->Unit,modifier:Modifier,initialCenter:Pair<Double,Double>,initialZoom:Double,onZoom:(Double)->Unit,focus:PoiFocus?=null,insightMarkers:List<JSONObject> = emptyList()) {
     val context=LocalContext.current;val lifecycle=LocalLifecycleOwner.current.lifecycle
     var map by remember{mutableStateOf<MapLibreMap?>(null)}
+    var userGesture by remember{mutableStateOf(false)}
+    var appliedFocus by remember{mutableStateOf<Long?>(null)}
     val currentCenter by rememberUpdatedState(onCenter);val currentSelect by rememberUpdatedState(onSelect);val currentZoom by rememberUpdatedState(onZoom)
     val view=remember{OsmNetwork.initialize(context);MapView(context).apply{onCreate(null);getMapAsync{ready->
         ready.uiSettings.isLogoEnabled=false;ready.uiSettings.isAttributionEnabled=false
         ready.moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(initialCenter.first,initialCenter.second),initialZoom))
-        ready.addOnCameraIdleListener{ready.cameraPosition.target?.let{currentCenter(it.latitude to it.longitude)};currentZoom(ready.cameraPosition.zoom)}
-        ready.setOnMarkerClickListener{marker->marker.snippet?.let{currentSelect(it)};false}
+        ready.addOnCameraMoveStartedListener{reason->userGesture=reason==1}
+        ready.addOnCameraIdleListener{if(userGesture){userGesture=false;ready.cameraPosition.target?.let{currentCenter(it.latitude to it.longitude)};currentZoom(ready.cameraPosition.zoom)}}
         ready.setStyle(Style.Builder().fromJson(OSM_STYLE)){map=ready}
     }}}
     DisposableEffect(view,lifecycle){val observer=LifecycleEventObserver{_,event->when(event){Lifecycle.Event.ON_START->view.onStart();Lifecycle.Event.ON_RESUME->view.onResume();Lifecycle.Event.ON_PAUSE->view.onPause();Lifecycle.Event.ON_STOP->view.onStop();else->Unit}};view.onStart();view.onResume();lifecycle.addObserver(observer);onDispose{lifecycle.removeObserver(observer);view.onPause();view.onStop();view.onDestroy()}}
-    LaunchedEffect(map,places,insightMarkers.toString()){map?.let{ready->ready.clear();insightMarkers.forEach{p->ready.addMarker(MarkerOptions().position(LatLng(p.getDouble("lat"),p.getDouble("lng"))).title(p.optString("title")).snippet(p.optString("summary")).icon(IconFactory.getInstance(context).fromBitmap(itineraryBadge(if(p.optString("kind")=="price")"$"else "!"))))};places.forEach{p->ready.addMarker(MarkerOptions().position(LatLng(p.getDouble("lat"),p.getDouble("lng"))).icon(IconFactory.getInstance(context).fromBitmap(itineraryBadge(when(p.optString("category")){"美食"->"餐";"設施"->"WC";"住宿"->"宿";"店家"->"店";else->"景"}))).title((if(p.optString("category")=="美食")"🍴 "else if(p.optString("category")=="設施")"🚻 "else if(p.optString("category")=="住宿")"🛏 "else if(p.optString("category")=="店家")"🛍 "else "📍 ")+p.optString("name")).snippet(p.getString("id")))}}}
+    LaunchedEffect(map,places,focus,insightMarkers.toString()){map?.let{ready->
+        val markerIds=mutableMapOf<Long,String>()
+        ready.setOnMarkerClickListener{marker->markerIds[marker.id]?.let{currentSelect(it)};true}
+        ready.clear()
+        insightMarkers.forEach{p->ready.addMarker(MarkerOptions().position(LatLng(p.getDouble("lat"),p.getDouble("lng"))).title(p.optString("title")).icon(IconFactory.getInstance(context).fromBitmap(itineraryBadge(if(p.optString("kind")=="price")"$"else "!"))))}
+        var selectedMarker:org.maplibre.android.annotations.Marker?=null
+        places.forEach{p->val selected=p.optString("id")==focus?.id
+            val marker=ready.addMarker(MarkerOptions().position(LatLng(p.getDouble("lat"),p.getDouble("lng"))).icon(IconFactory.getInstance(context).fromBitmap(if(selected)focusedPoiIcon()else itineraryBadge(when(p.optString("category")){"美食"->"餐";"設施"->"WC";"住宿"->"宿";"店家"->"店";else->"景"}))).title(p.optString("name")))
+            markerIds[marker.id]=p.getString("id")
+            if(selected)selectedMarker=marker
+        }
+        if(focus!=null&&selectedMarker!=null&&appliedFocus!=focus.token){
+            appliedFocus=focus.token;userGesture=false
+            ready.moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(focus.lat,focus.lng),17.0))
+            ready.selectMarker(selectedMarker!!)
+        }
+    }}
     AndroidView(factory={view},modifier=modifier)
 }
 
-@Composable private fun PoiGoogleMap(places:List<JSONObject>,center:Pair<Double,Double>,zoom:Double,onCamera:(Pair<Double,Double>,Double)->Unit,onSelect:(String)->Unit,insightMarkers:List<JSONObject> = emptyList()) {
+@Composable private fun PoiGoogleMap(places:List<JSONObject>,center:Pair<Double,Double>,zoom:Double,onCamera:(Pair<Double,Double>,Double)->Unit,onSelect:(String)->Unit,focus:PoiFocus?=null,insightMarkers:List<JSONObject> = emptyList()) {
     val camera=rememberCameraPositionState()
     val currentCamera by rememberUpdatedState(onCamera)
     var loaded by remember{mutableStateOf(false)}
     LaunchedEffect(Unit){camera.move(GoogleCameraUpdate.newLatLngZoom(GoogleLatLng(center.first,center.second),zoom.toFloat()))}
-    LaunchedEffect(camera,loaded){if(loaded)snapshotFlow{camera.isMoving}.collect{moving->if(!moving)currentCamera(camera.position.target.latitude to camera.position.target.longitude,camera.position.zoom.toDouble())}}
+    LaunchedEffect(focus?.token,loaded){if(loaded&&focus!=null)camera.move(GoogleCameraUpdate.newLatLngZoom(GoogleLatLng(focus.lat,focus.lng),17f))}
+    LaunchedEffect(camera,loaded){if(loaded)snapshotFlow{camera.isMoving}.collect{moving->if(!moving&&camera.cameraMoveStartedReason==CameraMoveStartedReason.GESTURE)currentCamera(camera.position.target.latitude to camera.position.target.longitude,camera.position.zoom.toDouble())}}
     GoogleMap(Modifier.fillMaxWidth().height(230.dp),cameraPositionState=camera,onMapLoaded={loaded=true}) {
         insightMarkers.forEach{p->Marker(state=MarkerState(position=GoogleLatLng(p.getDouble("lat"),p.getDouble("lng"))),title=p.optString("title"),snippet=p.optString("summary"))}
-        places.forEach{p->Marker(state=MarkerState(position=GoogleLatLng(p.getDouble("lat"),p.getDouble("lng"))),title=p.getString("name"),onClick={onSelect(p.getString("id"));false})}
+        places.forEach{p->key(p.getString("id")){
+            val state=rememberMarkerState(position=GoogleLatLng(p.getDouble("lat"),p.getDouble("lng")))
+            val selected=p.getString("id")==focus?.id
+            LaunchedEffect(selected,focus?.token){if(selected)state.showInfoWindow()else state.hideInfoWindow()}
+            Marker(state=state,title=p.getString("name"),zIndex=if(selected)1000f else 0f,icon=BitmapDescriptorFactory.defaultMarker(if(selected)BitmapDescriptorFactory.HUE_AZURE else BitmapDescriptorFactory.HUE_ORANGE),onClick={onSelect(p.getString("id"));true})
+        }}
     }
 }
 

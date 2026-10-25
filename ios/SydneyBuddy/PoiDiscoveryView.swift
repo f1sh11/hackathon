@@ -160,6 +160,7 @@ enum PoiDiscoveryCategory {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @StateObject private var model=PoiSearchModel()
     @State private var detail:ScheduleCandidate?
+    @State private var focus:PoiMapFocus?
     @State private var localProvider:MapProvider = .apple
     private var searchProvider:MapProvider {addingToDay ? localProvider:store.mapProvider}
     @ObservedObject private var toolbox=PoiToolbox.shared
@@ -285,9 +286,10 @@ enum PoiDiscoveryCategory {
         searching=false;areaChanged=false;model.search()
     }
     .onChange(of: model.selected) { _, id in
+        if id == nil {focus=nil}
         if id != nil {
             searching = false
-            expanded = true
+            expanded = false
         }
     }
     .onDisappear { model.stop() }
@@ -295,9 +297,9 @@ enum PoiDiscoveryCategory {
     private func panelHeight(_ height:CGFloat)->CGFloat {max(180,height*(expanded ? 0.65:0.36))}
     @ViewBuilder private var map:some View {
         switch searchProvider {
-        case .apple,.osm:PoiNativeMap(places:visiblePlaces,osm:searchProvider == .osm,center:model.center,zoom:zoom,onCamera:{zoom=$1;areaChanged=false;model.cameraChanged($0,zoom:$1)},onSelect:{model.selected=$0},insightMarkers:insightMarkers).accessibilityIdentifier("poi-map-"+searchProvider.rawValue)
+        case .apple,.osm:PoiNativeMap(places:visiblePlaces,osm:searchProvider == .osm,center:model.center,zoom:zoom,onCamera:{zoom=$1;areaChanged=false;model.cameraChanged($0,zoom:$1)},onSelect:{id in if let point=visiblePlaces.first(where:{$0.id==id}){focusPlace(point)}},insightMarkers:insightMarkers,focus:focus).accessibilityIdentifier("poi-map-"+searchProvider.rawValue)
         case .google:
-            if SydneyBuddyApp.mapReady{PoiGoogleMap(places:visiblePlaces,center:model.center,zoom:zoom,onCamera:{zoom=$1;areaChanged=false;model.cameraChanged($0,zoom:$1)},onSelect:{model.selected=$0},insightMarkers:insightMarkers)}
+            if SydneyBuddyApp.mapReady{PoiGoogleMap(places:visiblePlaces,center:model.center,zoom:zoom,onCamera:{zoom=$1;areaChanged=false;model.cameraChanged($0,zoom:$1)},onSelect:{id in if let point=visiblePlaces.first(where:{$0.id==id}){focusPlace(point)}},insightMarkers:insightMarkers,focus:focus)}
             else{ContentUnavailableView("地图尚未配置",systemImage:"map",description:Text("请切换到 Apple Maps 或 OpenStreetMap。"))}
         case .schematic:ContentUnavailableView("请选择在线底图",systemImage:"map",description:Text("示意图不支持地点搜索。"))
         }
@@ -318,7 +320,8 @@ enum PoiDiscoveryCategory {
     private func placeRow(_ p:ScheduleCandidate)->some View {
         HStack(alignment:.top,spacing:12){
             Image(systemName:p.discoverySymbol).font(.title3).foregroundStyle(Palette.green).frame(width:38,height:44).background(Palette.mint,in:RoundedRectangle(cornerRadius:12))
-            Button{model.selected=p.id;detail=p}label:{VStack(alignment:.leading,spacing:5){Text(p.name).font(.subheadline.bold()).multilineTextAlignment(.leading);Text((store.insights?.places.first{$0.id==p.id}?.price.summary ?? "費用未知")+" · 人潮未知").font(.caption2).foregroundStyle(Palette.muted);Text(p.description ?? "点击查看地点详情").font(.caption).foregroundStyle(Palette.muted).lineLimit(2)}.frame(maxWidth:.infinity,alignment:.leading)}.buttonStyle(.plain).accessibilityLabel("查看地点："+p.name).accessibilityIdentifier("poi-detail-"+p.id)
+            Button{focusPlace(p)}label:{VStack(alignment:.leading,spacing:5){Text(p.name).font(.subheadline.bold()).multilineTextAlignment(.leading);Text((store.insights?.places.first{$0.id==p.id}?.price.summary ?? "費用未知")+" · 人潮未知").font(.caption2).foregroundStyle(Palette.muted);Text(p.description ?? "点击查看地点详情").font(.caption).foregroundStyle(Palette.muted).lineLimit(2)}.frame(maxWidth:.infinity,alignment:.leading)}.buttonStyle(.plain).accessibilityLabel("查看地点："+p.name).accessibilityIdentifier("poi-focus-"+p.id)
+            Button{focusPlace(p);detail=p}label:{Image(systemName:"info.circle").frame(width:36,height:44)}.accessibilityLabel("介紹："+p.name).accessibilityIdentifier("poi-detail-"+p.id)
             if p.source == "Google Places" {
                 Text("Google 地點暫不匯入本機示例時間軸").font(.caption2).foregroundStyle(Palette.muted)
             } else {
@@ -346,9 +349,14 @@ enum PoiDiscoveryCategory {
         Button{model.category=id}label:{Text(LocalizedStringKey(title)).font(.caption.bold()).padding(.horizontal,10).padding(.vertical,8).background(model.category==id ? Palette.green:Palette.mint,in:Capsule()).foregroundStyle(model.category==id ? .white:Palette.ink)}.accessibilityIdentifier("poi-category-"+id)
     }
     private func isAdded(_ p:ScheduleCandidate)->Bool {toolbox.places.contains{$0.id==p.id}}
+    private func focusPlace(_ point:ScheduleCandidate){
+        searching=false;model.stop();model.center = .init(latitude:point.lat,longitude:point.lng);model.selected=point.id;expanded=false;focus=PoiMapFocus(point:point)
+    }
     private func search(){searching=false;areaChanged=false;model.search()}
     private func togglePanel(){withAnimation(reduceMotion ? nil:.easeInOut(duration:0.2)){expanded.toggle()}}
 }
+struct PoiMapFocus {let token=UUID();let point:ScheduleCandidate}
+
 final class PoiPin:NSObject,MKAnnotation {
     let point:ScheduleCandidate
     var coordinate:CLLocationCoordinate2D {CLLocationCoordinate2D(latitude:point.lat,longitude:point.lng)}
@@ -360,47 +368,68 @@ struct PoiNativeMap:UIViewRepresentable {
     var center:CLLocationCoordinate2D;var zoom:Double
     var onCamera:(CLLocationCoordinate2D,Double)->Void;var onSelect:(String)->Void
     var insightMarkers:[InsightMarker]=[]
+    var focus:PoiMapFocus?=nil
     func makeCoordinator()->Coordinator{Coordinator(self)}
     final class Coordinator:NSObject,MKMapViewDelegate {
-        var parent:PoiNativeMap;var key=""
+        var parent:PoiNativeMap;var key="";var focusToken:UUID?;var focusing=false
         init(_ p:PoiNativeMap){parent=p}
         func mapView(_ map:MKMapView,rendererFor overlay:MKOverlay)->MKOverlayRenderer{if let tiles=overlay as? MKTileOverlay{return MKTileOverlayRenderer(tileOverlay:tiles)};return MKOverlayRenderer(overlay:overlay)}
-        func mapView(_ map:MKMapView,regionDidChangeAnimated animated:Bool){parent.onCamera(map.centerCoordinate,log2(360/max(0.00001,map.region.span.longitudeDelta)))}
+        func mapView(_ map:MKMapView,regionDidChangeAnimated animated:Bool){if focusing{focusing=false;return};parent.onCamera(map.centerCoordinate,log2(360/max(0.00001,map.region.span.longitudeDelta)))}
         func mapView(_ map:MKMapView,viewFor annotation:MKAnnotation)->MKAnnotationView? {
             if let pin=annotation as? InsightMapPin {let view=MKMarkerAnnotationView(annotation:pin,reuseIdentifier:nil);view.markerTintColor=pin.kind == "price" ? .systemGreen:.systemOrange;view.glyphText=pin.kind == "price" ? "$":"!";view.canShowCallout=true;return view}
             guard let pin=annotation as? PoiPin else{return nil}
-            let view=MKMarkerAnnotationView(annotation:pin,reuseIdentifier:nil);view.markerTintColor=pin.point.category=="美食" ? .systemOrange:.systemTeal;view.glyphImage=UIImage(systemName:pin.point.discoverySymbol);view.canShowCallout=true;return view
+            let view=MKMarkerAnnotationView(annotation:pin,reuseIdentifier:nil);let selected=pin.point.id==parent.focus?.point.id;view.markerTintColor=selected ? .systemBlue:pin.point.category=="美食" ? .systemOrange:.systemTeal;view.displayPriority=selected ? .required:.defaultHigh;view.zPriority=selected ? .max:.defaultUnselected;view.transform=selected ? CGAffineTransform(scaleX:1.2,y:1.2):.identity;view.glyphImage=UIImage(systemName:pin.point.discoverySymbol);view.canShowCallout=true;return view
         }
-        func mapView(_ map:MKMapView,didSelect view:MKAnnotationView){if let pin=view.annotation as? PoiPin{parent.onSelect(pin.point.id)}}
+        func mapView(_ map:MKMapView,didSelect view:MKAnnotationView){if let pin=view.annotation as? PoiPin,pin.point.id != parent.focus?.point.id{parent.onSelect(pin.point.id)}}
     }
     func makeUIView(context:Context)->MKMapView{let map=MKMapView();map.delegate=context.coordinator;if osm{map.addOverlay(OsmTiles(),level:.aboveLabels)};let delta=360/pow(2,zoom);map.setRegion(MKCoordinateRegion(center:center,span:MKCoordinateSpan(latitudeDelta:delta,longitudeDelta:delta)),animated:false);return map}
     func updateUIView(_ map:MKMapView,context:Context){context.coordinator.parent=self
         let tiles=map.overlays.filter{$0 is OsmTiles}
         if osm && tiles.isEmpty{map.addOverlay(OsmTiles(),level:.aboveLabels)}
         if !osm{map.removeOverlays(tiles)}
-        let key=places.map(\.id).joined(separator:",")+insightMarkers.map{$0.id+$0.title}.joined();guard context.coordinator.key != key else{return};context.coordinator.key=key;map.removeAnnotations(map.annotations);map.addAnnotations(places.map(PoiPin.init));for item in insightMarkers{let pin=InsightMapPin();pin.kind=item.kind;pin.coordinate = .init(latitude:item.lat,longitude:item.lng);pin.title=item.title;pin.subtitle=item.summary;map.addAnnotation(pin)}}
+        let key=places.map(\.id).joined(separator:",")+insightMarkers.map{$0.id+$0.title}.joined()+(focus?.point.id ?? "")
+        if context.coordinator.key != key {
+            context.coordinator.key=key;map.removeAnnotations(map.annotations);map.addAnnotations(places.map(PoiPin.init))
+            for item in insightMarkers{let pin=InsightMapPin();pin.kind=item.kind;pin.coordinate = .init(latitude:item.lat,longitude:item.lng);pin.title=item.title;pin.subtitle=item.summary;map.addAnnotation(pin)}
+        }
+        if let focus,context.coordinator.focusToken != focus.token,let pin=map.annotations.compactMap({$0 as? PoiPin}).first(where:{$0.point.id==focus.point.id}) {
+            context.coordinator.focusToken=focus.token;context.coordinator.focusing=true
+            let point=MKMapPoint(pin.coordinate);let width=900/MKMetersPerMapPointAtLatitude(pin.coordinate.latitude)
+            let rect=MKMapRect(x:point.x-width/2,y:point.y-width/2,width:width,height:width)
+            map.setVisibleMapRect(rect,edgePadding:UIEdgeInsets(top:map.bounds.height*0.30,left:32,bottom:map.bounds.height*0.36,right:32),animated:!UIAccessibility.isReduceMotionEnabled)
+            map.selectAnnotation(pin,animated:true)
+        }
+    }
 }
 
 private struct PoiGoogleMap:UIViewRepresentable {
     var places:[ScheduleCandidate];var center:CLLocationCoordinate2D;var zoom:Double
     var onCamera:(CLLocationCoordinate2D,Double)->Void;var onSelect:(String)->Void
     var insightMarkers:[InsightMarker]=[]
+    var focus:PoiMapFocus?=nil
     func makeCoordinator()->Coordinator{Coordinator(self)}
     final class Coordinator:NSObject,GMSMapViewDelegate {
-        var parent:PoiGoogleMap;var key=""
+        var parent:PoiGoogleMap;var key="";var focusToken:UUID?;var focusing=false;var markers:[String:GMSMarker]=[:]
         init(_ parent:PoiGoogleMap){self.parent=parent}
-        func mapView(_ map:GMSMapView,idleAt camera:GMSCameraPosition){parent.onCamera(camera.target,Double(camera.zoom))}
-        func mapView(_ map:GMSMapView,didTap marker:GMSMarker)->Bool{if let id=marker.userData as? String{parent.onSelect(id)};return false}
+        func mapView(_ map:GMSMapView,willMove gesture:Bool){if gesture{focusing=false}}
+        func mapView(_ map:GMSMapView,idleAt camera:GMSCameraPosition){if focusing{focusing=false;return};parent.onCamera(camera.target,Double(camera.zoom))}
+        func mapView(_ map:GMSMapView,didTap marker:GMSMarker)->Bool{if let id=marker.userData as? String{parent.onSelect(id)};return true}
     }
     func makeUIView(context:Context)->GMSMapView {
         let options=GMSMapViewOptions();options.camera=GMSCameraPosition(target:center,zoom:Float(zoom))
         let map=GMSMapView(options:options);map.delegate=context.coordinator;return map
     }
     func updateUIView(_ map:GMSMapView,context:Context){
-        context.coordinator.parent=self;let key=places.map(\.id).joined(separator:",")+insightMarkers.map{$0.id+$0.title}.joined()
-        guard key != context.coordinator.key else{return};context.coordinator.key=key;map.clear()
+        context.coordinator.parent=self;let key=places.map(\.id).joined(separator:",")+insightMarkers.map{$0.id+$0.title}.joined()+(focus?.point.id ?? "")
+        if key != context.coordinator.key {context.coordinator.key=key;map.clear();context.coordinator.markers=[:]
         for item in insightMarkers{let pin=GMSMarker(position:.init(latitude:item.lat,longitude:item.lng));pin.title=item.title;pin.snippet=item.summary;pin.icon=GMSMarker.markerImage(with:item.kind == "price" ? .systemGreen:.systemOrange);pin.map=map}
-        for point in places{let marker=GMSMarker(position:CLLocationCoordinate2D(latitude:point.lat,longitude:point.lng));marker.title=point.name;marker.userData=point.id;marker.icon=GMSMarker.markerImage(with:point.category=="美食" ? .systemOrange:.systemTeal);marker.map=map}
+        for point in places{let marker=GMSMarker(position:CLLocationCoordinate2D(latitude:point.lat,longitude:point.lng));marker.title=point.name;marker.userData=point.id;marker.icon=GMSMarker.markerImage(with:point.id==focus?.point.id ? .systemBlue:point.category=="美食" ? .systemOrange:.systemTeal);marker.zIndex=point.id==focus?.point.id ? 1000:0;marker.map=map;context.coordinator.markers[point.id]=marker}
+        }
+        if let focus,context.coordinator.focusToken != focus.token {
+            context.coordinator.focusToken=focus.token;context.coordinator.focusing=true
+            map.padding=UIEdgeInsets(top:map.bounds.height*0.30,left:24,bottom:map.bounds.height*0.36,right:24)
+            if let selected=context.coordinator.markers[focus.point.id]{map.selectedMarker=selected;map.animate(to:GMSCameraPosition(target:selected.position,zoom:17))}
+        }
     }
 }
 
