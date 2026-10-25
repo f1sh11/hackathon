@@ -1,5 +1,7 @@
 # 本機 Zetaris → AWS Zetaris：公開旅遊資料搬移包
 
+雪梨雲端部署、三種 App 資料來源切換，以及從正在使用的來源資料庫匯出完整公開資料，請先看 [ZETARIS-SYDNEY.md](../../../docs/deployment/ZETARIS-SYDNEY.md)。下列工具只處理原有三份 CSV；新工具另支援即時來源快照與私有 S3 Filestore。
+
 這套工具把目前專案的公開資料打成 ZIP，讓你在 **AWS 可連到的 PostgreSQL 來源資料庫** 匯入，再在 AWS Zetaris 登錄同名資料來源與天氣 REST Table。它不建立 AWS 資源、不自動上傳、不搬使用者資料，也不是 Zetaris 引擎／系統備份工具。
 
 Zetaris 採資料虛擬化：景點資料實際放在 PostgreSQL，Zetaris 保存連線與表格登錄。**只搬 Zetaris 容器，AWS 仍讀不到原本電腦上的資料庫。** 因此這裡採「公開資料包 + 來源 DB 重建 + Zetaris 重登錄」，不用複製本機 Docker volume、管理帳密或平台安裝包。
