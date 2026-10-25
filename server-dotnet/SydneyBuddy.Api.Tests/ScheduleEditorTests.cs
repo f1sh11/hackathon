@@ -30,4 +30,12 @@ public sealed class ScheduleEditorTests:IDisposable {
     [Fact] public void InvalidNumbersUnknownPlacesAndCrossProviderTripsFail(){Assert.Throws<ServiceException>(()=>Build(settings:new(){["timeLimit"]=-1}));var seed=Seed();seed["mode"]="live";Assert.Throws<ServiceException>(()=>Service().Build(new(){["trip"]=seed}));var trip=Build();Assert.Throws<ServiceException>(()=>Recalculate(trip,ds=>ds[0]!.Array("activities")!.OfType<JsonObject>().First(x=>x.Str("kind")=="attraction")["placeId"]="invented"));}
     [Fact] public void LowLimitsProduceExplicitWarningsAndDoNotChangeUserLimits(){var trip=Build(settings:new(){["dailyBudget"]=1,["totalBudget"]=1,["timeLimit"]=0,["maxSteps"]=500});Assert.Equal(500,trip.Object("schedule")!.Object("settings")!.Int("maxSteps"));Assert.Contains(trip.Object("schedule")!.Array("issues")!.OfType<JsonObject>(),x=>x.Str("code")=="budget");}
     public void Dispose()=>cache.Dispose();
+    [Fact] public void ExplicitDayAnchorsSurviveRecalculationWithoutMovingNextDayHotel() {
+        var trip=Build(2,new(){["dailyBudget"]=500,["totalBudget"]=2000});
+        var before=trip.Object("schedule")!.Array("days")![1]!.Object("start")!.ToJsonString();
+        var result=Recalculate(trip,days=>{var d=days[0]!.AsObject();d["startOverride"]=true;d["endOverride"]=true;d["start"]=new JsonObject{["name"]="当天出发点",["lat"]=-33.868,["lng"]=151.209};d["end"]=new JsonObject{["name"]="当天返回点",["lat"]=-33.86,["lng"]=151.21};d["startMinute"]=660;});
+        var after=result.Object("schedule")!.Array("days")!;
+        Assert.Equal("当天出发点",after[0]!.Object("start")!.Str("name"));Assert.Equal("当天返回点",after[0]!.Object("end")!.Str("name"));Assert.True(after[0]!.Bool("startOverride"));Assert.Equal(660,after[0]!.Int("startMinute"));
+        Assert.Equal(before,after[1]!.Object("start")!.ToJsonString());
+    }
 }

@@ -4,6 +4,21 @@ import MapKit
 @testable import SydneyBuddy
 
 @MainActor final class ScheduleTests:XCTestCase {
+    func testDayAnchorEditsAreTrackedAndDoNotChangeOtherDays() throws {
+        let trip=try fixture();var state=trip.schedule ?? ScheduleState.preserving(trip)
+        let encoder=JSONEncoder();encoder.outputFormatting = .sortedKeys
+        let original=try encoder.encode(state.days.dropFirst().map{$0})
+        let unchanged=state.days[0]
+        XCTAssertFalse(ScheduleAnchorEdit.apply(&state,day:0,kind:.start,minute:unchanged.startMinute,point:unchanged.start))
+        XCTAssertTrue(ScheduleInlineDraft.changedDays(original:trip,draft:state).isEmpty)
+        XCTAssertTrue(ScheduleAnchorEdit.apply(&state,day:0,kind:.start,minute:660,point:.central))
+        XCTAssertTrue(state.days[0].startOverride == true)
+        XCTAssertEqual(ScheduleInlineDraft.changedDays(original:trip,draft:state),[0])
+        XCTAssertEqual(try encoder.encode(state.days.dropFirst().map{$0}),original)
+        XCTAssertFalse(ScheduleAnchorEdit.apply(&state,day:0,kind:.end,minute:600,point:.quay))
+        XCTAssertEqual(state.days[0].startMinute,660)
+        XCTAssertEqual(ScheduleClock.minute(ScheduleClock.date(665)),665)
+    }
     func testHomeFocusResumesCurrentTripAndDoesNotChoosePastOrDuplicateFuture() throws {
         var today=try fixture();today.id="current";today.profile.date="2026-10-25";today.days=Array(today.days.prefix(1));today.days[0].date="2026-10-25"
         var future=today;future.id="future";future.profile.date="2026-10-28";future.days[0].date="2026-10-28"

@@ -1,4 +1,5 @@
 import SwiftUI
+import MapKit
 
 struct ScheduleSettings:Codable {
     var pace:String;var timeLimit:Int;var restroomInterval:Int;var mealCost:Double
@@ -18,6 +19,7 @@ struct ScheduleStay:Codable {var name:String;var lat:Double;var lng:Double;var c
 struct ScheduleDay:Codable,Identifiable {
     var date:String;var startMinute:Int;var endMinute:Int;var start:Coordinate;var end:Coordinate;var stay:ScheduleStay
     var maxSteps:Int? = nil;var dailyBudget:Double? = nil
+    var startOverride:Bool? = nil;var endOverride:Bool? = nil
     var activities:[ScheduleActivity];var transportMinutes:Int;var queueMinutes:Int;var timeUsed:Int;var timeRemaining:Int
     var unknownQueue:Bool;var estimatedSteps:Int;var estimatedCost:Double;var finishTime:String
     var id:String {date}
@@ -64,6 +66,8 @@ enum ScheduleInlineDraft {
         let encoder=JSONEncoder();encoder.outputFormatting = .sortedKeys
         return Set(draft.days.indices.filter {i in
             guard baseline.days.indices.contains(i) else{return true}
+            let a=baseline.days[i],b=draft.days[i]
+            if a.startMinute != b.startMinute || a.endMinute != b.endMinute || a.start.name != b.start.name || a.start.lat != b.start.lat || a.start.lng != b.start.lng || a.end.name != b.end.name || a.end.lat != b.end.lat || a.end.lng != b.end.lng{return true}
             return (try? encoder.encode(draft.days[i].activities.map(Signature.init))) != (try? encoder.encode(baseline.days[i].activities.map(Signature.init)))
         })
     }
@@ -165,10 +169,10 @@ enum ScheduleInlineDraft {
         }
     }
     func reorder(_ id:String,before target:String) {
-        guard let day=state?.days[dayIndex],let source=day.activities.firstIndex(where:{$0.id==id}),let dest=day.activities.firstIndex(where:{$0.id==target}),source != dest else{return}
+        guard let day=state?.days[dayIndex],let source=day.activities.firstIndex(where:{$0.id==id}),let dest=day.activities.firstIndex(where:{$0.id==target}),source != dest,day.activities[source].locked != true,day.activities[dest].locked != true else{return}
         edit {let a=$0.days[dayIndex].activities.remove(at:source);$0.days[dayIndex].activities.insert(a,at:min(dest,$0.days[dayIndex].activities.count))}
     }
-    func move(_ id:String,by offset:Int) {guard let index=state?.days[dayIndex].activities.firstIndex(where:{$0.id==id}),let count=state?.days[dayIndex].activities.count,index+offset>=0,index+offset<count else{return};edit{$0.days[dayIndex].activities.swapAt(index,index+offset)}}
+    func move(_ id:String,by offset:Int) {guard let index=state?.days[dayIndex].activities.firstIndex(where:{$0.id==id}),let count=state?.days[dayIndex].activities.count,index+offset>=0,index+offset<count,state?.days[dayIndex].activities[index].locked != true,state?.days[dayIndex].activities[index+offset].locked != true else{return};edit{$0.days[dayIndex].activities.swapAt(index,index+offset)}}
     func undo(){guard let previous=history.popLast() else{return};job?.cancel();generation+=1;trip=previous;state=previous.schedule ?? ScheduleState.preserving(previous);busy=false;dirty=false;error=nil;notice=nil}
     func restore(){guard let seed else{return};job?.cancel();generation+=1;history=[];trip=seed;state=seed.schedule ?? ScheduleState.preserving(seed);busy=false;dirty=false;error=nil;notice=nil}
     func stop(){job?.cancel();generation+=1;busy=false}
@@ -431,6 +435,8 @@ struct InlineTripSchedule:View {
     @EnvironmentObject private var store:AppStore
     @StateObject private var model=ScheduleEditorModel()
     @State private var expanded:String?
+    @State private var anchorRequest:ScheduleAnchorRequest?
+    @State private var movingActivity:ScheduleActivity?
     @State private var routePreview=false
     @State private var durationActivity:ScheduleActivity?
     @State private var candidateRequest:ScheduleCandidateRequest?
@@ -461,14 +467,14 @@ struct InlineTripSchedule:View {
                 VStack(alignment:.leading,spacing:0){
                     if let day {
                         heading(day)
-                        endpoint(day.start.name,time:"出发",symbol:"location.fill")
+                        endpoint(day.start.name,time:ScheduleClock.text(day.startMinute),symbol:"location.fill",kind:.start)
                         ForEach(Array(day.activities.enumerated()),id:\.element.id){position,activity in
                             connection(position:position,minutes:activity.travelMinutes)
                             activityRow(activity,position:position)
                         }
                         connection(position:day.activities.count,minutes:nil)
-                        endpoint(day.end.name,time:day.finishTime,symbol:"flag.checkered")
-                        if editable{Text("点停留时间可调整 · 长按地点卡可排序").font(.caption).foregroundStyle(Palette.muted).padding(.top,20)}
+                        endpoint(day.end.name,time:day.finishTime,symbol:"flag.checkered",kind:.end)
+                        if editable{Text("点时间修改 · 按住右侧手柄拖动排序").font(.caption).foregroundStyle(Palette.muted).padding(.top,20)}
                         Text(model.trip?.days.indices.contains(index)==true && model.trip!.days[index].legs.allSatisfy{$0.source.contains("Apple")} ? "交通按路线来源查询安排；费用、停留和未知排队仍为估算。":changed ? "步行和排队会重新校验；道路查询失败时保留草稿。":"时间和费用为估算；修改时将查询 Apple 步行路线。").font(.caption).foregroundStyle(Palette.muted).padding(.top,10)
                     }
                     issues
@@ -491,6 +497,18 @@ struct InlineTripSchedule:View {
             model.dayIndex=index
             model.edit{state in if let i=state.days[index].activities.firstIndex(where:{$0.id==activity.id}){state.days[index].activities[i].duration=minutes}}
         }}
+        .sheet(item:$anchorRequest){request in
+            if let day {InlineAnchorSheet(day:day,request:request){minute,point in
+                model.edit{state in ScheduleAnchorEdit.apply(&state,day:index,kind:request.kind,minute:minute,point:point)}
+            }}
+        }
+        .confirmationDialog("移动「"+(movingActivity?.name ?? "地点")+"」",isPresented:Binding(get:{movingActivity != nil},set:{if !$0{movingActivity=nil}}),titleVisibility:.visible){
+            if let activity=movingActivity,let position=day?.activities.firstIndex(where:{$0.id==activity.id}){
+                Button("上移一站"){model.move(activity.id,by:-1);movingActivity=nil}.disabled(position==0 || day?.activities[position-1].locked==true)
+                Button("下移一站"){model.move(activity.id,by:1);movingActivity=nil}.disabled(position+1 >= (day?.activities.count ?? 0) || day?.activities[position+1].locked==true)
+            }
+            Button("取消",role:.cancel){movingActivity=nil}
+        }
         .sheet(item:$candidateRequest){request in candidatePicker(request)}
         .sheet(isPresented:$ledger){JournalView(tripID:trip.id)}
         .sheet(isPresented:$routePreview){AppleTripWalkingView(trip:trip,initialDay:index)}
@@ -506,8 +524,19 @@ struct InlineTripSchedule:View {
             if savedMessage{Label("收好啦，新的安排已经保存",systemImage:"checkmark.circle.fill").font(.caption).foregroundStyle(Palette.berry)}
         }.padding(.bottom,24)
     }
-    private func endpoint(_ name:String,time:String,symbol:String)->some View {
-        HStack(alignment:.top,spacing:12){Text(time).font(.caption.monospacedDigit()).foregroundStyle(Palette.muted).frame(width:46,alignment:.leading);Image(systemName:symbol).foregroundStyle(Palette.berry).frame(width:24);Text(name).font(.subheadline.weight(.semibold));Spacer()}.padding(.vertical,8)
+    private func endpoint(_ name:String,time:String,symbol:String,kind:ScheduleAnchorKind)->some View {
+        let canEdit=editable && !blocked && !(kind == .start && trip.days.indices.contains(index) && trip.days[index].executionStarted == true)
+        return HStack(alignment:.top,spacing:12){
+            VStack(spacing:3){
+                if kind == .start{Button{anchorRequest=ScheduleAnchorRequest(kind:kind,editingPlace:false)}label:{VStack(spacing:3){Text(time).font(.caption.monospacedDigit().bold());Text("出发 ▾").font(.caption2)}}.buttonStyle(BuddyPressStyle()).frame(minWidth:46,minHeight:44).disabled(!canEdit).accessibilityLabel("出发时间 "+time+"，点击修改").accessibilityIdentifier("schedule-start-time")}
+                else{Text(time).font(.caption.monospacedDigit());Text("预计返回").font(.caption2)}
+            }.foregroundStyle(Palette.berry).frame(width:46,alignment:.leading)
+            Image(systemName:symbol).foregroundStyle(Palette.berry).frame(width:24).padding(.top,12)
+            VStack(alignment:.leading,spacing:4){
+                Button{anchorRequest=ScheduleAnchorRequest(kind:kind,editingPlace:true)}label:{HStack(spacing:7){Text(name).font(.subheadline.weight(.semibold)).multilineTextAlignment(.leading);if editable{Image(systemName:"chevron.down").font(.caption2)}}.padding(.horizontal,12).frame(minHeight:44).background(Palette.mint.opacity(0.45),in:RoundedRectangle(cornerRadius:12))}.buttonStyle(BuddyPressStyle()).disabled(!canEdit).accessibilityLabel((kind == .start ? "出发地点：":"返回地点：")+name+"，点击修改").accessibilityIdentifier(kind == .start ? "schedule-start-place":"schedule-end-place")
+                if kind == .end,let day{Button{anchorRequest=ScheduleAnchorRequest(kind:kind,editingPlace:false)}label:{Label("最晚 "+ScheduleClock.text(day.endMinute)+" 结束",systemImage:"clock").font(.caption).frame(minHeight:44)}.buttonStyle(BuddyPressStyle()).disabled(!canEdit).accessibilityIdentifier("schedule-end-time")}
+            };Spacer(minLength:0)
+        }.padding(.vertical,8)
     }
     private func transportTitle(_ position:Int)->String {
         if let plan=model.trip,plan.days.indices.contains(index),plan.days[index].legs.indices.contains(position){return plan.days[index].legs[position].label}
@@ -525,12 +554,16 @@ struct InlineTripSchedule:View {
                 Image(systemName:symbol(activity.kind)).font(.subheadline).foregroundStyle(Palette.berry).frame(width:30,height:34).background(activity.kind=="attraction" ? Palette.lavender:Palette.peach,in:RoundedRectangle(cornerRadius:10)).padding(.top,4).accessibilityHidden(true)
                 VStack(alignment:.leading,spacing:4){
                     Button{withAnimation(reduceMotion ? nil:.easeInOut(duration:0.2)){expanded=expanded==activity.id ? nil:activity.id}}label:{HStack(alignment:.top){Text(activity.name).font(.system(.headline,design:.rounded)).multilineTextAlignment(.leading);Spacer(minLength:4);Image(systemName:expanded==activity.id ? "chevron.up":"chevron.down").font(.caption).padding(.top,4)}.frame(minHeight:40)}.buttonStyle(.plain).accessibilityIdentifier("schedule-stop-"+activity.id)
-                    Button{durationActivity=activity}label:{HStack(spacing:5){Text("停留 \(activity.duration) 分钟");Image(systemName:activity.locked==true ? "lock.fill":"pencil").font(.caption2)}.font(.caption).foregroundStyle(Palette.berry).frame(minHeight:36)}.buttonStyle(BuddyPressStyle()).disabled(!editable || blocked || activity.locked==true).accessibilityIdentifier("schedule-duration-"+activity.id)
+                    Button{durationActivity=activity}label:{HStack(spacing:5){Text("停留 \(activity.duration) 分钟");Image(systemName:activity.locked==true ? "lock.fill":"chevron.down").font(.caption2)}.font(.caption).foregroundStyle(Palette.berry).padding(.horizontal,12).frame(minHeight:44).background(Palette.blush.opacity(0.65),in:Capsule())}.buttonStyle(BuddyPressStyle()).disabled(!editable || blocked || activity.locked==true).accessibilityIdentifier("schedule-duration-"+activity.id)
+                }
+                if editable {
+                    if !blocked && activity.locked != true {
+                        Button{movingActivity=activity}label:{Image(systemName:"line.3.horizontal").font(.body.weight(.semibold)).foregroundStyle(Palette.muted).frame(width:44,height:44).background(Palette.mint.opacity(0.45),in:RoundedRectangle(cornerRadius:12))}.buttonStyle(BuddyPressStyle()).draggable("koko-schedule|\(trip.id ?? "")|\(index)|\(activity.id)").accessibilityLabel("调整"+activity.name+"的顺序").accessibilityHint("点按选择上移或下移，也可以长按拖动").accessibilityIdentifier("schedule-reorder-"+activity.id)
+                    }else{Image(systemName:activity.locked==true ? "lock.fill":"line.3.horizontal").font(.caption).foregroundStyle(Palette.muted).frame(width:44,height:44)}
                 }
             }
             if expanded==activity.id{activityActions(activity,position:position).padding(.leading,58).padding(.top,10)}
         }.padding(12).background(expanded==activity.id ? Color.white:Color.white.opacity(0.45),in:RoundedRectangle(cornerRadius:20)).overlay(RoundedRectangle(cornerRadius:20).stroke(expanded==activity.id ? Palette.berry.opacity(0.28):.clear))
-        .draggable("koko-schedule|\(trip.id ?? "")|\(index)|\(activity.id)")
         .dropDestination(for:String.self){values,_ in
             guard editable,!blocked,let value=values.first else{return false}
             let prefix="koko-schedule|\(trip.id ?? "")|\(index)|"
@@ -626,7 +659,7 @@ private struct InlineDurationSheet:View {
             HStack{ForEach([30,60,90,120],id:\.self){value in Button("\(value) 分"){minutes=value}.font(.caption.bold()).frame(maxWidth:.infinity,minHeight:44).background(minutes==value ? Palette.blush:Color.white,in:Capsule()).buttonStyle(BuddyPressStyle())}}
             Stepper("自定义停留",value:$minutes,in:5...240,step:5)
             Text("应用后先预览当天变化，保存调整才会更新行程。").font(.caption).foregroundStyle(Palette.muted)
-            PrimaryButton(title:"预览调整",symbol:"clock"){apply(minutes);dismiss()}.accessibilityIdentifier("schedule-duration-apply")
+            PrimaryButton(title:"预览调整",symbol:"clock"){apply(minutes);dismiss()}.disabled(minutes==activity.duration).accessibilityIdentifier("schedule-duration-apply")
         }.padding(24)}.background(Palette.cream).navigationTitle("留一点喜欢的时间").navigationBarTitleDisplayMode(.inline).toolbar{Button("取消"){dismiss()}}}
         .presentationDetents([.height(560),.large]).onAppear{minutes=activity.duration}
     }
@@ -640,5 +673,70 @@ enum ScheduleConnection {
         let previous=position==0 ? day.startMinute:minute(day.activities[position-1].departure)
         let next=position<day.activities.count ? minute(day.activities[position].arrival):minute(day.finishTime)
         guard let previous,let next else{return 0};return max(0,next-previous-travel)
+    }
+}
+
+// Day-scoped edits are a preview; saving still uses the existing revision-checked flow.
+enum ScheduleAnchorKind {case start,end}
+struct ScheduleAnchorRequest:Identifiable {let id=UUID();let kind:ScheduleAnchorKind;let editingPlace:Bool}
+enum ScheduleClock {
+    static func text(_ minute:Int)->String {String(format:"%02d:%02d",minute/60,minute%60)}
+    static var calendar:Calendar {var c=Calendar(identifier:.gregorian);c.timeZone=TimeZone(identifier:"Australia/Sydney")!;return c}
+    static func date(_ minute:Int)->Date {calendar.date(from:DateComponents(year:2026,month:1,day:1,hour:minute/60,minute:minute%60))!}
+    static func minute(_ date:Date)->Int {calendar.component(.hour,from:date)*60+calendar.component(.minute,from:date)}
+}
+enum ScheduleAnchorEdit {
+    @discardableResult static func apply(_ state:inout ScheduleState,day:Int,kind:ScheduleAnchorKind,minute:Int,point:Coordinate)->Bool {
+        guard state.days.indices.contains(day),minute>=0,minute<1440,point.lat.isFinite,point.lng.isFinite,CLLocationCoordinate2DIsValid(CLLocationCoordinate2D(latitude:point.lat,longitude:point.lng)),!point.name.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty else{return false}
+        if kind == .start {
+            guard minute != state.days[day].startMinute || point != state.days[day].start else{return false}
+            guard minute<state.days[day].endMinute else{return false}
+            state.days[day].startMinute=minute;state.days[day].start=point;state.days[day].startOverride=true
+        }else{
+            guard minute != state.days[day].endMinute || point != state.days[day].end else{return false}
+            guard minute>state.days[day].startMinute else{return false}
+            state.days[day].endMinute=minute;state.days[day].end=point;state.days[day].endOverride=true
+        }
+        return true
+    }
+}
+private struct InlineAnchorSheet:View {
+    let day:ScheduleDay;let request:ScheduleAnchorRequest
+    var apply:(Int,Coordinate)->Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var minute=600
+    @State private var point=Coordinate.quay
+    @State private var query=""
+    @State private var places:[ScheduleCandidate]=[]
+    @State private var searching=false
+    @State private var issue:String?
+    private var valid:Bool {request.kind == .start ? minute<day.endMinute:minute>day.startMinute}
+    private var hasChanges:Bool {minute != (request.kind == .start ? day.startMinute:day.endMinute) || point != (request.kind == .start ? day.start:day.end)}
+    var body:some View {
+        NavigationStack{ScrollView{VStack(alignment:.leading,spacing:20){
+            HStack(spacing:12){PetAvatar(mood:searching ? .thinking:.curious,size:64).frame(width:64,height:72);Text(request.kind == .start ? "几点、从哪里出发？\n改好后，我再核对这一天的路线。":"最后想回到哪里？\n也可以告诉我最晚几点收起小背包。").font(.subheadline.weight(.medium))}
+            VStack(alignment:.leading,spacing:12){
+                DatePicker(request.kind == .start ? "出发时间":"最晚结束时间",selection:Binding(get:{ScheduleClock.date(minute)},set:{minute=ScheduleClock.minute($0)}),displayedComponents:.hourAndMinute).environment(\.timeZone,TimeZone(identifier:"Australia/Sydney")!).accessibilityIdentifier("anchor-time-picker")
+                if !valid{Text(request.kind == .start ? "出发时间需要早于最晚结束时间。":"结束时间需要晚于出发时间。").font(.caption).foregroundStyle(.red)}
+            }.padding(16).background(.white,in:RoundedRectangle(cornerRadius:18))
+            VStack(alignment:.leading,spacing:12){
+                Text(request.kind == .start ? "出发地点":"返回地点").font(.headline)
+                Label(point.name,systemImage:"checkmark.circle.fill").font(.subheadline).foregroundStyle(Palette.berry).accessibilityIdentifier("anchor-selected-place")
+                TextField("搜索酒店、车站或地点",text:$query).textFieldStyle(.roundedBorder).submitLabel(.search).onSubmit{Task{await search()}}.accessibilityIdentifier("anchor-place-query")
+                Button{Task{await search()}}label:{Label(searching ? "正在找地点…":"搜索地点",systemImage:"magnifyingglass").frame(minHeight:44)}.buttonStyle(.bordered).disabled(searching || query.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty).accessibilityIdentifier("anchor-place-search")
+                if let issue{Text(issue).font(.caption).foregroundStyle(.red)}
+                ForEach(places){place in Button{point=Coordinate(name:place.name,lat:place.lat,lng:place.lng);places=[];issue=nil}label:{VStack(alignment:.leading,spacing:5){Text(place.name).font(.subheadline.bold());if let address=place.address{Text(address).font(.caption).foregroundStyle(Palette.muted)}}.frame(maxWidth:.infinity,alignment:.leading).padding(12).background(Palette.mint.opacity(0.45),in:RoundedRectangle(cornerRadius:12))}.buttonStyle(BuddyPressStyle()).accessibilityIdentifier("anchor-result-"+place.id)}
+            }.padding(16).background(.white,in:RoundedRectangle(cornerRadius:18))
+            Text("只调整这一天的路线起终点与时间，不会修改其他日期的住宿或房费。会先预览变化，点‘保存调整’才更新正式行程。").font(.caption).foregroundStyle(Palette.muted)
+        }.padding(20)}.background(Palette.cream).navigationTitle(request.kind == .start ? "当天出发":"当天返回").navigationBarTitleDisplayMode(.inline).toolbar{Button("取消"){dismiss()}}
+        .safeAreaInset(edge:.bottom){PrimaryButton(title:"预览当天变化",symbol:"map"){apply(minute,point);dismiss()}.disabled(!valid || !hasChanges || searching).padding(20).background(Palette.cream).accessibilityIdentifier("anchor-preview")}}
+        .onAppear{minute=request.kind == .start ? day.startMinute:day.endMinute;point=request.kind == .start ? day.start:day.end}
+    }
+    @MainActor private func search() async {
+        guard !searching else{return};searching=true;issue=nil;places=[]
+        let value=query.trimmingCharacters(in:.whitespacesAndNewlines)
+        do {places=try await ApplePoiProvider.search(CLLocationCoordinate2D(latitude:point.lat,longitude:point.lng),"all",value).filter{(-34.2 ... -33.5).contains($0.lat) && (150.5 ... 151.5).contains($0.lng)};if places.isEmpty{issue="没找到悉尼范围内的地点，换个具体名称试试？原地点仍保留。"}}
+        catch{issue="地点暂时没查到，原地点还在。请重试。"}
+        searching=false
     }
 }
