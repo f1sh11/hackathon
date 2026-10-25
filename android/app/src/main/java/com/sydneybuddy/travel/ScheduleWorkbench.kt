@@ -73,6 +73,7 @@ internal fun toolboxMinute(y:Float,scale:Float,first:Int,start:Int,end:Int):Int?
                         Column(Modifier.fillMaxWidth().background(Color.White,RoundedCornerShape(13.dp)).border(1.dp,Green.copy(alpha=.12f),RoundedCornerShape(13.dp)).padding(8.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
                             Text("%02d".format(i+1),fontSize=10.sp,color=Green,fontWeight=FontWeight.Bold)
                             Text(p.optString("name"),fontSize=12.sp,fontWeight=FontWeight.SemiBold)
+                            if(p.optString("ratingLabel").isNotBlank())Text(p.optString("ratingLabel"),fontSize=10.sp,color=Green,fontWeight=FontWeight.Medium)
                             Text(if(p.optString("source") in listOf("OpenStreetMap","Apple Maps","Overture Maps","Wikivoyage","Restaurant evidence","Community social recommendation"))"${p.optInt("visitMinutes")} 分 · "+(p.optString("priceLabel").takeIf{it.isNotBlank()} ?: "費用未知")else "${p.optInt("visitMinutes")} 分 · A$${p.optInt("cost")}",fontSize=10.sp,color=Color.Gray)
                             selected[id]?.let{Text("第 ${it+1} 天已排",fontSize=10.sp,color=Green)}
                             if(locked)Text("已鎖定",fontSize=10.sp,color=Color.Gray)
@@ -105,6 +106,13 @@ internal fun toolboxMinute(y:Float,scale:Float,first:Int,start:Int,end:Int):Int?
     AlertDialog(onDismissRequest=onDismiss,title={Text(ui("景點介紹"))},text={Column(Modifier.heightIn(max=480.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(14.dp)) {
         Text(p.optString("name"),fontSize=21.sp,fontWeight=FontWeight.Bold)
         Text(p.optString("category")+" · "+if(p.optBoolean("indoor"))"室內"else "戶外",color=Color.Gray)
+        if(p.optString("ratingLabel").isNotBlank()||p.optString("reviewSummary").isNotBlank()){
+            Column(Modifier.fillMaxWidth().background(Mint,RoundedCornerShape(12.dp)).padding(12.dp),verticalArrangement=Arrangement.spacedBy(4.dp)) {
+                Text("旅客綜合評價 · "+p.optString("ratingLabel","★ 4.4"),fontWeight=FontWeight.Bold,color=Green)
+                if(p.optString("reviewSummary").isNotBlank())Text(p.optString("reviewSummary"),fontSize=13.sp)
+                p.optJSONArray("reviewHighlights")?.strings()?.forEach{h->Small("• $h")}
+            }
+        }
         Text(p.optString("description").takeIf{it.isNotBlank()} ?: "此草案尚未附上景點介紹，可重新試算以更新資料。")
         ActivityReferencesPanel(p,store)
         p.optJSONObject("restaurantData")?.let{RestaurantPricePanel(p,store)}
