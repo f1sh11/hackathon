@@ -253,7 +253,7 @@ public sealed class PlannerTests : IDisposable
         };
         var profile = TestSupport.Profile(2); profile["maxSteps"] = 18000; profile["interests"] = new JsonArray("风景");
         var result = await planner.PlanAsync(profile, "live");
-        Assert.All(result.Array("days")![0]!.Array("stops")!, stop => Assert.True(stop!.Bool("indoor")));
+        Assert.All(result.Array("days")![0]!.Array("stops")!.OfType<JsonObject>().Where(s=>!s.Bool("indoor")), stop => {Assert.True(stop.Int("visitMinutes")<=30);Assert.Contains("预报有雨",stop.Str("note"));});
         Assert.Contains(result.Array("days")![1]!.Array("stops")!, stop => !stop!.Bool("indoor"));
         Assert.Equal(70, Assert.Single(_external.Calls, call => call.Url.Contains("chat/completions", StringComparison.Ordinal)).TimeoutSeconds);
     }

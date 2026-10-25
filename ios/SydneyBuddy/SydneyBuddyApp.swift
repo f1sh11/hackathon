@@ -19,21 +19,27 @@ import GoogleMaps
 }
 
 enum Palette {
-    static let coral = Color(red:188.0/255.0,green:60.0/255.0,blue:85.0/255.0)
-    static let blush = Color(red:252.0/255.0,green:228.0/255.0,blue:232.0/255.0)
-    static let ink = Color(red:0.10,green:0.22,blue:0.19)
-    static let cream = Color(red:0.98,green:0.97,blue:0.94)
-    static let muted = Color(red:0.42,green:0.49,blue:0.45)
-    // App controls retain the established green theme; coral belongs to the mascot.
-    static let green = Color(red:0.05,green:0.51,blue:0.37)
-    static let mint = Color(red:0.86,green:0.95,blue:0.88)
+    static let coral = Color(red:0.82,green:0.43,blue:0.47)
+    static let blush = Color(red:0.98,green:0.90,blue:0.89)
+    static let ink = Color(red:0.24,green:0.18,blue:0.25)
+    static let cream = Color(red:0.99,green:0.97,blue:0.95)
+    static let muted = Color(red:0.47,green:0.41,blue:0.45)
+    static let berry = Color(red:0.64,green:0.24,blue:0.39)
+    static let berryShadow = Color(red:0.43,green:0.13,blue:0.25)
+    static let peach = Color(red:0.97,green:0.87,blue:0.78)
+    static let lavender = Color(red:0.92,green:0.89,blue:0.97)
+    static let route = Color(red:0.12,green:0.43,blue:0.83)
+    // Compatibility names for existing controls; the new accent is berry.
+    static let green = berry
+    static let mint = blush
 }
 
 struct PrimaryButton: View {
     var title: String; var symbol = "arrow.right"; var action: () -> Void
     var body: some View {
-        Button(action:action) { HStack { Spacer(); Text(LocalizedStringKey(title)).fontWeight(.bold); Image(systemName:symbol); Spacer() }.padding(.vertical,15) }
-            .buttonStyle(BuddyPressStyle()).foregroundStyle(.white).background(Palette.green,in:RoundedRectangle(cornerRadius:17)).accessibilityLabel(title)
+        Button { UIImpactFeedbackGenerator(style:.soft).impactOccurred(); action() } label: {
+            HStack(spacing:10) { Spacer(); Text(LocalizedStringKey(title)).font(.system(.body,design:.rounded,weight:.bold)); Image(systemName:symbol).font(.subheadline.bold()); Spacer() }.padding(.horizontal,18).padding(.vertical,16).frame(minHeight:54)
+        }.buttonStyle(KokoPrimaryStyle()).accessibilityLabel(title)
     }
 }
 struct Robot:View {
@@ -49,22 +55,24 @@ struct RootView: View {
             }
         ZStack {
             Palette.cream.ignoresSafeArea()
+            Group {
             if store.showPersonalPreferences || store.showOnboarding { NavigationStack{PetChatView(onboarding:true)} }
             else {
                 TabView(selection:$store.tab) {
                     TripsView().tabItem { Label(store.language.text("行程"),systemImage:"suitcase.rolling.fill") }.tag(1)
-                    PoiDiscoveryView(embedded:true).tabItem { Label(store.language.text("地图"),systemImage:"map.fill") }.tag(0)
-                    JournalView().tabItem { Label(store.language.text("记账"),systemImage:"creditcard.fill") }.tag(2)
+                    PoiDiscoveryView(embedded:true).tabItem { Label(store.language.text("探索"),systemImage:"map.fill") }.tag(0)
                     SettingsView().tabItem { Label(store.language.text("我的"),systemImage:"person.crop.circle") }.tag(3)
                 }.tint(Palette.green).modifier(CompactTabs())
             }
+            }.disabled(store.busy).accessibilityHidden(store.busy)
             if store.busy {
-                ZStack { Color.black.opacity(0.15).ignoresSafeArea(); VStack(spacing:14) { PetAvatar(mood:.thinking,cue:store.koalaWork); ProgressView(); Text(LocalizedStringKey(store.operationTitle)).font(.headline); Text(LocalizedStringKey(store.operationDetail)).font(.caption).foregroundStyle(Palette.muted);if store.travelTask?.status=="generating" {VStack(alignment:.leading,spacing:6){ForEach(Array(["整理旅行需求","安排当天活动","校验并保存"].enumerated()),id:\.offset){i,label in Label(label,systemImage:i<store.planningStage ? "checkmark.circle.fill":i==store.planningStage ? "circle.inset.filled":"circle").foregroundStyle(i<=store.planningStage ? Palette.green:Palette.muted).font(.caption)}}};if store.canCancelOperation{Button("取消生成"){store.cancelPendingGeneration()}.buttonStyle(.bordered)} }.padding(30).background(Palette.cream,in:RoundedRectangle(cornerRadius:28)) }
+                ZStack {Palette.cream.ignoresSafeArea();VStack(spacing:14){PetAvatar(mood:.thinking,cue:store.koalaWork);ProgressView();Text(LocalizedStringKey(store.operationTitle)).font(.headline);Text(LocalizedStringKey(store.operationDetail)).font(.caption).foregroundStyle(Palette.muted)}.padding(30)}
             }
         }
         }.background(Palette.cream.ignoresSafeArea())
         .sheet(isPresented:Binding(get:{store.proposal != nil},set:{if !$0 {store.proposal=nil}})) { ProposalView() }
         .alert("需要留意",isPresented:Binding(get:{store.errorMessage != nil},set:{if !$0 {store.errorMessage=nil}})) { Button("知道了",role:.cancel) {} } message: { Text(store.errorMessage ?? "") }
+        .onChange(of:store.travelTask?.status){old,new in if old=="generating",new=="completed"{UINotificationFeedbackGenerator().notificationOccurred(.success)}}
         .environment(\.locale,Locale(identifier:store.language.rawValue))
     }
 }
@@ -177,9 +185,22 @@ struct CompactTabs: ViewModifier {
     }
 }
 
+struct KokoPrimaryStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var enabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    func makeBody(configuration:Configuration)->some View {
+        configuration.label.foregroundStyle(enabled ? .white:Palette.muted)
+            .background(enabled ? Palette.green:Palette.mint,in:RoundedRectangle(cornerRadius:18))
+            .offset(y:configuration.isPressed ? 3:0)
+            .background(RoundedRectangle(cornerRadius:18).fill(enabled ? Palette.berryShadow:Palette.mint).offset(y:4))
+            .padding(.bottom,4)
+            .animation(reduceMotion ? nil:.easeOut(duration:0.12),value:configuration.isPressed)
+    }
+}
+
 struct BuddyPressStyle: ButtonStyle {
     @Environment(\.accessibilityReduceMotion) var reduceMotion
     func makeBody(configuration:Configuration) -> some View {
-        configuration.label.offset(y:configuration.isPressed ? 3 : 0).opacity(configuration.isPressed ? 0.85 : 1).animation(reduceMotion ? nil : .easeOut(duration:0.12),value:configuration.isPressed)
+        configuration.label.scaleEffect(reduceMotion ? 1:configuration.isPressed ? 0.97:1).opacity(configuration.isPressed ? 0.75:1).animation(reduceMotion ? nil : .easeOut(duration:0.12),value:configuration.isPressed)
     }
 }

@@ -19,6 +19,7 @@ public sealed class PetModel(HttpClient client,SecretStore secrets):IPetModel
         if(key.Length==0)throw new ServiceException("还没有连接 AI。可以先用点选回答保存旅行进度。");
         var model=config.GetValueOrDefault("NVIDIA_MODEL","");if(string.IsNullOrWhiteSpace(model))model=SecretStore.DefaultModel;
         var system=TravelProfiling.SystemPrompt+(session.Dialogue is not null ? "\n"+KokoDialogue.Prompt:"");
+        if(KokoCompanion.Enabled(session))system+="\n"+KokoCompanion.Prompt;
         system+="\ndayStyle 仅在明确半天游玩时为 halfDay，慢逛一整天为 fullDay；不确定为 flexible，不能用它补齐未知节奏。";
         var messages=new JsonArray(new JsonObject{["role"]="system",["content"]=system});
         var zone=TimeZoneInfo.FindSystemTimeZoneById("Australia/Sydney");

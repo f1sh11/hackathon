@@ -2,6 +2,21 @@ import XCTest
 @testable import SydneyBuddy
 
 final class PetDraftTests:XCTestCase {
+    func testAdjustmentUsesLatestUserIntentRatherThanOldProfileSummary() {
+        let messages=[PetMessage(id:"1",role:"user",text:"有点累，今天接下来少走些，明天不改"),PetMessage(id:"2",role:"assistant",text:"我会调整剩余安排"),PetMessage(id:"3",role:"user",text:"好的")]
+        XCTAssertEqual(TripAdjustmentRequest.make(messages:messages,fallback:"旧行程资料"),messages[0].text)
+        let large=[PetMessage(id:"4",role:"user",text:String(repeating:"🐨",count:2000))]
+        XCTAssertLessThanOrEqual(TripAdjustmentRequest.make(messages:large,fallback:"").utf16.count,1400)
+    }
+    func testExpenseMigrationPreservesLegacyRecordsAndTripAssociation() throws {
+        let legacy=Data("{\"id\":\"12345678-1234-1234-1234-123456789012\",\"title\":\"午餐\",\"cents\":1001,\"participants\":2}".utf8)
+        let old=try JSONDecoder().decode(Expense.self,from:legacy)
+        XCTAssertNil(old.tripID);XCTAssertEqual(old.shares,[501,500])
+        let current=Expense(title:"门票",cents:2400,participants:2,tripID:"trip-a")
+        let restored=try JSONDecoder().decode(Expense.self,from:JSONEncoder().encode(current))
+        XCTAssertEqual(restored.tripID,"trip-a");XCTAssertEqual(restored.cents,2400)
+    }
+
     func testHalfDayChoiceChangesOnlyTemporaryTimeWindowAndBudgetKeepsBasis() throws {
         let personal=UserTravelProfile(dailySteps:5000,rhythm:"轻松随意",interests:["自然"])
         var fields=["destination":"悉尼","date":"2026-10-25","days":"3","travelers":"2","budget":"600","budgetCurrency":"AUD","budgetBasis":"groupTrip","dayStyle":"halfDay"]
@@ -192,19 +207,20 @@ final class PetDraftTests:XCTestCase {
     }
     @MainActor func testCancellingPlanningPreservesDraftAndDoesNotSaveTrip() async throws {
         let store=AppStore();let original=store.pendingTripFields
-        defer{store.pendingTripFields=original}
+        let originalTask=UserDefaults.standard.data(forKey:"travelPlanningTask")
+        defer{store.pendingTripFields=original;if let originalTask{UserDefaults.standard.set(originalTask,forKey:"travelPlanningTask")}else{UserDefaults.standard.removeObject(forKey:"travelPlanningTask")}}
         var complete=fields;complete["budgetCurrency"]="AUD";complete["budgetBasis"]="perPersonPerDay";complete["travelers"]="2"
         store.pendingTripFields=complete
         var paths:[String]=[]
         store.loader={request in paths.append(request.url!.path);try await Task.sleep(nanoseconds:5_000_000_000);throw URLError(.badServerResponse)}
         store.startGeneratingPendingTrip()
-        for _ in 0..<100{if store.busy{break};try await Task.sleep(nanoseconds:1_000_000)}
-        XCTAssertTrue(store.busy);XCTAssertTrue(store.canCancelOperation)
+        for _ in 0..<100{if store.isGeneratingTrip{break};try await Task.sleep(nanoseconds:1_000_000)}
+        XCTAssertFalse(store.busy);XCTAssertTrue(store.isGeneratingTrip);XCTAssertTrue(store.canCancelPlanning)
         store.cancelPendingGeneration()
-        for _ in 0..<100{if !store.busy{break};try await Task.sleep(nanoseconds:1_000_000)}
-        XCTAssertFalse(store.busy);XCTAssertFalse(store.canCancelOperation)
+        for _ in 0..<100{if !store.isGeneratingTrip{break};try await Task.sleep(nanoseconds:1_000_000)}
+        XCTAssertFalse(store.busy);XCTAssertFalse(store.isGeneratingTrip);XCTAssertFalse(store.canCancelPlanning)
         XCTAssertEqual(store.pendingTripFields,complete);XCTAssertNil(store.errorMessage)
-        XCTAssertEqual(paths,["/plan"]);XCTAssertTrue(store.saved.isEmpty)
+        XCTAssertEqual(paths,["/catalog"]);XCTAssertTrue(store.saved.isEmpty)
     }
     func testPetReactionMatchesChosenAnswerAndNeverClaimsLongTermSave() {
         XCTAssertEqual(PetReaction.answer("companions","一个人").mood,.relaxed)

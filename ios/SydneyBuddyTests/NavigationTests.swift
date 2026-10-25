@@ -7,6 +7,56 @@ import FerrostarCoreFFI
 @testable import SydneyBuddy
 
 @MainActor final class NavigationTests: XCTestCase {
+    func testAppleCompletionSurvivesDurationAndOrderChanges() {
+        var plan=day();let point=plan.end
+        plan.stops=[Stop(id:"stable-activity",name:point.name,lat:point.lat,lng:point.lng,category:"自然",indoor:false,visitMinutes:30,cost:0,note:"",arrival:"10:00",departure:"10:30",hoursVerified:false,mapsURL:"",steps:0)]
+        let id="stable-"+UUID().uuidString
+        let nav=WalkingNavigator(day:plan,tripID:id,endpoint:"unused",apple:true)
+        defer{nav.pause();UserDefaults.standard.removeObject(forKey:nav.storageKey);UserDefaults.standard.removeObject(forKey:JourneyExecution.key(tripID:id,date:plan.date))}
+        nav.arrived();plan.stops[0].visitMinutes=90
+        let restored=WalkingNavigator(day:plan,tripID:id,endpoint:"unused",apple:true)
+        XCTAssertEqual(nav.storageKey,restored.storageKey);XCTAssertEqual(restored.progress.leg,1)
+        XCTAssertTrue(JourneyExecution.completed(tripID:id,date:plan.date).contains("stable-activity"))
+    }
+    func testProjectionMeasuresRoadDistanceAndDeviation() {
+        let a=CLLocationCoordinate2D(latitude:-33.86,longitude:151.21),b=CLLocationCoordinate2D(latitude:-33.86,longitude:151.22)
+        let middle=RouteProjection.locate(.init(latitude:-33.86,longitude:151.215),on:[a,b])
+        XCTAssertLessThan(middle.distance,1);XCTAssertEqual(middle.fraction,0.5,accuracy:0.01);XCTAssertGreaterThan(middle.remaining,400)
+        XCTAssertGreaterThan(RouteProjection.locate(.init(latitude:-33.861,longitude:151.215),on:[a,b]).distance,100)
+    }
+    func testArrivalUsesRoadEndAndRejectsInaccurateFixOrWrongLoopSegment() {
+        XCTAssertTrue(RouteProjection.acceptsArrival(distanceToRoadEnd:3,remaining:0,accuracy:5))
+        XCTAssertFalse(RouteProjection.acceptsArrival(distanceToRoadEnd:3,remaining:0,accuracy:50))
+        XCTAssertFalse(RouteProjection.acceptsArrival(distanceToRoadEnd:3,remaining:500,accuracy:5))
+        XCTAssertFalse(RouteProjection.acceptsArrival(distanceToRoadEnd:40,remaining:0,accuracy:5))
+        XCTAssertFalse(RouteProjection.acceptsArrival(distanceToRoadEnd:0,remaining:0,accuracy:-1))
+    }
+    func testReturnOnlyDayRemainsNavigable() {
+        let plan=day();XCTAssertTrue(plan.hasWalkingJourney)
+        var empty=plan;empty.end=empty.start;XCTAssertFalse(empty.hasWalkingJourney)
+    }
+    func testAppleThrottleHonorsProviderCooldown() {
+        let error=NSError(domain:MKError.errorDomain,code:Int(MKError.loadingThrottled.rawValue),userInfo:["MKErrorGEOErrorUserInfo":["timeUntilReset":35]])
+        XCTAssertEqual(AppleWalkingRoads.retryDelay(error),36)
+    }
+    func testAppleNetworkSlotsStayBelowBurstLimitAcrossConcurrentCallers() {
+        let now=Date();var next=now;var starts:[Date]=[]
+        for _ in 0..<51 {let slot=AppleWalkingRoads.querySlot(now:now,next:next);starts.append(slot.start);next=slot.next}
+        XCTAssertGreaterThan(starts[50].timeIntervalSince(starts[0]),60)
+        XCTAssertEqual(starts[1].timeIntervalSince(starts[0]),1.6,accuracy:0.001)
+    }
+    func testAppleThrottleRecognizesUnderlyingGeoError() {
+        let geo=NSError(domain:"GEOErrorDomain",code:-3,userInfo:["timeUntilReset":44])
+        XCTAssertTrue(AppleWalkingRoads.isThrottled(geo))
+        XCTAssertTrue(AppleWalkingRoads.isThrottled(NSError(domain:"wrapper",code:1,userInfo:[NSUnderlyingErrorKey:geo])))
+        XCTAssertEqual(AppleWalkingRoads.retryDelay(geo),45)
+        XCTAssertFalse(AppleWalkingRoads.isThrottled(URLError(.notConnectedToInternet)))
+    }
+    func testProviderArrivalInstructionCannotClaimArrivalHundredsOfMetersEarly() {
+        XCTAssertEqual(NavigationInstruction.display("到达目的地",remaining:280,target:"环形码头"),"沿路线继续前往环形码头，剩余约 280 米")
+        XCTAssertEqual(NavigationInstruction.display("Turn right",remaining:280,target:"Quay"),"Turn right")
+        XCTAssertEqual(NavigationInstruction.display("目的地在你右侧",remaining:10,target:"Quay"),"目的地在你右侧")
+    }
     func testDefaultMapMigratesToAppleOnceAndPreservesLaterChoice() {
         let name="apple-default-test-"+UUID().uuidString
         let defaults=UserDefaults(suiteName:name)!

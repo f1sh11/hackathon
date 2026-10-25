@@ -38,7 +38,7 @@ enum PoiDiscoveryCategory {
         case "facilities":categories=[.restroom] // Access and opening hours still need verification.
         default:categories=[.museum,.park,.nationalPark,.amusementPark,.aquarium,.zoo,.theater,.library]
         }
-        if #available(iOS 18.0,*),category=="sights" {categories += [.landmark,.nationalMonument,.musicVenue]}
+        if #available(iOS 18.0,*),(category=="sights" || category=="all") {categories += [.landmark,.nationalMonument,.musicVenue]}
         let radius:Double=radiusOverride ?? (category == "all" ? 5000:1500)
         let search:MKLocalSearch
         if query.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty && category != "hotels" && category != "hostels" {
@@ -50,7 +50,7 @@ enum PoiDiscoveryCategory {
             request.naturalLanguageQuery=category=="hostels" ? "hostel "+query:category=="hotels" ? "hotel "+query:query
             request.resultTypes = .pointOfInterest
             request.region=MKCoordinateRegion(center:center,latitudinalMeters:radius*2,longitudinalMeters:radius*2)
-            if !categories.isEmpty{request.pointOfInterestFilter=MKPointOfInterestFilter(including:categories)}
+            if !categories.isEmpty && category != "all" {request.pointOfInterestFilter=MKPointOfInterestFilter(including:categories)}
             search=MKLocalSearch(request:request)
         }
         let response=try await withTaskCancellationHandler {try await search.start()} onCancel:{Task{@MainActor in search.cancel()}}
@@ -73,7 +73,9 @@ enum PoiDiscoveryCategory {
             let address=[item.placemark.thoroughfare,item.placemark.locality,item.placemark.postalCode].compactMap{$0}.joined(separator:", ")
             // A facility keyword match is not proof of a verified public restroom.
             let kind=category == "all" ? (item.pointOfInterestCategory == .hotel ? "lodging":item.pointOfInterestCategory == .store ? "shops":[MKPointOfInterestCategory.restaurant,.cafe,.bakery,.foodMarket].contains(where:{$0==item.pointOfInterestCategory}) ? "food":item.pointOfInterestCategory == .restroom ? "facilities":"sights"):PoiDiscoveryCategory.parent(category)
-            return ScheduleCandidate(id:id,name:name,category:kind=="food" ? "美食":kind=="facilities" ? "設施":kind=="lodging" ? "住宿":kind=="shops" ? "店家":"風景",indoor:false,visitMinutes:kind=="food" ? 45:kind=="facilities" ? 10:60,cost:0,lat:point.latitude,lng:point.longitude,reason:"Apple Maps 地點搜尋",description:address.isEmpty ? "Apple Maps 未提供詳細介紹。":address,note:"Apple Maps 地點；費用、排隊與營業時間未知。設施用途及開放情況請另行確認。",source:"Apple Maps",poiKind:category=="toilets" || item.pointOfInterestCategory == .restroom ? "toilets":category=="cafes" ? "cafe":category=="bakeries" ? "bakery":kind=="food" ? "restaurant":kind=="facilities" ? "facility":"attraction",openingHoursText:"",website:item.url?.absoluteString,phone:item.phoneNumber,address:address)
+            let actual=item.pointOfInterestCategory
+            let interest=kind=="food" ? "美食":kind=="facilities" ? "設施":kind=="lodging" ? "住宿":kind=="shops" ? "购物":actual == .park || actual == .nationalPark || actual == .beach ? "自然":actual == .museum || actual == .library ? "文化":actual == .theater ? "艺术":"风景"
+            return ScheduleCandidate(id:id,name:name,category:interest,indoor:false,visitMinutes:kind=="food" ? 45:kind=="facilities" ? 10:60,cost:0,lat:point.latitude,lng:point.longitude,reason:"Apple Maps 地點搜尋",description:address.isEmpty ? "Apple Maps 未提供詳細介紹。":address,note:"Apple Maps 地點；費用、排隊與營業時間未知。設施用途及開放情況請另行確認。",source:"Apple Maps",poiKind:category=="toilets" || item.pointOfInterestCategory == .restroom ? "toilets":category=="cafes" ? "cafe":category=="bakeries" ? "bakery":kind=="food" ? "restaurant":kind=="facilities" ? "facility":"attraction",openingHoursText:"",website:item.url?.absoluteString,phone:item.phoneNumber,address:address)
     }
 
 }
@@ -138,7 +140,7 @@ enum PoiDiscoveryCategory {
                     if kind=="drinking_water",token==generation{searchSummary="Apple Maps 未提供獨立飲水點分類；請切換開源資料搜尋。"}
                 }
                 else {
-                    var request=URLRequest(url:URL(string:"http://127.0.0.1:8787/poi/search")!);request.httpMethod="POST";route.apply(to:&request);request.setValue("application/json",forHTTPHeaderField:"Content-Type");request.timeoutInterval=30
+                    var request=URLRequest(url:BackendConnection.url("poi/search"));request.httpMethod="POST";route.apply(to:&request);request.setValue("application/json",forHTTPHeaderField:"Content-Type");request.timeoutInterval=30
                     request.httpBody=try JSONSerialization.data(withJSONObject:["lat":point.latitude,"lng":point.longitude,"radius":Int(radius ?? (["gems","all"].contains(kind) ? 5000:1500)),"category":kind,"query":text,"provider":current == .google && route == .direct && kind != "gems" ? "google":"osm","language":language])
                     let (data,response)=try await loader(request);try Task.checkCancellation()
                     guard (response as? HTTPURLResponse)?.statusCode==200 else {let raw=(try? JSONSerialization.jsonObject(with:data)) as? [String:Any];throw NSError(domain:"POI",code:1,userInfo:[NSLocalizedDescriptionKey:raw?["error"] as? String ?? "地點搜尋失敗，請重試。"])}
@@ -509,7 +511,7 @@ struct PlacePhoto:Codable,Identifiable {
         loading=true;message=nil
         defer{if token==generation{loading=false}}
         do{
-            var request=URLRequest(url:URL(string:"http://127.0.0.1:8787/poi/media")!)
+            var request=URLRequest(url:BackendConnection.url("poi/media"))
             request.httpMethod="POST";dataSource.apply(to:&request);request.timeoutInterval=22;request.setValue("application/json",forHTTPHeaderField:"Content-Type")
             request.httpBody=try JSONSerialization.data(withJSONObject:["lat":candidate.lat,"lng":candidate.lng,"id":candidate.id])
             let (data,response)=try await loader(request)
@@ -577,5 +579,36 @@ struct TicketPriceSummary:Decodable {
         if amount==0{return language.text(basis=="general_admission" ? "一般入場免費":"活動免費")}
         let money=(currency=="AUD" ? "A$":currency+" ")+String(format:amount.rounded()==amount ? "%.0f":"%.2f",amount)
         return language.text(basis=="guided_tour" ? "成人導覽 {0} 起":basis=="combo" ? "成人套裝 {0} 起":"成人票 {0} 起",money)
+    }
+}
+
+@MainActor enum ApplePlanningDiscovery {
+    /// MapKit may label station groceries and snack counters as restaurants.
+    static func primaryMealName(_ name:String)->Bool {
+        name.range(of:"bakery|bakehouse|patisserie|juice|fruit|food market|mini.?mart|grocery|supermarket|catering|coffee|café|cafe|面包|烘焙|果汁|咖啡",options:[.regularExpression,.caseInsensitive]) == nil
+    }
+    static func search(_ profile:TripProfile) async throws -> [ScheduleCandidate] {
+        var groups:[(String,String)]=[]
+        let interests=profile.interests
+        if interests.contains("美食"){groups.append(("food","restaurants"))}
+        if interests.contains("购物"){groups.append(("shops",""))}
+        for interest in interests where interest != "美食" && interest != "购物" {
+            let query=interest=="自然" ? "parks":interest=="艺术" ? "art gallery":interest=="文化" ? "museum historic landmark":interest=="城市" ? "Sydney landmarks":"tourist attractions"
+            groups.append(("sights",query))
+        }
+        if !groups.contains(where:{$0.0=="sights"}){groups.append(("sights","tourist attractions"))}
+        let must=(profile.mustDo ?? "").trimmingCharacters(in:.whitespacesAndNewlines)
+        if !["","无","没有","未确定","暂不确定","无特别要求"].contains(must){groups.insert(("all",must),at:0)}
+        var found:[ScheduleCandidate]=[];var seen=Set<String>()
+        for (category,query) in groups.prefix(5) {
+            try Task.checkCancellation()
+            let results=try await ApplePoiProvider.search(profile.start.location,category,query)
+            for var p in results.filter({category != "food" || primaryMealName($0.name)}).prefix(12) where seen.insert(p.id).inserted {
+                p.cost=category=="food" ? 30:0;p.activityType=category=="food" ? "meal":"attraction"
+                if category=="shops"{p.category="购物"}
+                found.append(p)
+            }
+        }
+        return Array(found.prefix(60))
     }
 }

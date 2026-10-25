@@ -7,6 +7,7 @@ struct PetChoiceEvidence:Codable,Equatable {
     var questionMessageId:String;var questionText:String;var optionId:String;var optionText:String
 }
 struct ProfilingDialogueState:Codable,Equatable {
+    var companionVersion:Int? = nil
     var version:Int;var responseCount:Int;var phase:String;var nickname:String
     var ideas:[String];var inspiration:TravelInspiration?
 }
@@ -18,13 +19,17 @@ struct KokoQuickReplies:View {
     let replies:[PetQuickReply]
     let busy:Bool
     let choose:(PetQuickReply)->Void
+    @State private var selectedID:String?
     var body:some View {
-        HStack(spacing:8) {
+        LazyVGrid(columns:Array(repeating:GridItem(.flexible(),spacing:8),count:replies.count>=3 ? 2:max(1,replies.count)),spacing:8) {
             ForEach(replies){reply in
-                Button{choose(reply)}label:{Text(reply.text).font(.subheadline.weight(.medium)).multilineTextAlignment(.center).frame(maxWidth:.infinity,minHeight:44).padding(.horizontal,8).padding(.vertical,5).background(.white,in:RoundedRectangle(cornerRadius:15)).overlay(RoundedRectangle(cornerRadius:15).stroke(Palette.green.opacity(0.25)))}
-                    .buttonStyle(.plain).disabled(busy).accessibilityIdentifier("koko-reply-"+reply.intent)
+                Button{guard selectedID==nil else{return}; selectedID=reply.id; UISelectionFeedbackGenerator().selectionChanged(); choose(reply)}label:{Text(reply.text).font(.subheadline.weight(.medium)).multilineTextAlignment(.center).frame(maxWidth:.infinity,minHeight:44).padding(.horizontal,8).padding(.vertical,5).background(selectedID==reply.id ? Palette.mint:Color.white,in:RoundedRectangle(cornerRadius:15)).overlay(RoundedRectangle(cornerRadius:15).stroke(Palette.green.opacity(0.25)))}
+                    .buttonStyle(BuddyPressStyle()).disabled(busy || selectedID != nil).accessibilityIdentifier("koko-reply-"+reply.intent)
             }
-        }.padding(.horizontal,20).padding(.top,8).accessibilityIdentifier("koko-contextual-replies")
+        }.padding(.top,8).accessibilityIdentifier("koko-contextual-replies")
+        .onChange(of:replies){_,_ in selectedID=nil}
+        .onChange(of:busy){_,value in if !value{selectedID=nil}}
+        .task(id:selectedID){guard selectedID != nil else{return}; do{try await Task.sleep(for:.milliseconds(500));selectedID=nil}catch{}}
     }
 }
 

@@ -100,7 +100,7 @@ public sealed class GoogleJourneyProvider(HttpClient client, SecretStore secrets
 public sealed class NswJourneyProvider(HttpClient client, SecretStore secrets, NavigationService roads) : IJourneyProvider
 {
     public string Id => "nsw";
-    public string Label => "Transport for NSW / Valhalla";
+    public string Label => "Transport for NSW / Trip Planner";
     public string Notice => "公共交通：Transport for NSW；独立步行／开车段：OSM / Valhalla。仅服务明确回传实时估计时标示实时。";
     public void EnsureAvailable(IReadOnlyList<string> modes)
     {

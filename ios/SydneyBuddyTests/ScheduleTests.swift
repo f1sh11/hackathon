@@ -138,8 +138,141 @@ import MapKit
         model.cameraChanged(.init(latitude:-33.9,longitude:151.25),zoom:15);model.stop()
         try await Task.sleep(nanoseconds:80_000_000);XCTAssertEqual(calls,0)
     }
+    func makeEditor()->ScheduleEditorModel {
+        let model=ScheduleEditorModel()
+        model.roadLoader={days in
+            var seen=Set<String>();var values:[WalkingObservation]=[]
+            for day in days {let points=[day.start]+day.stops.map{Coordinate(name:$0.name,lat:$0.lat,lng:$0.lng)}+[day.end]
+                for i in 0..<(points.count-1) where seen.insert(AppleWalkingRoads.key(points[i],points[i+1])).inserted {values.append(WalkingObservation(from:points[i],to:points[i+1],meters:65,seconds:60,fetchedAt:ISO8601DateFormatter().string(from:Date())))}
+            };return values
+        };return model
+    }
+    func testUnknownPlaceFactsAreNotDisplayedAsFreeOrVerifiedIndoor() throws {
+        var stop=try fixture().days[0].stops[0];stop.costKnown=false;stop.indoorKnown=false;stop.cost=0
+        XCTAssertEqual(stop.costLabel,"费用待确认");XCTAssertEqual(stop.indoorLabel,"室内外待确认")
+        stop.cost=30;XCTAssertEqual(stop.costLabel,"每人预留 A$30")
+    }
+    func testOpeningDynamicTripKeepsSearchSourceForLaterEditing() throws {
+        var trip=try fixture();trip.schedule=nil
+        trip.days[0].stops[0].id="apple:real-place"
+        let stop=trip.days[0].stops[0]
+        trip.planningCandidates=[ScheduleCandidate(id:stop.id,name:stop.name,category:stop.category,indoor:false,visitMinutes:stop.visitMinutes,cost:stop.cost,lat:stop.lat,lng:stop.lng,reason:"真实搜索",source:"Apple Maps",poiKind:"attraction")]
+        let state=ScheduleState.preserving(trip)
+        XCTAssertEqual(state.candidates.first?.source,"Apple Maps")
+        XCTAssertEqual(state.candidates.first?.id,"apple:real-place")
+    }
+    func testConcreteRestaurantKeepsMealIdentityWhenOpeningAndEncodingSchedule() throws {
+        var trip=try fixture();trip.schedule=nil
+        trip.days[0].stops[0].activityType="meal";trip.days[0].stops[0].category="美食"
+        trip.days[0].stops[0].sourceURL="https://example.com/restaurant"
+        let restored=try JSONDecoder().decode(Trip.self,from:JSONEncoder().encode(trip))
+        let schedule=ScheduleState.preserving(restored)
+        XCTAssertEqual(schedule.days[0].activities[0].kind,"meal")
+        XCTAssertEqual(schedule.candidates.first?.activityKind,"meal")
+        XCTAssertEqual(restored.days[0].stops[0].sourceURL,"https://example.com/restaurant")
+    }
+    func testNewTripDoesNotAdjustExistingTripAndPartialRecommendationNeedsReview() async throws {
+        var result=try fixture();result.recommendationStatus="partial";result.schedule=nil
+        result.profile.end=result.profile.start
+        var existing=result;existing.id="existing-trip";existing.revision=2
+        let store=AppStore();store.trip=existing;store.mapProvider = .apple;store.showOnboarding=true
+        let response=try JSONEncoder().encode(result);var paths:[String]=[]
+        let shortlist=try JSONSerialization.data(withJSONObject:["candidateDays":Array(repeating:[String](),count:result.profile.days)])
+        store.loader={request in
+            let path=request.url!.path;paths.append(path)
+            let data=path=="/catalog" ? Data("[]".utf8):path=="/plan/prepare" ? shortlist:response
+            return(data,HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)
+        }
+        await store.generateFromPet(result.profile,request:"新的美食旅行",saveImmediately:true)
+        XCTAssertTrue(paths.contains("/plan/prepare"));XCTAssertTrue(paths.contains("/plan"))
+        XCTAssertFalse(paths.contains("/plan/remaining"));XCTAssertFalse(paths.contains("/trips"))
+        XCTAssertEqual(store.trip?.id,"existing-trip");XCTAssertEqual(store.proposal?.recommendationStatus,"partial")
+    }
+    func testAcceptingNewPartialDraftCreatesTripInsteadOfOverwritingCurrentTrip() async throws {
+        let defaults=UserDefaults.standard
+        let keys=["pendingTripFields","travelPlanningTask","onboarded","petSession.draft","petSession.new-reviewed-trip","petComposer.draft"]
+        let previous=keys.map{defaults.object(forKey:$0)}
+        defer{for (key,value) in zip(keys,previous){if let value{defaults.set(value,forKey:key)}else{defaults.removeObject(forKey:key)}}}
+        var existing=try fixture();existing.id="keep-existing";existing.revision=7
+        var draft=existing;draft.id=nil;draft.revision=nil;draft.recommendationStatus="partial"
+        var accepted=draft;accepted.id="new-reviewed-trip";accepted.revision=1
+        let store=AppStore();store.trip=existing;store.proposal=draft;store.proposalFromNewTrip=true
+        let data=try JSONEncoder().encode(accepted);let list=try JSONEncoder().encode([existing,accepted])
+        store.loader={request in
+            if request.httpMethod=="POST" {
+                let body=try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:Any]
+                XCTAssertEqual(body["expectedRevision"] as? Int,0)
+                XCTAssertNil((body["trip"] as? [String:Any])?["id"])
+                return(data,HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)
+            }
+            let result=request.url!.path=="/trips" ? list:request.url!.path=="/health" ? Data(#"{"status":"ok","nvidiaConfigured":false,"googleConfigured":false,"iosMapConfigured":false,"model":"test"}"#.utf8):Data("[]".utf8)
+            return(result,HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)
+        }
+        await store.acceptProposal();XCTAssertNil(store.errorMessage)
+        XCTAssertNil(store.tripToOpen);XCTAssertEqual(store.trip?.id,"keep-existing");XCTAssertTrue(store.saved.contains{$0.id=="keep-existing"&&$0.revision==7})
+    }
+    func testInlineRestInsertionUsesPreviousPlaceAndCanBeUndone() throws {
+        let trip=try fixture();let model=makeEditor();model.prepare(trip)
+        let before=model.state!.days[0].activities
+        model.loader={_ in throw URLError(.cancelled)}
+        model.addFacility("rest",at:1)
+        let rest=model.state!.days[0].activities[1]
+        XCTAssertEqual(rest.kind,"rest");XCTAssertEqual(rest.lat,before[0].lat);XCTAssertEqual(rest.lng,before[0].lng)
+        XCTAssertEqual(model.state!.days[0].activities.count,before.count+1)
+        model.undo();XCTAssertEqual(model.state!.days[0].activities.map(\.id),before.map(\.id));model.stop()
+    }
+    func testInlineSaveDoesNotReplaceAnotherOpenTrip() async throws {
+        var original=try fixture();original.id="background-save";original.revision=1
+        var candidate=original;candidate.schedule?.days[0].activities[0].duration+=10
+        var other=original;other.id="another-open-trip"
+        var accepted=candidate;accepted.revision=2
+        let store=AppStore();store.trip=other;store.saved=[original,other]
+        let data=try JSONEncoder().encode(accepted)
+        store.loader={request in (data,HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)}
+        let success=await store.saveAdjustment(candidate,original:original,inline:true)
+        XCTAssertTrue(success);XCTAssertEqual(store.trip?.id,"another-open-trip");XCTAssertEqual(store.saved.first?.revision,2)
+    }
+    func testInlineDraftKeepsUneditedDaysAndAppleTimes() throws {
+        let original=try fixture();var draft=original.schedule!
+        draft.days[0].activities[0].duration+=15
+        let changed=ScheduleInlineDraft.changedDays(original:original,draft:draft)
+        XCTAssertEqual(changed,[0])
+        var calculated=original;calculated.schedule=draft
+        calculated.days[0].finishTime="18:15";calculated.days[1].finishTime="23:59";calculated.schedule?.days[1].finishTime="23:59"
+        let merged=ScheduleInlineDraft.preserveUntouched(calculated,original:original,changed:changed)
+        XCTAssertEqual(merged.days[0].finishTime,"18:15")
+        let encoder=JSONEncoder();encoder.outputFormatting = .sortedKeys
+        XCTAssertEqual(try encoder.encode(merged.days[1]),try encoder.encode(original.days[1]))
+        XCTAssertEqual(merged.schedule?.days[1].finishTime,original.schedule?.days[1].finishTime)
+    }
+    func testInlineDraftIgnoresCalculatedTimesWhenDetectingUserEdits() throws {
+        let original=try fixture();var draft=original.schedule!
+        draft.days[0].activities[0].arrival="23:00";draft.days[0].activities[0].travelMinutes=123
+        XCTAssertTrue(ScheduleInlineDraft.changedDays(original:original,draft:draft).isEmpty)
+        draft.days[0].activities.reverse()
+        XCTAssertEqual(ScheduleInlineDraft.changedDays(original:original,draft:draft),[0])
+    }
+    func testInlineSaveStaysInWorkspaceAndRetainsOriginalOnConflict() async throws {
+        var original=try fixture();original.id="inline-save";original.revision=3
+        let store=AppStore();store.trip=original;store.saved=[original];store.dayIndex=1
+        var accepted=original;accepted.revision=4
+        let data=try JSONEncoder().encode(accepted)
+        store.loader={request in
+            XCTAssertFalse(store.busy)
+            let body=try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:Any]
+            XCTAssertEqual(body["expectedRevision"] as? Int,3)
+            XCTAssertEqual(body["adjustedDays"] as? [Int],[0])
+            return(data,HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)
+        }
+        var candidate=original;candidate.schedule?.days[0].activities[0].duration+=15
+        let ok=await store.saveAdjustment(candidate,original:original,inline:true)
+        XCTAssertTrue(ok);XCTAssertNil(store.proposal);XCTAssertEqual(store.dayIndex,1);XCTAssertEqual(store.trip?.revision,4)
+        store.loader={request in (Data(#"{"error":"行程已被其他修改更新"}"#.utf8),HTTPURLResponse(url:request.url!,statusCode:409,httpVersion:nil,headerFields:nil)!)}
+        let failure=await store.saveAdjustment(original,original:original,inline:true)
+        XCTAssertFalse(failure);XCTAssertEqual(store.trip?.revision,4);XCTAssertNotNil(store.adjustmentError)
+    }
     func testAppleTimeUpdateKeepsOriginalOnFailureAndAcceptsServerSnapshot() async throws {
-        var original=try fixture();original.id="walking-time-test";original.revision=3
+        var original=try fixture();original.schedule=nil;original.id="walking-time-test";original.revision=3
         let store=AppStore();store.trip=original;store.saved=[original]
         let preview=applePreview(original.days[0])
         store.loader={request in (Data(#"{"error":"超过步数上限"}"#.utf8),HTTPURLResponse(url:request.url!,statusCode:422,httpVersion:nil,headerFields:nil)!)}
@@ -154,6 +287,23 @@ import MapKit
         }
         let success=await store.updateWalkingTimes(preview,original:original,dayIndex:0);XCTAssertTrue(success)
         XCTAssertEqual(store.trip?.revision,4);XCTAssertEqual(store.saved.first?.days[0].finishTime,"14:00");XCTAssertNil(store.adjustmentError)
+    }
+    func testManualScheduleCanApplyRoadTimesThroughValidatedEditorAndPartialSave() async throws {
+        var original=try fixture();original.id="manual-calibration";original.revision=2
+        let store=AppStore();store.trip=original;store.saved=[original];store.roadLegs={_ in []}
+        var candidate=original;candidate.schedule?.issues=[]
+        var accepted=candidate;accepted.revision=3
+        let preview=applePreview(original.days[0]);var paths:[String]=[]
+        store.loader={request in
+            paths.append(request.url!.path)
+            let body=try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:Any]
+            if request.url!.path=="/schedule/editor" {XCTAssertNotNil(body["walkingRoutes"]);return (try JSONEncoder().encode(candidate),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)}
+            XCTAssertEqual(body["adjustedDay"] as? Int,0);XCTAssertEqual(body["expectedRevision"] as? Int,2)
+            return (try JSONEncoder().encode(accepted),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)
+        }
+        let success=await store.updateWalkingTimes(preview,original:original,dayIndex:0)
+        XCTAssertTrue(success);XCTAssertEqual(paths,["/schedule/editor","/trips"]);XCTAssertEqual(store.trip?.revision,3)
+        XCTAssertEqual(store.trip?.days[1].finishTime,original.days[1].finishTime)
     }
     func testDeleteFailureKeepsAcceptedTripAndList() async throws {
         var trip=try fixture();trip.id="delete-failure-test"
@@ -177,7 +327,7 @@ import MapKit
         let store=AppStore();store.showOnboarding=true
         var saved=false
         store.loader={request in
-            if request.url!.path == "/plan" {try await Task.sleep(nanoseconds:5_000_000_000)}
+            if request.url!.path == "/catalog" {try await Task.sleep(nanoseconds:5_000_000_000)}
             if request.url!.path == "/trips",request.httpMethod == "POST" {saved=true}
             throw URLError(.cancelled)
         }
@@ -192,7 +342,7 @@ import MapKit
         await store.acceptProposal()
         XCTAssertNotNil(store.errorMessage);XCTAssertNil(store.koalaFeedback);XCTAssertFalse(store.busy)
     }
-    func testSuccessfulGenerationRequestsOpeningTheAcceptedTripWorkspace() async throws {
+    func testSuccessfulBackgroundGenerationDoesNotOpenOrReplaceTheCurrentWorkspace() async throws {
         let defaults=UserDefaults.standard
         let keys=["pendingTripFields","travelPlanningTask","onboarded","petSession.draft","petSession.nav-workspace-trip"]
         let previous=keys.map{defaults.object(forKey:$0)}
@@ -205,6 +355,7 @@ import MapKit
         store.loader={request in
             let body:Data
             switch request.url!.path {
+            case "/plan/prepare":body=try JSONSerialization.data(withJSONObject:["candidateDays":Array(repeating:[String](),count:accepted.profile.days)])
             case "/plan":body=data
             case "/trips":body=request.httpMethod=="POST" ? data:list
             case "/health":body=Data(#"{"status":"ok","nvidiaConfigured":false,"googleConfigured":false,"iosMapConfigured":false,"model":"test"}"#.utf8)
@@ -212,12 +363,62 @@ import MapKit
             }
             return (body,HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)
         }
+        var old=accepted;old.id="viewed-old-trip";store.trip=old;store.tab=0
         await store.generatePendingTrip()
         XCTAssertNil(store.errorMessage)
-        XCTAssertEqual(store.tripToOpen?.id,"nav-workspace-trip")
-        XCTAssertNil(store.koalaWork);XCTAssertEqual(store.koalaFeedback?.action,.celebrate)
+        XCTAssertNil(store.tripToOpen);XCTAssertEqual(store.trip?.id,"viewed-old-trip");XCTAssertEqual(store.tab,0)
+        XCTAssertNil(store.koalaWork);XCTAssertNil(store.koalaFeedback)
         XCTAssertEqual(store.travelTask?.status,"completed")
         XCTAssertTrue(store.pendingTripFields.isEmpty)
+    }
+    private func preservePlanningDefaults()->()->Void {
+        let keys=["travelPlanningTask","pendingTripFields","userTravelProfile","travelDataSource","mapProvider"];let defaults=UserDefaults.standard;let values=keys.map{defaults.object(forKey:$0)}
+        return {for (key,value) in zip(keys,values){if let value{defaults.set(value,forKey:key)}else{defaults.removeObject(forKey:key)}}}
+    }
+    func testBackgroundTaskAllowsNavigationAndKeepsPartialResultsInsideItsCard() async throws {
+        let restore=preservePlanningDefaults();defer{restore()}
+        var value=try fixture();value.recommendationStatus="partial";value.id=nil
+        let response=try JSONEncoder().encode(value)
+        let store=AppStore();store.mapProvider = .apple;store.travelTask=nil;store.saved=[];store.proposal=nil
+        store.pendingTripFields=["destination":"悉尼","date":value.profile.date,"days":String(value.profile.days),"budget":"100","budgetCurrency":"AUD","budgetBasis":"perPersonPerDay","travelers":"1","pace":"约10000步","interests":"自然"]
+        let fields=store.pendingTripFields
+        let originalSource=store.travelDataSource;var usedSources:[String]=[]
+        var release:CheckedContinuation<Void,Never>?
+        store.loader={request in
+            usedSources.append(request.value(forHTTPHeaderField:"X-Travel-Data-Source") ?? "")
+            let data:Data
+            if request.url!.path=="/plan/prepare" {
+                await withCheckedContinuation {release=$0}
+                try Task.checkCancellation()
+                data=try JSONSerialization.data(withJSONObject:["candidateDays":Array(repeating:[String](),count:value.profile.days)])
+            }else if request.url!.path=="/plan" {data=response}else{data=Data("[]".utf8)}
+            return(data,HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)
+        }
+        let task=Task{await store.generatePendingTrip()}
+        while release==nil{await Task.yield()}
+        XCTAssertTrue(store.isGeneratingTrip);XCTAssertFalse(store.busy)
+        XCTAssertEqual(store.travelTask?.progress?.phase,.places)
+        store.tab=3;store.personalProfile.dailySteps=6000;store.travelDataSource=originalSource == .direct ? .zetaris:.direct;store.mapProvider = .osm
+        store.newTrip();XCTAssertEqual(store.pendingTripFields,fields)
+        release?.resume();await task.value
+        XCTAssertTrue(usedSources.allSatisfy{$0==originalSource.rawValue})
+        XCTAssertEqual(store.tab,3);XCTAssertFalse(store.busy);XCTAssertNil(store.proposal);XCTAssertNil(store.errorMessage)
+        XCTAssertEqual(store.travelTask?.status,"review");XCTAssertNotNil(store.travelTask?.draft)
+        store.openPlanningDraft();XCTAssertNotNil(store.proposal);XCTAssertTrue(store.proposalFromNewTrip)
+    }
+    func testInterruptedCardCanRestoreItsOwnFieldsForEditing() {
+        let restore=preservePlanningDefaults();defer{restore()}
+        let store=AppStore();store.travelTask=TravelPlanningTask(status:"draft",fields:["destination":"悉尼","days":"2"]);store.pendingTripFields=[:]
+        store.resumePendingTrip()
+        XCTAssertEqual(store.pendingTripFields,["destination":"悉尼","days":"2"]);XCTAssertTrue(store.showOnboarding)
+    }
+    func testBackgroundFailureStaysOnTheCardWithoutGlobalAlert() async {
+        let restore=preservePlanningDefaults();defer{restore()}
+        let store=AppStore();store.travelTask=nil;store.pendingTripFields=["destination":"悉尼"]
+        store.errorMessage=nil;store.tab=3
+        await store.generatePendingTrip()
+        XCTAssertEqual(store.travelTask?.status,"failed");XCTAssertNotNil(store.travelTask?.message)
+        XCTAssertNil(store.errorMessage);XCTAssertNil(store.proposal);XCTAssertNil(store.tripToOpen);XCTAssertEqual(store.tab,3)
     }
     func testPoiToolboxRemovalPersistsAndAllowsAddingAgain() throws {
         let toolbox=PoiToolbox.shared;let original=toolbox.places
@@ -338,7 +539,7 @@ import MapKit
     func testOpeningLegacyRouteAndRestoringDoNotReselectOrReschedule() async throws {
         var trip=try fixture();trip.schedule=nil
         let before=try JSONSerialization.jsonObject(with:JSONEncoder().encode(trip)) as! NSDictionary
-        let model=ScheduleEditorModel();var calls=0
+        let model=makeEditor();var calls=0
         model.loader={_ in calls+=1;throw URLError(.notConnectedToInternet)}
         model.prepare(trip)
         try await Task.sleep(nanoseconds:100_000_000)
@@ -565,7 +766,7 @@ import MapKit
         XCTAssertFalse(model.busy);XCTAssertNil(model.error);XCTAssertTrue(model.places.isEmpty);model.stop()
     }
     func testHoverDateDwellSwitchesWithoutEditingAndCancellationStopsSwitch() async throws {
-        let trip=try fixture();let model=ScheduleEditorModel();model.prepare(trip)
+        let trip=try fixture();let model=makeEditor();model.prepare(trip)
         let before=model.state!.days.flatMap(\.activities).map{($0.id)+String($0.scheduledStart)}
         let drag=ScheduleToolboxDragSession();drag.candidate=trip.schedule!.candidates[0]
         drag.dayFrames=[1:CGRect(x:100,y:0,width:80,height:50)]
@@ -580,7 +781,7 @@ import MapKit
         XCTAssertEqual(model.dayIndex,0);XCTAssertFalse(model.busy);model.stop()
     }
     func testCrossDayPlacementPreservesIdentityDurationAndUndo() async throws {
-        let trip=try fixture();let model=ScheduleEditorModel();model.prepare(trip)
+        let trip=try fixture();let model=makeEditor();model.prepare(trip)
         model.loader={request in let body=try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:Any];var raw=body["trip"] as! [String:Any];var state=raw["schedule"] as! [String:Any];state["days"]=body["days"];raw["schedule"]=state;return (try JSONSerialization.data(withJSONObject:raw),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)}
         let original=model.state!.days[0].activities.first{$0.placeId != nil}!
         let candidate=model.state!.candidates.first{$0.id==original.placeId}!
@@ -620,7 +821,7 @@ import MapKit
     }
     func testOtherDayAndLockedAttractionsCannotBeMovedFromToolbox() throws {
         var trip=try fixture();trip.schedule!.days[0].activities[1].locked=true
-        let model=ScheduleEditorModel();model.prepare(trip)
+        let model=makeEditor();model.prepare(trip)
         let locked=trip.schedule!.days[0].activities[1]
         let same=trip.schedule!.candidates.first{$0.id==locked.placeId}!
         model.place(same,at:720)
@@ -630,7 +831,7 @@ import MapKit
         XCTAssertFalse(model.busy);XCTAssertFalse(model.state!.days[0].activities.contains{$0.placeId==otherID});model.stop()
     }
     func testDiscoveredRestaurantIsImportedAndAddedInOnePreviewWithMealAllowance() async throws {
-        let trip=try fixture();let model=ScheduleEditorModel();model.prepare(trip)
+        let trip=try fixture();let model=makeEditor();model.prepare(trip)
         var candidate=trip.schedule!.candidates[0];candidate.id="osm:node:456";candidate.source="OpenStreetMap";candidate.category="美食";candidate.name="Test Cafe";candidate.cost=0
         var calls=0
         model.loader={request in
@@ -652,7 +853,7 @@ import MapKit
         model.restore();XCTAssertFalse(model.state!.days[0].activities.contains{$0.placeId==candidate.id});model.stop()
     }
     func testImportedMapPoiIsIncludedInSharedApiRequest() async throws {
-        let trip=try fixture();let model=ScheduleEditorModel();model.prepare(trip)
+        let trip=try fixture();let model=makeEditor();model.prepare(trip)
         var candidate=trip.schedule!.candidates[0];candidate.id="osm:node:123";candidate.source="OpenStreetMap";candidate.name="Test Cafe"
         var sent=false
         model.loader={request in let body=try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:Any];let candidates=body["candidates"] as! [[String:Any]];sent=candidates.contains{$0["id"] as? String==candidate.id};var raw=body["trip"] as! [String:Any];var state=raw["schedule"] as! [String:Any];state["candidates"]=candidates;state["days"]=body["days"];raw["schedule"]=state;return (try JSONSerialization.data(withJSONObject:raw),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)}
@@ -662,7 +863,7 @@ import MapKit
         model.importPlaces([candidate]);XCTAssertFalse(model.busy);model.stop()
     }
     func testToolboxPlacementUsesSpecifiedTimeAndDoesNotDuplicateSelectedPlaces() async throws {
-        let trip=try fixture();let model=ScheduleEditorModel();model.prepare(trip)
+        let trip=try fixture();let model=makeEditor();model.prepare(trip)
         model.loader={request in let body=try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:Any];var raw=body["trip"] as! [String:Any];var state=raw["schedule"] as! [String:Any];state["days"]=body["days"];raw["schedule"]=state;return (try JSONSerialization.data(withJSONObject:raw),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)}
         let candidate=model.state!.candidates.first{$0.id=="museum"}!
         XCTAssertFalse(candidate.description!.isEmpty)
@@ -690,7 +891,7 @@ import MapKit
         XCTAssertEqual(ScheduleTimeEdit.drag(start:600,duration:60,queue:0,delta:1000,edge:1).duration,240)
     }
     func testMovingTimeSortsDraftAndUndoRestoresIt() async throws {
-        let trip=try fixture();let model=ScheduleEditorModel();model.prepare(trip)
+        let trip=try fixture();let model=makeEditor();model.prepare(trip)
         model.loader={request in let body=try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:Any];var raw=body["trip"] as! [String:Any];var state=raw["schedule"] as! [String:Any];state["days"]=body["days"];raw["schedule"]=state;return (try JSONSerialization.data(withJSONObject:raw),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)}
         let first=model.state!.days[0].activities[0]
         model.retime(first.id,start:750,duration:first.duration)
@@ -750,7 +951,7 @@ import MapKit
         XCTAssertEqual(decoded.schedule!.settings.timeLimit,180)
     }
     func testManualOrderAndDurationAreSentToSharedApiAndUndoRestoresPreviousDraft() async throws {
-        let model=ScheduleEditorModel();let trip=try fixture();model.prepare(trip)
+        let model=makeEditor();let trip=try fixture();model.prepare(trip)
         var bodies:[[String:Any]]=[]
         model.loader={request in
             let body=try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:Any];bodies.append(body)
@@ -771,7 +972,7 @@ import MapKit
         model.stop()
     }
     func testMustVisitSelectionCanBeUndone() async throws {
-        let model=ScheduleEditorModel();let original=try fixture();model.prepare(original)
+        let model=makeEditor();let original=try fixture();model.prepare(original)
         model.loader={request in let body=try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:Any];var raw=body["trip"] as! [String:Any];var state=raw["schedule"] as! [String:Any];state["days"]=body["days"];raw["schedule"]=state;return (try JSONSerialization.data(withJSONObject:raw),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)}
         let candidate=model.state!.candidates.first!
         model.toggleMust(candidate)
@@ -783,7 +984,7 @@ import MapKit
     }
     func testTimelineRendersRecordedThreeDayPrototypeWithoutSaving() async throws {
         let trip=try fixture();let store=AppStore();store.proposal=trip
-        let model=ScheduleEditorModel();model.prepare(trip)
+        let model=makeEditor();model.prepare(trip)
         let scene=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.first!
         let old=scene.windows.first{$0.isKeyWindow};let window=UIWindow(windowScene:scene);window.frame=scene.screen.bounds
         window.rootViewController=UIHostingController(rootView:ScheduleEditorView(model:model).environmentObject(store))

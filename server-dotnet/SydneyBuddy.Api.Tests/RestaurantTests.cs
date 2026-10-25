@@ -27,10 +27,10 @@ public sealed class RestaurantApiTests(ApiFixture fixture):IClassFixture<ApiFixt
         await using var factory=fixture.CreateFactory();using var scope=factory.Services.CreateScope();var service=scope.ServiceProvider.GetRequiredService<ScheduleEditorService>();
         var trip=new JsonObject{["mode"]="demo",["title"]="Test",["profile"]=TestSupport.Profile(),["createdAt"]="2026-10-25T00:00:00Z",["trace"]=new JsonArray(),["warnings"]=new JsonArray(),["weather"]=new JsonObject{["summary"]="Test",["source"]="Test",["rainy"] =false}};
         var prepared=service.Build(new(){["trip"]=trip,["candidates"]=new JsonArray(updated.DeepClone())});var schedule=prepared.Object("schedule")!;var days=schedule.Array("days")!.DeepClone().AsArray();
-        var meals=days[0]!.Array("activities")!;meals.Clear();meals.Add(new JsonObject{["id"]="test-meal",["kind"]="meal",["placeId"]=id,["duration"]=45,["cost"]=1,["locked"]=false});
+        var meals=days[0]!.Array("activities")!;meals.Clear();meals.Add(new JsonObject{["id"]="test-meal",["kind"]="meal",["placeId"]=id,["duration"]=45,["queueMinutes"]=20,["cost"]=1,["locked"]=false});
         var forged=updated.DeepClone().AsObject();forged.Object("restaurantData")!.Object("budgetEstimate")!["perPerson"]=999;
         var planned=service.Build(new(){["trip"]=prepared,["candidates"]=new JsonArray(forged),["settings"]=schedule["settings"]!.DeepClone(),["days"]=days});
-        var meal=planned.Object("schedule")!.Array("days")![0]!.Array("activities")!.OfType<JsonObject>().Single(x=>x.Str("id")=="test-meal");Assert.Equal(19.95,meal.Number("cost"));Assert.Equal("selected_menu_per_person",meal.Str("costBasis"));
+        var meal=planned.Object("schedule")!.Array("days")![0]!.Array("activities")!.OfType<JsonObject>().Single(x=>x.Str("id")=="test-meal");Assert.Equal(19.95,meal.Number("cost"));Assert.Equal("selected_menu_per_person",meal.Str("costBasis"));Assert.Equal(20,planned.Object("schedule")!.Array("days")![0]!.Int("queueMinutes"));Assert.False(meal.Bool("hoursVerified"));
         var reference=meal.Str("restaurantEstimateId");Assert.NotEmpty(reference);
         await Post("/restaurants/estimate",new(){["placeId"]=id,["people"]=1,["items"]=new JsonArray(new JsonObject{["id"]=menuId,["quantity"]=2})});
         var revised=service.Build(new(){["trip"]=planned,["settings"]=planned.Object("schedule")!["settings"]!.DeepClone(),["days"]=planned.Object("schedule")!["days"]!.DeepClone()});

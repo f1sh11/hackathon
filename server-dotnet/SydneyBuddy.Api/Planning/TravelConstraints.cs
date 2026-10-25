@@ -11,12 +11,19 @@ public static class TravelConstraints
         static string Normalize(string text)=>Regex.Replace(text.ToLowerInvariant(),@"[\s，,、。；;！!]+","");
         bool Matches(JsonObject p,string term) {
             var names=new[]{p.Str("name"),p.Str("query"),p.Str("id"),p.Str("id") switch {"opera"=>"歌剧院", "garden"=>"植物园", "gallery"=>"美术馆", "mca"=>"当代艺术博物馆", "rocks"=>"岩石区", "qvb"=>"女王大厦", _=>p.Str("name")}};
-            return names.Any(n=>Normalize(n)==Normalize(term) || Normalize(term).Contains(Normalize(n)));
+            return names.Where(n=>!string.IsNullOrWhiteSpace(n)).Any(n=>Normalize(n)==Normalize(term) || Normalize(term).Contains(Normalize(n)));
         }
         var required=profile.Array("mustVisit")!.Select(x=>x!.GetValue<string>()).ToHashSet();
         var must=profile.Str("mustDo");
         if(Known(must))foreach(var term in Regex.Split(must,@"[，,、；;]|以及|还有|和|及").Where(Known)) {
             var matches=places.Where(p=>Matches(p,term)).ToArray();
+            if(matches.Length>1 && matches.All(p=>RouteService.Distance(matches[0],p)<200))matches=[matches.FirstOrDefault(PoiService.IsImported)??matches[0]];
+            if(matches.Length==0) {
+                var theme=Regex.IsMatch(term,"当地美食|本地美食|尝.*美食|吃.*美食|food|local cuisine",RegexOptions.IgnoreCase)?"美食":
+                    Regex.IsMatch(term,"看看?海|海边散步|港湾风景|看风景|sightseeing",RegexOptions.IgnoreCase)?"风景":
+                    Regex.IsMatch(term,"亲近自然|逛公园|nature",RegexOptions.IgnoreCase)?"自然":"";
+                if(theme!="") {var interests=profile.Array("interests")!;if(!interests.Any(i=>i!.GetValue<string>()==theme))interests.Add(theme);continue;}
+            }
             if(matches.Length!=1)throw new ServiceException("还不能确认必去要求「"+term+"」对应的地点，请改为明确的景点名称后再生成。");
             required.Add(matches[0].Str("id"));
         }

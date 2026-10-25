@@ -2,6 +2,10 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct JournalView:View {
+    var tripID:String? = nil
+    @Environment(\.dismiss) private var dismiss
+    private var entries:[Expense] {store.expenses.filter{tripID == nil || $0.tripID == tripID}}
+    private var trip:Trip? {store.saved.first{$0.id == tripID && tripID != nil}}
     @EnvironmentObject var store:AppStore
     @State var title="午餐"
     @State var amount=""
@@ -9,7 +13,8 @@ struct JournalView:View {
     var body:some View {
         NavigationStack {
             Form {
-                Section { VStack(alignment:.leading,spacing:10){Text("把花费也安排明白").font(.title2.bold());Text("本机账本 · AUD · 记录与均分，不执行转账").font(.caption).foregroundStyle(Palette.muted)}.padding(.vertical,10) }
+                Section { VStack(alignment:.leading,spacing:10){Text("把花费也安排明白").font(.title2.bold());Text(tripID == nil ? "全部旅行与历史记录 · AUD":"本次旅行 · AUD · 记录与均分").font(.caption).foregroundStyle(Palette.muted)
+                    if let trip{Text(trip.profile.activityBudgetSummary).font(.subheadline);Text("已记录消费 "+String(format:"A$%.2f",Double(entries.reduce(0){$0+$1.cents})/100)).font(.subheadline.bold()).foregroundStyle(Palette.green);Text("消费记录包含你填写的全部项目，可能超出活动预算范围。").font(.caption).foregroundStyle(Palette.muted)}}.padding(.vertical,10) }
                 Section("记一笔") {
                     TextField("项目",text:$title)
                     TextField("金额（AUD）",text:$amount).keyboardType(.decimalPad)
@@ -19,15 +24,15 @@ struct JournalView:View {
                         guard let decimal=Decimal(string:normalized),decimal>0,decimal<100000 else {store.errorMessage="请输入有效金额";return}
                         var raw=decimal*100,rounded=Decimal();NSDecimalRound(&rounded,&raw,0,.plain)
                         let cents=NSDecimalNumber(decimal:rounded).intValue
-                        store.expenses.append(Expense(title:title.isEmpty ? "消费" : title,cents:cents,participants:people));amount=""
+                        store.expenses.append(Expense(title:title.isEmpty ? "消费" : title,cents:cents,participants:people,tripID:tripID));amount=""
                     }.tint(Palette.green)
                 }
                 Section("消费记录") {
-                    ForEach(store.expenses){e in VStack(alignment:.leading,spacing:8){HStack{Text(e.title).font(.headline);Spacer();Text(String(format:"A$%.2f",Double(e.cents)/100)).bold()};Text("\(e.participants) 人均分："+e.shares.map{String(format:"A$%.2f",Double($0)/100)}.joined(separator:" / ")).font(.caption).foregroundStyle(Palette.muted)}}.onDelete{store.expenses.remove(atOffsets:$0)}
-                    if store.expenses.isEmpty {Text("还没有记录，先享受这段旅程吧。").foregroundStyle(Palette.muted)}
+                    ForEach(entries){e in VStack(alignment:.leading,spacing:8){HStack{Text(e.title).font(.headline);Spacer();Text(String(format:"A$%.2f",Double(e.cents)/100)).bold()};Text("\(e.participants) 人均分："+e.shares.map{String(format:"A$%.2f",Double($0)/100)}.joined(separator:" / ")).font(.caption).foregroundStyle(Palette.muted)}}.onDelete{offsets in let ids=Set(offsets.map{entries[$0].id});store.expenses.removeAll{ids.contains($0.id)}}
+                    if entries.isEmpty {Text("还没有记录，先享受这段旅程吧。").foregroundStyle(Palette.muted)}
                 }
                 Section {Text("遇到不能整除的金额，余下的分按成员顺序分配，合计始终等于原始金额。此版本未关联成员账户或多人同步。").font(.caption).foregroundStyle(Palette.muted)}
-            }.scrollContentBackground(.hidden).background(Palette.cream).navigationTitle(store.language.text("旅行小账本"))
+            }.scrollContentBackground(.hidden).background(Palette.cream).navigationTitle("预算与花费").onAppear{if let trip{people=min(10,max(1,trip.profile.travelers ?? 1))}}.toolbar{ToolbarItem(placement:.confirmationAction){Button("完成"){dismiss()}}}
         }
     }
 }
@@ -37,6 +42,7 @@ struct SettingsView:View {
     @State private var editingPersonalPreferences=false
     @State private var socialImport=false
     @State private var restaurantImport=false
+    @State private var showingLedger=false
     var body:some View {
         NavigationStack {
             Form {
@@ -58,6 +64,7 @@ struct SettingsView:View {
                     Picker("界面语言",selection:$store.language){ForEach(AppLanguage.allCases){language in Text(verbatim:language.label).tag(language)}}.accessibilityIdentifier("app-language-picker")
                 }
                 Section("体验与帮助") {
+                    Button("全部消费记录"){showingLedger=true}
                     Button("创建一次新的旅行"){store.newTrip()}
                     Text("询问这次的日期、天数、同行人和预算，个人偏好会自动带入。").font(.caption).foregroundStyle(Palette.muted)
                 }
@@ -88,6 +95,7 @@ struct SettingsView:View {
                 }
             }.scrollContentBackground(.hidden).background(Palette.cream).navigationTitle(store.language.text("我的 Buddy")).tint(Palette.green)
             .sheet(isPresented:$editingPersonalPreferences){PersonalPreferencesView(editing:true)}
+            .sheet(isPresented:$showingLedger){JournalView()}
             .confirmationDialog("删除这条长期偏好？以后的旅行将不再参考它。",isPresented:Binding(get:{deletingMemory != nil},set:{if !$0{deletingMemory=nil}}),titleVisibility:.visible){Button("删除偏好",role:.destructive){if let memory=deletingMemory{Task{await store.deleteMemory(memory);deletingMemory=nil}}}}
         }
     }

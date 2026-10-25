@@ -16,6 +16,19 @@ private final class JourneyStub:URLProtocol {
     override func stopLoading(){}
 }
 @MainActor final class JourneyTests:XCTestCase {
+    func testPrimaryMealsExcludeStationGroceriesAndSnackCounters() {
+        XCTAssertFalse(ApplePlanningDiscovery.primaryMealName("CFM BAKERY - Central Food Market"))
+        XCTAssertFalse(ApplePlanningDiscovery.primaryMealName("Central Fruit Juice"))
+        XCTAssertTrue(ApplePlanningDiscovery.primaryMealName("Nom Restaurant"))
+        XCTAssertTrue(ApplePlanningDiscovery.primaryMealName("Haymarket Pizzeria"))
+    }
+    func testPlanningCatalogDoesNotRequireRecommendationReason() throws {
+        let data=Data(#"[{"id":"opera","name":"悉尼歌剧院","category":"风景","indoor":false,"visitMinutes":60,"cost":0,"lat":-33.8568,"lng":151.2153}]"#.utf8)
+        let places=try JSONDecoder().decode([PlanningCatalogPlace].self,from:data)
+        XCTAssertEqual(places.first?.candidate.id,"opera")
+        XCTAssertEqual(places.first?.candidate.reason,"地点目录候选")
+    }
+
     private func fixture() throws -> Data {try Data(contentsOf:Bundle(for:Self.self).url(forResource:"journey-plan-test",withExtension:"json")!)}
     private func day()->DayPlan {DayPlan(date:"2026-10-23",stops:[],legs:[],estimatedCost:0,estimatedSteps:1800,finishTime:"12:00",warnings:[],start:Coordinate(name:"测试起点",lat:-33.8611,lng:151.2126),end:Coordinate(name:"测试终点",lat:-33.8568,lng:151.2153))}
     private func model()->JourneyModel {
@@ -63,6 +76,18 @@ private final class JourneyStub:URLProtocol {
         let payload=try JSONSerialization.jsonObject(with:XCTUnwrap(data)) as! [String:Any]
         XCTAssertEqual(payload["routingProvider"] as? String,"nsw");XCTAssertEqual(payload["mapProvider"] as? String,"apple")
         model.invalidate();XCTAssertNil(model.plan)
+    }
+    func testSavedNswTransitRendersWithoutInventingWalkingAndCountsWaiting() async throws {
+        var plan=day()
+        let start="2026-10-23T10:00:00.0000000+11:00",end="2026-10-23T10:15:00.0000000+11:00"
+        let bus=JourneyStep(mode:"bus",line:"304",headsign:"Central",from:"Quay Stand A",to:"Central",departureTime:start,arrivalTime:end,realtime:false,stopCount:3,meters:3000,seconds:600,waitSeconds:300,platform:nil,agency:"NSW",geometry:[JourneyCoordinate(lat:plan.start.lat,lng:plan.start.lng),JourneyCoordinate(lat:plan.end.lat,lng:plan.end.lng)])
+        plan.legs=[RouteLeg(meters:3000,minutes:15,polyline:"",source:"Transport for NSW / Trip Planner",mode:"transit",walkingMeters:0,steps:[bus],departureTime:start,arrivalTime:end)]
+        let previous=AppleWalkingRoads.shared.query;defer{AppleWalkingRoads.shared.query=previous}
+        AppleWalkingRoads.shared.query={_,_ in XCTFail("Must not replace a bus by a walking query");throw URLError(.cancelled)}
+        let result=try await AppleJourneyProvider.plan(day:plan,modes:plan.transportModes,departure:journeyDate(start)!)
+        XCTAssertTrue(plan.hasTransit);XCTAssertEqual(result.travelSeconds,900)
+        XCTAssertEqual(result.legs[0].mode,"transit");XCTAssertEqual(result.legs[0].steps[0].line,"304")
+        XCTAssertTrue(result.source.contains("Transport for NSW"));XCTAssertTrue(result.legs[0].walkingSummary.contains("304"))
     }
     func testAppleTransitFailsWithoutQueryingOrInventingBusDetails() async {
         do { _ = try await AppleJourneyProvider.plan(day:day(),modes:["transit"],departure:Date());XCTFail("MapKit transit directions must not be invented") }

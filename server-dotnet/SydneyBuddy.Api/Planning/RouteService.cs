@@ -7,10 +7,17 @@ namespace SydneyBuddy.Api;
 /// 提供真实/演示步行路段；相同路段只在一次规划上下文中复用，不跨用户或请求缓存。
 /// Provides live/demo walking legs; repeated legs are reused only within one planning operation.
 /// </summary>
-public sealed class RouteService(IExternalJsonClient external)
+public sealed class RouteService(IExternalJsonClient external,TripTransportRouter? transport=null)
 {
+    public async Task<JsonObject> TimedLegAsync(JsonObject from,JsonObject to,JsonObject profile,int minute,PlanningContext context,CancellationToken ct) {
+        var walk=await LegAsync(from,to,context,ct);
+        if(!context.CompareTransit)return walk;
+        if(transport is null)throw new ServiceException("公共交通比较服务尚未启动。");
+        return await transport.ChooseAsync(from,to,walk,profile,minute,context,ct);
+    }
     public async Task<JsonObject> LegAsync(JsonObject from, JsonObject to, PlanningContext context, CancellationToken ct = default)
     {
+        if(context.Walking is not null)return context.Walking.Get(from,to);
         var cacheKey = (from.Number("lat"), from.Number("lng"), to.Number("lat"), to.Number("lng"));
         if (context.RouteCache.TryGetValue(cacheKey, out var cached)) return (JsonObject)cached.DeepClone();
         JsonObject route;

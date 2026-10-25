@@ -12,7 +12,11 @@
     "openMinute": 540,
     "closeMinute": 1080,
     "note": "外部游览示例；内部参观费用与预约另计",
-    "description": "雪梨港邊的代表性建築，可以沿海濱步道欣賞歌劇院的帆形外觀與港灣景色。適合拍照、散步，亦可另外安排需預約的室內導覽或表演。"
+    "description": "雪梨港邊的代表性建築，可以沿海濱步道欣賞歌劇院的帆形外觀與港灣景色。適合拍照、散步，亦可另外安排需預約的室內導覽或表演。",
+    "tags": [
+      "文化",
+      "风景"
+    ]
   },
   {
     "id": "rocks",
@@ -20,14 +24,18 @@
     "query": "The Rocks Sydney",
     "lat": -33.8599,
     "lng": 151.209,
-    "category": "美食",
+    "category": "文化",
     "indoor": false,
     "visitMinutes": 70,
-    "cost": 30,
+    "cost": 0,
     "openMinute": 600,
     "closeMinute": 1140,
-    "note": "餐饮预算为估算，店铺营业时间各异",
-    "description": "以歷史街道與砂岩建築為特色的港邊街區，可散步探索巷弄、商店與餐飲。適合把街區遊覽和用餐分開安排，保留自由探索的時間。"
+    "note": "历史街区散步，不代表已安排用餐；具体餐厅单独排程。",
+    "description": "以歷史街道與砂岩建築為特色的港邊街區，可散步探索巷弄、商店與餐飲。適合把街區遊覽和用餐分開安排，保留自由探索的時間。",
+    "tags": [
+      "文化",
+      "城市"
+    ]
   },
   {
     "id": "garden",
@@ -42,7 +50,11 @@
     "openMinute": 600,
     "closeMinute": 1020,
     "note": "开放时段为演示假设，需核实当日信息",
-    "description": "鄰近雪梨港的綠地與植物園，適合沿步道觀察植物、散步和欣賞港灣景色。戶外步行較多，排程時可搭配休息並留意天氣。"
+    "description": "鄰近雪梨港的綠地與植物園，適合沿步道觀察植物、散步和欣賞港灣景色。戶外步行較多，排程時可搭配休息並留意天氣。",
+    "tags": [
+      "自然",
+      "风景"
+    ]
   },
   {
     "id": "mca",
@@ -57,7 +69,11 @@
     "openMinute": 600,
     "closeMinute": 1020,
     "note": "门票预算为演示估算，非实际报价",
-    "description": "位於環形碼頭一帶的當代藝術博物館，適合喜歡視覺藝術與展覽的旅客。可依展覽內容調整停留時間，入館與特別展資訊需另行確認。"
+    "description": "位於環形碼頭一帶的當代藝術博物館，適合喜歡視覺藝術與展覽的旅客。可依展覽內容調整停留時間，入館與特別展資訊需另行確認。",
+    "tags": [
+      "文化",
+      "艺术"
+    ]
   },
   {
     "id": "qvb",
@@ -72,7 +88,12 @@
     "openMinute": 600,
     "closeMinute": 1020,
     "note": "不含购物消费，开放时间待核实",
-    "description": "以歷史建築與購物空間為特色的市中心地標，可欣賞建築細節、逛街或安排咖啡休息。室內活動較多，購物與餐飲費用需另外預留。"
+    "description": "以歷史建築與購物空間為特色的市中心地標，可欣賞建築細節、逛街或安排咖啡休息。室內活動較多，購物與餐飲費用需另外預留。",
+    "tags": [
+      "购物",
+      "城市",
+      "文化"
+    ]
   },
   {
     "id": "gallery",
@@ -87,7 +108,11 @@
     "openMinute": 600,
     "closeMinute": 1020,
     "note": "免费常设展的演示预算，特别展另计",
-    "description": "可欣賞藝術收藏與展覽的文化景點，適合以室內參觀為主的行程。不同展區與特別展需要的時間不同，可依興趣調整停留長度。"
+    "description": "可欣賞藝術收藏與展覽的文化景點，適合以室內參觀為主的行程。不同展區與特別展需要的時間不同，可依興趣調整停留長度。",
+    "tags": [
+      "文化",
+      "艺术"
+    ]
   },
   {
     "id": "museum",
@@ -102,7 +127,11 @@
     "openMinute": 600,
     "closeMinute": 1020,
     "note": "费用和开放时间须核实，特别展另计",
-    "description": "以自然歷史與文化展示為特色的博物館，適合喜歡探索自然與知識的旅客。可選擇感興趣的展區參觀，特別展與當日開放資訊需確認。"
+    "description": "以自然歷史與文化展示為特色的博物館，適合喜歡探索自然與知識的旅客。可選擇感興趣的展區參觀，特別展與當日開放資訊需確認。",
+    "tags": [
+      "文化",
+      "自然"
+    ]
   },
   {
     "id": "darling",
@@ -117,6 +146,148 @@
     "openMinute": 540,
     "closeMinute": 1200,
     "note": "公共区域示例，不含收费活动",
-    "description": "結合水岸步道、公共空間與餐飲的港灣區域，適合散步、拍照或作為用餐前後的彈性安排。收費設施與活動需另外規劃時間與預算。"
+    "description": "結合水岸步道、公共空間與餐飲的港灣區域，適合散步、拍照或作為用餐前後的彈性安排。收費設施與活動需另外規劃時間與預算。",
+    "tags": [
+      "风景",
+      "城市"
+    ]
+  },
+  {
+    "id": "pancakes-rocks",
+    "name": "Pancakes on the Rocks · 岩石区",
+    "query": "Pancakes On The Rocks 22 Playfair St, The Rocks NSW 2000, Australia",
+    "lat": -33.8588386,
+    "lng": 151.2083477,
+    "category": "美食",
+    "tags": [
+      "美食"
+    ],
+    "activityType": "meal",
+    "indoor": true,
+    "visitMinutes": 60,
+    "cost": 30,
+    "openMinute": 450,
+    "closeMinute": 1440,
+    "note": "美式餐点与松饼；每人餐费与营业窗口为规划预留，非实时报价；未订位，排队、过敏与当日营业请向店家确认。",
+    "description": "具体用餐地点，可与附近活动组合。美式餐点与松饼。",
+    "sourceURL": "https://pancakesontherocks.au/locations/",
+    "locationSource": "Apple MapKit 地点搜索，名称与分店地址已人工核对",
+    "address": "22 Playfair St, The Rocks NSW 2000, Australia",
+    "sourceCheckedAt": "2026-10-25"
+  },
+  {
+    "id": "fine-food-rocks",
+    "name": "The Fine Food Store",
+    "query": "The Fine Food Store 9/Cnr Mill and Kendall Lane, The Rocks NSW 2000, Australia",
+    "lat": -33.8584951,
+    "lng": 151.208487,
+    "category": "美食",
+    "tags": [
+      "美食"
+    ],
+    "activityType": "meal",
+    "indoor": true,
+    "visitMinutes": 60,
+    "cost": 30,
+    "openMinute": 480,
+    "closeMinute": 840,
+    "note": "咖啡与午餐；每人餐费与营业窗口为规划预留，非实时报价；未订位，排队、过敏与当日营业请向店家确认。",
+    "description": "具体用餐地点，可与附近活动组合。咖啡与午餐。",
+    "sourceURL": "https://www.finefoodstore.com/contact-us",
+    "locationSource": "Apple MapKit 地点搜索，名称与分店地址已人工核对",
+    "address": "9/Cnr Mill and Kendall Lane, The Rocks NSW 2000, Australia",
+    "sourceCheckedAt": "2026-10-25"
+  },
+  {
+    "id": "chat-thai-quay",
+    "name": "Chat Thai · Circular Quay",
+    "query": "Chat Thai L05/1 Macquarie Pl, Sydney NSW 2000, Australia",
+    "lat": -33.8621127,
+    "lng": 151.2098014,
+    "category": "美食",
+    "tags": [
+      "美食"
+    ],
+    "activityType": "meal",
+    "indoor": true,
+    "visitMinutes": 60,
+    "cost": 35,
+    "openMinute": 660,
+    "closeMinute": 1260,
+    "note": "泰式午餐；每人餐费与营业窗口为规划预留，非实时报价；未订位，排队、过敏与当日营业请向店家确认。",
+    "description": "具体用餐地点，可与附近活动组合。泰式午餐。",
+    "sourceURL": "https://chatthai.com/locations/",
+    "locationSource": "Apple MapKit 地点搜索，名称与分店地址已人工核对",
+    "address": "L05/1 Macquarie Pl, Sydney NSW 2000, Australia",
+    "sourceCheckedAt": "2026-10-25"
+  },
+  {
+    "id": "ichiban-galeries",
+    "name": "Ichi-ban Boshi · The Galeries",
+    "query": "Ichi-ban Boshi Level 2 The Galeries, 500 George Street, Sydney NSW 2000, Australia",
+    "lat": -33.8726493,
+    "lng": 151.2076459,
+    "category": "美食",
+    "tags": [
+      "美食"
+    ],
+    "activityType": "meal",
+    "indoor": true,
+    "visitMinutes": 60,
+    "cost": 25,
+    "openMinute": 660,
+    "closeMinute": 1260,
+    "note": "日式拉面；每人餐费与营业窗口为规划预留，非实时报价；未订位，排队、过敏与当日营业请向店家确认。",
+    "description": "具体用餐地点，可与附近活动组合。日式拉面。",
+    "sourceURL": "https://www.thegaleries.com/stores/ichi-ban-boshi-restaurant",
+    "locationSource": "Apple MapKit 地点搜索，名称与分店地址已人工核对",
+    "address": "Level 2 The Galeries, 500 George Street, Sydney NSW 2000, Australia",
+    "sourceCheckedAt": "2026-10-25"
+  },
+  {
+    "id": "grounds-city",
+    "name": "The Grounds of the City",
+    "query": "The Grounds of the City RG12/500 George St\nSydney NSW 2000\nAustralia",
+    "lat": -33.8721393,
+    "lng": 151.2071943,
+    "category": "美食",
+    "tags": [
+      "美食"
+    ],
+    "activityType": "meal",
+    "indoor": true,
+    "visitMinutes": 60,
+    "cost": 40,
+    "openMinute": 480,
+    "closeMinute": 1020,
+    "note": "咖啡馆餐点；每人餐费与营业窗口为规划预留，非实时报价；未订位，排队、过敏与当日营业请向店家确认。",
+    "description": "具体用餐地点，可与附近活动组合。咖啡馆餐点。",
+    "sourceURL": "https://thegrounds.com.au/dine-in/the-city/",
+    "locationSource": "Apple MapKit 地点搜索，名称与分店地址已人工核对",
+    "address": "RG12/500 George St\nSydney NSW 2000\nAustralia",
+    "sourceCheckedAt": "2026-10-25"
+  },
+  {
+    "id": "holy-basil-square",
+    "name": "Holy Basil · Darling Square",
+    "query": "Holy Basil Darling Square SW.08/51 Tumbalong Bvd, Haymarket NSW 2000, Australia",
+    "lat": -33.8783702,
+    "lng": 151.2018353,
+    "category": "美食",
+    "tags": [
+      "美食"
+    ],
+    "activityType": "meal",
+    "indoor": true,
+    "visitMinutes": 60,
+    "cost": 35,
+    "openMinute": 690,
+    "closeMinute": 1260,
+    "note": "泰式及老挝菜；每人餐费与营业窗口为规划预留，非实时报价；未订位，排队、过敏与当日营业请向店家确认。",
+    "description": "具体用餐地点，可与附近活动组合。泰式及老挝菜。",
+    "sourceURL": "https://www.darlingsq.com/discover/steam-mill-lane/",
+    "locationSource": "Apple MapKit 地点搜索，名称与分店地址已人工核对",
+    "address": "SW.08/51 Tumbalong Bvd, Haymarket NSW 2000, Australia",
+    "sourceCheckedAt": "2026-10-25"
   }
 ]

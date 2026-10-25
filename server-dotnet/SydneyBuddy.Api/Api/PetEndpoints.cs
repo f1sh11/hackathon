@@ -97,9 +97,9 @@ public static class PetEndpoints
                 }
                 else
                 {
-                    var direct=KokoDialogue.DirectResponse(s,message,choice);
                     var records=await memories.ListAsync(ctx.RequestAborted);
                     TravelProfiling.Refresh(s,records);
+                    var direct=KokoDialogue.DirectResponse(s,message,choice);
                     var confirmed=s.Dialogue is null ? (JsonArray)records.DeepClone():new JsonArray();
                     if(records.Count>0 && direct is null) {
                         try {
@@ -123,10 +123,11 @@ public static class PetEndpoints
                     foreach(var fact in explicitFacts)changes[fact.Key]=fact.Value?.DeepClone();
                     foreach(var uncertain in (s.CurrentChoice is null ? result.Array("needsClarification"):null) ?? new JsonArray()) {
                         var key=uncertain?.GetValue<string>() ?? "";
+                        if(key.StartsWith("budget") && !PetExplicitFacts.MentionsBudget(message))continue;
                         if(PetQuestions.Required.Contains(key) && !explicitFacts.ContainsKey(key)){s.Fields.Remove(key);changes.Remove(key);}
                     }
                     if(changes.ContainsKey("budgetCurrency") && s.Fields.TryGetValue("budgetCurrency",out var previousCurrency) && PetQuestions.Known(previousCurrency) && previousCurrency!=changes.Str("budgetCurrency") && !changes.ContainsKey("budget"))s.Fields.Remove("budget");
-                    PetQuestions.Apply(s,changes);reply=result.Str("reply");
+                    PetQuestions.Apply(s,changes);KokoCompanion.ApplyFeeling(s,message);reply=result.Str("reply");
                     if(changes.ContainsKey("budget"))reply=PetExplicitFacts.BudgetReply(s) ?? "预算先收好啦，我们再确认金额、币种和范围。";
                     if(PetQuestions.Known(s.Fields.GetValueOrDefault("budgetCurrency")) && s.Fields["budgetCurrency"]!="AUD" && (changes.ContainsKey("budget") || changes.ContainsKey("budgetCurrency")))reply="这笔预算先按原币种保留。生成路线前还需要一份澳元活动预算。";
                     if(PetQuestions.UnsupportedDestination(s) && (changes.ContainsKey("destination") || message.Contains("生成") || reply.Contains("准备好"))){reply="可以先聊聊你想怎样玩，资料也会保留。目前能生成的路线是悉尼，其他城市还需要后续接入。";mood="confused";}
@@ -135,7 +136,7 @@ public static class PetEndpoints
                     if(added.Count>0)await SyncPending(s,memory,ctx.RequestAborted);
                     var suggestion=s.Dialogue is not null || result.Array("preferences") is not null || !TravelProfiling.AllowLegacySuggestion(message) ? "":result.Str("memorySuggestion");if(suggestion.Length>0)s.PendingMemory=suggestion[..Math.Min(500,suggestion.Length)];
                 }
-                var assistant=KokoDialogue.CompleteTurn(s,dialogueResult,reply,mood);
+                var assistant=KokoCompanion.RespondWithCare(s,KokoDialogue.CompleteTurn(s,dialogueResult,reply,mood),message);
                 await Emit(new{type="reply",text=assistant.Text});
                 s.Messages.Add(new(requestId,"user",message,Choice:s.CurrentChoice));s.Messages.Add(assistant);
                 if(s.Messages.Count>100)s.Messages=s.Messages.TakeLast(100).ToList();

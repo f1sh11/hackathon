@@ -10,6 +10,11 @@ namespace SydneyBuddy.Api;
 public sealed class PlanningContext(string mode, IReadOnlyDictionary<string, string> config)
 {
     public string Mode { get; } = mode;
+    public WalkingEvidence? Walking {get;set;}
+    public bool CompareTransit {get;set;}
+    public int TransitQueries {get;set;}
+    public Dictionary<string,JsonObject> TransitCache {get;}=[];
+    public IReadOnlyList<HashSet<string>>? DayCandidateIds {get;set;}
     public IReadOnlyDictionary<string, string> Config { get; } = new Dictionary<string, string>(config);
     public string Now { get; } = DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture);
     public JsonArray Trace { get; } = [];

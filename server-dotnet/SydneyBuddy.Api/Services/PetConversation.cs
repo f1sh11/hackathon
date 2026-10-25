@@ -15,6 +15,8 @@ public sealed class PetSession
     public List<PetMessage> Messages { get; set; } = [];
     public Dictionary<string,string> Fields { get; set; } = [];
     public JsonObject PersonalProfile { get; set; } = new();
+    [System.Text.Json.Serialization.JsonIgnore]
+    public JsonArray ActiveMemories {get;set;}=[];
     public string PendingMemory { get; set; } = "";
     public List<TravelPreference> Preferences { get; set; } = [];
     public List<TravelPreference> ConfirmedDna { get; set; } = [];
@@ -61,7 +63,7 @@ public sealed class PetSessionStore(ProjectPaths paths)
 
 public static class PetQuestions
 {
-    public static readonly string[] Keys=["destination","date","days","companions","budget","interests","pace","notes","budgetCurrency","budgetBasis","travelers","origin","mustDo","avoid","energy","rhythm","queueTolerance","budgetCoverage","flights","bookings","tickets","companionNeeds","specialLimits","dayStyle"];
+    public static readonly string[] Keys=["destination","date","days","companions","budget","interests","pace","notes","budgetCurrency","budgetBasis","travelers","origin","mustDo","avoid","energy","rhythm","queueTolerance","budgetCoverage","flights","bookings","tickets","companionNeeds","specialLimits","dayStyle","transportPreference"];
     public static readonly Dictionary<string,string> Labels=new()
     {
         ["destination"]="目的地",["date"]="出发日期",["days"]="天数",["companions"]="同行伙伴",
@@ -168,8 +170,11 @@ public static class PetQuestions
 /// Only unambiguous, explicit phrases are normalized here; unknowns stay unset.
 public static class PetExplicitFacts
 {
+    public static bool MentionsBudget(string message) => System.Text.RegularExpressions.Regex.IsMatch(message,
+        @"预算|預算|澳元|澳币|澳幣|人民币|人民幣|美元|美金|AUD|CNY|USD|RMB|budget|dollars?|每人|全体|全體|全程|总共|一共|^\s*[0-9]+(?:\.[0-9]+)?\s*$",System.Text.RegularExpressions.RegexOptions.IgnoreCase);
     public static void FilterUnsupportedHabits(string message,JsonObject fields)
     {
+        if(!MentionsBudget(message))foreach(var key in new[]{"budget","budgetCurrency","budgetBasis","budgetCoverage"})fields.Remove(key);
         var evidence=new Dictionary<string,string>{
             ["energy"]="精力|体力|活力|電量|电量",
             ["rhythm"]="节奏|節奏|轻松|輕鬆|紧凑|緊湊|适中|慢慢|慢逛|悠闲|充实",
@@ -192,7 +197,7 @@ public static class PetExplicitFacts
         // Explicit hard constraints must survive a model omitting optional fields once essentials are complete.
         void Extract(string key,string pattern) {
             var values=System.Text.RegularExpressions.Regex.Matches(message,pattern)
-                .Where(m=>!System.Text.RegularExpressions.Regex.IsMatch(message[..m.Index],@"(?:不是|没有|无需|不用|不需要|不必|不)\s*$"))
+                .Where(m=>!System.Text.RegularExpressions.Regex.IsMatch(message[..m.Index],@"(?:不是|没有|无需|不用|不需要|不必|不指定|不设定|不要求|不强求|不)\s*$"))
                 .Select(m=>System.Text.RegularExpressions.Regex.Split(m.Groups[1].Value,"但是|不过|但")[0].Trim())
                 .Where(v=>v.Length is >0 and <=120)
                 .Where(v=>key!="mustDo" || !System.Text.RegularExpressions.Regex.IsMatch(v,@"哪|什么|不确定|未确定|待定|或者|或|随便|都行|^(?:悉尼|Sydney)(?:旅行|旅游|玩\s*[0-9一二两三四五六七八九十]+\s*天)?$",System.Text.RegularExpressions.RegexOptions.IgnoreCase)).Distinct().ToArray();
@@ -200,6 +205,14 @@ public static class PetExplicitFacts
         }
         Extract("mustDo",@"(?:必须去|一定要去|特别想去|想去|想逛|想参观|必去(?:地点)?(?:是|：|:)?)\s*([^，,。；;！？\n]+)");
         Extract("avoid",@"(?:必须避开|需要避开|不去|不逛|不参观|不想(?:去|逛|参观)|不要(?:去|逛|参观)|避免(?:去|逛|参观)|避开)\s*([^，,。；;！？\n]+)");
+        // Explicit trip interests must not disappear when the model extracts only essential fields.
+        var interestClauses=System.Text.RegularExpressions.Regex.Split(message,@"[，,。；;！？\n]")
+            .Where(c=>System.Text.RegularExpressions.Regex.IsMatch(c,"想|喜欢|喜歡|兴趣|興趣|体验|體驗|偏好|主要") &&
+                !System.Text.RegularExpressions.Regex.IsMatch(c,"不想|不喜欢|不喜歡|不要|不感兴趣|不感興趣|避开|避免"));
+        var explicitInterests=new[]{"美食","自然","风景","文化","艺术","购物","城市"}
+            .Where(i=>interestClauses.Any(c=>c.Contains(i) || (i=="美食" && System.Text.RegularExpressions.Regex.IsMatch(c,"想吃|逛吃|food",System.Text.RegularExpressions.RegexOptions.IgnoreCase))))
+            .ToArray();
+        if(explicitInterests.Length>0)fields["interests"]=string.Join("、",explicitInterests);
         // Keep unambiguous travel facts even when the conversational model omits fields.
         if(System.Text.RegularExpressions.Regex.IsMatch(message,@"(?:去|目的地(?:是|：|:)?)\s*(?:悉尼|Sydney)(?=[，,。\s]|$)",System.Text.RegularExpressions.RegexOptions.IgnoreCase) &&
             !System.Text.RegularExpressions.Regex.IsMatch(message,@"(?:不去|不要去|不想去|不是)\s*(?:悉尼|Sydney)",System.Text.RegularExpressions.RegexOptions.IgnoreCase))fields["destination"]="悉尼";
@@ -215,14 +228,21 @@ public static class PetExplicitFacts
                 fields["date"]=today.AddDays(relative[0]=="明天" ? 1:relative[0]=="后天" ? 2:0).ToString("yyyy-MM-dd");
             }
         }
+        if(System.Text.RegularExpressions.Regex.IsMatch(message,"只步行|全程步行|不要坐车|不坐公交|walk only",System.Text.RegularExpressions.RegexOptions.IgnoreCase))fields["transportPreference"]="walk";
+        else if(System.Text.RegularExpressions.Regex.IsMatch(message,"尽量少走|少走路|多坐车|less walking",System.Text.RegularExpressions.RegexOptions.IgnoreCase))fields["transportPreference"]="lessWalking";
+        else if(System.Text.RegularExpressions.Regex.IsMatch(message,"公交|公共交通|火车|渡轮|地铁|轻轨|transit",System.Text.RegularExpressions.RegexOptions.IgnoreCase))fields["transportPreference"]="balanced";
         // Exact numeric limits outrank a model's qualitative "轻松" summary.
         var walkingText=System.Text.RegularExpressions.Regex.Replace(message,@"(?<=\d)[,，](?=\d{3}(?!\d))","");
         var walking=System.Text.RegularExpressions.Regex.Matches(walkingText,@"(?<![\d\-–~到至])([1-9]\d{2,4})\s*步")
             .Concat(System.Text.RegularExpressions.Regex.Matches(walkingText,@"(?:步数|步數)\s*[:：]?\s*([1-9]\d{2,4})(?!\d|\s*[-–~到至])"))
             .Select(m=>m.Groups[1].Value).Where(v=>int.TryParse(v,out var n) && n is >=500 and <=60000).Distinct().ToArray();
         if(walking.Length==1)fields["pace"]="约"+walking[0]+"步";
+        var rhythms=new[]{("轻松随意",@"轻松随意|想轻松一点|想轻松些|慢慢逛|悠闲一点"),("紧凑充实",@"紧凑充实|想紧凑一点|充实一点"),("适中",@"节奏适中|适中节奏")}
+            .Where(r=>System.Text.RegularExpressions.Regex.Matches(message,r.Item2).Any(m=>!Ambiguous(m))).Select(r=>r.Item1).Distinct().ToArray();
+        if(rhythms.Length==1)fields["rhythm"]=rhythms[0];
 
-        if(System.Text.RegularExpressions.Regex.IsMatch(message,@"(?:没有|无)(?:什么|特别|任何)?必去(?:地点|的地方|景点)?") && !message.Contains("但是") && !message.Contains("但想"))fields["mustDo"]="无";
+
+        if(System.Text.RegularExpressions.Regex.IsMatch(message,@"(?:没有|无|不指定|不设定?|不要求|不强求)(?:什么|特别|任何|固定|特定)?(?:的)?必去(?:地点|的地方|景点)?") && !message.Contains("但是") && !message.Contains("但想"))fields["mustDo"]="无";
         if(System.Text.RegularExpressions.Regex.IsMatch(message,@"(?:没有|无)(?:什么|特别|任何)?(?:需要)?避开(?:的安排|的地方|安排)?"))fields["avoid"]="无";
         var amount=System.Text.RegularExpressions.Regex.Matches(message,@"(?<![0-9.])([0-9]+(?:\.[0-9]+)?)\s*(澳元|澳币|AUD|人民币|CNY|美元|USD)",System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         var amountExplicit=amount.Count==1 && !System.Text.RegularExpressions.Regex.IsMatch(message[..amount[0].Index],@"(?:不是|并非|不要|别用|还是|或者|或|到|至|[-~–])\s*$");

@@ -15,7 +15,7 @@ public sealed class PlaceService(IExternalJsonClient external, PlaceCatalog cata
         var places = catalog.Get().ToArray();
         if (context.Mode != "live" || travel?.Warehouse==true)
         {
-            context.Record("读取候选地点", $"{places.Length} 個悉尼示例地點；價格、營業時段與停留時間為演示假設。", travel?.Warehouse==true ? "Zetaris / travel_catalog":"本地示例数据");
+            context.Record("读取候选地点", $"{places.Length} 个悉尼候选地点（含具体餐厅）；地点来源见目录，价格、营业窗口与停留时间为规划估算。", travel?.Warehouse==true ? "Zetaris / travel_catalog":"本地示例数据");
             return places;
         }
         var key = context.Config.GetValueOrDefault("GOOGLE_SERVER_KEY");
