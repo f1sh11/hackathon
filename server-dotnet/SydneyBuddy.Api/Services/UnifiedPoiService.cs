@@ -38,6 +38,7 @@ public sealed class UnifiedPoiService(TravelDataContext travel,OverturePoiProvid
             if(existing is not null){
                 var sources=existing.Array("sources")!;if(!sources.Any(s=>s?.ToString()==point.Str("source")))sources.Add(point.Str("source"));existing.Array("sourceIds")!.Add(point.Str("id"));
                 foreach(var field in new[]{"website","phone","address","openingHoursText","wikidata"})if(existing.Str(field).Length==0&&point.Str(field).Length>0)existing[field]=point[field]!.DeepClone();
+                if((existing.Array("photos") is null||existing.Array("photos")!.Count==0)&&point.Array("photos")?.Count>0)existing["photos"]=point.Array("photos")!.DeepClone();
                 if(existing.Object("restaurantData") is JsonObject restaurant && point.Str("source")!="Restaurant evidence" && point.Object("restaurantData") is JsonObject communityRestaurant){
                     foreach(var field in new[]{"reportedSpends","recommendations","reviews"})foreach(var claim in communityRestaurant.Array(field)??new JsonArray()){
                         var entries=restaurant.Array(field)!;if(!entries.Any(x=>x!.Str("quote")==claim!.Str("quote")&&x.Object("source")?.Str("url")==claim.Object("source")?.Str("url")))entries.Add(claim!.DeepClone());

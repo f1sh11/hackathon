@@ -8,9 +8,9 @@ public sealed class TravelDataContext(IHttpContextAccessor accessor) {
     public const string Header="X-Travel-Data-Source";
     public bool Explicit=>accessor.HttpContext?.Request.Headers.ContainsKey(Header)==true;
     public string Mode {
-        get {var mode=accessor.HttpContext?.Request.Headers[Header].ToString()??"";return mode is "" or "direct"?"direct":mode=="zetaris"?mode:throw new ServiceException("不支援的旅遊資料來源。");}
+        get {var mode=accessor.HttpContext?.Request.Headers[Header].ToString()??"";return mode is "" or "direct"?"direct":mode is "zetaris" or "zetaris-cloud"?mode:throw new ServiceException("不支援的旅遊資料來源。");}
     }
-    public bool Warehouse=>Mode=="zetaris";
+    public bool Warehouse=>Mode is "zetaris" or "zetaris-cloud";
     public TravelSnapshot? Snapshot=>accessor.HttpContext?.Items[typeof(TravelSnapshot)] as TravelSnapshot;
 }
 public sealed record TravelSnapshot(JsonObject Poi,JsonArray Catalog,JsonArray Maps,string ReadAt,JsonArray? Gems=null,JsonArray? Osm=null,JsonArray? Social=null,JsonArray? Restaurants=null);
@@ -22,34 +22,58 @@ public interface ITravelWarehouse {
 }
 
 /// <summary>Only fixed public SELECTs leave this backend. Weather uses an uncached native Zetaris REST table.</summary>
-public sealed class ZetarisTravelWarehouse(HttpClient http,IConfiguration config,IMemoryCache cache):ITravelWarehouse {
+public sealed class ZetarisTravelWarehouse(HttpClient http,IConfiguration config,IMemoryCache cache,TravelDataContext? selection=null,ProjectPaths? paths=null):ITravelWarehouse {
     static readonly SemaphoreSlim Gate=new(1,1);
-    static Uri Local(string raw){
-        if(!Uri.TryCreate(raw,UriKind.Absolute,out var u)||u.Scheme!="http"||!u.IsLoopback||u.UserInfo.Length>0||u.Query.Length>0||u.Fragment.Length>0)
-            throw new ServiceException("Zetaris 本機連線設定無效。");
-        return u;
+    bool Cloud=>selection?.Mode=="zetaris-cloud";
+    Dictionary<string,string> LoadEnvFile(){
+        var env=new Dictionary<string,string>();
+        var file=Setting("EnvironmentFile")??(paths is not null&&string.IsNullOrEmpty(config["Zetaris:Username"])&&string.IsNullOrEmpty(config["Zetaris:Cloud:BaseUrl"])?Path.Combine(paths.RepoRoot,"infra","zetaris",".env.local"):null);
+        if(!string.IsNullOrEmpty(file)&&File.Exists(file))foreach(var line in File.ReadLines(file)){
+            if(line.StartsWith('#'))continue;var at=line.IndexOf('=');
+            if(at>0)env[line[..at].Trim()]=line[(at+1)..].Trim().Trim('"','\'');
+        }
+        return env;
+    }
+    string? Setting(string key)=>config["Zetaris:"+(Cloud?"Cloud:":"Local:")+key] ?? (Cloud?null:config["Zetaris:"+key]);
+    Uri Endpoint(string key,string localDefault,Dictionary<string,string> env){
+        var envKey=key=="BaseUrl"?"ZETARIS_BASE_URL":key=="LoginUrl"?"ZETARIS_LOGIN_URL":"";
+        var raw=Setting(key)??(envKey.Length>0?env.GetValueOrDefault(envKey):null)??(Cloud?"":localDefault);
+        if(!Uri.TryCreate(raw,UriKind.Absolute,out var uri)||uri.UserInfo.Length>0||uri.Query.Length>0||uri.Fragment.Length>0)
+            throw new ServiceException(Cloud?"雲端 Zetaris 尚未設定有效的 HTTPS 連線。":"Zetaris 本機連線設定無效。");
+        var isCloudHost=uri.Scheme=="https"&&!uri.IsLoopback;
+        var isLocalHost=uri.Scheme=="http"&&uri.IsLoopback;
+        if(Cloud?!isCloudHost:(!isLocalHost&&!(env.ContainsKey("ZETARIS_BASE_URL")&&uri.Host.EndsWith(".cloud.zetaris.com",StringComparison.OrdinalIgnoreCase))))
+            throw new ServiceException(Cloud?"雲端 Zetaris 尚未設定有效的 HTTPS 連線。":"Zetaris 本機連線設定無效。");
+        return uri;
     }
     async Task<JsonArray> QueryAsync(string sql,CancellationToken token){
         try {
-            var api=Local(config["Zetaris:BaseUrl"]??"http://127.0.0.1:8888");
-            var login=Local(config["Zetaris:LoginUrl"]??"http://127.0.0.1:3000/api/auth/login");
-            var env=new Dictionary<string,string>();var file=config["Zetaris:EnvironmentFile"];
-            if(!string.IsNullOrEmpty(file)&&File.Exists(file))foreach(var line in File.ReadLines(file)){
-                if(line.StartsWith('#'))continue;var at=line.IndexOf('=');
-                if(at>0)env[line[..at].Trim()]=line[(at+1)..].Trim().Trim('"','\'');
+            var env=LoadEnvFile();
+            var api=Endpoint("BaseUrl","http://127.0.0.1:8888",env);
+            var proxy=Setting("Transport")=="ui-proxy"||api.Host.StartsWith("new-ui.",StringComparison.OrdinalIgnoreCase);
+            var bearer=Setting("ApiKey")??"";var org=Setting("OrgId");
+            var authKey="zetaris-auth:"+api.Host+":"+(Setting("Username")??env.GetValueOrDefault("ZETARIS_ADMIN_EMAIL")??"");
+            if(bearer.Length==0&&api.Scheme=="https"&&paths is not null&&cache.TryGetValue<(string Bearer,string Org)>(authKey,out var cachedAuth)){
+                (bearer,org)=cachedAuth;
             }
-            var username=config["Zetaris:Username"]??env.GetValueOrDefault("ZETARIS_ADMIN_EMAIL");
-            var password=config["Zetaris:Password"]??env.GetValueOrDefault("ZETARIS_ADMIN_PASSWORD");
-            if(string.IsNullOrEmpty(username)||string.IsNullOrEmpty(password))throw new ServiceException("Zetaris 尚未設定後端連線。可切回直接來源。");
-            using var authResponse=await http.PostAsJsonAsync(login,new{username,password},token);
-            if(!authResponse.IsSuccessStatusCode)throw new ServiceException("Zetaris 登入失敗，請檢查後端設定。");
-            var auth=JsonNode.Parse(await authResponse.Content.ReadAsStringAsync(token))?.AsObject()??throw new ServiceException("Zetaris 登入回應無效。");
-            var bearer=auth.Str("idToken");var org=auth["orgId"]?.ToString();
-            if(bearer.Length==0||string.IsNullOrEmpty(org))throw new ServiceException("Zetaris 登入回應無效。");
-            using var request=new HttpRequestMessage(HttpMethod.Post,new Uri(api,"/api/v1.0/sql-editor/sqls/run"));
+            if(bearer.Length==0){
+                var defaultLogin=api.Scheme=="https"?new Uri(api,"/api/auth/login").ToString():"http://127.0.0.1:3000/api/auth/login";
+                var login=Endpoint("LoginUrl",defaultLogin,env);
+                var username=Setting("Username")??env.GetValueOrDefault("ZETARIS_ADMIN_EMAIL");
+                var password=Setting("Password")??env.GetValueOrDefault("ZETARIS_ADMIN_PASSWORD");
+                if(string.IsNullOrEmpty(username)||string.IsNullOrEmpty(password))throw new ServiceException("Zetaris 尚未設定後端連線。可切回直接來源。");
+                using var authResponse=await http.PostAsJsonAsync(login,new{username,password},token);
+                if(!authResponse.IsSuccessStatusCode)throw new ServiceException("Zetaris 登入失敗，請檢查後端設定。");
+                var auth=JsonNode.Parse(await authResponse.Content.ReadAsStringAsync(token))?.AsObject()??throw new ServiceException("Zetaris 登入回應無效。");
+                bearer=auth.Str("idToken");org=auth["orgId"]?.ToString();
+                if(Setting("OrgId") is {Length:>0} expectedOrg && org!=expectedOrg)throw new ServiceException("Zetaris 登入組織與設定不符。");
+                if(api.Scheme=="https"&&paths is not null&&bearer.Length>0&&!string.IsNullOrEmpty(org))cache.Set(authKey,(bearer,org!),TimeSpan.FromMinutes(10));
+            }
+            if(bearer.Length==0||string.IsNullOrEmpty(org))throw new ServiceException("Zetaris 登入或應用程式組織設定無效。");
+            using var request=new HttpRequestMessage(HttpMethod.Post,new Uri(api,proxy?"/api/proxy/sql-editor/sqls/run-query":"/api/v1.0/sql-editor/sqls/run"));
             request.Headers.Authorization=new("Bearer",bearer);request.Headers.Add("X-Org-ID",org);request.Headers.Add("X-Request-ID",Guid.NewGuid().ToString());
             request.Headers.CacheControl=new(){NoCache=true,NoStore=true};
-            request.Content=JsonContent.Create(new{queryId=Guid.NewGuid(),sql,source="SqlEditor",limit=20000});
+            request.Content=proxy ? JsonContent.Create(new{sql,limit=20000}) : JsonContent.Create(new{queryId=Guid.NewGuid(),sql,source="SqlEditor",limit=20000});
             using var response=await http.SendAsync(request,token);
             if(!response.IsSuccessStatusCode)throw new ServiceException("Zetaris 公開資料查詢失敗，未改用其他來源。");
             var raw=JsonNode.Parse(await response.Content.ReadAsStringAsync(token))?.AsObject()??throw new ServiceException("Zetaris 回應無效。");
@@ -85,14 +109,14 @@ public sealed class ZetarisTravelWarehouse(HttpClient http,IConfiguration config
         return JsonNode.Parse(row[0]!.GetValue<string>())?.AsObject()??throw new ServiceException("Zetaris 公開資料格式無效。");
     }
     public async Task<TravelSnapshot> ReadAsync(CancellationToken token){
-        var key="travel-public-v5:"+config["Zetaris:RestaurantsEnabled"]+":"+config["Zetaris:SocialEnabled"]+":"+config["Zetaris:BaseUrl"]+":"+config["Zetaris:EnvironmentFile"];
+        var key="travel-public-v6:"+(Cloud?"cloud":"local")+":"+Setting("RestaurantsEnabled")+":"+Setting("SocialEnabled")+":"+Setting("BaseUrl")+":"+Setting("LoginUrl")+":"+Setting("Transport")+":"+Setting("Username")+":"+Setting("OrgId")+":"+Setting("EnvironmentFile");
         if(cache.TryGetValue<TravelSnapshot>(key,out var hit))return hit!;
         await Gate.WaitAsync(token);
         try {
             if(cache.TryGetValue<TravelSnapshot>(key,out hit))return hit!;
             var sql="SELECT 'poi' AS dataset,payload FROM sydneybuddy_travel.travel_poi UNION ALL SELECT 'catalog',payload FROM sydneybuddy_travel.travel_catalog UNION ALL SELECT 'maps',payload FROM sydneybuddy_travel.travel_map_layers UNION ALL SELECT 'metadata',payload FROM sydneybuddy_travel.travel_metadata UNION ALL SELECT 'gems',payload FROM sydneybuddy_travel.travel_hidden_gems UNION ALL SELECT 'osm',payload FROM sydneybuddy_travel.travel_osm_places";
-            if(config.GetValue<bool>("Zetaris:SocialEnabled"))sql+=" UNION ALL SELECT 'social',payload FROM sydneybuddy_travel.travel_social_places";
-            if(config.GetValue<bool>("Zetaris:RestaurantsEnabled"))sql+=" UNION ALL SELECT 'restaurants',payload FROM sydneybuddy_travel.travel_restaurant_places";
+            if(bool.TryParse(Setting("SocialEnabled"),out var socialEnabled)&&socialEnabled)sql+=" UNION ALL SELECT 'social',payload FROM sydneybuddy_travel.travel_social_places";
+            if(bool.TryParse(Setting("RestaurantsEnabled"),out var restaurantsEnabled)&&restaurantsEnabled)sql+=" UNION ALL SELECT 'restaurants',payload FROM sydneybuddy_travel.travel_restaurant_places";
             var rows=await QueryAsync(sql,token);
             var groups=new Dictionary<string,JsonArray>{{"poi",new()},{"catalog",new()},{"maps",new()},{"metadata",new()},{"gems",new()},{"osm",new()},{"social",new()},{"restaurants",new()}};
             foreach(var row in rows.OfType<JsonArray>()){
@@ -111,7 +135,7 @@ public sealed class TravelDataMiddleware(RequestDelegate next) {
     static readonly string[] Paths=["/poi/search","/poi/media","/catalog","/schedule/editor","/plan","/data/status","/data/map-layers","/pet"];
     public async Task InvokeAsync(HttpContext context,TravelDataContext selection,ITravelWarehouse warehouse){
         var mode=selection.Mode;
-        if(mode=="zetaris"&&((context.Request.Path=="/restaurants/import")||(context.Request.Path.StartsWithSegments("/social")&&context.Request.Path.Value!.EndsWith("/publish",StringComparison.Ordinal))||Paths.Any(path=>context.Request.Path.StartsWithSegments(path)) || (HttpMethods.IsPost(context.Request.Method)&&context.Request.Path=="/trips")))context.Items[typeof(TravelSnapshot)]=await warehouse.ReadAsync(context.RequestAborted);
+        if(selection.Warehouse&&((context.Request.Path=="/restaurants/import")||(context.Request.Path.StartsWithSegments("/social")&&context.Request.Path.Value!.EndsWith("/publish",StringComparison.Ordinal))||Paths.Any(path=>context.Request.Path.StartsWithSegments(path)) || (HttpMethods.IsPost(context.Request.Method)&&context.Request.Path=="/trips")))context.Items[typeof(TravelSnapshot)]=await warehouse.ReadAsync(context.RequestAborted);
         context.Response.Headers[TravelDataContext.Header]=mode;await next(context);
     }
 }
@@ -156,6 +180,6 @@ public sealed class PublicTravelWeather(HttpClient http,TravelDataContext select
             item["summary"]=ok?$"{row!.Number("temperatureMin"):0.#}–{row.Number("temperatureMax"):0.#}°C · 降雨機率 {row.Number("precipitationProbability"):0}%":row is null?"超出預報範圍，天氣未知":"預報已過期或缺少資料，天氣未知";
             days.Add(item);
         }
-        return new JsonObject{["source"]=mode=="zetaris"?"Open-Meteo / Zetaris":"Open-Meteo / direct",["dataSource"]=mode,["status"]=available==days.Count?"ok":available>0?"partial":"unavailable",["days"]=days,["rainy"]=anyRain,["summary"]=string.Join(" / ",days.Select(d=>d!.Str("date")+" "+d.Str("summary"))),["fetchedAt"]=records.FirstOrDefault()?.Str("fetchedAt")??"",["attribution"]="Weather data by Open-Meteo · CC BY 4.0"};
+        return new JsonObject{["source"]=mode!="direct"?"Open-Meteo / Zetaris":"Open-Meteo / direct",["dataSource"]=mode,["status"]=available==days.Count?"ok":available>0?"partial":"unavailable",["days"]=days,["rainy"]=anyRain,["summary"]=string.Join(" / ",days.Select(d=>d!.Str("date")+" "+d.Str("summary"))),["fetchedAt"]=records.FirstOrDefault()?.Str("fetchedAt")??"",["attribution"]="Weather data by Open-Meteo · CC BY 4.0"};
     }
 }

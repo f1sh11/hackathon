@@ -21,4 +21,15 @@ public class PoiMediaTests {
         using var other=new MemoryCache(new MemoryCacheOptions());media=new PoiMediaService(new HttpClient(new Handler("{\"error\":{\"code\":\"ratelimited\"}}")),other);
         await Assert.ThrowsAsync<ServiceException>(()=>media.LoadAsync(point,default));
     }
+    [Fact] public async Task PlaceNameMatchesExactTitleAndFiltersNoise(){
+        var payload="""{"query":{"pages":{"1":{"title":"File:Sticker art in Sydney 01.jpg","imageinfo":[{"mime":"image/jpeg","thumburl":"https://upload.wikimedia.org/sticker.jpg","descriptionurl":"https://commons.wikimedia.org/wiki/File:Sticker.jpg","extmetadata":{"Artist":{"value":"A"},"LicenseShortName":{"value":"CC BY 4.0"}}}]},"2":{"title":"File:Susannah Place Museum exterior.jpg","imageinfo":[{"mime":"image/jpeg","thumburl":"https://upload.wikimedia.org/susannah.jpg","descriptionurl":"https://commons.wikimedia.org/wiki/File:Susannah.jpg","extmetadata":{"Artist":{"value":"Curator"},"LicenseShortName":{"value":"CC BY-SA 4.0"}}}]},"3":{"title":"File:Sydney Mrs Macquarie's Chair sunset.jpg","imageinfo":[{"mime":"image/jpeg","thumburl":"https://upload.wikimedia.org/chair.jpg","descriptionurl":"https://commons.wikimedia.org/wiki/File:Chair.jpg","extmetadata":{"Artist":{"value":"Harbour Photog"},"LicenseShortName":{"value":"CC BY 4.0"}}}]}}}}""";
+        using var cache=new MemoryCache(new MemoryCacheOptions());var media=new PoiMediaService(new HttpClient(new Handler(payload)),cache);
+        var susannah=await media.LoadAsync(new JsonObject{["name"]="Susannah Place Museum",["lat"]=-33.8592,["lng"]=151.2067},default);
+        Assert.Equal("Susannah Place Museum exterior.jpg",susannah.Array("photos")![0]!.Str("title"));
+        Assert.Equal("exact-place",susannah.Array("photos")![0]!.Str("matchKind"));
+        Assert.DoesNotContain(susannah.Array("photos")!.OfType<JsonObject>(),p=>p.Str("title").Contains("Sticker art"));
+        var chair=await media.LoadAsync(new JsonObject{["name"]="麥格理夫人椅",["lat"]=-33.8597,["lng"]=151.2225},default);
+        Assert.Equal("Sydney Mrs Macquarie's Chair sunset.jpg",chair.Array("photos")![0]!.Str("title"));
+        Assert.Equal("exact-place",chair.Array("photos")![0]!.Str("matchKind"));
+    }
 }

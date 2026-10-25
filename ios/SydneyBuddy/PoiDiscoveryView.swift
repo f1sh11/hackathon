@@ -119,17 +119,17 @@ enum PoiDiscoveryCategory {
     }
     private var job:Task<Void,Never>?
     private var generation=UUID()
-    var source:String {if dataSource == .zetaris{return "Open travel data / Zetaris"};if category == "gems" {return "Open travel data / local"};switch provider{case .apple:return "Apple Maps / MapKit";case .google:return "Google Places";case .osm:return openSource;case .schematic:return "離線示意 · 不搜尋地點"}}
+    var source:String {if dataSource.warehouse{return "Open travel data / Zetaris"};if category == "gems" {return "Open travel data / local"};switch provider{case .apple:return "Apple Maps / MapKit";case .google:return "Google Places";case .osm:return openSource;case .schematic:return "離線示意 · 不搜尋地點"}}
     func configure(_ value:MapProvider,googleMapConfigured:Bool=true,dataSource:TravelDataSource = .direct) {
         stop();lastCamera=nil;viewportRadius=nil;provider=value;self.dataSource=dataSource;self.googleMapConfigured=googleMapConfigured;places=[];selected=nil;error=nil;hasSearched=false
-        attribution=dataSource == .zetaris ? "Overture Maps Foundation":value == .apple ? "Apple Maps":value == .google ? "Google Maps":value == .osm ? "Overture Maps Foundation":""
+        attribution=dataSource.warehouse ? "Overture Maps Foundation":value == .apple ? "Apple Maps":value == .google ? "Google Maps":value == .osm ? "Overture Maps Foundation":""
         dataVersion=nil
-        if category == "gems" || value == .osm || value == .apple || dataSource == .zetaris{search()}
+        if category == "gems" || value == .osm || value == .apple || dataSource.warehouse{search()}
     }
     func search(){
         stop();error=nil;searchSummary=nil;hasSearched=true;places=[];selected=nil
         guard provider != .schematic else{error="離線示意圖不提供地點搜尋，請切換其他底圖。";return}
-        guard category == "gems" || dataSource == .zetaris || provider != .google || googleMapConfigured else{error="Google 地圖尚未設定金鑰，請選擇其他底圖。";return}
+        guard category == "gems" || dataSource.warehouse || provider != .google || googleMapConfigured else{error="Google 地圖尚未設定金鑰，請選擇其他底圖。";return}
         busy=true
         let point=center,text=query.trimmingCharacters(in:.whitespacesAndNewlines),kind=category,current=provider,route=dataSource,token=generation,radius=viewportRadius
         job=Task {@MainActor in
@@ -146,10 +146,10 @@ enum PoiDiscoveryCategory {
                     guard (response as? HTTPURLResponse)?.statusCode==200 else {let raw=(try? JSONSerialization.jsonObject(with:data)) as? [String:Any];throw NSError(domain:"POI",code:1,userInfo:[NSLocalizedDescriptionKey:raw?["error"] as? String ?? "地點搜尋失敗，請重試。"])}
                     struct Response:Decodable{struct Metadata:Decodable{var release:String?};var places:[ScheduleCandidate];var attribution:String?;var source:String?;var metadata:Metadata?;var message:String?;var truncated:Bool?}
                     let parsed=try JSONDecoder().decode(Response.self,from:data)
-                    guard kind == "gems" || route == .zetaris || current != .google || parsed.places.allSatisfy({$0.source=="Google Places"}) else{throw NSError(domain:"POI",code:2,userInfo:[NSLocalizedDescriptionKey:"搜尋來源不一致，請更新後端後重試。"])}
+                    guard kind == "gems" || route.warehouse || current != .google || parsed.places.allSatisfy({$0.source=="Google Places"}) else{throw NSError(domain:"POI",code:2,userInfo:[NSLocalizedDescriptionKey:"搜尋來源不一致，請更新後端後重試。"])}
                     result=parsed.places
                     guard token==generation else{return};if let credit=parsed.attribution{attribution=credit};searchSummary=parsed.truncated == true ? "已顯示部分結果，請輸入名稱或縮小分類。":parsed.message
-                    if kind == "gems" || current == .osm || route == .zetaris{openSource=parsed.source ?? "開放地點資料";dataVersion=parsed.metadata?.release}
+                    if kind == "gems" || current == .osm || route.warehouse{openSource=parsed.source ?? "開放地點資料";dataVersion=parsed.metadata?.release}
                 }
                 try Task.checkCancellation();guard token==generation else{return}
                 places=result;busy=false
@@ -516,7 +516,7 @@ struct PlacePhoto:Codable,Identifiable {
         do{
             var request=URLRequest(url:BackendConnection.url("poi/media"))
             request.httpMethod="POST";dataSource.apply(to:&request);request.timeoutInterval=22;request.setValue("application/json",forHTTPHeaderField:"Content-Type")
-            request.httpBody=try JSONSerialization.data(withJSONObject:["lat":candidate.lat,"lng":candidate.lng,"id":candidate.id])
+            request.httpBody=try JSONSerialization.data(withJSONObject:["lat":candidate.lat,"lng":candidate.lng,"id":candidate.id,"name":candidate.name,"wikidata":candidate.wikidata ?? "","poiKind":candidate.poiKind ?? "","category":candidate.category])
             let (data,response)=try await loader(request)
             try Task.checkCancellation();guard token==generation else{return}
             guard (response as? HTTPURLResponse)?.statusCode==200 else{throw URLError(.badServerResponse)}
@@ -544,17 +544,7 @@ struct PlaceMediaView:View {
             Button(media.photos.isEmpty ? "載入附近照片":"重新載入照片"){Task{await media.load(candidate,dataSource:store.travelDataSource)}}.disabled(media.loading).accessibilityIdentifier("place-media-retry")
             if media.loading{ProgressView("正在載入照片…").accessibilityIdentifier("place-media-loading")}
             if let message=media.message{Text(LocalizedStringKey(message)).font(.caption).accessibilityIdentifier("place-media-status")}
-            ScrollView(.horizontal){HStack(alignment:.top,spacing:12){ForEach(media.photos){photo in
-                VStack(alignment:.leading,spacing:5){
-                    AsyncImage(url:URL(string:photo.url)){phase in
-                        switch phase{case .success(let image):image.resizable().scaledToFill();case .failure:Text("照片無法載入");default:ProgressView()}
-                    }.frame(width:260,height:170).clipped().clipShape(RoundedRectangle(cornerRadius:12))
-                    Text(photo.title).font(.caption).lineLimit(2)
-                    Text(photo.artist+" · "+photo.license).font(.caption2).lineLimit(3)
-                    if photo.matchKind == "nearby-unverified" {Text("附近照片，景點配對未確認").font(.caption2)}
-                    if let url=URL(string:photo.pageUrl){Link("照片來源與授權",destination:url).font(.caption)}
-                }.frame(width:260,alignment:.leading)
-            }}}
+            ScrollView(.horizontal){HStack(alignment:.top,spacing:12){ForEach(media.photos,content:photoCard)}}
             if store.mapProvider != .google {
                 Button("預覽街景（Apple Look Around）"){Task{
                     panoramaLoading=true;panoramaMessage=nil
@@ -573,6 +563,19 @@ struct PlaceMediaView:View {
             scene=nil;panoramaMessage=nil;media.loader=store.loader
             await media.prepare(candidate,dataSource:store.travelDataSource)
         }
+    }
+    @ViewBuilder private func photoCard(_ photo:PlacePhoto)->some View {
+        let credit="\(photo.artist) · \(photo.license)"
+        VStack(alignment:.leading,spacing:5){
+            AsyncImage(url:URL(string:photo.url)){phase in
+                switch phase{case .success(let image):image.resizable().scaledToFill();case .failure:Text("照片無法載入");default:ProgressView()}
+            }.frame(width:260,height:170).clipped().clipShape(RoundedRectangle(cornerRadius:12))
+            Text(photo.title).font(.caption).lineLimit(2)
+            Text(credit).font(.caption2).lineLimit(3)
+            if photo.matchKind == "exact-place" || photo.matchKind == "guide-file" {Text("✓ 已配對景點實景照片").font(.caption2).foregroundStyle(Palette.green)}
+            else if photo.matchKind == "nearby-unverified" {Text("附近照片，景點配對未確認").font(.caption2)}
+            if let url=URL(string:photo.pageUrl){Link("照片來源與授權",destination:url).font(.caption)}
+        }.frame(width:260,alignment:.leading)
     }
 }
 

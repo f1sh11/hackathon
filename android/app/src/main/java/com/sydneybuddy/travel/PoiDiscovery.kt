@@ -115,7 +115,7 @@ internal data class PoiFocus(val id:String,val lat:Double,val lng:Double,val nam
             ensureActive();if(route==store.travelDataSource&&provider==store.mapProvider&&response.optString("dataSource")==route)ticketSummaries=response.optJSONObject("summaries") ?: JSONObject()
         }catch(e:CancellationException){throw e}catch(e:Exception){/* Optional reference unavailable; no fabricated price. */}
     }
-    val source=if(store.travelDataSource=="zetaris")"Open travel data / Zetaris"else if(category=="gems")"Open travel data / local"else when(store.mapProvider){MapProvider.OSM->openSource;MapProvider.GOOGLE->"Google Places";MapProvider.SCHEMATIC->"離線示意 · 不搜尋地點"}
+    val source=if(store.travelDataSource!="direct")"Open travel data / Zetaris"else if(category=="gems")"Open travel data / local"else when(store.mapProvider){MapProvider.OSM->openSource;MapProvider.GOOGLE->"Google Places";MapProvider.SCHEMATIC->"離線示意 · 不搜尋地點"}
     fun search(){
         searchJob?.cancel();places=emptyList();selected=null;focus=null;detail=null;error=null;hasSearched=true;busy=false;resultProvider=null
         summary=null;val provider=store.mapProvider;val route=store.travelDataSource
@@ -127,9 +127,9 @@ internal data class PoiFocus(val id:String,val lat:Double,val lng:Double,val nam
             val result=withTimeout(30000){requester(input)}
             ensureActive();if(store.mapProvider!=provider||store.travelDataSource!=route)return@launch
             val found=result.array("places").objects()
-            require(category=="gems"||route=="zetaris"||provider!=MapProvider.GOOGLE || found.all{it.optString("source")=="Google Places"}){"搜尋來源不一致，請更新後端後重試。"}
+            require(category=="gems"||route!="direct"||provider!=MapProvider.GOOGLE || found.all{it.optString("source")=="Google Places"}){"搜尋來源不一致，請更新後端後重試。"}
             summary=if(result.optBoolean("truncated"))"已顯示部分結果，請輸入名稱或縮小分類。"else result.optString("message").takeIf{it.isNotBlank()};places=found;resultProvider=provider;resultDataSource=route;attribution=result.optString("attribution",if(provider==MapProvider.GOOGLE)"Google Maps"else "Overture Maps Foundation")
-            if(category=="gems"||provider==MapProvider.OSM||route=="zetaris"){openSource=result.optString("source","開放地點資料");dataVersion=result.optJSONObject("metadata")?.optString("release") ?: ""}
+            if(category=="gems"||provider==MapProvider.OSM||route!="direct"){openSource=result.optString("source","開放地點資料");dataVersion=result.optJSONObject("metadata")?.optString("release") ?: ""}
         }catch(e:CancellationException){if(e is TimeoutCancellationException)error="地點服務逾時，請重試。"else throw e}catch(e:Exception){error=e.message ?: "搜尋失敗"}finally{if(isActive)busy=false}}
     }
     fun focusPlace(p:JSONObject){center=p.getDouble("lat") to p.getDouble("lng");zoom=17.0;selected=p.getString("id");focus=PoiFocus(selected!!,p.getDouble("lat"),p.getDouble("lng"),p.optString("name"))}
@@ -190,7 +190,7 @@ internal data class PoiFocus(val id:String,val lat:Double,val lng:Double,val nam
                 }
                 if(dataVersion.isNotBlank())Text(ui("本機地點資料快照：{0}",dataVersion),fontSize=10.sp)
             }
-            else if(store.travelDataSource=="zetaris") {Small(attribution.ifBlank{"Overture Maps Foundation"});if(dataVersion.isNotBlank())Small(ui("本機地點資料快照：{0}",dataVersion))}
+            else if(store.travelDataSource!="direct") {Small(attribution.ifBlank{"Overture Maps Foundation"});if(dataVersion.isNotBlank())Small(ui("本機地點資料快照：{0}",dataVersion))}
             else if(store.mapProvider==MapProvider.GOOGLE)Small(attribution.ifBlank{"Google Maps"})
         }}
     }
@@ -279,7 +279,7 @@ internal class PlaceMediaState(initial:List<JSONObject>) {
 @Composable internal fun PlaceMedia(p:JSONObject,store:BuddyStore,requester:suspend(JSONObject)->JSONObject={store.poiMedia(it)}) {
     val scope=rememberCoroutineScope();val uri=LocalUriHandler.current
     val media=remember(p.optString("id"),store.travelDataSource){PlaceMediaState(p.array("photos").objects())}
-    val request=remember(p.optString("id")){JSONObject().put("id",p.optString("id")).put("lat",p.optDouble("lat")).put("lng",p.optDouble("lng"))}
+    val request=remember(p.optString("id")){JSONObject().put("id",p.optString("id")).put("name",p.optString("name")).put("lat",p.optDouble("lat")).put("lng",p.optDouble("lng")).put("wikidata",p.optString("wikidata")).put("poiKind",p.optString("poiKind")).put("category",p.optString("category"))}
     LaunchedEffect(media){if(media.photos.isEmpty())media.load(request,requester)}
     Text(ui("照片與街景"),style=MaterialTheme.typography.titleSmall)
     Small(ui(if(p.optBoolean("hiddenGem"))"社群照片保留作者與授權；附近照片不代表已確認拍攝此景點。"else "附近 100 公尺的實景照片，並非已核實的商家或店內照片。"))
@@ -290,7 +290,8 @@ internal class PlaceMediaState(initial:List<JSONObject>) {
         CommonsPhoto(photo.optString("url"))
         Text(photo.optString("title"),fontSize=12.sp)
         Small(photo.optString("artist")+" · "+photo.optString("license"))
-        if(photo.optString("matchKind")=="nearby-unverified")Small("附近照片，景點配對未確認")
+        if(photo.optString("matchKind")=="exact-place"||photo.optString("matchKind")=="guide-file")Small("✓ 已配對景點實景照片")
+        else if(photo.optString("matchKind")=="nearby-unverified")Small("附近照片，景點配對未確認")
         TextButton(onClick={uri.openUri(photo.getString("pageUrl"))}){Text(ui("照片來源與授權"))}
     }
     TextButton(onClick={uri.openUri("https://www.mapillary.com/app/?lat=${p.optDouble("lat")}&lng=${p.optDouble("lng")}&z=17")}){Text(ui("開啟附近街景（外部地圖）"))}

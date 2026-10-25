@@ -1,3 +1,6 @@
 # Copy to local.properties. Android Studio writes sdk.dir for your own computer.
 # Optional Android-only Google Maps key. Restrict by package and signing SHA-1.
 MAPS_API_KEY=
+
+# App API, not the Zetaris Gateway. HTTPS for cloud; loopback for emulator.
+BACKEND_URL=http://127.0.0.1:8787

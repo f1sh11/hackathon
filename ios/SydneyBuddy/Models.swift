@@ -4,8 +4,10 @@ import FerrostarCore
 
 enum TravelDataSource:String,CaseIterable,Identifiable {
     case direct,zetaris
+    case zetarisCloud="zetaris-cloud"
     var id:String {rawValue}
-    var label:String {self == .direct ? "直接來源":"透過 Zetaris"}
+    var label:String {switch self{case .direct:return "直接來源";case .zetaris:return "本機 Zetaris";case .zetarisCloud:return "雲端 Zetaris（雪梨）"}}
+    var warehouse:Bool {self != .direct}
     static var current:Self {Self(rawValue:UserDefaults.standard.string(forKey:"travelDataSource") ?? "") ?? .direct}
     func apply(to request:inout URLRequest){request.setValue(rawValue,forHTTPHeaderField:"X-Travel-Data-Source")}
 }
@@ -315,14 +317,14 @@ struct TravelPlanningTask:Codable {
         else if !preparations.contains(key) { preparations.append(key) }
         UserDefaults.standard.set(preparations,forKey:"preparations")
     }
-    var currentWeather:WeatherInfo {refreshedWeather ?? WeatherInfo(summary:"天氣尚未查詢",rainy:false,source:travelDataSource == .zetaris ? "Open-Meteo / Zetaris":"Open-Meteo / direct",status:"unavailable")}
+    var currentWeather:WeatherInfo {refreshedWeather ?? WeatherInfo(summary:"天氣尚未查詢",rainy:false,source:travelDataSource.warehouse ? "Open-Meteo / Zetaris":"Open-Meteo / direct",status:"unavailable")}
     func refreshWeather() async {
-        guard !weatherBusy else { return }; weatherBusy = true; refreshedWeather=WeatherInfo(summary:"正在查詢即時天氣…",rainy:false,source:travelDataSource == .zetaris ? "Open-Meteo / Zetaris":"Open-Meteo / direct",status:"loading"); defer { weatherBusy = false }
+        guard !weatherBusy else { return }; weatherBusy = true; refreshedWeather=WeatherInfo(summary:"正在查詢即時天氣…",rainy:false,source:travelDataSource.warehouse ? "Open-Meteo / Zetaris":"Open-Meteo / direct",status:"loading"); defer { weatherBusy = false }
         do {
             refreshedWeather = try await api("weather",method:"POST",body:JSONEncoder().encode(trip?.profile ?? profile))
             if refreshedWeather?.status == "ok" { markPrepared("weather") }
         }
-        catch { refreshedWeather=WeatherInfo(summary:"即時天氣查詢失敗，請重試。",rainy:false,source:travelDataSource == .zetaris ? "Open-Meteo / Zetaris":"Open-Meteo / direct",status:"unavailable");errorMessage = error.localizedDescription }
+        catch { refreshedWeather=WeatherInfo(summary:"即時天氣查詢失敗，請重試。",rainy:false,source:travelDataSource.warehouse ? "Open-Meteo / Zetaris":"Open-Meteo / direct",status:"unavailable");errorMessage = error.localizedDescription }
     }
     func generate(_ message: String = "", rain: Bool = false, profileOverride:TripProfile? = nil) async {
         guard !busy,!isGeneratingTrip else { return }; busy = true;koalaWork=KoalaCue(event:.planningStarted); defer { busy = false;koalaWork=nil }
