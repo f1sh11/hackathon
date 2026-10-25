@@ -477,3 +477,6 @@
 "活動參考暫時無法載入，請重試。" = "Activity references could not load. Please retry.";
 "票價待重新確認，請查看官網。" = "Price needs checking. See the official website.";
 "重新查詢" = "Retry";
+"此景點的活動與參考票價" = "Activities & reference prices for this place";
+"只顯示已配對此景點的活動；票種、日期與名額以官網為準，不自動扣預算。" = "Only activities matched to this place are shown. Check official ticket types, dates and availability. Not added to your budget.";
+"此景點尚無已確認的活動票價資料。" = "No confirmed activity price references for this place yet.";

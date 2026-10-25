@@ -17,7 +17,16 @@
       "title": "Sydney Opera House Tour",
       "amount": 50,
       "sourceUrl": "https://www.sydneyoperahouse.com/tours/sydney-opera-house-tour",
-      "conditions": "Adult advance-booking reference, subject to date and availability. Approximately 60 minutes; up to 2.5 km and around 300 stairs. Rates change from 1 April 2027. Not a performance ticket."
+      "conditions": "Adult advance-booking reference, subject to date and availability. Approximately 60 minutes; up to 2.5 km and around 300 stairs. Rates change from 1 April 2027. Not a performance ticket.",
+      "venueIds": [
+        "opera"
+      ],
+      "venueAliases": [
+        "Sydney Opera House",
+        "悉尼歌剧院",
+        "悉尼歌劇院",
+        "雪梨歌劇院"
+      ]
     },
     {
       "venueName": "Sydney Opera House",
@@ -35,7 +44,16 @@
       "title": "Sydney Opera House Tour & Dine",
       "amount": 84,
       "sourceUrl": "https://www.sydneyoperahouse.com/tours/tour-and-dine",
-      "conditions": "Adult advance-booking reference for tour plus a meal and beverage. Dining 11:30–18:00, subject to venue availability. Not a restaurant à-la-carte price. Review by 24 November 2026; not a guaranteed offer end date."
+      "conditions": "Adult advance-booking reference for tour plus a meal and beverage. Dining 11:30–18:00, subject to venue availability. Not a restaurant à-la-carte price. Review by 24 November 2026; not a guaranteed offer end date.",
+      "venueIds": [
+        "opera"
+      ],
+      "venueAliases": [
+        "Sydney Opera House",
+        "悉尼歌剧院",
+        "悉尼歌劇院",
+        "雪梨歌劇院"
+      ]
     }
   ]
 }

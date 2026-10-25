@@ -328,15 +328,15 @@ struct ActivityReference:Decodable,Identifiable {
 }
 private struct ActivityReferenceResponse:Decodable {let dataSource:String;let offers:[ActivityReference]}
 struct ActivityReferencesView:View {
-    let lat:Double;let lng:Double
+    let lat:Double;let lng:Double;let placeId:String;let placeName:String
     @EnvironmentObject private var store:AppStore
     @State private var offers:[ActivityReference]=[]
     @State private var busy=false
     @State private var message:String?
     var body:some View {
         VStack(alignment:.leading,spacing:12){
-            Text("附近活動與參考票價").font(.headline)
-            Text("附近活動不代表此商家販售；票種、日期與名額以官網為準，不自動扣預算。").font(.caption).foregroundStyle(Palette.muted)
+            Text("此景點的活動與參考票價").font(.headline)
+            Text("只顯示已配對此景點的活動；票種、日期與名額以官網為準，不自動扣預算。").font(.caption).foregroundStyle(Palette.muted)
             if busy{ProgressView()}
             if let message{Text(store.language.text(message)).font(.caption);Button("重新查詢"){Task{await load()}}}
             ForEach(offers){offer in
@@ -350,15 +350,15 @@ struct ActivityReferencesView:View {
                     if let url=URL(string:offer.sourceUrl),url.scheme=="https"{Link(offer.sourceName,destination:url)}
                 }.padding(12).frame(maxWidth:.infinity,alignment:.leading).background(Palette.mint,in:RoundedRectangle(cornerRadius:14))
             }
-        }.task(id:"\(lat):\(lng):\(store.travelDataSource)"){await load()}
+        }.task(id:"\(placeId):\(lat):\(lng):\(store.travelDataSource)"){await load()}
     }
     @MainActor private func load() async {
         let source=store.travelDataSource;busy=true;message=nil;offers=[]
         do{
-            let raw=try await SocialImportModel().call("activities/search",body:["lat":lat,"lng":lng,"radius":1000],store:store)
+            let raw=try await SocialImportModel().call("activities/search",body:["lat":lat,"lng":lng,"radius":1000,"placeId":placeId,"placeName":placeName],store:store)
             let response=try JSONDecoder().decode(ActivityReferenceResponse.self,from:JSONSerialization.data(withJSONObject:raw))
             guard source==store.travelDataSource,response.dataSource==source.rawValue else{return}
-            offers=response.offers;if offers.isEmpty{message="附近尚無已整理的活動票價參考。"}
+            offers=response.offers;if offers.isEmpty{message="此景點尚無已確認的活動票價資料。"}
         }catch{if source==store.travelDataSource{message="活動參考暫時無法載入，請重試。"}}
         if source==store.travelDataSource{busy=false}
     }

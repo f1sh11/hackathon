@@ -147,7 +147,7 @@ struct SchedulePlaceDetail:View {
                         else {Text("此來源未提供旅客評論或評分。").font(.caption)}
                     }
                     if let source=candidate.sourceUrl,let url=URL(string:source){Link("地點資料來源",destination:url).font(.caption)}
-                    ActivityReferencesView(lat:candidate.lat,lng:candidate.lng)
+                    ActivityReferencesView(lat:candidate.lat,lng:candidate.lng,placeId:candidate.id,placeName:candidate.name)
                     PlaceMediaView(candidate:candidate)
                     Text("為你推薦").font(.headline)
                     Text(candidate.reason)

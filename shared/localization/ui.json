@@ -1703,5 +1703,20 @@
     "en" : "Retry",
     "zh-Hant" : "重新查詢",
     "zh-Hans" : "重新查詢"
+  },
+  "此景點的活動與參考票價": {
+    "en": "Activities & reference prices for this place",
+    "zh-Hant": "此景點的活動與參考票價",
+    "zh-Hans": "此景点的活动与参考票价"
+  },
+  "只顯示已配對此景點的活動；票種、日期與名額以官網為準，不自動扣預算。": {
+    "en": "Only activities matched to this place are shown. Check official ticket types, dates and availability. Not added to your budget.",
+    "zh-Hant": "只顯示已配對此景點的活動；票種、日期與名額以官網為準，不自動扣預算。",
+    "zh-Hans": "只显示已匹配此景点的活动；票种、日期与名额以官网为准，不自动扣预算。"
+  },
+  "此景點尚無已確認的活動票價資料。": {
+    "en": "No confirmed activity price references for this place yet.",
+    "zh-Hant": "此景點尚無已確認的活動票價資料。",
+    "zh-Hans": "此景点尚无已确认的活动票价资料。"
   }
 }

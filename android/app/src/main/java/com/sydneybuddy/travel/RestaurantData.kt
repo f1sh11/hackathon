@@ -78,19 +78,19 @@ import org.json.JSONObject
 }
 
 @Composable internal fun ActivityReferencesPanel(point:JSONObject,store:BuddyStore){
-    val lat=point.optDouble("lat");val lng=point.optDouble("lng");val source=store.travelDataSource
+    val lat=point.optDouble("lat");val lng=point.optDouble("lng");val source=store.travelDataSource;val placeId=point.optString("id");val placeName=point.optString("name")
     var offers by remember{mutableStateOf<List<JSONObject>>(emptyList())};var busy by remember{mutableStateOf(false)}
     var message by remember{mutableStateOf<String?>(null)};var retry by remember{mutableStateOf(0)}
     val uri=LocalUriHandler.current
-    LaunchedEffect(lat,lng,source,retry){
+    LaunchedEffect(placeId,lat,lng,source,retry){
         busy=true;message=null;offers=emptyList()
         try{
-            val result=store.socialRequest("activities/search",JSONObject().put("lat",lat).put("lng",lng).put("radius",1000))
-            if(source==store.travelDataSource){require(result.optString("dataSource")==source);offers=result.array("offers").objects();if(offers.isEmpty())message="附近尚無已整理的活動票價參考。"}
+            val result=store.socialRequest("activities/search",JSONObject().put("lat",lat).put("lng",lng).put("radius",1000).put("placeId",placeId).put("placeName",placeName))
+            if(source==store.travelDataSource){require(result.optString("dataSource")==source);offers=result.array("offers").objects();if(offers.isEmpty())message="此景點尚無已確認的活動票價資料。"}
         }catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:Exception){if(source==store.travelDataSource)message="活動參考暫時無法載入，請重試。"}finally{if(source==store.travelDataSource)busy=false}
     }
-    Text(ui("附近活動與參考票價"),style=MaterialTheme.typography.titleMedium)
-    Small(ui("附近活動不代表此商家販售；票種、日期與名額以官網為準，不自動扣預算。"))
+    Text(ui("此景點的活動與參考票價"),style=MaterialTheme.typography.titleMedium)
+    Small(ui("只顯示已配對此景點的活動；票種、日期與名額以官網為準，不自動扣預算。"))
     if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
     message?.let{Small(ui(it));TextButton(onClick={retry++}){Text(ui("重新查詢"))}}
     offers.forEach{offer->Card(Modifier.fillMaxWidth()){Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){

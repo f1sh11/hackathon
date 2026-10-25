@@ -39,6 +39,10 @@ def validate(document):
         if not re.fullmatch('[A-Z]{3}',value['currency']):raise ValueError('Explicit currency required')
         observed=date.fromisoformat(value['observedOn']);review=date.fromisoformat(value['reviewBy'])
         if observed>date.today() or review<observed:raise ValueError('Invalid dates')
+        for key in ['venueIds','venueAliases']:
+            entries=row.get(key,[])
+            if not isinstance(entries,list) or len(entries)>30 or any(not isinstance(item,str) or not 1<=len(item)<=250 for item in entries):raise ValueError('Invalid venue matching metadata')
+            value[key]=entries
         value.update(priceType='reference_ticket_price',budgetEligible=False)
         result.append(value)
     return result

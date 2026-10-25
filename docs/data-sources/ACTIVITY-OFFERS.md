@@ -6,7 +6,7 @@
 
 本機已匯入兩項雪梨歌劇院活動：成人預訂導覽 AUD 50、成人預訂導覽加用餐 AUD 84。資料查核日 2026-10-25；來源分別是 [官方導覽](https://www.sydneyoperahouse.com/tours/sydney-opera-house-tour) 與 [官方導覽加用餐](https://www.sydneyoperahouse.com/tours/tour-and-dine)。只保存整理後的事實、價格條件與來源連結，不複製官網介紹、照片或評論。這些是官方公開資訊，並不宣稱是開源資料集。
 
-`shared/activity-offers.json` 是版本控制內的公開參考集合。App 的景點介紹會自動查詢一公里內已整理的活動；卡片標明場館、直線距離、票種、幣別、來源及查核日期。附近不代表由該商家販售。沒有涵蓋的區域顯示尚無參考，不編造票價。
+`shared/activity-offers.json` 是版本控制內的公開參考集合。App 的景點介紹只顯示已明確配對此場館的活動。使用已審核 venueIds，或完整場館名稱／venueAliases（正規化後完全相等），並要求座標相距不超過 250 公尺；不使用附近距離或名稱子字串推測關聯。餐廳若沒有自己的資料，顯示尚無已確認的活動票價，不套用歌劇院內容。
 
 ## 切換資料路徑
 
@@ -39,10 +39,10 @@ POST /activities/search
 Content-Type: application/json
 X-Travel-Data-Source: zetaris
 
-{"lat":-33.8568,"lng":151.2153,"radius":1000,"query":""}
+{"lat":-33.8568,"lng":151.2153,"radius":1000,"query":"","placeId":"opera","placeName":"悉尼歌剧院"}
 ```
 
-範圍 100–5000 公尺、最多 30 筆；可依活動或場館名稱過濾。回傳 `dataSource` 與 `offers`。欄位包括 `id,title,venueName,lat,lng,amount,currency,ticketType,conditions,sourceName,sourceUrl,observedOn,reviewBy,priceType,budgetEligible,stale,distanceMeters`。
+必須提供 placeId 與 placeName 才能得到活動；舊版請求未帶識別資料會得到空集合，不能退回附近推薦。範圍 100–5000 公尺、最多 30 筆，仍套用 250 公尺的場館核對上限；可依活動或場館名稱過濾。回傳 `dataSource` 與 `offers`。欄位包括 `id,title,venueName,lat,lng,amount,currency,ticketType,conditions,sourceName,sourceUrl,observedOn,reviewBy,priceType,budgetEligible,stale,distanceMeters`。
 
 `reviewBy` 是內部重新查核期限，**不是活動保證有效期限**。超過查核期限或距上次查核超過 30 天，顯示票價待確認。官方導覽頁另列 2027-04-01 起調價，因此卡片條件提醒須按出遊日期重新確認。
 
@@ -60,3 +60,5 @@ Klook 前次一般 HTTP 測試回傳 403 驗證頁，因此目前沒有任何 Kl
 - 本機 API direct 與 zetaris 路徑皆返回 HTTP 200、兩項相同的活動與價格，均不計預算。
 - iOS 112 項測試通過；模擬器實際開啟景點介紹，確認兩張活動卡片、AUD 50／84、距離與來源日期均可見。
 - Android 編譯與單元測試通過，APK 已安裝至本機模擬器。
+
+2026-10-25 配對修正：明確 venueIds／venueAliases 會一起同步到 PostgreSQL 與 Zetaris。回歸測試涵蓋附近餐廳不配對、缺少場館識別不配對、名稱包含不配對、同名遠處分店不配對，以及已審核別名可配對。
