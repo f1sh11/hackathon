@@ -4,6 +4,37 @@ import MapKit
 @testable import SydneyBuddy
 
 @MainActor final class ScheduleTests:XCTestCase {
+    func testDiscoveryZoomUsesCurrentCameraAndDoesNotRepeatWhenResultsRefresh() throws {
+        let center=CLLocationCoordinate2D(latitude:-33.865,longitude:151.212)
+        let map=MKMapView(frame:CGRect(x:0,y:0,width:390,height:700))
+        map.setRegion(MKCoordinateRegion(center:center,span:.init(latitudeDelta:0.02,longitudeDelta:0.02)),animated:false)
+        var subject=PoiNativeMap(places:[],osm:false,center:center,zoom:14,onCamera:{_,_ in},onSelect:{_ in})
+        let coordinator=subject.makeCoordinator();let original=map.region.span.longitudeDelta
+        subject.cameraAction=RouteMapCameraAction(kind:.zoomIn)
+        subject.applyCameraAction(map,coordinator:coordinator,animated:false)
+        let zoomed=map.region.span.longitudeDelta
+        XCTAssertLessThan(zoomed,original)
+        subject.places=[try fixture().schedule!.candidates[0]]
+        subject.applyCameraAction(map,coordinator:coordinator,animated:false)
+        XCTAssertEqual(map.region.span.longitudeDelta,zoomed,accuracy:0.000001)
+        subject.cameraAction=RouteMapCameraAction(kind:.zoomOut)
+        subject.applyCameraAction(map,coordinator:coordinator,animated:false)
+        XCTAssertGreaterThan(map.region.span.longitudeDelta,zoomed)
+    }
+    func testDiscoveryFitContainsResultsAndWorksWithNoResults() throws {
+        let center=CLLocationCoordinate2D(latitude:-33.865,longitude:151.212)
+        let map=MKMapView(frame:CGRect(x:0,y:0,width:390,height:700))
+        let points=Array(try fixture().schedule!.candidates.prefix(3))
+        var subject=PoiNativeMap(places:points,osm:false,center:center,zoom:14,onCamera:{_,_ in},onSelect:{_ in})
+        let coordinator=subject.makeCoordinator()
+        subject.cameraAction=RouteMapCameraAction(kind:.fit)
+        subject.applyCameraAction(map,coordinator:coordinator,animated:false)
+        XCTAssertTrue(points.allSatisfy{map.visibleMapRect.contains(MKMapPoint(CLLocationCoordinate2D(latitude:$0.lat,longitude:$0.lng)))})
+        subject.places=[];subject.cameraAction=RouteMapCameraAction(kind:.fit)
+        subject.applyCameraAction(map,coordinator:coordinator,animated:false)
+        XCTAssertTrue(map.visibleMapRect.contains(MKMapPoint(center)))
+        XCTAssertGreaterThan(map.visibleMapRect.width*MKMetersPerMapPointAtLatitude(center.latitude),649)
+    }
     func testPersonalConversationSkipPreservesTripDraftAndDoesNotClaimMemoryWasSaved() throws {
         let defaults=UserDefaults.standard
         let keys=["koko.personalChat.finished","pendingTripFields","userTravelProfile","personalPreferences.v2.completed","personalPreferences.completed","onboarded","travelPlanningTask"]
