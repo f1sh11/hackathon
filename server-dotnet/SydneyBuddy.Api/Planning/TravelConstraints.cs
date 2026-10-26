@@ -24,26 +24,26 @@ public static class TravelConstraints
                     Regex.IsMatch(term,"亲近自然|逛公园|nature",RegexOptions.IgnoreCase)?"自然":"";
                 if(theme!="") {var interests=profile.Array("interests")!;if(!interests.Any(i=>i!.GetValue<string>()==theme))interests.Add(theme);continue;}
             }
-            if(matches.Length!=1)throw new ServiceException("还不能确认必去要求「"+term+"」对应的地点，请改为明确的景点名称后再生成。");
+            if(matches.Length!=1)throw new ServiceException("Cannot yet match your must-see request, "+term+", to a place. Use a specific place name before generating.");
             required.Add(matches[0].Str("id"));
         }
         var excluded=new HashSet<string>();var avoid=profile.Str("avoid");
         if(Known(avoid))foreach(var raw in Regex.Split(avoid,@"[，,、；;]|以及|还有|和|及").Where(Known)) {
-            if(Regex.IsMatch(raw,"不(?:用|必|需要)避开|不排除|可以去|无障碍|轮椅|階梯|台阶|楼梯|过敏"))throw new ServiceException("出行要求「"+raw+"」还无法自动验证，请先确认可执行的避开地点或类别。");
+            if(Regex.IsMatch(raw,"不(?:用|必|需要)避开|不排除|可以去|无障碍|轮椅|階梯|台阶|楼梯|过敏"))throw new ServiceException("Your travel requirement, "+raw+", cannot be verified automatically. Specify a place or category to avoid.");
             if(Regex.IsMatch(raw,"休息|长时间步行|少走|多走路")){profile["maxSteps"]=Math.Min(profile.Int("maxSteps"),5000);continue;}
             var term=Regex.Replace(raw,@"^(必须|需要|这次|我|不想|不要|避免|避开|不去|不逛|逛|去|参观)+","").Trim();
             var matches=places.Where(p=>Matches(p,term) || (term=="博物馆" && (p.Str("name").Contains("博物馆") || p.Str("query").Contains("Museum",StringComparison.OrdinalIgnoreCase))) || (term==p.Str("category"))).ToArray();
-            if(matches.Length==0)throw new ServiceException("还不能自动核实避开要求「"+raw+"」，请改为明确的地点或类别后再生成。");
+            if(matches.Length==0)throw new ServiceException("Cannot yet verify your avoid request, "+raw+". Use a specific place or category before generating.");
             excluded.UnionWith(matches.Select(p=>p.Str("id")));
         }
-        if(required.Overlaps(excluded))throw new ServiceException("同一个地点同时被设为必去和避开，请先修改这次的需求。");
+        if(required.Overlaps(excluded))throw new ServiceException("The same place is both required and excluded. Please update this trip's requirements.");
         profile["mustVisit"]=new JsonArray(required.Select(id=>JsonValue.Create(id)).ToArray());
         var uncertainEvents=places.Where(SeasonalEventGuard.NeedsVerifiedDates).ToArray();
         var requiredEvent=uncertainEvents.FirstOrDefault(p=>required.Contains(p.Str("id")));
-        if(requiredEvent is not null)throw new ServiceException("「"+requiredEvent.Str("name")+"」可能是季节性或限时活动，尚未核实本次日期是否开放，暂不自动安排。需求已保留，请先取消这项必去要求，确认活动日期后再手动加入。");
+        if(requiredEvent is not null)throw new ServiceException(requiredEvent.Str("name")+" may be seasonal or limited-time, and availability for your dates is unverified, so it cannot be scheduled automatically. Your request is kept. Remove it as a required stop and add it manually after confirming the dates.");
         var filtered=places.Where(p=>!excluded.Contains(p.Str("id")) && !SeasonalEventGuard.NeedsVerifiedDates(p)).ToArray();
-        if(filtered.Length==0 && uncertainEvents.Length>0)throw new ServiceException("这些候选活动的开放日期尚未核实，暂时不能生成路线。请选择其他常设地点，旅行需求会保留。");
-        if(filtered.Length==0)throw new ServiceException("避开这些地点后暂时没有可规划的景点，请调整需求。");
+        if(filtered.Length==0 && uncertainEvents.Length>0)throw new ServiceException("These activities' dates are unverified, so a route cannot be generated yet. Choose permanent attractions instead. Your travel requirements will be kept.");
+        if(filtered.Length==0)throw new ServiceException("No places remain after applying your exclusions. Please adjust your requirements.");
         return filtered;
     }
 }

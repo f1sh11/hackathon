@@ -5,6 +5,8 @@ namespace SydneyBuddy.Api;
 /// Shared product rules: an area is not a meal, and passing route constraints is not recommendation quality.
 public static class RecommendationQuality
 {
+    public static string InterestLabel(string interest)=>interest switch {"美食"=>"Food","文化"=>"Culture","艺术"=>"Art","购物"=>"Shopping","自然"=>"Nature","风景" or "風景"=>"Scenery","城市"=>"City",_=>interest};
+
     public static bool IsMeal(JsonObject place) => place.Str("activityType") == "meal";
     public static bool Matches(JsonObject place, string interest) => interest=="美食" ? IsMeal(place) : place.Str("category") == interest ||
         (place.Array("tags")?.Any(t => t?.GetValue<string>() == interest) ?? false) ||
@@ -44,12 +46,12 @@ public static class RecommendationQuality
             var stops=day.Array("stops")!.OfType<JsonObject>().ToArray();var warnings=day.Array("warnings")!;
             if(stops.Length==0)continue;
             if(interests.Length>0&&!stops.Any(p=>interests.Any(i=>Matches(p,i))))
-                warnings.Add("当天未覆盖你的核心兴趣：当前地点、步数或预算不足，不能视为已满足偏好。");
-            if(MealWindow(profile)!=null&&!stops.Any(IsMeal))warnings.Add("当天未安排具体餐厅：现有餐饮候选不满足预算、步数或时间条件，请另行安排用餐。");
+                warnings.Add("Core interests are not covered that day: available places, steps or budget are insufficient, so your preferences are not yet met.");
+            if(MealWindow(profile)!=null&&!stops.Any(IsMeal))warnings.Add("No specific restaurant is scheduled that day: candidates do not fit your budget, steps or time. Please arrange meals separately.");
             var finish=day.Str("finishTime");var shortDay=profile.Int("endMinute")-profile.Int("startMinute")>=360 && string.CompareOrdinal(finish,"14:00")<0;
-            if(shortDay)warnings.Add("当前仅安排了半日活动，余下时间留白；按轻松节奏及现有地点、步数和预算限制，没有凑满全天。");
+            if(shortDay)warnings.Add("Only half-day activities are planned, with the rest left free. Your relaxed pace, available places, steps and budget do not support a full day.");
             var incompleteDay=shortDay&&(profile.Str("dayStyle")=="fullDay" || (profile.Str("energy")!="低精力"&&profile.Str("rhythm")!="轻松随意"));
-            day["recommendationStatus"]=incompleteDay||warnings.OfType<JsonValue>().Any(w=>w.GetValue<string>().Contains("未覆盖")||w.GetValue<string>().Contains("未安排具体餐厅"))?"partial":"ready";
+            day["recommendationStatus"]=incompleteDay||warnings.OfType<JsonValue>().Any(w=>w.GetValue<string>().Contains("Core interests are not covered")||w.GetValue<string>().Contains("No specific restaurant is scheduled"))?"partial":"ready";
         }
     }
 }

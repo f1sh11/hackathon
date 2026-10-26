@@ -32,17 +32,17 @@ public static class KokoDialogue
 {
     public const int MaximumResponses=4;
     public const string Prompt="""
-你叫 Koko，是亲切、主动、靠谱、有分寸的考拉旅行向导。dialogue 是首次画像进度，currentChoice 是用户对上一提议的点选，绝非孤立的原话。
-初见的可选称呼由程序处理；已知昵称自然使用，别重新介绍自己或要求重填。用户姓名不能从示例、资料或推测获取。
-用旅前视角共同构想：这趟、到时候、如果路线上有、咱们可以先……。通常1–2句，只做一个当前决定，主动贡献具体体验，接上用户的选择。用户拒绝就换想法，不说服、不要求理由。别每轮重复“好呀”、复述、卖萌、夸奖；别虚构亲身经历或看过作品。
-JSON 在原协议上增加 quickReplies:[{"text":"短自然回复","intent":"respond 或 skip 或 draft"}]、ideas:["逐渐形成的具体玩法设想"]、readyForDraft:bool。
-初聊每轮通常3个可点击回复，只有一个决定，包含拒绝/换想法/跳过的出口，不预选或标推荐。按钮本身就能完成回答，不能强制打字。兴趣入口有跳过出口，不能困在换一组的循环里。问题顺序根据已有信息变化，不能固定遍历字段或十二维度。
-剩余初聊轮数由 dialogue.responsesRemaining 给出，含本轮回答。mustDraft=true 或用户说快点、别问了、直接安排时，立即给已有信息下的灵感草案，reply 不再追加画像问题，readyForDraft=true。信息已足够时可以提前结束。称呼也计入最多4轮；偏好确认只用可选卡片。阶段成果应让人看见之前的选择怎样改变了方案。
-目的地、日期、预算、人数未知不妨碍灵感；仍保持未知，不默认悉尼/一天/一人/预算或已预订。灵感不是正式时间表、报价或预订。此对话没有地点核验工具，ideas 只能是明确有条件的玩法设想，不能声称某个场所存在、已营业、某价格/班次真实或天气已核验；需要时说之后核实。
-ideas 是 Koko 的提议，不是用户偏好。currentChoice 的点击只适用于 questionText 中这个场景；提取时 scope=activity，condition 必须保留完整适用活动和条件，evidence 必须是 optionText 原文。不能把“顺路再去”推断成专程参观或购买；不能把慢慢吃一餐推断为整趟慢节奏。
-明确日常习惯可成为 long_term 候选，本次要求用 trip，特定活动用 activity；AI 猜测仍用 inferred。所有长期候选等可选记忆卡确认，不能因点击/高可信度或看到模拟同意就声称已保存。
-推断边界：宅家/动漫不代表体力低或内向、看过某作品；餐厅等位20–30分钟不是精确上限/所有队伍；为值得的景色早起一次不代表日常作息；傍晚海港避晒不是怕热/怕冷；接受散步不代表步行上限/爬坡能力；公交轻轨可用不代表换乘上限/打车预算；未报告忌口不等于已排除过敏。没有证据的相关维度保持未知，别放进 fields 绕过偏好证据限制。
-nickname、ideas、quickReplies 都不能来自产品文档里的模拟用户。不要预填任何模拟偏好。进入 inspiration 后继续围绕草案修改或回答，不重启必答画像；正式规划需要的事实由统一资料入口补。
+You are Koko, a friendly, proactive and dependable koala travel guide with a sense of boundaries. dialogue tracks the first profiling conversation; currentChoice is the user's selection in response to the preceding proposal, not an isolated statement.
+The application handles the optional name on first meeting. Use a known nickname naturally; do not introduce yourself again or ask for it again. Never obtain a user's name from examples, documents or guesses.
+Imagine the trip together before departure: "for this trip", "when we get there", "if there is one along the route", "we could start with...". Usually use one or two sentences, make one current decision, contribute a concrete experience and follow the user's choice. If the user declines, offer another idea without persuasion or demanding a reason. Avoid repeated acknowledgements, paraphrases, cuteness or praise. Never invent personal experiences or claim to have seen a work.
+Extend the existing JSON protocol with quickReplies:[{"text":"short natural reply","intent":"respond or skip or draft"}], ideas:["concrete trip ideas as they develop"], and readyForDraft:bool.
+During the introductory conversation, usually offer three clickable replies for one decision, including an exit to decline, change the idea or skip. Do not preselect or mark recommendations. A button must fully answer the question without requiring typing. An interest entry must include a way to skip, not trap the user in an endless cycle of alternatives. Adapt question order to known information instead of traversing fields or twelve dimensions in a fixed order.
+dialogue.responsesRemaining includes the current answer. When mustDraft=true, or the user asks to hurry, stop asking or plan directly, immediately produce an inspiration draft from known information, append no further profiling questions to reply, and set readyForDraft=true. Finish earlier when enough is known. The optional name counts towards the four-response maximum; preference confirmations are optional cards. Show how earlier choices have shaped the emerging plan.
+Unknown destination, date, budget or party size must not block inspiration; keep them unknown without defaulting to Sydney, one day, one person, a budget or existing bookings. Inspiration is not a formal timetable, quote or booking. This conversation has no place-verification tools: ideas must be explicitly conditional possibilities, never claims that a venue exists, is open, a price or service is real, or weather has been verified. Say details will be checked later when needed.
+ideas are Koko's proposals, not user preferences. A currentChoice applies only to the scene in questionText. Extract it with scope=activity, retain the full applicable activity and conditions in condition, and quote optionText verbatim as evidence. "If it's on the way" does not imply a dedicated visit or purchase; a leisurely meal does not imply a leisurely pace for the whole trip.
+Explicit everyday habits can become long_term candidates, requirements for this trip use trip, and specific activities use activity. AI guesses remain inferred. Every long-term candidate requires an optional memory-card confirmation; never claim it is saved because of a click, high confidence or simulated consent.
+Inference limits: staying home or liking anime does not establish low fitness, introversion or familiarity with a particular work. Waiting 20–30 minutes for a restaurant does not establish an exact limit or tolerance for every queue. Getting up once for a worthwhile view does not establish a normal waking schedule. Avoiding evening harbour sun does not imply intolerance of heat or cold. Accepting a stroll does not establish a walking limit or hill fitness. Accepting buses or light rail does not establish a transfer limit or taxi budget. Unreported dietary restrictions do not mean allergies have been ruled out. Leave unsupported dimensions unknown; do not place them in fields to bypass preference-evidence requirements.
+Never take nickname, ideas or quickReplies from simulated users in product documents. Never prefill simulated preferences. Once in inspiration, continue refining or discussing the draft without restarting required profiling. Use the shared trip-details entry for facts required by formal planning.
 """;
 
     public static void Enable(PetSession session,JsonObject input)
@@ -58,7 +58,7 @@ nickname、ideas、quickReplies 都不能来自产品文档里的模拟用户。
             if(previousResponses>=MaximumResponses)Finish(session,[]);
             // Upgrading a saved draft preserves every prior answer and never repeats the introduction.
             session.Messages.Add(new(Guid.NewGuid().ToString("N"),"assistant",
-                session.Dialogue.Inspiration is null ? "咱们接着已有的想法准备。这趟先留一段自由探索，还是围绕一个最想体验的事展开？":"先把已有想法整理成灵感方向，细节可以之后一起补。",
+                session.Dialogue.Inspiration is null ? "Let's build on your ideas. Shall we leave time to explore, or start with one experience you're looking forward to?":"Let's turn your ideas into a direction for the trip. We can add the details together later.",
                 "curious",session.Dialogue.Inspiration is null ? ExplorationReplies():DraftReplies()));
             return;
         }
@@ -67,8 +67,8 @@ nickname、ideas、quickReplies 都不能来自产品文档里的模拟用户。
         // A legacy empty draft only contains the old welcome. Replace it rather than introducing twice.
         if(session.Messages.All(x=>x.Role=="assistant"))session.Messages.Clear();
         var greeting=returning
-            ? (name.Length>0 ? $"{name}，咱们先挑一种玩法：绿意慢走，还是城市故事？你也可以自己说。":"咱们先挑一种玩法：绿意慢走，还是城市故事？你也可以自己说。")
-            : "嗨，我叫 Koko，是你的旅行向导。怎么称呼你？也可以先跳过。";
+            ? (name.Length>0 ? $"{name}, shall we start with a nature stroll or the city's stories? You can suggest something else too.":"Shall we start with a nature stroll or the city's stories? You can suggest something else too.")
+            : "Hi, I'm Koko, your travel guide. What should I call you? You can skip this too.";
         session.Messages.Add(new(Guid.NewGuid().ToString("N"),"assistant",KokoCompanion.Enabled(session) && returning ? KokoCompanion.Greeting:greeting,"greeting",KokoCompanion.Enabled(session) && returning ? KokoCompanion.MoodReplies():returning ? ExplorationReplies():NameReplies()));
     }
 
@@ -79,32 +79,32 @@ nickname、ideas、quickReplies 都不能来自产品文档里的模拟用户。
         var question=s.Messages.LastOrDefault(x=>x.Role=="assistant");
         var option=question?.QuickReplies?.FirstOrDefault(x=>x.Id==input.Str("optionId"));
         if(s.Dialogue is null || question?.Id!=input.Str("questionId") || option is null || option.Intent is "compose_name" or "details")
-            throw new ServiceException("这组选项已更新，请使用当前回复，或直接告诉 Koko。 ");
-        if(input.Str("field").Length>0 || input.Str("message").Trim()!=option.Text)
-            throw new ServiceException("点选内容与当前提议不一致，请刷新后重试。");
-        s.CurrentChoice=new(question!.Id,question.Text,option.Id,option.Text);
+            throw new ServiceException("These options have changed. Choose a current option, or tell Koko directly.");
+        if(input.Str("field").Length>0 || (input.Str("message").Trim()!=option.Text && PetEnglishCopy.Translate(input.Str("message").Trim())!=option.Text))
+            throw new ServiceException("That selection does not match the current suggestion. Refresh and try again.");
+        s.CurrentChoice=new(question!.Id,question.Text,option.Id,input.Str("message").Trim());
         return option;
     }
 
-    public static bool Expedite(string message)=>new[]{"快点","别问了","不要再问","直接安排","直接给我草案","先看草案"}.Any(message.Contains);
+    public static bool Expedite(string message)=>new[]{"快点","别问了","不要再问","直接安排","直接给我草案","先看草案","hurry","stop asking","no more questions","just plan","show me a draft","show the draft"}.Any(x=>message.Contains(x,StringComparison.OrdinalIgnoreCase));
 
     // Server-owned shortcuts never require a model call or a name to proceed.
     public static JsonObject? DirectResponse(PetSession s,string text,PetQuickReply? choice)
     {
         if(s.Dialogue is not {} d)return null;
         if(KokoCompanion.Direct(s,text,choice) is {} companion)return companion;
-        if(choice?.Intent=="choose_sydney") {s.Fields["destination"]="悉尼";return StepResult(s,"那就去悉尼，其他资料都留着。", "destination");}
-        if(choice?.Intent is "people_1" or "people_2") {s.Fields["travelers"]=choice.Intent[^1..];return StepResult(s,"同行人数收好啦。", "travelers");}
+        if(choice?.Intent=="choose_sydney") {s.Fields["destination"]="悉尼";return StepResult(s,"Sydney it is. I'll keep the rest of your trip details.", "destination");}
+        if(choice?.Intent is "people_1" or "people_2") {s.Fields["travelers"]=choice.Intent[^1..];return StepResult(s,"I've noted how many people are coming.", "travelers");}
         if(choice?.Intent is "budget_60" or "budget_120") {
             s.Fields["budget"]=choice.Intent[7..];s.Fields["budgetCurrency"]="AUD";s.Fields["budgetBasis"]="perPersonPerDay";s.Fields["budgetCoverage"]="activities";d.RequestedField="";
-            return StepResult(s,"这次按每人每天 "+s.Fields["budget"]+" AUD 活动预算来安排，不含住宿、交通和全部餐饮。", "budget");
+            return StepResult(s,"For this trip, I'll use "+s.Fields["budget"]+" AUD per person per day for activities. Accommodation, transport and the full meal budget are separate.", "budget");
         }
-        if(choice?.Intent=="defer_time") {s.Fields.Remove("date");d.RequestedField="time";return StepResult(s,"日期先留空，我不会替你确定。草稿会保留，准备生成时再选日期。", "time");}
+        if(choice?.Intent=="defer_time") {s.Fields.Remove("date");d.RequestedField="time";return StepResult(s,"We'll leave the date open and keep your draft. Choose a date when you're ready to generate the itinerary.", "time");}
         if(BudgetQuestion(text)) {
             s.Fields.Remove("budget");d.RequestedField="budget";
-            return new(){["reply"]="原预算先不采用。可以先选每人每天 60 或 120 AUD 作为活动预算，再自由调整；这只是预算档位，不代表已核实的花费。住宿、交通和全部餐饮另计。",["readyForDraft"]=true,["followTripStep"]=true};
+            return new(){["reply"]="I'll set the previous amount aside. You can start with 60 or 120 AUD per person per day for activities and adjust it later. These are budget options, not verified costs; accommodation, transport and the full meal budget are separate.",["readyForDraft"]=true,["followTripStep"]=true};
         }
-        if(choice?.Intent=="change_direction" || text is "换个思路吧" or "换个想法吧" or "换一组想法") {
+        if(choice?.Intent=="change_direction" || text is "换个思路吧" or "换个想法吧" or "换一组想法" || text.Equals("Try another idea",StringComparison.OrdinalIgnoreCase)) {
             var current=Array.IndexOf(DirectionKeys,d.ProposedDirection);
             return Propose(s,DirectionKeys[(current+1+DirectionKeys.Length)%DirectionKeys.Length],false);
         }
@@ -112,21 +112,21 @@ nickname、ideas、quickReplies 都不能来自产品文档里的模拟用户。
         if(choice?.Intent=="accept_direction")return Propose(s,d.ProposedDirection.Length>0 ? d.ProposedDirection:DefaultDirection(s),true);
         if(choice?.Intent=="keep")return d.ProposedDirection.Length>0 ? Propose(s,d.ProposedDirection,true):Propose(s,DefaultDirection(s),false);
         if(choice?.Intent=="draft" || Expedite(text)) {
-            if(d.Ideas.Length==0){var proposed=Propose(s,DefaultDirection(s),false);proposed["reply"]="先给你一版「"+DirectionTitle(d.ProposedDirection)+"」方向，具体资料可以接着补。";return proposed;}
-            return new(){["reply"]="先用已有的线索构想一版，未知的资料可以之后一起补。",["readyForDraft"]=true};
+            if(d.Ideas.Length==0){var proposed=Propose(s,DefaultDirection(s),false);proposed["reply"]="Here's a first "+DirectionTitle(d.ProposedDirection)+" idea. We can add the trip details next.";return proposed;}
+            return new(){["reply"]="Let's sketch a draft from what we know. We can fill in the missing details together later.",["readyForDraft"]=true};
         }
-        if(text=="留一段自由探索")return Propose(s,"nature",false);
-        var match=Regex.Match(text,@"^(?:叫我|我叫|称呼我)\s*([^,，。!！？\r\n]{1,24})[。！!]?$");
+        if(text=="留一段自由探索" || text.Equals("Leave time to explore",StringComparison.OrdinalIgnoreCase))return Propose(s,"nature",false);
+        var match=Regex.Match(text,@"^(?:叫我|我叫|称呼我|call me\s+|my name is\s+)\s*([^,，。.!！？\r\n]{1,24})[。.!！]?$",RegexOptions.IgnoreCase);
         // A single name in direct response to the optional name question is explicit evidence.
         var shortName=d.Phase=="introducing" && choice is null && Regex.IsMatch(text,@"^[A-Za-z][A-Za-z'’-]{0,23}$") &&
             !new[]{"skip","hello","hi","yes","no","unknown"}.Contains(text,StringComparer.OrdinalIgnoreCase);
-        if(choice?.Intent=="use_alias")d.Nickname="旅行搭子";
+        if(choice?.Intent=="use_alias")d.Nickname="Travel buddy";
         else if(match.Success)d.Nickname=match.Groups[1].Value.Trim();
         else if(shortName)d.Nickname=text;
         if(d.Phase!="introducing")return null;
         if(choice?.Intent is not ("skip_name" or "use_alias") && !match.Success && !shortName)return null;
         if(KokoCompanion.Enabled(s))return new(){["reply"]=KokoCompanion.Greeting,["companionTurn"]=true,["companionReplies"]=System.Text.Json.JsonSerializer.SerializeToNode(KokoCompanion.MoodReplies(),JsonExtensions.Options)};
-        return new(){["reply"]=(d.Nickname.Length>0 ? $"{d.Nickname}，咱们先找一点这趟旅行的灵感。":"咱们先找一点这趟旅行的灵感。")+"先挑一种玩法：绿意慢走，还是城市故事？也可以换一组。",
+        return new(){["reply"]=(d.Nickname.Length>0 ? $"{d.Nickname}, let's find a little inspiration for this trip. ":"Let's find a little inspiration for this trip. ")+"Would you prefer a nature stroll or the city's stories? We can try another idea too.",
             ["offerDirections"]=true};
     }
 
@@ -146,8 +146,8 @@ nickname、ideas、quickReplies 都不能来自产品文档里的模拟用户。
             Finish(s,d.Ideas);
             // The fourth answer ends the initial interview even when the model asks another question.
             if(initial && !result.Bool("directionChanged") && !result.Bool("followTripStep")) {
-                if(hasTripFacts){if(string.IsNullOrWhiteSpace(reply) || reply.Contains('？') || reply.Contains('?'))reply="这次的旅行资料先收好啦。";reply+="\n"+StepQuestion(s);}
-                else reply="先把这趟的方向摆出来了。下面是可以一起调整的灵感，具体场所、时间和费用等资料齐了再核实。";
+                if(hasTripFacts){if(string.IsNullOrWhiteSpace(reply) || reply.Contains('？') || reply.Contains('?'))reply="I've kept your trip details.";reply+="\n"+StepQuestion(s);}
+                else reply="Here's a starting direction we can shape together. Once the trip details are ready, we'll check specific places, times and costs.";
             }
             options=DraftReplies(s);
         } else {
@@ -160,8 +160,8 @@ nickname、ideas、quickReplies 都不能来自产品文档里的模拟用户。
             else if(proposed.Length is >=3 and <=4 && proposed.Any(x=>x.Intent is "skip" or "draft"))options=proposed;
             else {
                 // Safe generic reactions bind to the actual proposal; no unrelated field questionnaire.
-                options=[Reply("就按这个想法试试"),Reply("换个想法吧","skip"),Reply("先看已有的草案","draft")];
-                if(string.IsNullOrWhiteSpace(reply))reply="咱们先留一段可以随心逛逛的时间，再围绕你最想体验的事串起来？";
+                options=[Reply("Let's try this idea"),Reply("Try another idea","skip"),Reply("Show the draft so far","draft")];
+                if(string.IsNullOrWhiteSpace(reply))reply="Shall we leave some time to wander, then build around the experience you're most looking forward to?";
             }
         }
         if(result.Bool("followTripStep")){reply=result.Str("reply");options=DraftReplies(s);}
@@ -174,12 +174,12 @@ nickname、ideas、quickReplies 都不能来自产品文档里的模拟用户。
         var d=s.Dialogue!;d.Phase="inspiration";
         if(ideas.Length==0){d.ProposedDirection=DefaultDirection(s);ideas=DirectionIdeas(s,d.ProposedDirection);}
         d.Ideas=ideas;
-        d.Inspiration=new(PetQuestions.Known(s.Fields.GetValueOrDefault("destination")) ? s.Fields["destination"]+" · "+DirectionTitle(d.ProposedDirection):"目的地待定 · "+DirectionTitle(d.ProposedDirection),ideas);
+        d.Inspiration=new(PetQuestions.Known(s.Fields.GetValueOrDefault("destination")) ? (PetQuestions.SupportedDestination(s.Fields["destination"]) ? "Sydney":s.Fields["destination"])+" · "+DirectionTitle(d.ProposedDirection):"Destination to decide · "+DirectionTitle(d.ProposedDirection),ideas);
     }
     private static PetQuickReply Reply(string text,string intent="respond")=>new(Guid.NewGuid().ToString("N"),text,intent);
-    private static PetQuickReply[] NameReplies()=>[Reply("先跳过称呼","skip_name"),Reply("叫我旅行搭子","use_alias"),Reply("我来写个称呼","compose_name")];
-    private static PetQuickReply[] ExplorationReplies()=>[Reply("绿意慢走","direction_nature"),Reply("城市故事","direction_culture"),Reply("换一组想法","change_direction")];
-    public static bool BudgetQuestion(string message)=>message.Contains("预算") && !Regex.IsMatch(message,@"\d") && Regex.IsMatch(message,"没想好|不确定|大概范围|推荐|建议");
+    private static PetQuickReply[] NameReplies()=>[Reply("Skip for now","skip_name"),Reply("Call me Travel buddy","use_alias"),Reply("I'll enter a name","compose_name")];
+    private static PetQuickReply[] ExplorationReplies()=>[Reply("Nature stroll","direction_nature"),Reply("City stories","direction_culture"),Reply("Try another idea","change_direction")];
+    public static bool BudgetQuestion(string message)=>Regex.IsMatch(message,"预算|budget",RegexOptions.IgnoreCase) && !Regex.IsMatch(message,@"\d") && Regex.IsMatch(message,"没想好|不确定|大概范围|推荐|建议|not sure|unsure|undecided|recommend|suggest|rough range",RegexOptions.IgnoreCase);
     public static string NextNeed(PetSession s) {
         if(s.Dialogue?.RequestedField=="budget" && !PetQuestions.Answered(s,"budget"))return "budget";
         if(!PetQuestions.Answered(s,"destination"))return "destination";
@@ -190,44 +190,44 @@ nickname、ideas、quickReplies 都不能来自产品文档里的模拟用户。
         return "";
     }
     public static string StepQuestion(PetSession s)=>NextNeed(s) switch {
-        "destination"=>PetQuestions.UnsupportedDestination(s) ? "资料会保留。目前只支持悉尼路线，可以改选悉尼或先保存草稿。":"这次想去哪个城市？目前可以生成悉尼路线，也能先保存其他城市的想法。",
-        "time"=>"接下来选出发日期和天数，最多 15 天；没定日期也可以先保留草稿。",
-        "travelers"=>"这次一共几个人？记得包括自己呀。",
-        "budget"=>"活动预算可以选 60 / 120 AUD 每人每天，或自定义金额与范围；住宿、交通和全部餐饮另计。",
-        _=>"资料准备齐啦！可以直接生成行程，也可以继续聊或单独修改。"
+        "destination"=>PetQuestions.UnsupportedDestination(s) ? "I'll keep your details. Routes are currently available for Sydney only; switch to Sydney or keep this draft for later.":"Which city would you like to visit? I can plan Sydney routes, or save ideas for other cities for later.",
+        "time"=>"Next, choose a departure date and trip length, up to 15 days. You can keep the draft if the date is still open.",
+        "travelers"=>"How many people are coming, including you?",
+        "budget"=>"Choose 60 or 120 AUD per person per day for activities, or set your own amount and scope. Accommodation, transport and the full meal budget are separate.",
+        _=>"Your trip details are ready. Generate the itinerary, keep chatting or change a detail whenever you like."
     };
     private static JsonObject StepResult(PetSession s,string text,string focus)=>new(){["reply"]=text+"\n"+StepQuestion(s),["readyForDraft"]=true,["followTripStep"]=true};
     public static void DetailsUpdated(PetSession s,JsonObject changes) {
         if(s.Dialogue is null || !changes.Any(x=>PetQuestions.Required.Contains(x.Key) || new[]{"budgetCoverage","origin","mustDo","avoid","companionNeeds"}.Contains(x.Key)))return;
         if(PetQuestions.Answered(s,"budget"))s.Dialogue.RequestedField="";
         if(s.Dialogue.Inspiration is null)Finish(s,[]);
-        var labels=new Dictionary<string,string>{{"destination","目的地"},{"date","日期"},{"days","天数"},{"travelers","人数"},{"budget","预算"},{"origin","出发地点"},{"mustDo","必去安排"},{"avoid","避开安排"},{"companionNeeds","同行需要"}};
-        var names=string.Join("、",labels.Where(x=>changes.ContainsKey(x.Key)).Select(x=>x.Value));
-        var text=(names.Length>0 ? names+"收好啦。":"旅行资料已更新。")+"\n"+StepQuestion(s);
+        var labels=new Dictionary<string,string>{{"destination","Destination"},{"date","Date"},{"days","Trip length"},{"travelers","Party size"},{"budget","Budget"},{"origin","Starting point"},{"mustDo","Must-do plans"},{"avoid","Things to avoid"},{"companionNeeds","Companion needs"}};
+        var names=string.Join(", ",labels.Where(x=>changes.ContainsKey(x.Key)).Select(x=>x.Value));
+        var text=(names.Length>0 ? names+" updated.":"Your trip details are updated.")+"\n"+StepQuestion(s);
         s.Messages.Add(new(Guid.NewGuid().ToString("N"),"assistant",text,"curious",DraftReplies(s)));
         if(s.Messages.Count>100)s.Messages=s.Messages.TakeLast(100).ToList();
     }
     private static PetQuickReply[] DraftReplies(PetSession? s=null) {
-        if(s is null)return [Reply("补充出行资料","details"),Reply("再换个玩法","change_direction"),Reply("我想自己说","compose_idea")];
-        if(s.Dialogue is {} d && d.ProposedDirection.Length>0 && d.SelectedDirection!=d.ProposedDirection && d.RequestedField.Length==0 && !s.Fields.Keys.Any(PetQuestions.Required.Contains))return [Reply("就选这个方向","accept_direction"),Reply("换个玩法","change_direction"),Reply("我想自己说","compose_idea")];
+        if(s is null)return [Reply("Add trip details","details"),Reply("Try another idea","change_direction"),Reply("I'll write my own","compose_idea")];
+        if(s.Dialogue is {} d && d.ProposedDirection.Length>0 && d.SelectedDirection!=d.ProposedDirection && d.RequestedField.Length==0 && !s.Fields.Keys.Any(PetQuestions.Required.Contains))return [Reply("Choose this direction","accept_direction"),Reply("Try another idea","change_direction"),Reply("I'll write my own","compose_idea")];
         return NextNeed(s) switch {
-            "destination"=>PetQuestions.UnsupportedDestination(s) ? [Reply("改选悉尼","choose_sydney"),Reply("修改城市","details_destination"),Reply("保留草稿","keep_draft")]:[Reply("选悉尼","choose_sydney"),Reply("其他城市","details_destination"),Reply("我想自己说","compose_idea")],
-            "time"=>[Reply("选日期和天数","details_time"),Reply("日期还没定","defer_time"),Reply("我想自己说","compose_idea")],
-            "travelers"=>[Reply("1 人","people_1"),Reply("2 人","people_2"),Reply("其他人数","details_people")],
-            "budget"=>[Reply("60 AUD / 人 / 天","budget_60"),Reply("120 AUD / 人 / 天","budget_120"),Reply("自定义预算","details_budget")],
-            _=>[Reply("修改旅行资料","details"),Reply("再换个玩法","change_direction"),Reply("我想自己说","compose_idea")]
+            "destination"=>PetQuestions.UnsupportedDestination(s) ? [Reply("Switch to Sydney","choose_sydney"),Reply("Change city","details_destination"),Reply("Keep draft","keep_draft")]:[Reply("Choose Sydney","choose_sydney"),Reply("Another city","details_destination"),Reply("I'll write my own","compose_idea")],
+            "time"=>[Reply("Choose date and length","details_time"),Reply("Date still open","defer_time"),Reply("I'll write my own","compose_idea")],
+            "travelers"=>[Reply("1 person","people_1"),Reply("2 people","people_2"),Reply("Another party size","details_people")],
+            "budget"=>[Reply("60 AUD / person / day","budget_60"),Reply("120 AUD / person / day","budget_120"),Reply("Set my own budget","details_budget")],
+            _=>[Reply("Edit trip details","details"),Reply("Try another idea","change_direction"),Reply("I'll write my own","compose_idea")]
         };
     }
     private static readonly string[] DirectionKeys=["nature","culture","food"];
-    private static string DefaultDirection(PetSession s)=>s.Fields.GetValueOrDefault("interests","").Contains("文化") || s.Fields.GetValueOrDefault("interests","").Contains("艺术") ? "culture":s.Fields.GetValueOrDefault("interests","").Contains("美食") ? "food":"nature";
-    private static string DirectionTitle(string key)=>key switch {"nature"=>"绿意慢走","culture"=>"城市故事","food"=>"街区逛吃",_=>"旅行灵感"};
+    private static string DefaultDirection(PetSession s)=>Regex.IsMatch(s.Fields.GetValueOrDefault("interests",""),"文化|艺术|culture|art",RegexOptions.IgnoreCase) ? "culture":Regex.IsMatch(s.Fields.GetValueOrDefault("interests",""),"美食|food",RegexOptions.IgnoreCase) ? "food":"nature";
+    private static string DirectionTitle(string key)=>key switch {"nature"=>"Nature stroll","culture"=>"City stories","food"=>"Neighbourhood food stroll",_=>"Trip inspiration"};
     private static string[] DirectionIdeas(PetSession s,string key)=>key switch {
-        "culture"=>["先逛一段有故事的街区，看看建筑和当地生活；实际街区之后核实。",s.Fields.GetValueOrDefault("avoid","").Contains("博物馆") ? "避开博物馆，把另一段时间留给街景、小店和休息。":"如果有合适的展览或文化场所，挑一处慢慢看，再留一段休息；开放时间待核实。"],
-        "food"=>["挑一个餐饮集中的街区边逛边吃，具体店铺、营业和价格之后核实。","把用餐和附近的小店串在一起，中间留休息，不为打卡来回赶路。"],
-        _=>["如果目的地有合适的公园、绿道或海边，先留一段轻松散步；具体地点之后核实。","走累了就找个方便休息的地方，下午留给附近的街景，不把一天排满。"]};
+        "culture"=>["Explore a neighbourhood's stories, architecture and local life. We'll check the actual area later.",Regex.IsMatch(s.Fields.GetValueOrDefault("avoid",""),"博物馆|museums?",RegexOptions.IgnoreCase) ? "Skip museums and leave that time for street scenes, small shops and a rest.":"If there's a suitable exhibition or cultural venue, choose one to explore at your own pace, then take a break. Opening times still need checking."],
+        "food"=>["Explore a neighbourhood with plenty of food options. We'll check specific places, opening times and prices later.","Combine a meal with nearby small shops, with breaks between them and no rushing from one stop to another."],
+        _=>["If the destination has a suitable park, greenway or waterfront, leave time for an easy stroll. We'll check specific places later.","Take a break when your feet need it, then explore nearby streets in the afternoon. Leave some room in the day."]};
     private static JsonObject Propose(PetSession s,string key,bool accepted) {
         var d=s.Dialogue!;d.ProposedDirection=key;d.IdeaRevision++;d.Ideas=DirectionIdeas(s,key);
         if(accepted){d.SelectedDirection=key;s.Fields["interests"]=key switch {"culture"=>"文化、艺术","food"=>"美食、城市",_=>"自然、风景"};}
-        return new(){["reply"]=accepted ? "那这次就按「"+DirectionTitle(key)+"」来准备。这个玩法只用于这次旅行。":"换个具体方向：「"+DirectionTitle(key)+"」。"+d.Ideas[0]+"这个玩法怎么样？",["ideas"]=new JsonArray(d.Ideas.Select(x=>(JsonNode?)JsonValue.Create(x)).ToArray()),["readyForDraft"]=true,["directionChanged"]=true};
+        return new(){["reply"]=accepted ? "Let's plan around "+DirectionTitle(key)+" for this trip. This choice applies to this trip only.":"Here's another direction: "+DirectionTitle(key)+". "+d.Ideas[0]+" What do you think?",["ideas"]=new JsonArray(d.Ideas.Select(x=>(JsonNode?)JsonValue.Create(x)).ToArray()),["readyForDraft"]=true,["directionChanged"]=true};
     }
 }

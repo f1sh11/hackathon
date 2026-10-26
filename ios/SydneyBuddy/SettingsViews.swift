@@ -9,7 +9,7 @@ struct JournalView:View {
     private var entries:[Expense] {store.expenses.filter{tripID == nil || $0.tripID == tripID}}
     private var trip:Trip? {store.saved.first{$0.id == tripID && tripID != nil}}
     @EnvironmentObject var store:AppStore
-    @State var title="午餐"
+    @State var title="Lunch"
     @State var amount=""
     @State var people=2
     var body:some View {
@@ -27,7 +27,7 @@ struct JournalView:View {
                         guard let decimal=Decimal(string:normalized),decimal>0,decimal<100000 else {store.errorMessage="请输入有效金额";return}
                         var raw=decimal*100,rounded=Decimal();NSDecimalRound(&rounded,&raw,0,.plain)
                         let cents=NSDecimalNumber(decimal:rounded).intValue
-                        store.expenses.append(Expense(title:title.isEmpty ? "消费" : title,cents:cents,participants:people,tripID:tripID));amount=""
+                        store.expenses.append(Expense(title:title.isEmpty ? "Expense" : title,cents:cents,participants:people,tripID:tripID));amount=""
                     }.tint(Palette.green)
                 }
                 Section(uiText("消费记录")) {
@@ -68,7 +68,7 @@ struct SettingsView:View {
                 backendSection
                 travelDataSection
                 Section(uiText("设置")) {
-                    Picker(uiText("界面语言"),selection:$store.language){ForEach(AppLanguage.allCases){language in Text(verbatim:language.label).tag(language)}}.accessibilityIdentifier("app-language-picker")
+                    LabeledContent(uiText("界面语言"),value:AppLanguage.english.label).accessibilityIdentifier("app-language")
                 }
                 Section(uiText("体验与帮助")) {
                     Button(uiText("全部消费记录")){showingLedger=true}

@@ -24,7 +24,7 @@ struct TravelPreferenceCard:View {
             Text(uiText(preference.source=="ai_inference" ? "这是我的猜测，理解对了吗？":"下次旅行也参考这一点吗？")).font(.subheadline.bold())
             Text(uiText(preference.summary)).font(.subheadline)
             if !preference.previousValues.isEmpty{Text(uiText("之前："+preference.previousValues.joined(separator:"、")+"。确认后会替换这一项。")).font(.caption).foregroundStyle(Palette.muted)}
-            if !preference.evidence.isEmpty{Text(uiText("你说：「"+preference.evidence+"」")).font(.caption).foregroundStyle(Palette.muted)}
+            if !preference.evidence.isEmpty{Text(verbatim:"You said: “"+preference.evidence+"”").font(.caption).foregroundStyle(Palette.muted)}
             HStack {
                 Button(uiText(preference.previousValues.isEmpty ? "记住这点":"更新长期偏好")){decide(true,false)}.buttonStyle(.borderedProminent).tint(Palette.green)
                 Button(uiText("仅限这次")){decide(false,false)}.buttonStyle(.bordered)

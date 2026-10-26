@@ -27,8 +27,10 @@ class WalkingProgressTest {
     }
     @Test fun targetListIncludesEveryStopThenReturnAndScopesProgressToTripRevision() {
         val day=JSONObject("""{"date":"2026-10-23","start":{"name":"Hotel","lat":-33.86,"lng":151.21},"stops":[{"name":"Cafe","lat":-33.85,"lng":151.22,"visitMinutes":30}],"end":{"name":"Hotel","lat":-33.86,"lng":151.21}}""")
-        assertEquals(listOf("Hotel","Cafe","Hotel（返回）"),walkingPoints(day).map{it.name})
+        assertEquals(listOf("Hotel","Cafe","Hotel (return)"),walkingPoints(day).map{it.name})
         assertEquals(30,walkingPoints(day)[1].stay)
+        // Existing saved trips keep the same progress key when only display language changes.
+        assertEquals("walking:8fd8c3b8ae0a8cc04d4ff8aea52d0c1a7b60ad792a799fb9d5271733c1c8959f",walkingKey("trip:1",day))
         assertNotEquals(walkingKey("trip:1",day),walkingKey("trip:2",day))
         assertEquals(walkingKey("trip:1",day),walkingKey("trip:1",JSONObject(day.toString())))
     }

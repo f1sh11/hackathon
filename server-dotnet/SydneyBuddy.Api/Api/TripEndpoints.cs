@@ -11,32 +11,32 @@ public static class TripEndpoints
         routes.MapPost("/trips", async (HttpContext context, TripRepository trips, ScheduleEditorService editor, PlaceCatalog catalog,RemainingJourneyService remainingService) =>
         {
             var input = await RequestJson.ReadAsync(context);
-            if (input["trip"] is not JsonObject trip) return Results.Json(new { error = "请求格式不合法" }, statusCode: 400);
+            if (input["trip"] is not JsonObject trip) return Results.Json(new { error = "Invalid request format" }, statusCode: 400);
             trip.Remove("previousAdjustment");
             if (trip["id"] is not null && (trip["id"] is not JsonValue id || !id.TryGetValue<string>(out _)))
-                return Results.Json(new { error = "行程标识必须是字符串" }, statusCode: 400);
+                return Results.Json(new { error = "Trip ID must be a string" }, statusCode: 400);
             if(input.Object("remainingRequest") is {} remaining) {
-                var existing=await trips.FindAsync(trip.Str("id"),context.RequestAborted)??throw new ServiceException("行程不存在。");
+                var existing=await trips.FindAsync(trip.Str("id"),context.RequestAborted)??throw new ServiceException("Trip not found.");
                 if(existing.Int("revision")!=input.Int("expectedRevision"))throw new RevisionConflictException();
                 var updated=await remainingService.BuildAsync(existing,remaining,context.RequestAborted);var snapshot=(JsonObject)existing.DeepClone();snapshot.Remove("previousAdjustment");updated["previousAdjustment"]=snapshot;
                 return Results.Json(await trips.SaveAsync(updated,input.Int("expectedRevision"),context.RequestAborted));
             }
             if(input["walkingTimeDay"] is not null) {
-                var existing=await trips.FindAsync(trip.Str("id"),context.RequestAborted) ?? throw new ServiceException("行程不存在。");
+                var existing=await trips.FindAsync(trip.Str("id"),context.RequestAborted) ?? throw new ServiceException("Trip not found.");
                 if(existing.Int("revision")!=input.Int("expectedRevision"))throw new RevisionConflictException();
-                if(input["walkingTimeDay"] is not JsonValue day || !day.TryGetValue<int>(out var index) || input["walkingLegs"] is not JsonArray legs)throw new ServiceException("步行路线资料无效。");
+                if(input["walkingTimeDay"] is not JsonValue day || !day.TryGetValue<int>(out var index) || input["walkingLegs"] is not JsonArray legs)throw new ServiceException("Invalid walking route data.");
                 return Results.Json(await trips.SaveAsync(WalkingTimeUpdate.Apply(existing,index,legs,catalog.Get()),input.Int("expectedRevision"),context.RequestAborted));
             }
             if(input.Bool("renameOnly")) {
-                var existing=await trips.FindAsync(trip.Str("id"),context.RequestAborted) ?? throw new ServiceException("行程不存在。");
+                var existing=await trips.FindAsync(trip.Str("id"),context.RequestAborted) ?? throw new ServiceException("Trip not found.");
                 if(existing.Int("revision")!=input.Int("expectedRevision"))throw new RevisionConflictException();
-                var title=trip.Str("title").Trim();if(title.Length is 0 or >40)throw new ServiceException("旅行名称需为 1–40 个字符。");
+                var title=trip.Str("title").Trim();if(title.Length is 0 or >40)throw new ServiceException("The trip name must contain 1–40 characters.");
                 existing["title"]=title;return Results.Json(await trips.SaveAsync(existing,input.Int("expectedRevision"),context.RequestAborted));
             }
             if(input.Bool("undoAdjustment")) {
-                var current=await trips.FindAsync(trip.Str("id"),context.RequestAborted) ?? throw new ServiceException("行程不存在。");
+                var current=await trips.FindAsync(trip.Str("id"),context.RequestAborted) ?? throw new ServiceException("Trip not found.");
                 if(current.Int("revision")!=input.Int("expectedRevision"))throw new RevisionConflictException();
-                var snapshot=(JsonObject)(current.Object("previousAdjustment") ?? throw new ServiceException("没有可以撤销的快捷调整。")).DeepClone();snapshot["title"]=current.Str("title");
+                var snapshot=(JsonObject)(current.Object("previousAdjustment") ?? throw new ServiceException("There is no quick adjustment to undo.")).DeepClone();snapshot["title"]=current.Str("title");
                 TripContractValidator.Validate(snapshot);
                 return Results.Json(await trips.SaveAsync(snapshot,input.Int("expectedRevision"),context.RequestAborted));
             }
@@ -44,23 +44,23 @@ public static class TripEndpoints
             if(input["adjustedDay"] is not null || input["adjustedDays"] is not null) {
                 adjustedDays=[];
                 if(input["adjustedDays"] is not null) {
-                    if(input["adjustedDays"] is not JsonArray list || list.Count is 0 or >15)throw new ServiceException("调整日期无效。");
-                    foreach(var item in list){if(item is not JsonValue v || !v.TryGetValue<int>(out var day) || day<0)throw new ServiceException("调整日期无效。");adjustedDays.Add(day);}
+                    if(input["adjustedDays"] is not JsonArray list || list.Count is 0 or >15)throw new ServiceException("Invalid adjustment date.");
+                    foreach(var item in list){if(item is not JsonValue v || !v.TryGetValue<int>(out var day) || day<0)throw new ServiceException("Invalid adjustment date.");adjustedDays.Add(day);}
                 } else {
-                    if(input["adjustedDay"] is not JsonValue d || !d.TryGetValue<int>(out var dayIndex) || dayIndex<0)throw new ServiceException("调整日期无效。");
+                    if(input["adjustedDay"] is not JsonValue d || !d.TryGetValue<int>(out var dayIndex) || dayIndex<0)throw new ServiceException("Invalid adjustment date.");
                     adjustedDays.Add(dayIndex);
                 }
-                original=await trips.FindAsync(trip.Str("id"),context.RequestAborted) ?? throw new ServiceException("原行程不存在。");
+                original=await trips.FindAsync(trip.Str("id"),context.RequestAborted) ?? throw new ServiceException("Original trip not found.");
                 if(original.Int("revision")!=input.Int("expectedRevision"))throw new RevisionConflictException();
-                if(adjustedDays.Any(day=>day>=original.Array("days")!.Count) || trip.Object("schedule") is null)throw new ServiceException("请先完成当天调整试算。");
+                if(adjustedDays.Any(day=>day>=original.Array("days")!.Count) || trip.Object("schedule") is null)throw new ServiceException("Preview that day's adjustment first.");
                 // Partial schedule edits retain the accepted profile and untouched days.
                 trip["profile"]=original["profile"]!.DeepClone();
                 foreach(var selected in adjustedDays){var old=original.Array("days")![selected]!.AsObject();foreach(var key in new[]{"completedStops","skippedStops","planningStartMinute","executionStarted"}){trip.Array("days")![selected]!.AsObject().Remove(key);if(old[key] is not null)trip.Array("days")![selected]![key]=old[key]!.DeepClone();}}
             }
             if(trip.Object("schedule") is { } schedule) {
-                if(schedule.Object("settings") is null || schedule.Array("days") is null)throw new ServiceException("時間軸資料不完整，請重新試算後保存。");
+                if(schedule.Object("settings") is null || schedule.Array("days") is null)throw new ServiceException("Timeline data is incomplete. Preview it again before saving.");
                 trip=editor.Build(new JsonObject{["trip"]=trip.DeepClone(),["settings"]=schedule["settings"]?.DeepClone(),["days"]=schedule["days"]?.DeepClone(),["version"]=schedule.Int("version"),["rainy"]=schedule.Bool("rainy")});
-                if(trip.Object("schedule")!.Array("issues")!.OfType<JsonObject>().Any(x=>x.Bool("blocking") && (adjustedDays is null || adjustedDays.Contains(x.Int("day")) || x.Int("day")==-1)))throw new ServiceException("時間軸仍有營業、預約或必要任務衝突，請先修改草案。");
+                if(trip.Object("schedule")!.Array("issues")!.OfType<JsonObject>().Any(x=>x.Bool("blocking") && (adjustedDays is null || adjustedDays.Contains(x.Int("day")) || x.Int("day")==-1)))throw new ServiceException("The timeline still has opening-hour, booking or required-task conflicts. Edit the draft first.");
             }
             if(original is not null && adjustedDays is not null) {
                 var result=(JsonObject)original.DeepClone();
@@ -86,7 +86,7 @@ public static class TripEndpoints
             TripContractValidator.Validate(trip);
             if (input["expectedRevision"] is not null &&
                 (input["expectedRevision"] is not JsonValue revision || !revision.TryGetValue<int>(out _)))
-                return Results.Json(new { error = "行程版本必须是整数" }, statusCode: 400);
+                return Results.Json(new { error = "Trip revision must be an integer" }, statusCode: 400);
             return Results.Json(await trips.SaveAsync(trip, input.Int("expectedRevision"), context.RequestAborted));
         });
         routes.MapDelete("/trips/{id}", async (string id, TripRepository trips, CancellationToken ct) =>
@@ -101,7 +101,7 @@ public static class TripEndpoints
         for(var i=0;i<stops.Count;i++){
             var stop=stops[i]!.AsObject();activities.Add(new JsonObject{
                 ["id"]=stop.Str("id"),["placeId"]=stop.Str("id"),["kind"]="attraction",["name"]=stop.Str("name"),["lat"]=stop.Number("lat"),["lng"]=stop.Number("lng"),
-                ["duration"]=stop.Int("visitMinutes"),["cost"]=stop.Number("cost"),["queueMinutes"]=null,["queueSource"]="未知",["arrival"]=stop.Str("arrival"),["departure"]=stop.Str("departure"),["scheduledStart"]=Minute(stop.Str("arrival")),["travelMinutes"]=legs[i]!.AsObject().Int("minutes"),["indoor"]=stop.Bool("indoor"),["hoursVerified"]=stop.Bool("hoursVerified")});
+                ["duration"]=stop.Int("visitMinutes"),["cost"]=stop.Number("cost"),["queueMinutes"]=null,["queueSource"]="Unknown",["arrival"]=stop.Str("arrival"),["departure"]=stop.Str("departure"),["scheduledStart"]=Minute(stop.Str("arrival")),["travelMinutes"]=legs[i]!.AsObject().Int("minutes"),["indoor"]=stop.Bool("indoor"),["hoursVerified"]=stop.Bool("hoursVerified")});
         }
         var transport=legs.OfType<JsonObject>().Sum(l=>l.Int("minutes"));
         var stay=(JsonObject)day["end"]!.DeepClone();stay["cost"]=0;stay["confirmed"]=false;stay["checkIn"]=900;stay["checkOut"]=660;

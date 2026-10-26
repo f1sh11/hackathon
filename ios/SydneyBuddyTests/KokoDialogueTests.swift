@@ -35,6 +35,26 @@ final class KokoDialogueTests:XCTestCase {
         XCTAssertTrue((body["fields"] as! [String:String]).isEmpty)
         XCTAssertNil(body["consent"]);XCTAssertNil(body["travelDna"])
     }
+    @MainActor func testNewAndUpdatedSessionsRequestEnglishWithoutChangingTypedFacts() async throws {
+        let defaults=UserDefaults.standard
+        let keys=["appLanguage","petSession.english-release-test"]
+        let previous=keys.map{defaults.object(forKey:$0)}
+        defer{for(key,value) in zip(keys,previous){if let value{defaults.set(value,forKey:key)}else{defaults.removeObject(forKey:key)}}}
+        defaults.set("zh-Hant",forKey:"appLanguage");defaults.removeObject(forKey:keys[1])
+        let chat=PetChatStore();let value=session();var bodies:[[String:Any]]=[]
+        chat.loader={request in
+            if let data=request.httpBody{bodies.append(try JSONSerialization.jsonObject(with:data) as! [String:Any])}
+            return(try JSONEncoder().encode(value),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)
+        }
+        let typed="我想慢慢走，保留这句原话"
+        await chat.load(scope:"english-release-test",seed:["notes":typed],profiling:true)
+        await chat.update(["notes":typed])
+        XCTAssertNil(chat.error);XCTAssertEqual(bodies.count,2)
+        for body in bodies {
+            XCTAssertEqual(body["language"] as? String,"en")
+            XCTAssertEqual((body["fields"] as? [String:String])?["notes"],typed)
+        }
+    }
     func testV2DraftRestoresContextualChoicesWithoutMakingUnknownTravelDataReady() throws {
         let original=session(inspiration:true)
         let restored=try JSONDecoder().decode(PetSession.self,from:JSONEncoder().encode(original))

@@ -1,6 +1,6 @@
 {
   " %.2f / 人": {
-    "en": " $0.00 / person",
+    "en": " %.2f / person",
     "zh-Hans": " %.2f / 人",
     "zh-Hant": " %.2f / 人"
   },
@@ -17708,5 +17708,20 @@
     "en": "These options have changed. Use the current choices, or tell Koko directly. ",
     "zh-Hans": "这组选项已更新，请使用当前回复，或直接告诉 Koko。 ",
     "zh-Hant": "這組選項已更新，請使用目前的回覆，或直接告訴 Koko。 "
+  },
+  "A${0}/晚": {
+    "en": "A${0}/night",
+    "zh-Hans": "A${0}/晚",
+    "zh-Hant": "A${0}/晚"
+  },
+  "建议停留 {0} 分钟。": {
+    "en": "Suggested stay: {0} minutes. ",
+    "zh-Hans": "建议停留 {0} 分钟。",
+    "zh-Hant": "建议停留 {0} 分钟。"
+  },
+  "这份行程": {
+    "en": "this itinerary",
+    "zh-Hans": "这份行程",
+    "zh-Hant": "这份行程"
   }
 }

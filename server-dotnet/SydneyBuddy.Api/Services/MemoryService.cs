@@ -16,7 +16,7 @@ public interface IMemoryService
 public sealed class MemoryService(ProjectPaths paths) : IMemoryService
 {
     private static readonly SemaphoreSlim Gate = new(1, 1);
-    private const string Failure = "H-MEM 操作失败，未声称记忆已保存或撤回。";
+    private const string Failure = "The H-MEM operation failed. Memory has not been confirmed saved or removed.";
 
     public async Task<JsonObject> RunAsync(string action, JsonObject arguments, CancellationToken ct = default)
     {
@@ -52,7 +52,7 @@ public sealed class MemoryService(ProjectPaths paths) : IMemoryService
             }
             catch (Win32Exception)
             {
-                throw new ServiceException("H-MEM 需要 Node.js 24 或更新版本，请安装后重试");
+                throw new ServiceException("H-MEM requires Node.js 24 or later. Install it and try again.");
             }
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(15));
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, deadline.Token);

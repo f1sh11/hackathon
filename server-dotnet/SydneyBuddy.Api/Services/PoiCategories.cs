@@ -92,7 +92,7 @@ public static class PoiCategories {
         if(point.Str("priceTier").Length==0)point["priceTier"]=mapped.Symbol;
         if(point["nightlyRateAud"] is null)point["nightlyRateAud"]=mapped.NightlyRateAud;
         if(point["estimatedSpendAud"] is null)point["estimatedSpendAud"]=mapped.NightlyRateAud;
-        if(point.Str("priceLabel").Length==0)point["priceLabel"]=$"{mapped.Symbol} · 預估每晚 A${mapped.NightlyRateAud}/晚";
+        if(point.Str("priceLabel").Length==0)point["priceLabel"]=$"{mapped.Symbol} · Estimated A${mapped.NightlyRateAud}/night";
     }
 
     // A category, place name or deterministic hash is never evidence of a traveller review.
@@ -116,6 +116,6 @@ public static class PoiCategories {
         if(point.Str("priceTier").Length==0)point["priceTier"]=mapped.Symbol;
         if(point["estimatedSpendAud"] is null)point["estimatedSpendAud"]=mapped.PerPersonAud;
         if(point["avgCostForTwoAud"] is null)point["avgCostForTwoAud"]=mapped.ForTwoAud;
-        if(point.Str("priceLabel").Length==0)point["priceLabel"]=$"{mapped.Symbol} · 預估均消 A${mapped.PerPersonAud}/人";
+        if(point.Str("priceLabel").Length==0)point["priceLabel"]=$"{mapped.Symbol} · Estimated A${mapped.PerPersonAud}/person";
     }
 }

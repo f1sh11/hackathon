@@ -8,10 +8,10 @@ public static class PlanningCandidates
     {
         var all=catalog.Select(p=>p.DeepClone().AsObject()).ToList();
         if(input is null)return all;
-        if(input.Count>60)throw new ServiceException("搜索候选过多，请缩小规划区域。");
+        if(input.Count>60)throw new ServiceException("Too many search candidates. Reduce the planning area.");
         var seen=new HashSet<string>();
         foreach(var node in input) {
-            if(node is not JsonObject value||!seen.Add(value.Str("id")))throw new ServiceException("搜索候选无效或重复。");
+            if(node is not JsonObject value||!seen.Add(value.Str("id")))throw new ServiceException("Search candidates are invalid or duplicated.");
             var p=PoiService.Import(value);
             p["activityType"]=PoiService.ActivityKind(p)=="meal"?"meal":"attraction";
             var category=value.Str("category");
@@ -21,8 +21,8 @@ public static class PlanningCandidates
             p["tags"]=new JsonArray(p.Str("category"));p["indoorKnown"]=false;
             p["openMinute"]=0;p["closeMinute"]=1440;p["hoursVerified"]=false;p["costKnown"]=false;
             p["cost"]=p.Str("activityType")=="meal"?30:0;
-            p["note"]="真实搜索地点；营业时间、门票／菜单价格和室内情况未核实。"+(p.Str("activityType")=="meal"?"每人餐费暂预留 A$30，非菜单报价。":"未计入未知门票，不代表免费。");
-            if(all.Any(x=>x.Str("id")==p.Str("id")))throw new ServiceException("搜索地点与目录标识重复。");
+            p["note"]="Actual search result. Opening hours, ticket/menu prices and indoor status are unverified."+(p.Str("activityType")=="meal"?"A$30 per person is reserved for meals; this is not a menu quote.":"Unknown admission fees are excluded; this does not mean free entry.");
+            if(all.Any(x=>x.Str("id")==p.Str("id")))throw new ServiceException("A searched place duplicates a catalog ID.");
             all.Add(p);
         }
         return all;

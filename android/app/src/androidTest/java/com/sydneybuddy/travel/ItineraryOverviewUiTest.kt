@@ -24,38 +24,38 @@ class ItineraryOverviewUiTest {
         val trip=JSONObject("""{"id":"local-overview-test","title":"地图顺序测试","mode":"demo","days":[{"date":"2026-10-23","estimatedSteps":1800,"estimatedCost":0,"finishTime":"12:00","start":{"name":"Quay","lat":-33.8611,"lng":151.2126},"stops":[{"name":"Opera House","lat":-33.8568,"lng":151.2153,"arrival":"10:15","departure":"11:15"},{"name":"Rocks","lat":-33.8598,"lng":151.209,"arrival":"11:30","departure":"12:00"}],"end":{"name":"Quay","lat":-33.8611,"lng":151.2126},"legs":[]}]}""")
         lateinit var store:BuddyStore
         try {
-            rule.waitUntil(30000){rule.onAllNodesWithText("Buddy 正在处理",substring=true).fetchSemanticsNodes().isEmpty()}
+            rule.waitUntil(30000){rule.onAllNodesWithText("Koko is on it",substring=true).fetchSemanticsNodes().isEmpty()}
             rule.activityRule.scenario.onActivity {activity ->
                 store=ViewModelProvider(activity)[BuddyStore::class.java]
                 store.onboarding=false;store.tab=0;store.chooseMapProvider(MapProvider.OSM);store.select(trip)
             }
             rule.waitUntil(30000){rule.onAllNodesWithTag("home-transport-legs").fetchSemanticsNodes().isNotEmpty() || rule.onAllNodesWithTag("home-route-error").fetchSemanticsNodes().isNotEmpty()}
             rule.onNodeWithTag("home-transport-legs").assertIsDisplayed()
-            rule.onNodeWithText("交通方式").assertIsDisplayed()
+            rule.onNodeWithText("Transport").assertIsDisplayed()
             val home=instrumentation.uiAutomation.takeScreenshot()
             File(context.getExternalFilesDir(null),"itinerary-android-home-route.png").outputStream().use{home.compress(Bitmap.CompressFormat.PNG,100,it)}
             home.recycle()
             rule.onNodeWithTag("home-info-toggle").performClick()
-            rule.onNodeWithContentDescription("行程站点顺序").assertExists()
-            rule.onNodeWithContentDescription("展开地图").performClick()
-            rule.onNodeWithText("全天行程顺序").assertIsDisplayed()
-            rule.waitUntil(30000){rule.onAllNodes(hasText("地图已加载",substring=true) and hasAnyAncestor(hasTestTag("expanded-itinerary-map"))).fetchSemanticsNodes().isNotEmpty()}
+            rule.onNodeWithContentDescription("Stop order").assertExists()
+            rule.onNodeWithContentDescription("Expand map").performClick()
+            rule.onNodeWithText("Full-day itinerary").assertIsDisplayed()
+            rule.waitUntil(30000){rule.onAllNodes(hasText("Map loaded",substring=true) and hasAnyAncestor(hasTestTag("expanded-itinerary-map"))).fetchSemanticsNodes().isNotEmpty()}
             val screenshot=instrumentation.uiAutomation.takeScreenshot()
             File(context.getExternalFilesDir(null),"itinerary-android-overview.png").outputStream().use{screenshot.compress(Bitmap.CompressFormat.PNG,100,it)}
             screenshot.recycle()
-            rule.waitUntil(30000){rule.onAllNodesWithText("步行约",substring=true).fetchSemanticsNodes().isNotEmpty() || rule.onAllNodesWithText("暂时无法取得",substring=true).fetchSemanticsNodes().isNotEmpty()}
-            rule.onNode(hasText("沿道路步行路线 · 不含景点停留时间") and hasAnyAncestor(hasTestTag("expanded-itinerary-map"))).assertIsDisplayed()
-            rule.waitUntil(30000){rule.onAllNodes(hasText("地图已加载 · 沿道路步行路线") and hasAnyAncestor(hasTestTag("expanded-itinerary-map"))).fetchSemanticsNodes().isNotEmpty()}
+            rule.waitUntil(30000){rule.onAllNodesWithText("Walk approx.",substring=true).fetchSemanticsNodes().isNotEmpty() || rule.onAllNodesWithText("Could not load",substring=true).fetchSemanticsNodes().isNotEmpty()}
+            rule.onNode(hasText("Walking route · excludes time at stops") and hasAnyAncestor(hasTestTag("expanded-itinerary-map"))).assertIsDisplayed()
+            rule.waitUntil(30000){rule.onAllNodes(hasText("Map loaded · walking route along roads") and hasAnyAncestor(hasTestTag("expanded-itinerary-map"))).fetchSemanticsNodes().isNotEmpty()}
             val actual=instrumentation.uiAutomation.takeScreenshot()
             File(context.getExternalFilesDir(null),"itinerary-android-walking.png").outputStream().use{actual.compress(Bitmap.CompressFormat.PNG,100,it)}
             actual.recycle()
-            rule.onNodeWithText("关闭地图").performClick()
+            rule.onNodeWithText("Close map").performClick()
             assertEquals(trip.toString(),store.trip.toString())
             val recorded=instrumentation.context.assets.open("walking-sydney.json").bufferedReader().use{it.readText()}
             val route=OverviewRoute.parse(recorded)
             assertEquals(-33.861,route.points.first().first,0.003)
             assertTrue(route.meters>500);assertTrue(route.legSeconds.size==1)
-            rule.onNodeWithContentDescription("展开地图").assertIsDisplayed()
+            rule.onNodeWithContentDescription("Expand map").assertIsDisplayed()
             lateinit var unavailable:ItineraryOverview
             rule.runOnIdle {unavailable=ItineraryOverview();unavailable.load(trip.getJSONArray("days").getJSONObject(0),"http://127.0.0.1:1")}
             rule.waitUntil(10000){!unavailable.busy}

@@ -29,15 +29,23 @@ import uniffi.ferrostar.GeographicCoordinate
 /** SDK-neutral map inputs. No Google route content is passed into this renderer. */
 @Composable fun WalkingMap(points:List<WalkingPoint>,geometry:List<GeographicCoordinate>,position:GeographicCoordinate?,provider:MapProvider) {
     when(provider) {
-        MapProvider.SCHEMATIC -> Text("离线示意图不显示导航路线，请选择联网底图。")
-        MapProvider.GOOGLE -> if(!BuildConfig.MAPS_CONFIGURED) Text("Google 地图未配置密钥，请选择 OpenStreetMap。") else {
+        MapProvider.SCHEMATIC -> Text("Offline map legend does not display navigation routes. Please select an online base map.")
+        MapProvider.GOOGLE -> if(!BuildConfig.MAPS_CONFIGURED) Text("Google Maps is not configured. Choose OpenStreetMap.") else {
             val camera=rememberCameraPositionState()
             LaunchedEffect(points,position){if(position!=null)camera.move(GoogleCameraUpdate.newLatLngZoom(GoogleLatLng(position.lat,position.lng),16f))
                 else camera.move(GoogleCameraUpdate.newLatLngBounds(GoogleBounds.builder().apply{points.forEach{include(GoogleLatLng(it.lat,it.lng))}}.build(),50))}
             GoogleMap(Modifier.fillMaxWidth().height(300.dp),cameraPositionState=camera) {
-                points.forEachIndexed {i,p->Marker(state=MarkerState(position=GoogleLatLng(p.lat,p.lng)),title="$i. ${p.name}")}
+                points.forEachIndexed {i,p->key(i){
+                    val coordinate=GoogleLatLng(p.lat,p.lng)
+                    val marker=remember(coordinate){MarkerState(position=coordinate)}
+                    Marker(state=marker,title="$i. ${p.name}")
+                }}
                 if(geometry.size>1) Polyline(points=geometry.map{GoogleLatLng(it.lat,it.lng)},color=Green,width=8f)
-                position?.let{Marker(state=MarkerState(position=GoogleLatLng(it.lat,it.lng)),title="当前位置")}
+                position?.let{
+                    val coordinate=GoogleLatLng(it.lat,it.lng)
+                    val marker=remember(coordinate){MarkerState(position=coordinate)}
+                    Marker(state=marker,title="Current location")
+                }
             }
         }
         MapProvider.OSM -> WalkingOsmMap(points,geometry,position)
@@ -68,7 +76,7 @@ import uniffi.ferrostar.GeographicCoordinate
         val ready=map ?: return@LaunchedEffect
         position?.let{p->
             val coord=LatLng(p.lat,p.lng)
-            if(userPin==null)userPin=ready.addMarker(MarkerOptions().position(coord).title("当前位置"))
+            if(userPin==null)userPin=ready.addMarker(MarkerOptions().position(coord).title("Current location"))
             else userPin?.position=coord
             ready.moveCamera(CameraUpdateFactory.newLatLngZoom(coord,16.0))
         }

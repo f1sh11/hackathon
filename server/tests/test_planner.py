@@ -21,7 +21,7 @@ class PlanningTests(unittest.TestCase):
  def test_infeasible_required_stop_budget(self):
   with self.assertRaises(ServiceError):Planner().plan(dict(BASE,budget=0,mustVisit=['mca']))
  def test_rain_scenario_is_not_real_weather(self):
-  p=Planner().plan(dict(BASE,weatherOverride='rain'));self.assertIn('非实时',p['weather']['source'])
+  p=Planner().plan(dict(BASE,weatherOverride='rain'));self.assertIn('not live',p['weather']['source'])
   self.assertTrue(all(s['indoor'] for s in p['days'][0]['stops']))
  def test_multiday_no_duplicate_attractions(self):
   p=Planner().plan(dict(BASE,days=2));ids=[x['id'] for d in p['days'] for x in d['stops']];self.assertEqual(len(ids),len(set(ids)))

@@ -28,6 +28,6 @@ public sealed class ProjectPaths
                 if (File.Exists(Path.Combine(directory.FullName, "server", "places.json")))
                     return directory.FullName;
         }
-        throw new InvalidOperationException("找不到 server/places.json；请在仓库中运行或设置 SYDNEYBUDDY_ROOT。");
+        throw new InvalidOperationException("Cannot find server/places.json. Run from the repository or set SYDNEYBUDDY_ROOT.");
     }
 }

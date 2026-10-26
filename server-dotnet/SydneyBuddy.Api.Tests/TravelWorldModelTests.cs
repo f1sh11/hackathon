@@ -30,7 +30,7 @@ public sealed class TravelWorldModelTests {
         var trip=Trip();trip.Array("days")![0]!.Array("legs")![0]!["source"]="初筛估算";
         var result=TravelWorldModelService.Evaluate(trip);
         Assert.False(result.Object("summary")!.Array("days")![0]!.Bool("routeKnown"));
-        Assert.Contains(result.Array("suggestions")!.OfType<JsonObject>(),x=>x.Str("id")=="verify-0" && x.Str("detail").Contains("交通为估算"));
+        Assert.Contains(result.Array("suggestions")!.OfType<JsonObject>(),x=>x.Str("id")=="verify-0" && x.Str("detail").Contains("some transport is estimated"));
     }
     [Fact] public void FindingsIdentifyOnlyAffectedDayAndDoNotChangeItinerary() {
         var trip=Trip();trip.Array("days")![1]!["estimatedSteps"]=12000;trip.Array("days")![1]!["estimatedCost"]=140;

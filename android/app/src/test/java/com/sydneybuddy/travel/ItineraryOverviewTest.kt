@@ -15,8 +15,8 @@ class ItineraryOverviewTest {
     }
     @Test fun loopUsesOneStartReturnBadgeAndNumbersFollowItinerary() {
         val a=-33.86 to 151.21;val b=-33.85 to 151.22
-        assertEquals(listOf("起/终","1","终"),itineraryBadges(listOf(a,b,a)))
-        assertEquals(listOf("起","1","终"),itineraryBadges(listOf(a,b,b)))
+        assertEquals(listOf("S/E","1","E"),itineraryBadges(listOf(a,b,a)))
+        assertEquals(listOf("S","1","E"),itineraryBadges(listOf(a,b,b)))
         assertEquals("↑",itineraryDirection(a,(-33.85 to 151.21)))
         assertEquals("→",itineraryDirection(a,(-33.86 to 151.22)))
     }

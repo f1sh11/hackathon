@@ -23,7 +23,7 @@ import MapKit
         let trip=try fixture()
         let suggestion=WorldSuggestion(id:"verify-0",dayIndex:0,title:"待确认",detail:"费用未知",action:"review",status:"pending")
         let context=TripCompanionContext.checkRequest(trip:trip,suggestion:suggestion)
-        XCTAssertTrue(context.contains(trip.days[0].stops[0].name));XCTAssertTrue(context.contains("不要声称已查到"));XCTAssertTrue(context.contains("不要重新生成行程"))
+        XCTAssertTrue(context.contains(trip.days[0].stops[0].name));XCTAssertTrue(context.contains("do not claim to have checked"));XCTAssertTrue(context.contains("Do not ask again for known trip details or regenerate the itinerary"))
     }
     func testWorldChecksAreBoundToSavedTripRevision() throws {
         var trip=try fixture();trip.id="world-test";trip.revision=2
@@ -60,7 +60,7 @@ import MapKit
     func testCompanionQuickActionsCarrySelectedDayAndRequireConfirmation() throws {
         let trip=try fixture();let index=min(1,trip.days.count-1)
         let request=TripCompanionContext.request(trip:trip,dayIndex:index,intent:.shortOnTime)
-        XCTAssertTrue(request.contains(trip.days[index].date));XCTAssertTrue(request.contains("还剩多久"));XCTAssertTrue(request.contains("确认后再保存"));XCTAssertTrue(request.contains("保留其余日期"))
+        XCTAssertTrue(request.contains(trip.days[index].date));XCTAssertTrue(request.contains("how much time is left"));XCTAssertTrue(request.contains("save only after confirmation"));XCTAssertTrue(request.contains("preserve other dates"))
         XCTAssertTrue(TripCompanionContext.request(trip:trip,dayIndex:-1,intent:.replace).contains(trip.days[0].date))
     }
     func testConnectionsExplainBuffersWithoutChangingTheSchedule() throws {
@@ -515,6 +515,27 @@ import MapKit
         XCTAssertEqual(AppLanguage.english.text("第 {0} 天","3"),"Day 3")
         XCTAssertEqual(AppLanguage.english.text("Custom place"),"Custom place")
         XCTAssertEqual(store.trip!.days.flatMap(\.stops).map(\.id),ids)
+    }
+    func testEnglishReleaseMigratesLegacyInterfaceLanguage() {
+        let defaults=UserDefaults.standard;let previous=defaults.object(forKey:"appLanguage")
+        defer{if let previous{defaults.set(previous,forKey:"appLanguage")}else{defaults.removeObject(forKey:"appLanguage")}}
+        for saved in ["zh-Hans","zh-Hant",""] {
+            defaults.set(saved,forKey:"appLanguage")
+            XCTAssertEqual(AppStore().language,.english)
+            XCTAssertEqual(AppLanguage.current,.english)
+            XCTAssertEqual(defaults.string(forKey:"appLanguage"),"en")
+        }
+        defaults.removeObject(forKey:"appLanguage")
+        XCTAssertEqual(AppLanguage.current,.english)
+    }
+    func testEnglishCatalogCoversNativeControlsAndKeepsCurrencyAmount() {
+        let labels=["旅行 2 天","一共 3 人","旅行天数：4 天","當日開始 9:05","最早入住 14:00","排隊 30 分","A$185/晚","建议停留 20 分钟。"]
+        for label in labels {
+            let rendered=AppLanguage.english.display(label)
+            XCTAssertFalse(rendered.unicodeScalars.contains(where:{(0x3400...0x9FFF).contains($0.value)}),rendered)
+        }
+        let amount=String(format:AppLanguage.english.display(" %.2f / 人"),42.75)
+        XCTAssertEqual(amount," 42.75 / person")
     }
     func testVisibleCopyUsesSelectedScriptAndKeepsPlaceholdersLiteral() {
         XCTAssertEqual(AppLanguage.simplified.display("儲存行程後，開啟地圖。"),"储存行程后，开启地图。")

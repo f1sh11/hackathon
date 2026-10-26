@@ -15,16 +15,16 @@ public sealed class PlaceService(IExternalJsonClient external, PlaceCatalog cata
         var places = catalog.Get().ToArray();
         if (context.Mode != "live" || travel?.Warehouse==true)
         {
-            context.Record("读取候选地点", $"{places.Length} 个悉尼候选地点（含具体餐厅）；地点来源见目录，价格、营业窗口与停留时间为规划估算。", travel?.Warehouse==true ? "Zetaris / travel_catalog":"本地示例数据");
+            context.Record("Load candidate places", $"{places.Length} Sydney candidate places, including specific restaurants. See catalog sources. Prices, opening windows and visit durations are planning estimates.", travel?.Warehouse==true ? "Zetaris / travel_catalog":"Local sample data");
             return places;
         }
         var key = context.Config.GetValueOrDefault("GOOGLE_SERVER_KEY");
-        if (string.IsNullOrEmpty(key)) throw new ServiceException("尚未配置 Google 服务端密钥。请在电脑的本地设置页完成配置。");
+        if (string.IsNullOrEmpty(key)) throw new ServiceException("The Google server key is not configured. Set it on the computer's local setup page.");
         foreach (var place in places)
         {
             var result = await external.FetchAsync("https://places.googleapis.com/v1/places:searchText", new JsonObject
             {
-                ["textQuery"] = place.Str("query"), ["maxResultCount"] = 1, ["languageCode"] = "zh-CN",
+                ["textQuery"] = place.Str("query"), ["maxResultCount"] = 1, ["languageCode"] = "en",
                 ["locationBias"] = new JsonObject
                 {
                     ["circle"] = new JsonObject
@@ -39,26 +39,26 @@ public sealed class PlaceService(IExternalJsonClient external, PlaceCatalog cata
                 ["X-Goog-FieldMask"] = "places.id,places.displayName,places.location,places.regularOpeningHours,places.googleMapsUri"
             }, cancellationToken: ct);
             var item = result.Array("places")?.FirstOrDefault() as JsonObject;
-            if (item is null) throw new ServiceException("Google 未返回完整候选信息，无法生成标为实时的方案。");
+            if (item is null) throw new ServiceException("Google returned incomplete candidate details. A plan labelled live cannot be generated.");
             var location = item.Object("location");
             if (location?["latitude"] is null || location["longitude"] is null || string.IsNullOrEmpty(item.Str("id")))
-                throw new ServiceException("Google 未返回完整候选信息，无法生成标为实时的方案。");
+                throw new ServiceException("Google returned incomplete candidate details. A plan labelled live cannot be generated.");
             var latitude = location.Number("latitude", double.NaN);
             var longitude = location.Number("longitude", double.NaN);
             if (!double.IsFinite(latitude) || !double.IsFinite(longitude))
-                throw new ServiceException("Google 未返回完整候选信息，无法生成标为实时的方案。");
+                throw new ServiceException("Google returned incomplete candidate details. A plan labelled live cannot be generated.");
             var coordinates = new JsonObject { ["lat"] = latitude, ["lng"] = longitude };
             if (RouteService.Distance(place, coordinates) > 1500)
-                throw new ServiceException("地点搜索结果与预期地标不匹配，已停止规划。");
+                throw new ServiceException("The place search result does not match the expected landmark. Planning stopped.");
             place["lat"] = coordinates.Number("lat");
             place["lng"] = coordinates.Number("lng");
             place["googlePlaceId"] = item.Str("id");
             place["mapsURL"] = item.Str("googleMapsUri");
             var hours = item.Object("regularOpeningHours");
             place["periods"] = hours is null ? null : (hours.Array("periods")?.DeepClone() ?? new JsonArray());
-            place["hoursSource"] = hours is null ? "未提供营业时段，使用演示假设" : "Google 常规营业时段；节假日可能变化";
+            place["hoursSource"] = hours is null ? "Opening hours unavailable; using demo assumptions" : "Google regular opening hours; holidays may differ";
         }
-        context.Record("查询地点与营业时段", "Google Places 返回地点坐标与可用常规营业时段；费用仍为估算。", "Google Places API");
+        context.Record("Look up places and opening hours", "Google Places returned coordinates and available regular opening hours. Costs remain estimates.", "Google Places API");
         return places;
     }
 

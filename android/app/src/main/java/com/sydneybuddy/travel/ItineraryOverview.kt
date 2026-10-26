@@ -16,7 +16,7 @@ import kotlin.coroutines.resumeWithException
 import kotlin.math.*
 
 data class OverviewRoute(val points:List<Pair<Double,Double>>,val meters:Double,val seconds:Double,val legSeconds:List<Double>) {
-    val segments get()=legSeconds.mapIndexed{i,seconds->"${if(i==0)"起" else "$i"}→${if(i==legSeconds.lastIndex)"终" else "${i+1}"} 步行 ${ceil(seconds/60).toInt()} 分"}.joinToString(" · ")
+    val segments get()=legSeconds.mapIndexed{i,seconds->"${if(i==0)"S" else "$i"}→${if(i==legSeconds.lastIndex)"E" else "${i+1}"} Walk ${ceil(seconds/60).toInt()} min"}.joinToString(" · ")
     companion object {
         fun parse(raw:String):OverviewRoute {
             val json=JSONObject(raw);require(json.optString("code")=="Ok")
@@ -66,12 +66,12 @@ class ItineraryOverview(private val client:OkHttpClient=OkHttpClient.Builder().a
                             override fun onResponse(call:Call,response:Response){continuation.resume(response){_,value,_->value.close()}}
                         })
                     }
-                    response.use {val body=it.body.string();if(!it.isSuccessful)error(runCatching{JSONObject(body).optString("error")}.getOrDefault("").ifBlank{"道路路線服務暫時無法使用"});OverviewRoute.parse(body)}
+                    response.use {val body=it.body.string();if(!it.isSuccessful)error(runCatching{JSONObject(body).optString("error")}.getOrDefault("").ifBlank{"Road route service temporarily unavailable"});OverviewRoute.parse(body)}
                 }
-                require(parsed.legSeconds.size==compact.size-1){"道路路線分段不完整"}
+                require(parsed.legSeconds.size==compact.size-1){"Road route segments are incomplete."}
                 ensureActive();route=parsed.copy(legSeconds=edgeMap.map{index->index?.let{parsed.legSeconds[it]} ?: 0.0});busy=false
             } catch(e:CancellationException){throw e}
-            catch(e:Exception){busy=false;message="道路路線無法載入："+(e.message ?: "服務連線失敗").trimEnd('。','.','!')+"。目前僅顯示站點。"}
+            catch(e:Exception){busy=false;message="Route failed to load:"+(e.message ?: "Could not connect to the service").trimEnd('。','.','!')+". Showing stops only."}
         }
     }
 }
@@ -80,8 +80,8 @@ fun itineraryBadge(text:String,direction:Boolean=false):Bitmap {
     val bitmap=Bitmap.createBitmap(size,size,Bitmap.Config.ARGB_8888)
     val canvas=Canvas(bitmap);val paint=Paint(Paint.ANTI_ALIAS_FLAG)
     paint.color=android.graphics.Color.WHITE;canvas.drawCircle(size/2f,size/2f,size/2f,paint)
-    val start=text.contains("起")
-    val end=text=="终"
+    val start=text=="S" || text=="S/E"
+    val end=text=="E"
     paint.color=when {start->android.graphics.Color.rgb(25,118,210);end->android.graphics.Color.rgb(215,48,48);direction->android.graphics.Color.rgb(13,130,94);else->android.graphics.Color.DKGRAY}
     canvas.drawCircle(size/2f,size/2f,size/2f-4,paint)
     if(!start && !end && !direction){paint.color=android.graphics.Color.WHITE;canvas.drawCircle(size/2f,size/2f,size/2f-8,paint)}
@@ -90,7 +90,7 @@ fun itineraryBadge(text:String,direction:Boolean=false):Bitmap {
     return bitmap
 }
 fun itineraryBadges(points:List<Pair<Double,Double>>):List<String> = points.indices.map {i->
-    when(i){0->if(points.first()==points.last())"起/终" else "起";points.lastIndex->"终";else->"$i"}
+    when(i){0->if(points.first()==points.last())"S/E" else "S";points.lastIndex->"E";else->"$i"}
 }
 fun itineraryDirection(a:Pair<Double,Double>,b:Pair<Double,Double>):String {
     val angle=atan2((b.second-a.second)*cos(a.first*PI/180),b.first-a.first)
@@ -119,9 +119,9 @@ fun itineraryPinGroups(points:List<Pair<Double,Double>>):Map<Int,List<Int>> {
 internal data class OverviewTransportLeg(val label:String,val from:String,val to:String,val mode:String,val transport:String,val minutes:Int)
 internal fun overviewTransportLegs(day:JSONObject,route:OverviewRoute?,plan:JourneyPlan?):List<OverviewTransportLeg> {
     val stops=day.array("stops").length()
-    fun label(i:Int)="${if(i==0)"起"else "$i"}→${if(i==stops)"終"else "${i+1}"}"
+    fun label(i:Int)="${if(i==0)"S"else "$i"}→${if(i==stops)"End"else "${i+1}"}"
     if(plan!=null)return plan.legs.map{leg->OverviewTransportLeg(label(leg.index),leg.from,leg.to,leg.steps.firstOrNull()?.mode ?: leg.mode,leg.steps.joinToString(" · "){it.title},ceil(leg.steps.sumOf{it.seconds+it.waitSeconds}/60).toInt())}
     if(route==null||route.legSeconds.size!=stops+1)return emptyList()
     val points=walkingPoints(day)
-    return route.legSeconds.mapIndexed{i,seconds->OverviewTransportLeg(label(i),points[i].name,points[i+1].name,"walk",if(seconds==0.0)"同一位置"else "步行",ceil(seconds/60).toInt())}
+    return route.legSeconds.mapIndexed{i,seconds->OverviewTransportLeg(label(i),points[i].name,points[i+1].name,"walk",if(seconds==0.0)"Same location"else "Walk",ceil(seconds/60).toInt())}
 }

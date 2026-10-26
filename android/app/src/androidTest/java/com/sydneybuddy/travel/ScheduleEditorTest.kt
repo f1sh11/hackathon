@@ -38,14 +38,14 @@ class ScheduleEditorTest {
     }
     @Test fun timelineShowsThreeDaysUnknownQueueAndCandidatesWithoutSaving() {
         val c=setup()
-        rule.onNodeWithText("我的時間軸").assertIsDisplayed()
-        rule.onNodeWithText("含未知排隊，剩餘僅供規劃參考").performScrollTo().assertIsDisplayed()
-        rule.onNodeWithText("景點清單").performScrollTo().performClick()
-        rule.onAllNodesWithText("☆ 設為必去").onFirst().performClick()
+        rule.onNodeWithText("My timeline").assertIsDisplayed()
+        rule.onNodeWithText("Includes unknown wait times, remaining for planning reference only").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Places").performScrollTo().performClick()
+        rule.onAllNodesWithText("☆ Set as Must-go").onFirst().performClick()
         rule.waitUntil(5000){!c.busy}
         assertTrue(c.trip.getJSONObject("profile").array("mustVisit").length()>0)
         rule.runOnIdle{c.undo()};rule.waitUntil(5000){!c.busy};assertEquals(0,c.trip.getJSONObject("profile").array("mustVisit").length())
-        rule.onNodeWithText("完成").performClick()
+        rule.onNodeWithText("Done").performClick()
         assertNull(c.store.proposal!!.targetId)
         val image=InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
         File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null),"schedule-android-test.png").outputStream().use{image.compress(Bitmap.CompressFormat.PNG,100,it)};image.recycle()
@@ -73,10 +73,12 @@ class ScheduleEditorTest {
             assertTrue(trips.left<map.left)
             assertEquals("en",inst.targetContext.getSharedPreferences("buddy",0).getString("appLanguage",null))
             val catalog=JSONObject(inst.targetContext.assets.open("ui-localizations.json").bufferedReader().use{it.readText()})
-            assertEquals("Day 3",translated(catalog,AppLanguage.ENGLISH,"第 {0} 天","3"))
+            assertEquals("Day 3",translated(catalog,AppLanguage.ENGLISH,"Day {0}","3"))
             assertEquals("Custom place",translated(catalog,AppLanguage.ENGLISH,"Custom place"))
-            rule.onNodeWithTag("language-zh-Hant").performScrollTo().performClick()
-            rule.onNodeWithText("語言",useUnmergedTree=true).assertExists()
+            rule.onNodeWithTag("language-zh-Hant").assertDoesNotExist()
+            rule.runOnIdle{store.chooseLanguage(AppLanguage.TRADITIONAL)}
+            assertEquals(AppLanguage.ENGLISH,store.language)
+            rule.onNodeWithText("Language",useUnmergedTree=true).assertExists()
             assertEquals(before,store.trip.toString())
         }finally{rule.runOnIdle{store.chooseLanguage(original)}}
     }
@@ -99,14 +101,14 @@ class ScheduleEditorTest {
         rule.setContent{MaterialTheme{HomeScreen(store,overview)}}
         try {
             rule.waitUntil(5000){overview.route!=null}
-            rule.onNodeWithText("交通方式").assertIsDisplayed()
+            rule.onNodeWithText("Transport").assertIsDisplayed()
             rule.onNodeWithTag("home-transport-legs").assertIsDisplayed()
             assertEquals(1,calls)
             assertEquals(day.array("stops").length()+1,overview.route!!.legSeconds.size)
             assertEquals(0.0,overview.route!!.legSeconds.first(),0.0)
             val plan=JourneyPlan.parse(inst.context.assets.open("journey-plan-test.json").bufferedReader().use{it.readText()})
             rule.runOnIdle{overview.accept(plan)}
-            assertTrue(overviewTransportLegs(trip.array("days").getJSONObject(0),overview.route,overview.plan).any{it.transport.contains("TEST")&&it.transport.contains("公车")})
+            assertTrue(overviewTransportLegs(trip.array("days").getJSONObject(0),overview.route,overview.plan).any{it.transport.contains("TEST")&&it.transport.contains("Bus")})
             assertEquals(1,calls)
         }finally{rule.runOnIdle{store.chooseMapProvider(original);overview.close()}}
     }
@@ -120,12 +122,12 @@ class ScheduleEditorTest {
         rule.setContent{MaterialTheme{HomeScreen(store)}}
         try {
             rule.onNodeWithTag("home-extra-info").assertDoesNotExist()
-            rule.onNodeWithText("開始導航").assertIsDisplayed();rule.onNodeWithText("查看路线").assertIsDisplayed()
-            rule.onNodeWithContentDescription("切換底圖").assertIsDisplayed()
+            rule.onNodeWithText("Start navigation").assertIsDisplayed();rule.onNodeWithText("View route").assertIsDisplayed()
+            rule.onNodeWithContentDescription("Change map").assertIsDisplayed()
             rule.onNodeWithTag("home-info-toggle").performClick()
             rule.onNodeWithTag("home-extra-info").assertExists()
-            rule.onNodeWithText("悉尼天气").assertExists()
-            rule.onNodeWithContentDescription("行程站点顺序").assertExists()
+            rule.onNodeWithText("Sydney weather").assertExists()
+            rule.onNodeWithContentDescription("Stop order").assertExists()
             rule.onNodeWithTag("home-info-toggle").performClick()
             rule.onNodeWithTag("home-extra-info").assertDoesNotExist()
             rule.runOnIdle{assertEquals(trip.toString(),store.trip.toString())}
@@ -135,13 +137,13 @@ class ScheduleEditorTest {
         val state=fixture().getJSONObject("schedule");val limits=state.getJSONObject("settings")
         val original=state.array("days").getJSONObject(0);var day by mutableStateOf(original.copy().put("estimatedSteps",limits.getInt("maxSteps")+1234).put("estimatedCost",limits.getDouble("dailyBudget")+25).put("timeUsed",limits.getInt("timeLimit")+15))
         rule.setContent{MaterialTheme{ScheduleAllowanceSummary(day,state,1)}}
-        rule.onNodeWithText("剩餘 -1,234 步").assertIsDisplayed()
-        rule.onNodeWithText("剩餘 A$-25.00").assertIsDisplayed()
-        rule.onNodeWithText("剩餘 -15 分").assertIsDisplayed()
+        rule.onNodeWithText("-1,234 steps remaining").assertIsDisplayed()
+        rule.onNodeWithText("A$-25.00 remaining").assertIsDisplayed()
+        rule.onNodeWithText("-15 min remaining").assertIsDisplayed()
         for(id in listOf("steps","budget","time"))rule.onNodeWithTag("allowance-warning-$id",useUnmergedTree=true).assertExists()
         rule.runOnIdle{day=original.copy()}
         for(id in listOf("steps","budget","time"))rule.onNodeWithTag("allowance-warning-$id",useUnmergedTree=true).assertDoesNotExist()
-        rule.onNodeWithText("預估步數").assertIsDisplayed();rule.onNodeWithText("當日花費").assertIsDisplayed();rule.onNodeWithText("交通＋排隊").assertIsDisplayed()
+        rule.onNodeWithText("Estimated steps").assertIsDisplayed();rule.onNodeWithText("Day's cost").assertIsDisplayed();rule.onNodeWithText("Transportation＋Queue").assertIsDisplayed()
         assertEquals(-1234.0,ScheduleAllowance(10000.0,11234.0).remaining,0.0)
         assertEquals(0f,ScheduleAllowance(0.0,10.0).fraction,0f)
     }
@@ -151,12 +153,12 @@ class ScheduleEditorTest {
         rule.setContent{MaterialTheme{PoiDiscoveryDialog(store,onDismiss={},requester={requests++;JSONObject().put("places",org.json.JSONArray())})}}
         try {
             rule.waitUntil(5000){requests==1}
-            rule.onNodeWithText("离线示意图").performClick()
-            rule.onNodeWithText("離線示意圖沒有街道底圖",substring=true).assertIsDisplayed()
+            rule.onNodeWithText("Offline overview").performClick()
+            rule.onNodeWithText("Offline schematic has no street base map",substring=true).assertIsDisplayed()
             rule.runOnIdle{assertEquals(MapProvider.SCHEMATIC,store.mapProvider);assertEquals(1,requests)}
-            if(!BuildConfig.MAPS_CONFIGURED){rule.onNodeWithText("Google Maps").performClick();rule.onNodeWithText("Google 地圖尚未設定金鑰",substring=true).assertIsDisplayed()}
+            if(!BuildConfig.MAPS_CONFIGURED){rule.onNodeWithText("Google Maps").performClick();rule.onNodeWithText("Google Maps has no API key",substring=true).assertIsDisplayed()}
             rule.onNodeWithText("OpenStreetMap",substring=false).performClick()
-            rule.onNodeWithText("離線示意圖沒有街道底圖",substring=true).assertDoesNotExist()
+            rule.onNodeWithText("Offline schematic has no street base map",substring=true).assertDoesNotExist()
             rule.waitUntil(5000){requests==2}
             rule.runOnIdle{assertEquals(MapProvider.OSM,store.mapProvider);assertEquals(2,requests)}
         }finally{rule.runOnIdle{store.chooseMapProvider(original)}}
@@ -164,10 +166,10 @@ class ScheduleEditorTest {
     @Test fun savedTripCardEditsOnTapAndNavigationButtonsDoNotOpenEditor() {
         val trip=fixture();var edit=0;var navigation=0;var map=0;var delete=0
         rule.setContent{MaterialTheme{SavedTripCard(trip,onEdit={edit++},onNavigate={navigation++},onMap={map++},onDelete={delete++})}}
-        rule.onNodeWithText("編輯時間軸").assertDoesNotExist()
-        rule.onNodeWithText("開始導航").performClick()
+        rule.onNodeWithText("Edit timeline").assertDoesNotExist()
+        rule.onNodeWithText("Start navigation").performClick()
         rule.runOnIdle{assertEquals(1,navigation);assertEquals(0,edit)}
-        rule.onNodeWithText("查看地图").performClick();rule.onNodeWithText("删除行程").performClick()
+        rule.onNodeWithText("View map").performClick();rule.onNodeWithText("Delete trip").performClick()
         rule.runOnIdle{assertEquals(1,map);assertEquals(1,delete);assertEquals(0,edit)}
         rule.onNodeWithTag("edit-trip-${trip.optString("id")}").performClick()
         rule.runOnIdle{assertEquals(1,edit);assertEquals(1,navigation)}
@@ -180,7 +182,7 @@ class ScheduleEditorTest {
         assertNull(savedTripNavigationDay(trip.copy().put("days",org.json.JSONArray()),"2099-01-01"))
         val context=InstrumentationRegistry.getInstrumentation().targetContext
         val nav=WalkingNavigator(context,days[1],"card-order-test","http://127.0.0.1:8787/navigation/route")
-        val expected=listOf(days[1].getJSONObject("start").getString("name"))+days[1].array("stops").objects().map{it.getString("name")}+listOf(days[1].getJSONObject("end").getString("name")+"（返回）")
+        val expected=listOf(days[1].getJSONObject("start").getString("name"))+days[1].array("stops").objects().map{it.getString("name")}+listOf(days[1].getJSONObject("end").getString("name")+" (return)")
         assertEquals(expected,nav.points.map{it.name});nav.close()
     }
     @Test fun poiEngineFollowsMapAndGoogleRequiresManualSearch() {
@@ -196,16 +198,16 @@ class ScheduleEditorTest {
         try {
             rule.waitUntil(5000){requests.size==1}
             rule.runOnIdle{store.chooseMapProvider(MapProvider.GOOGLE)}
-            rule.onNodeWithText("地點資料：Google Places").assertIsDisplayed()
+            rule.onNodeWithText("Places: Google Places").assertIsDisplayed()
             rule.onNodeWithText("osm result",substring=true).assertDoesNotExist()
             assertEquals(listOf("osm"),requests)
-            rule.onNodeWithText("搜尋").performClick()
+            rule.onNodeWithText("Search").performClick()
             rule.waitUntil(5000){requests.size==2}
             rule.onNodeWithText("google result",substring=true).assertExists()
             assertEquals(listOf("osm","google"),requests)
             rule.runOnIdle{store.chooseMapProvider(MapProvider.SCHEMATIC)}
             rule.onNodeWithText("google result",substring=true).assertDoesNotExist()
-            rule.onNodeWithText("搜尋").performClick();assertEquals(2,requests.size)
+            rule.onNodeWithText("Search").performClick();assertEquals(2,requests.size)
         }finally{rule.runOnIdle{store.chooseMapProvider(previous)}}
     }
     @Test fun poiAutomaticallyLoadsCategoriesAndSeparatesFailureFromEmptyResults() {
@@ -218,15 +220,15 @@ class ScheduleEditorTest {
             JSONObject().put("places",org.json.JSONArray())
         })}}
         rule.waitUntil(5000){categories.contains("sights")}
-        rule.onNodeWithText("此範圍沒有符合的地點。",substring=true).assertIsDisplayed()
+        rule.onNodeWithText("No matching places here.",substring=true).assertIsDisplayed()
         rule.runOnIdle{fail=true}
-        rule.onNodeWithText("生活設施",substring=true).performClick()
+        rule.onNodeWithText("Facilities",substring=true).performClick()
         rule.waitUntil(5000){categories.contains("facilities")}
-        rule.onNodeWithText("地點資料暫時無法載入：測試連線中斷").assertIsDisplayed()
-        rule.onNodeWithText("此範圍沒有符合的地點。",substring=true).assertDoesNotExist()
-        rule.runOnIdle{fail=false};rule.onNodeWithText("重新搜尋").performClick()
+        rule.onNodeWithText("Place data temporarily unavailable:測試連線中斷").assertIsDisplayed()
+        rule.onNodeWithText("No matching places here.",substring=true).assertDoesNotExist()
+        rule.runOnIdle{fail=false};rule.onNodeWithText("Search again").performClick()
         rule.waitUntil(5000){categories.size>=3}
-        rule.onNodeWithText("此範圍沒有符合的地點。",substring=true).assertIsDisplayed()
+        rule.onNodeWithText("No matching places here.",substring=true).assertIsDisplayed()
         assertEquals(listOf("sights","facilities","facilities"),categories)
     }
     @Test fun unifiedSearchStartsWithAllAndShowsLodgingInTheSameMapToolbox() {
@@ -237,10 +239,10 @@ class ScheduleEditorTest {
         rule.setContent{MaterialTheme{PoiDiscoveryDialog(store,onDismiss={},requester={input->if(firstCategory==null)firstCategory=input.optString("category");JSONObject().put("places",org.json.JSONArray().put(point)).put("source","Open travel data / Zetaris")})}}
         rule.waitUntil(10000){rule.onAllNodesWithText("Unified test hotel",substring=true).fetchSemanticsNodes().isNotEmpty()}
         assertEquals("all",firstCategory)
-        rule.onNodeWithText("住宿").performScrollTo().performClick()
+        rule.onNodeWithText("Stays").performScrollTo().performClick()
         rule.waitUntil(10000){rule.onAllNodesWithText("Unified test hotel",substring=true).fetchSemanticsNodes().isNotEmpty()}
-        rule.onNodeWithText("住宿 · OpenStreetMap").assertExists()
-        rule.onNodeWithText("詳細介紹").performClick();rule.onNodeWithText("Unified test hotel").assertExists()
+        rule.onNodeWithText("Stays · OpenStreetMap").assertExists()
+        rule.onNodeWithText("Details").performClick();rule.onNodeWithText("Unified test hotel").assertExists()
         rule.runOnIdle{store.chooseTravelDataSource(original)}
     }
     @Test fun communityDiscoveryShowsDirectionsAndEmptyReviewsOnAnyBaseMap() {
@@ -251,39 +253,39 @@ class ScheduleEditorTest {
             .put("description","Public community guide").put("photos",org.json.JSONArray()).put("reviews",org.json.JSONArray())
             .put("guide",JSONObject().put("directions","Public path by the wharf").put("sourceUrl","https://en.wikivoyage.org/w/index.php?oldid=1").put("attribution","Wikivoyage contributors").put("license","CC BY-SA 4.0"))
         rule.setContent{MaterialTheme{PoiDiscoveryDialog(store,onDismiss={},requester={input->JSONObject().put("places",if(input.optString("category")=="gems")org.json.JSONArray().put(point)else org.json.JSONArray()).put("source","Wikivoyage / Zetaris")})}}
-        rule.onNodeWithText("私房景點").performClick()
+        rule.onNodeWithText("Hidden gems").performClick()
         rule.waitUntil(10000){rule.onAllNodesWithText("Community test reserve",substring=true).fetchSemanticsNodes().isNotEmpty()}
-        rule.onNodeWithText("詳細介紹").performClick()
+        rule.onNodeWithText("Details").performClick()
         rule.onNodeWithText("Public path by the wharf").assertExists()
-        rule.onNodeWithText("此來源未提供旅客評論或評分。").assertExists()
+        rule.onNodeWithText("This source provides no traveller reviews or ratings.").assertExists()
         rule.runOnIdle{store.chooseTravelDataSource(original)}
     }
     @Test fun mapSearchShowsPoiDetailsAndAddsToToolbox() {
         val inst=InstrumentationRegistry.getInstrumentation();lateinit var store:BuddyStore;var added:JSONObject?=null
         rule.runOnIdle{store=BuddyStore(inst.targetContext.applicationContext as Application)}
-        val point=JSONObject().put("id","overture:00000000-0000-4000-8000-000000000001").put("name","Test Cafe").put("lat",-33.86).put("lng",151.21).put("category","美食").put("description","Overture recorded cafe description").put("note","費用未知").put("source","Overture Maps").put("sourceRelease","2026-10-21.0").put("website","https://example.com")
+        val point=JSONObject().put("id","overture:00000000-0000-4000-8000-000000000001").put("name","Test Cafe").put("lat",-33.86).put("lng",151.21).put("category","美食").put("description","Overture recorded cafe description").put("note","Cost unknown").put("source","Overture Maps").put("sourceRelease","2026-10-21.0").put("website","https://example.com")
         rule.runOnIdle{store.chooseMapProvider(MapProvider.OSM);store.removePoi(point.getString("id"))}
         rule.setContent{MaterialTheme{PoiDiscoveryDialog(store,onDismiss={},requester={JSONObject().put("places",org.json.JSONArray().put(point)).put("source","Overture Maps / local snapshot").put("attribution","Overture Maps Foundation").put("metadata",JSONObject().put("release","2026-10-21.0"))},onAdd={added=it})}}
-        rule.onNodeWithText("搜尋").performClick()
+        rule.onNodeWithText("Search").performClick()
         rule.waitUntil(5000){rule.onAllNodesWithText("Test Cafe",substring=true).fetchSemanticsNodes().isNotEmpty()}
-        rule.onNodeWithText("地點資料：Overture Maps / local snapshot").assertIsDisplayed()
+        rule.onNodeWithText("Places: Overture Maps / local snapshot").assertIsDisplayed()
         rule.onNodeWithText("🍴 Test Cafe").performClick()
         rule.onAllNodesWithText("Overture recorded cafe description").onLast().assertIsDisplayed()
         rule.runOnIdle{assertNull(added);assertFalse(store.poiToolbox.any{it.optString("id")==point.optString("id")})}
-        rule.onAllNodesWithText("完成").onLast().performClick()
-        rule.onNodeWithText("＋工具箱").performClick()
+        rule.onAllNodesWithText("Done").onLast().performClick()
+        rule.onNodeWithText("+ Toolbox").performClick()
         rule.runOnIdle{assertEquals("overture:00000000-0000-4000-8000-000000000001",added?.optString("id"))}
-        rule.onNodeWithText("移出工具箱").performClick()
+        rule.onNodeWithText("Remove from toolbox").performClick()
         rule.runOnIdle{assertFalse(store.poiToolbox.any{it.optString("id")==point.optString("id")})}
-        rule.onNodeWithText("＋工具箱").assertExists()
+        rule.onNodeWithText("+ Toolbox").assertExists()
     }
     @Test fun toolboxIntroductionsShowDescriptionWithoutChangingSchedule() {
         val c=setup();val before=c.state!!.array("days").toString()
         rule.onNodeWithTag("schedule-workbench").performScrollTo()
         rule.onNodeWithTag("toolbox-info-mca").performClick()
-        rule.onNodeWithText("景點介紹").assertIsDisplayed()
+        rule.onNodeWithText("About this place").assertIsDisplayed()
         rule.onNodeWithText(c.state!!.array("candidates").objects().first{it.optString("id")=="mca"}.getString("description")).assertExists()
-        rule.onNodeWithText("完成").performClick()
+        rule.onNodeWithText("Done").performClick()
         assertEquals(before,c.state!!.array("days").toString());c.stop()
     }
     @Test fun toolboxMovesExistingWithoutDuplicateAndBlocksOtherDaysAndLocks() {
@@ -369,7 +371,7 @@ class ScheduleEditorTest {
         val c=setup();val before=c.state!!.array("days").getJSONObject(0).array("activities").objects();val id=before.first().getString("id")
         rule.onNodeWithTag("schedule-workbench").performScrollTo()
         rule.onNodeWithTag("schedule-edit-$id").performScrollTo().performClick()
-        rule.onNodeWithText("移除此活動").performClick()
+        rule.onNodeWithText("Remove this activity").performClick()
         rule.waitUntil(5000){!c.busy}
         assertEquals(before.size-1,c.state!!.array("days").getJSONObject(0).array("activities").length())
         rule.runOnIdle{c.undo()};rule.waitUntil(5000){!c.busy}

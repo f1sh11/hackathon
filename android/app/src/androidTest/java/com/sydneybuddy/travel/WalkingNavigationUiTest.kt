@@ -42,20 +42,20 @@ class WalkingNavigationUiTest {
             instrumentation.runOnMainSync {store.select(JSONObject().put("id","navigation-ui-test").put("days",JSONArray().put(day)));store.chooseMapProvider(MapProvider.OSM)}
             val before=store.trip.toString()
             rule.setContent{MaterialTheme{WalkingNavigationDialog(store,suppliedNavigator=nav){}}}
-            rule.onNodeWithText("前往 Opera House").assertIsDisplayed()
+            rule.onNodeWithText("Head to Opera House").assertIsDisplayed()
             rule.onNode(isToggleable()).performScrollTo().performClick()
-            click("预览整天步行路线")
+            click("Preview daily walking route")
             rule.waitUntil(10000){!nav.busy}
             assertTrue(nav.geometry.size>10)
-            click("开始模拟导航")
+            click("Start navigation simulation")
             rule.waitUntil(20000){nav.progress.arrived || nav.message!=null}
             assertNull(nav.message)
-            rule.onNodeWithText("前往下一站").performScrollTo().assertIsDisplayed()
+            rule.onNodeWithText("Go to next stop").performScrollTo().assertIsDisplayed()
             assertEquals(0,nav.progress.leg)
             val screenshot=instrumentation.uiAutomation.takeScreenshot()
             File(context.getExternalFilesDir(null),"navigation-android-arrival.png").outputStream().use{screenshot.compress(Bitmap.CompressFormat.PNG,100,it)}
             screenshot.recycle()
-            click("前往下一站")
+            click("Go to next stop")
             assertEquals(1,nav.progress.leg)
             assertEquals(before,store.trip.toString())
             rule.runOnIdle {nav.pause()}

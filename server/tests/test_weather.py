@@ -19,7 +19,7 @@ class WeatherTests(unittest.TestCase):
   self.assertEqual(w['status'],'out_of_range');self.assertFalse(w['days'][0]['available'])
  def test_failure_explicit(self):
   def fail(*a,**kw):raise TimeoutError()
-  w=get_weather(P,fail,'key');self.assertEqual(w['status'],'unavailable');self.assertIn('未按晴天',w['summary'])
+  w=get_weather(P,fail,'key');self.assertEqual(w['status'],'unavailable');self.assertIn('sunny conditions have not been assumed',w['summary'])
  def test_missing_probability_not_zero(self):
   r=row(24,0);del r['daytimeForecast']['precipitation']
   self.assertEqual(get_weather(P,lambda *a,**kw:{'forecastDays':[r]},'key')['status'],'unavailable')

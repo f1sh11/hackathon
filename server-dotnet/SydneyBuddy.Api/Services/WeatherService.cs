@@ -24,7 +24,7 @@ public sealed class WeatherService(IExternalJsonClient external)
             if (string.IsNullOrWhiteSpace(key)) throw new InvalidDataException();
             const string url = "https://weather.googleapis.com/v1/forecast/days:lookup?" +
                                "location.latitude=-33.8688&location.longitude=151.2093&" +
-                               "days=10&pageSize=10&languageCode=zh-CN&unitsSystem=METRIC";
+                               "days=10&pageSize=10&languageCode=en&unitsSystem=METRIC";
             var raw = await external.FetchAsync(url, headers: new Dictionary<string, string> { ["X-Goog-Api-Key"] = key },
                 timeoutSeconds: 8, cancellationToken: ct);
             var records = new Dictionary<string, JsonObject>();
@@ -45,7 +45,7 @@ public sealed class WeatherService(IExternalJsonClient external)
                 {
                     forecasts.Add(new JsonObject
                     {
-                        ["date"] = date, ["summary"] = "超出未来 10 天预报范围", ["rainy"] = false, ["available"] = false
+                        ["date"] = date, ["summary"] = "Outside the next 10 days of forecast coverage", ["rainy"] = false, ["available"] = false
                     });
                     continue;
                 }
@@ -69,7 +69,7 @@ public sealed class WeatherService(IExternalJsonClient external)
                     var type = part["weatherCondition"]?["type"]?.GetValue<string>() ?? "";
                     return type.Contains("RAIN", StringComparison.Ordinal) || type.Contains("THUNDER", StringComparison.Ordinal);
                 });
-                var summary = $"{string.Join(" / ", descriptions)} · {Format(low.Value)}–{Format(high.Value)}°C · 降水概率 {Format(probability)}%";
+                var summary = $"{string.Join(" / ", descriptions)} · {Format(low.Value)}–{Format(high.Value)}°C · chance of rain {Format(probability)}%";
                 forecasts.Add(new JsonObject
                 {
                     ["date"] = date, ["summary"] = summary, ["rainy"] = rainy, ["available"] = true,
@@ -87,12 +87,12 @@ public sealed class WeatherService(IExternalJsonClient external)
         catch (Exception)
         {
             // 保留明确的不可用状态；weather failure must not masquerade as verified live data.
-            value["summary"] = "天气暂不可用，未按晴天处理";
+            value["summary"] = "Weather is temporarily unavailable. Clear skies have not been assumed.";
             value["status"] = "unavailable";
             value["rainy"] = false;
             value["days"] = new JsonArray(dates.Select(date => (JsonNode)new JsonObject
             {
-                ["date"] = date, ["summary"] = "天气暂不可用，请稍后刷新", ["rainy"] = false, ["available"] = false
+                ["date"] = date, ["summary"] = "Weather is temporarily unavailable. Please refresh later.", ["rainy"] = false, ["available"] = false
             }).ToArray());
         }
         return value;

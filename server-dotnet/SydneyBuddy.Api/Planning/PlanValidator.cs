@@ -9,7 +9,7 @@ namespace SydneyBuddy.Api;
 /// </summary>
 public static class PlanValidator
 {
-    private const string InvalidInput = "请检查日期、时间、预算、步数和悉尼范围内的起终点。";
+    private const string InvalidInput = "Check the date, time, budget, step limit and start/end points within Sydney.";
 
     /// <summary>
     /// 输入原始 JSON 与可用景点，返回独立的规范化副本；错误统一转为可展示的业务异常。
@@ -67,7 +67,7 @@ public static class PlanValidator
             {
                 JsonObject point;
                 if (!profile.ContainsKey(endpoint))
-                    point = new JsonObject { ["name"] = "环形码头", ["lat"] = -33.8611, ["lng"] = 151.2126 };
+                    point = new JsonObject { ["name"] = "Circular Quay", ["lat"] = -33.8611, ["lng"] = 151.2126 };
                 else
                     point = profile[endpoint] as JsonObject ?? throw new FormatException();
                 var latitude = ReadNumber(point, "lat", double.NaN);
@@ -77,7 +77,7 @@ public static class PlanValidator
                     throw new FormatException();
                 profile[endpoint] = new JsonObject
                 {
-                    ["name"] = Truncate(point.ContainsKey("name") ? Text(point["name"]) : "指定地点", 60),
+                    ["name"] = Truncate(point.ContainsKey("name") ? Text(point["name"]) : "Selected location", 60),
                     ["lat"] = latitude,
                     ["lng"] = longitude
                 };
@@ -104,7 +104,7 @@ public static class PlanValidator
             if(!DateOnly.TryParseExact(raw.Str("date"),"yyyy-MM-dd",CultureInfo.InvariantCulture,DateTimeStyles.None,out var date))throw new FormatException();
             var days=ReadInteger(raw,"days",1);if(days is <1 or >3)throw new FormatException();_ = date.AddDays(days-1);
             return new(){["date"]=date.ToString("yyyy-MM-dd",CultureInfo.InvariantCulture),["days"]=days,["weatherOverride"]=raw.Str("weatherOverride")};
-        }catch(Exception e)when(e is FormatException or InvalidOperationException or ArgumentException or OverflowException){throw new ServiceException("請檢查預報日期與天數。");}
+        }catch(Exception e)when(e is FormatException or InvalidOperationException or ArgumentException or OverflowException){throw new ServiceException("Check the forecast date and number of days.");}
     }
 
     private static double ReadNumber(JsonObject node, string name, double fallback)

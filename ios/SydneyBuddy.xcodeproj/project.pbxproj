@@ -592,7 +592,7 @@
       };
       buildConfigurationList = "FBD3510CED826C9DAA696E48";
       compatibilityVersion = "Xcode 14.0";
-      developmentRegion = "zh-Hans";
+      developmentRegion = "en";
       hasScannedForEncodings = 0;
       knownRegions = ("en", "zh-Hans", "zh-Hant", "Base");
       mainGroup = "B28B7AF69320201D1CF206EB";

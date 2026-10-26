@@ -19,7 +19,7 @@ await using (var scope = app.Services.CreateAsyncScope())
 app.UseRouting();
 app.UseMiddleware<TravelDataMiddleware>();
 app.MapBuddyApi("");
-app.MapFallback("{**path}", (HttpContext context) => Results.Json(new { error = "未找到" }, statusCode: 404));
+app.MapFallback("{**path}", (HttpContext context) => Results.Json(new { error = "Not found" }, statusCode: 404));
 app.Run();
 
 /// <summary>供集成测试托管真实 API。 / Entry point exposed to the in-process integration test host.</summary>

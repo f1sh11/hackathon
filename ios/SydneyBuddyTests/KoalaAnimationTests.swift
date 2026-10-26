@@ -69,6 +69,7 @@ final class KoalaAnimationTests:XCTestCase {
         XCTAssertEqual(.playfulTired,KoalaConversationFeedback.event(text:"一万五千步也可以"))
         XCTAssertNil(KoalaConversationFeedback.event(text:"预算15000澳元",scene:"想走多少步？"))
         XCTAssertNil(KoalaConversationFeedback.event(text:"不是15000步，改成10000步"))
+        XCTAssertNil(KoalaConversationFeedback.event(text:"15000 步，改成10000 步"))
         XCTAssertNil(KoalaConversationFeedback.event(text:"不想走15000步"))
         XCTAssertNil(KoalaConversationFeedback.event(text:"我平时喜欢宅家"))
         XCTAssertEqual(.rainConversation,KoalaConversationFeedback.event(text:"走，带上伞",scene:"这趟要是下点小雨，撑伞逛逛？"))
@@ -79,6 +80,23 @@ final class KoalaAnimationTests:XCTestCase {
         XCTAssertTrue(KoalaCue(event:.playfulTired).returnsToIdle);XCTAssertTrue(KoalaCue(event:.rainConversation).returnsToIdle)
         XCTAssertFalse(KoalaCue(event:.fatigueRisk).returnsToIdle);XCTAssertFalse(KoalaCue(event:.weatherRisk).returnsToIdle)
         XCTAssertNotEqual(KoalaEvent.playfulTired.rawValue,KoalaEvent.fatigueRisk.rawValue)
+    }
+    func testEnglishChoicesKeepPlayfulAnimationsAndRespectRefusals() {
+        for text in ["15,000 steps · explore more","15000 STEPS is fine"] {
+            XCTAssertEqual(.playfulTired,KoalaConversationFeedback.event(text:text),text)
+        }
+        XCTAssertEqual(.playfulTired,KoalaConversationFeedback.event(text:"15000",scene:"How many steps would you like to walk?"))
+        for text in ["Not 15,000 steps, make it 10,000 steps","I don't want to walk 15000 steps","Under 15000 steps","Budget: 15000 AUD","150000 steps"] {
+            XCTAssertNil(KoalaConversationFeedback.event(text:text,scene:"How many steps?"),text)
+        }
+        for text in ["Rain is fine, I’ll bring an umbrella","I don't mind rain","Let's go with an umbrella"] {
+            XCTAssertEqual(.rainConversation,KoalaConversationFeedback.event(text:text),text)
+        }
+        XCTAssertEqual(.rainConversation,KoalaConversationFeedback.event(text:"That's fine",scene:"What if it rains? Bring an umbrella?"))
+        for text in ["I don't like rain","Let's stay indoors instead","No umbrella, let's wait","I'll take a train"] {
+            XCTAssertNil(KoalaConversationFeedback.event(text:text),text)
+        }
+        XCTAssertNil(KoalaConversationFeedback.event(text:"I don't want to go",scene:"Would you go out in the rain?"))
     }
     func testTemporaryReactionsPlayTheReturnClipThenBecomeIdle() {
         for action in [KoalaAction.tired,.weather] {

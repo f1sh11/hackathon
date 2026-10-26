@@ -33,15 +33,15 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.math.ceil
 
-fun transportLabel(mode:String)=when(mode){"walk"->"步行";"drive"->"开车";"transit"->"大众运输";"bus"->"公车";"rail"->"火车";"metro"->"地铁";"tram"->"轻轨";"ferry"->"渡轮";else->"交通"}
+fun transportLabel(mode:String)=when(mode){"walk"->"Walk";"drive"->"Drive";"transit"->"Public transport";"bus"->"Bus";"rail"->"Train";"metro"->"Metro";"tram"->"Light rail";"ferry"->"Ferry";else->"Transportation"}
 fun transportGlyph(mode:String)=when(mode){"walk"->"🚶";"drive"->"🚗";"bus"->"🚌";"ferry"->"⛴";else->"🚆"}
 fun transportColor(mode:String)=when(mode){"walk"->Color(0xFF1976D2);"drive"->Green;else->Color(0xFF1976D2)}
-fun journeyTime(raw:String)=runCatching{OffsetDateTime.parse(raw).atZoneSameInstant(ZoneId.of("Australia/Sydney")).format(DateTimeFormatter.ofPattern("HH:mm"))}.getOrDefault("时间未提供")
+fun journeyTime(raw:String)=runCatching{OffsetDateTime.parse(raw).atZoneSameInstant(ZoneId.of("Australia/Sydney")).format(DateTimeFormatter.ofPattern("HH:mm"))}.getOrDefault("Time not provided")
 data class JourneyMapSection(val mode:String,val points:List<Pair<Double,Double>>,val boarding:String="",val alighting:String="",val line:String?=null) {
-    val stops get()=if(mode in listOf("walk","drive") || points.size<2)emptyList()else listOf(points.first() to "上车 · $boarding",points.last() to "下车 · $alighting")
+    val stops get()=if(mode in listOf("walk","drive") || points.size<2)emptyList()else listOf(points.first() to "Board · $boarding",points.last() to "Alight · $alighting")
 }
 data class JourneyStep(val mode:String,val line:String?,val headsign:String?,val from:String,val to:String,val departureTime:String,val arrivalTime:String,val realtime:Boolean,val stopCount:Int?,val meters:Double,val seconds:Double,val waitSeconds:Double,val platform:String?,val agency:String?,val geometry:List<Pair<Double,Double>>) {
-    val title get()="${transportGlyph(mode)} ${transportLabel(mode)}"+(if(mode in listOf("walk","drive"))"" else " · "+line?.takeIf{it.isNotBlank()}.orEmpty().ifEmpty{"路线号码未提供"})
+    val title get()="${transportGlyph(mode)} ${transportLabel(mode)}"+(if(mode in listOf("walk","drive"))"" else " · "+line?.takeIf{it.isNotBlank()}.orEmpty().ifEmpty{"Route number not provided"})
     companion object {
         fun parse(o:JSONObject):JourneyStep {
             fun nullable(key:String)=if(o.isNull(key))null else o.optString(key)
@@ -86,11 +86,11 @@ class JourneyModel(private val client:OkHttpClient=OkHttpClient.Builder().addInt
                             override fun onResponse(call:Call,response:Response){c.resume(response){_,value,_->value.close()}}
                         })
                     }
-                    response.use{val body=it.body.string();if(!it.isSuccessful)error(runCatching{JSONObject(body).optString("error")}.getOrDefault("").ifBlank{"交通规划服务暂不可用。"});JourneyPlan.parse(body)}
+                    response.use{val body=it.body.string();if(!it.isSuccessful)error(runCatching{JSONObject(body).optString("error")}.getOrDefault("").ifBlank{"Transportation Planning Service Currently Unavailable."});JourneyPlan.parse(body)}
                 }
                 ensureActive();plan=result;busy=false
             }catch(e:CancellationException){throw e}
-            catch(e:Exception){busy=false;error=e.message ?: "交通查询失败，请稍后重试。"}
+            catch(e:Exception){busy=false;error=e.message ?: "Could not load transport options. Please retry."}
         }
     }
 }
@@ -112,20 +112,20 @@ class JourneyModel(private val client:OkHttpClient=OkHttpClient.Builder().addInt
         Box(Modifier.fillMaxSize().background(Mint).testTag("journey-planner")) {
             RouteMap(day,Modifier.fillMaxSize(),true,provider,overview=result?.overview,expanded=true,sections=result?.sections ?: emptyList())
             Column(Modifier.fillMaxSize().padding(horizontal=16.dp,vertical=12.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
-                Surface(shape=RoundedCornerShape(20.dp),color=Color.White){Row(Modifier.fillMaxWidth().padding(14.dp),verticalAlignment=Alignment.CenterVertically){Text("交通路线",modifier=Modifier.weight(1f),style=MaterialTheme.typography.titleMedium);TextButton(onClick=onClose){Text(ui("关闭"))}}}
-                if(fixture!=null)Text("测试资料 · TEST 公车非真实班次",Modifier.background(Color.Yellow).padding(8.dp),fontSize=12.sp)
-                if(!details)Surface(shape=RoundedCornerShape(18.dp),color=Color.White){Column(Modifier.fillMaxWidth().padding(14.dp)){Text("起 · ${points.first().name}");Text("↓ ${points.size-2} 个停留点",fontSize=12.sp);Text("终 · ${points.last().name}")}}
+                Surface(shape=RoundedCornerShape(20.dp),color=Color.White){Row(Modifier.fillMaxWidth().padding(14.dp),verticalAlignment=Alignment.CenterVertically){Text("Transportation Route",modifier=Modifier.weight(1f),style=MaterialTheme.typography.titleMedium);TextButton(onClick=onClose){Text(ui("Close"))}}}
+                if(fixture!=null)Text("Test data · TEST Bus non-real schedule",Modifier.background(Color.Yellow).padding(8.dp),fontSize=12.sp)
+                if(!details)Surface(shape=RoundedCornerShape(18.dp),color=Color.White){Column(Modifier.fillMaxWidth().padding(14.dp)){Text("Start · ${points.first().name}");Text("↓ ${points.size-2} stops",fontSize=12.sp);Text("End · ${points.last().name}")}}
                 Spacer(Modifier.weight(1f))
                 Surface(shape=RoundedCornerShape(24.dp),color=Color.White,shadowElevation=6.dp){
                     Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
-                        Row(verticalAlignment=Alignment.CenterVertically){Text(result?.let{"${ceil(it.travelSeconds/60).toInt()} 分钟 · ${it.meters.toInt()} 米"} ?: "选择每段交通方式",Modifier.weight(1f),style=MaterialTheme.typography.titleMedium);TextButton(onClick={details=!details}){Text(if(details)"收起" else "路线详情")}}
+                        Row(verticalAlignment=Alignment.CenterVertically){Text(result?.let{"${ceil(it.travelSeconds/60).toInt()} minutes · ${it.meters.toInt()} m"} ?: "Choose transport for each leg",Modifier.weight(1f),style=MaterialTheme.typography.titleMedium);TextButton(onClick={details=!details}){Text(if(details)"Collapse" else "Route details")}}
                         result?.let{Text(it.source,fontSize=11.sp,color=Muted)}
                         if(details)Column(Modifier.fillMaxWidth().heightIn(max=350.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(10.dp)) {
                             if(result==null) {
-                            Text("路线资料来源",fontSize=12.sp)
+                            Text("Route data source",fontSize=12.sp)
                             Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(6.dp)) {
                                 (if(contentSource=="google")listOf("google") else listOf("open","nsw")+if(provider==MapProvider.GOOGLE)listOf("google")else emptyList()).forEach { source ->
-                                    FilterChip(selected=routingProvider==source,onClick={model.invalidate();routingProvider=source},label={Text(when(source){"open"->"开源 Valhalla / OTP";"nsw"->"NSW + Valhalla";else->"Google Routes"},fontSize=11.sp)})
+                                    FilterChip(selected=routingProvider==source,onClick={model.invalidate();routingProvider=source},label={Text(when(source){"open"->"Open-source Valhalla / OTP";"nsw"->"NSW + Valhalla";else->"Google Routes"},fontSize=11.sp)})
                                 }
                             }
                             TextButton(onClick={
@@ -133,27 +133,27 @@ class JourneyModel(private val client:OkHttpClient=OkHttpClient.Builder().addInt
                                     val chosen=LocalDate.of(year,month+1,date)
                                     TimePickerDialog(context,{_,hour,minute->model.invalidate();departure=ZonedDateTime.of(chosen,LocalTime.of(hour,minute),ZoneId.of("Australia/Sydney"))},departure.hour,departure.minute,true).show()
                                 },departure.year,departure.monthValue-1,departure.dayOfMonth).show()
-                            }){Text("出发（悉尼） ${departure.format(DateTimeFormatter.ofPattern("MM-dd HH:mm"))}",fontSize=12.sp)}
+                            }){Text("Departure (Sydney) ${departure.format(DateTimeFormatter.ofPattern("MM-dd HH:mm"))}",fontSize=12.sp)}
                             Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)){listOf("walk","drive","transit").forEach{mode->FilterChip(selected=modes.all{it==mode},onClick={setModes(List(modes.size){mode})},label={Text("${transportGlyph(mode)} ${transportLabel(mode)}")})}}
-                            } else Row {Text("出发 ${journeyTime(result.departureTime)} · 悉尼",Modifier.weight(1f),fontSize=12.sp);if(fixture==null)TextButton(onClick=model::invalidate){Text("调整交通")}}
+                            } else Row {Text("Depart ${journeyTime(result.departureTime)} · Sydney",Modifier.weight(1f),fontSize=12.sp);if(fixture==null)TextButton(onClick=model::invalidate){Text("Adjust transportation")}}
                             points.forEachIndexed{i,p->
-                                Row(horizontalArrangement=Arrangement.spacedBy(10.dp),verticalAlignment=Alignment.CenterVertically){Text(if(i==0)"起" else if(i==points.lastIndex)"终" else "$i",Modifier.background(Mint,CircleShape).padding(8.dp));Text(p.name,style=MaterialTheme.typography.titleSmall)}
+                                Row(horizontalArrangement=Arrangement.spacedBy(10.dp),verticalAlignment=Alignment.CenterVertically){Text(if(i==0)"S" else if(i==points.lastIndex)"F" else "$i",Modifier.background(Mint,CircleShape).padding(8.dp));Text(p.name,style=MaterialTheme.typography.titleSmall)}
                                 if(i<modes.size){
                                     if(result==null) Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){listOf("walk","drive","transit").forEach{mode->FilterChip(selected=modes[i]==mode,onClick={setModes(modes.toMutableList().also{it[i]=mode})},label={Text(transportLabel(mode),fontSize=12.sp)},modifier=Modifier.testTag("journey-mode-$i-$mode"))}}
                                     result?.legs?.firstOrNull{it.index==i}?.let{leg->
-                                        Text("${journeyTime(leg.departureTime)} → ${journeyTime(leg.arrivalTime)}"+if(leg.staySeconds>0)" · 到站停留 ${leg.staySeconds.toInt()/60} 分" else "",fontSize=12.sp,color=Muted)
+                                        Text("${journeyTime(leg.departureTime)} → ${journeyTime(leg.arrivalTime)}"+if(leg.staySeconds>0)" · ${leg.staySeconds.toInt()/60} min to station" else "",fontSize=12.sp,color=Muted)
                                         leg.steps.forEach{JourneyStepRow(it)}
                                     }
                                 }
                             }
                             result?.warnings?.forEach{Text(it,fontSize=11.sp,color=Muted)}
-                            Text(result?.source ?: "步行：蓝色密集小圆点 · 开车：绿色细实线 · 公共交通：蓝色细实线。尚未查询时仅显示站点，不画直线；路线沿服务回传的道路线形。",fontSize=11.sp,color=Muted)
+                            Text(result?.source ?: "Walking: blue dense dots · Driving: green thin solid line · Public transport: blue thin solid line. When not queried, only stations are shown, no straight lines; routes follow the road shape returned by the service.",fontSize=11.sp,color=Muted)
                         }
                         model.error?.let{Text(it,color=Color.Red,fontSize=12.sp,modifier=Modifier.testTag("journey-error"))}
                         Row(horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically){
-                            Button(onClick={model.load(day,modes,departure.toOffsetDateTime(),base,routingProvider,provider.name.lowercase(),contentSource)},enabled=!model.busy && fixture==null){Text(if(model.busy)"正在查询交通…" else if(result==null)"规划交通路线" else "重新查询")}
-                            if(model.busy)TextButton(onClick=model::invalidate){Text(ui("取消"))}
-                            if(fixture==null && routingProvider=="open" && result!=null && modes.all{it=="walk"})TextButton(onClick=onWalkNavigation){Text("开始步行导航")}
+                            Button(onClick={model.load(day,modes,departure.toOffsetDateTime(),base,routingProvider,provider.name.lowercase(),contentSource)},enabled=!model.busy && fixture==null){Text(if(model.busy)"Querying transit…" else if(result==null)"Plan Transport Route" else "Search again")}
+                            if(model.busy)TextButton(onClick=model::invalidate){Text(ui("Cancel"))}
+                            if(fixture==null && routingProvider=="open" && result!=null && modes.all{it=="walk"})TextButton(onClick=onWalkNavigation){Text("Start walking navigation")}
                         }
                     }
                 }
@@ -163,14 +163,14 @@ class JourneyModel(private val client:OkHttpClient=OkHttpClient.Builder().addInt
 }
 @Composable private fun JourneyStepRow(step:JourneyStep) {
     Column(Modifier.fillMaxWidth().background(transportColor(step.mode).copy(alpha=.08f),RoundedCornerShape(12.dp)).padding(10.dp),verticalArrangement=Arrangement.spacedBy(5.dp)) {
-        Row{Text(step.title,color=transportColor(step.mode),style=MaterialTheme.typography.titleSmall,modifier=Modifier.weight(1f));Text("${ceil(step.seconds/60).toInt()} 分",fontSize=12.sp)}
-        if(step.waitSeconds>0)Text("候车／衔接约 ${ceil(step.waitSeconds/60).toInt()} 分",fontSize=12.sp)
+        Row{Text(step.title,color=transportColor(step.mode),style=MaterialTheme.typography.titleSmall,modifier=Modifier.weight(1f));Text("${ceil(step.seconds/60).toInt()} min",fontSize=12.sp)}
+        if(step.waitSeconds>0)Text("Wait / Connect approx. ${ceil(step.waitSeconds/60).toInt()} min",fontSize=12.sp)
         Text("${step.from} → ${step.to}",fontSize=12.sp)
-        step.headsign?.takeIf{it.isNotBlank()}?.let{Text("往 $it",fontSize=12.sp)}
+        step.headsign?.takeIf{it.isNotBlank()}?.let{Text("To $it",fontSize=12.sp)}
         if(step.mode !in listOf("walk","drive")){
-            Text("${journeyTime(step.departureTime)} 上车 · ${journeyTime(step.arrivalTime)} 下车"+(step.stopCount?.let{" · $it 站"} ?: "")+(step.platform?.takeIf{it.isNotBlank()}?.let{" · 站台 $it"} ?: ""),fontSize=12.sp)
-            Text(if(step.realtime)"实时更新" else "时刻表班次 · 非实时",fontSize=11.sp,color=Muted)
+            Text("${journeyTime(step.departureTime)} Board · ${journeyTime(step.arrivalTime)} Alight"+(step.stopCount?.let{" · $it stops"} ?: "")+(step.platform?.takeIf{it.isNotBlank()}?.let{" · Platform $it"} ?: ""),fontSize=12.sp)
+            Text(if(step.realtime)"Real-time update" else "Schedule · Non-real-time",fontSize=11.sp,color=Muted)
         }
-        if(step.geometry.size<2)Text("此段未提供路线线形，请按站名确认。",fontSize=11.sp,color=Muted)
+        if(step.geometry.size<2)Text("Route shape not provided; confirm by station name.",fontSize=11.sp,color=Muted)
     }
 }

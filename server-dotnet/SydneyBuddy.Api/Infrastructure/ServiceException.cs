@@ -4,4 +4,4 @@ namespace SydneyBuddy.Api;
 public sealed class ServiceException(string message) : Exception(message);
 
 /// <summary>行程被其他请求修改（HTTP 409）。 / An optimistic concurrency conflict (HTTP 409).</summary>
-public sealed class RevisionConflictException() : Exception("行程版本已变化，请重新加载后确认");
+public sealed class RevisionConflictException() : Exception("The trip revision has changed. Reload it before confirming.");

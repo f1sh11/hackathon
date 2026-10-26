@@ -3,8 +3,15 @@ import Foundation
 enum AppLanguage:String,CaseIterable,Identifiable {
     case traditional="zh-Hant",simplified="zh-Hans",english="en"
     var id:String{rawValue}
-    var label:String{switch self{case .traditional:return "繁體中文";case .simplified:return "简体中文";case .english:return "English"}}
-    static var current:AppLanguage { AppLanguage(rawValue:UserDefaults.standard.string(forKey:"appLanguage") ?? "") ?? .simplified }
+    var label:String{switch self{case .traditional:return "Traditional Chinese";case .simplified:return "Simplified Chinese";case .english:return "English"}}
+    // This release presents the product in English. Keep legacy enum values/catalogs so
+    // existing documents and Chinese input remain readable without changing stored facts.
+    static var current:AppLanguage {
+        if UserDefaults.standard.string(forKey:"appLanguage") != Self.english.rawValue {
+            UserDefaults.standard.set(Self.english.rawValue,forKey:"appLanguage")
+        }
+        return .english
+    }
     private var bundle:Bundle { Self.bundles[self] ?? .main }
     private static let bundles:[AppLanguage:Bundle] = Dictionary(uniqueKeysWithValues:allCases.compactMap { language in
         Bundle.main.path(forResource:language.rawValue,ofType:"lproj").flatMap { Bundle(path:$0) }.map { (language,$0) }

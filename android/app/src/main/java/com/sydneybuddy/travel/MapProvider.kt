@@ -35,7 +35,7 @@ import java.io.File
 
 /** App preferences and camera state do not depend on either map SDK. */
 enum class MapProvider(val label:String) {
-    OSM("OpenStreetMap"), GOOGLE("Google Maps"), SCHEMATIC("离线示意图");
+    OSM("OpenStreetMap"), GOOGLE("Google Maps"), SCHEMATIC("Offline overview");
     companion object {
         fun fromStored(value:String?):MapProvider = entries.find {it.name==value} ?: OSM
     }
@@ -196,7 +196,7 @@ internal const val OSM_STYLE="""{
                 if(arrowPoints.size>30 && i % (arrowPoints.size/8).coerceAtLeast(1)!=0)return@forEachIndexed
                 if(kotlin.math.abs(a.first-b.first)+kotlin.math.abs(a.second-b.second)<0.00001)return@forEachIndexed
                 val position=if(arrowPoints.size>30)a else (a.first+b.first)/2 to (a.second+b.second)/2
-                ready.addMarker(MarkerOptions().position(LatLng(position.first,position.second)).title("行程方向")
+                ready.addMarker(MarkerOptions().position(LatLng(position.first,position.second)).title("Trip Direction")
                     .icon(icons.fromBitmap(itineraryBadge(itineraryDirection(a,b),true))))
             }
             sections.forEach {section->section.stops.forEach {(point,title)->
@@ -220,7 +220,7 @@ internal const val OSM_STYLE="""{
     LaunchedEffect(map,nearbyPlaces,sceneKey){
         val ready=map ?: return@LaunchedEffect
         nearbyMarkers.forEach{ready.removeMarker(it)}
-        nearbyMarkers=nearbyPlaces.map{point->ready.addMarker(MarkerOptions().position(LatLng(point.getDouble("lat"),point.getDouble("lng"))).title(point.optString("name")).snippet(point.optString("id")).icon(IconFactory.getInstance(context).fromBitmap(itineraryBadge("景"))))}
+        nearbyMarkers=nearbyPlaces.map{point->ready.addMarker(MarkerOptions().position(LatLng(point.getDouble("lat"),point.getDouble("lng"))).title(point.optString("name")).snippet(point.optString("id")).icon(IconFactory.getInstance(context).fromBitmap(itineraryBadge("P"))))}
     }
     Box(if(fullBleed) modifier else modifier.fillMaxWidth().height(310.dp)) {
         AndroidView(factory={view},modifier=Modifier.fillMaxSize().onSizeChanged {size->if(size.width>0 && size.height>0)mapShortSide=minOf(size.width,size.height)/density})
@@ -228,7 +228,7 @@ internal const val OSM_STYLE="""{
         Column(Modifier.align(Alignment.CenterEnd).background(Color.White.copy(alpha=.94f)).padding(6.dp)) {
             Text("© OpenStreetMap contributors",fontSize=10.sp,color=Ink,
                 modifier=Modifier.clickable {uri.openUri("https://www.openstreetmap.org/copyright")})
-            Text(if(rendered) if(sections.isNotEmpty()) "地图已加载 · 分段交通路线" else if(overview==null) "地图已加载 · 仅显示站点，尚未查询道路路线" else "地图已加载 · 沿道路步行路线" else if(error) "地图暂未加载，可选离线示意图" else "地图加载中…",fontSize=10.sp,color=Muted)
+            Text(if(rendered) if(sections.isNotEmpty()) "Map loaded · transport routes by segment" else if(overview==null) "Map loaded · stops only; road routes have not been requested" else "Map loaded · walking route along roads" else if(error) "Map could not load. You can choose the offline overview." else "Loading map…",fontSize=10.sp,color=Muted)
         }
     }
 }

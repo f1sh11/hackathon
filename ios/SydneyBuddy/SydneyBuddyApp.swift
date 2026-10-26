@@ -120,7 +120,7 @@ struct OnboardingView: View {
                         switch step {
                         case 0:
                             Label(uiText("SYDNEY · 悉尼"),systemImage:"sailboat.fill").font(.title2.bold()).foregroundStyle(Palette.green).padding(24).frame(maxWidth:.infinity,alignment:.leading).background(Palette.mint,in:RoundedRectangle(cornerRadius:24))
-                            DatePicker("出发日期",selection:$selectedDate,in:Date()...,displayedComponents:.date).datePickerStyle(.graphical).tint(Palette.green).padding(12).background(.white,in:RoundedRectangle(cornerRadius:24))
+                            DatePicker(uiText("出发日期"),selection:$selectedDate,in:Date()...,displayedComponents:.date).datePickerStyle(.graphical).tint(Palette.green).padding(12).background(.white,in:RoundedRectangle(cornerRadius:24))
                         case 1:
                             ForEach(1...3,id:\.self) { n in
                                 choice("\(n) 天",detail:["一次轻巧的城市探索","多留一点时间，慢慢发现","给风景和休息都留些空间"][n-1],symbol:"sun.max.fill",selected:store.profile.days==n) { store.profile.days=n; respond("好，给你安排 \(n) 天的小冒险。") }

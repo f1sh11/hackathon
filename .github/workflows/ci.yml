@@ -31,6 +31,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - name: Validate English presentation and generated localization resources
+        run: |
+          python3 scripts/generate_localizations.py --check
+          python3 -m unittest discover -s server/tests -p 'test_english_presentation.py'
+          python3 -m unittest discover -s server/tests -p 'test_planner.py'
+          python3 -m unittest discover -s server/tests -p 'test_weather.py'
       - name: Restore backend and test dependencies
         run: dotnet restore server-dotnet/SydneyBuddy.Api.Tests/SydneyBuddy.Api.Tests.csproj
       - name: Build backend and tests

@@ -6,7 +6,7 @@ namespace SydneyBuddy.Api.Tests;
 public sealed class TravelInsightTests {
     static JsonObject Place()=>new(){["id"]="test",["name"]="Museum",["lat"]=-33.86,["lng"]=151.21};
     [Fact] public void MissingPricesAndCrowdsAreNotZero(){
-        var value=TravelInsightService.Price(Place(),new());Assert.Equal("unknown",value.Str("status"));Assert.Null(value["amount"]);Assert.Contains("尚未計入",value.Str("summary"));
+        var value=TravelInsightService.Price(Place(),new());Assert.Equal("unknown",value.Str("status"));Assert.Null(value["amount"]);Assert.Contains("not added to your budget",value.Str("summary"));
     }
     [Fact] public void OsmPriceMustMatchBothNameAndNearbyCoordinate(){
         var feed=JsonNode.Parse("""{"elements":[{"type":"node","id":12,"lat":-33.86,"lon":151.21,"tags":{"name":"Museum","charge":"20 AUD"}}]}""")!.AsObject();

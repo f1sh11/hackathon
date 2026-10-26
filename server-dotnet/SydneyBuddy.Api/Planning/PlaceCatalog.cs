@@ -11,7 +11,7 @@ public sealed class PlaceCatalog(CatalogCache catalogCache, ProjectPaths paths,T
 {
     public IReadOnlyList<JsonObject> Get()
     {
-        if(travel?.Warehouse==true)return (travel.Snapshot?.Catalog??throw new ServiceException("Zetaris 景點目錄尚未取得。")).OfType<JsonObject>().Select(p=>p.DeepClone().AsObject()).ToArray();
+        if(travel?.Warehouse==true)return (travel.Snapshot?.Catalog??throw new ServiceException("The Zetaris place catalog is not available yet.")).OfType<JsonObject>().Select(p=>p.DeepClone().AsObject()).ToArray();
         var key = $"SydneyBuddy.PlaceCatalog:{paths.ServerDirectory}";
         var stored = catalogCache.Cache.GetOrCreate(key, entry =>
         {

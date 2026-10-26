@@ -33,7 +33,7 @@ class PublicBackendLiveTest {
         rule.onNodeWithTag("backend-access-code").performScrollTo().performTextInput(code)
         rule.onNodeWithTag("backend-apply").performScrollTo().performClick()
         rule.waitUntil(120000){var ready=false;rule.activityRule.scenario.onActivity{val s=ViewModelProvider(it)[BuddyStore::class.java];ready=s.base==base&&!s.busy&&s.health?.optString("managedTravelDataSource")=="zetaris-cloud"&&s.travelDataSource=="zetaris-cloud"&&s.dataConnection?.contains("8")==true};ready}
-        rule.onNodeWithTag("backend-status").performScrollTo().assertTextEquals("所選後端已連線")
+        rule.onNodeWithTag("backend-status").performScrollTo().assertTextEquals("Selected backend connected")
         val bitmap=InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
         File(context.getExternalFilesDir(null),"android-public-https-connected.png").outputStream().use{bitmap.compress(Bitmap.CompressFormat.PNG,100,it)};bitmap.recycle()
         rule.activityRule.scenario.onActivity{ViewModelProvider(it)[BuddyStore::class.java].refreshWeather()}

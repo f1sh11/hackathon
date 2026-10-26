@@ -13,10 +13,11 @@ fun JSONObject.array(key: String): JSONArray = optJSONArray(key) ?: JSONArray()
 fun JSONObject.copy(): JSONObject = JSONObject(toString())
 
 data class Endpoint(val name: String, val lat: Double, val lng: Double) {
+    fun sameLocation(other:Endpoint)=lat==other.lat && lng==other.lng
     fun json() = JSONObject().put("name", name).put("lat", lat).put("lng", lng)
     companion object {
-        val quay = Endpoint("环形码头", -33.8611, 151.2126)
-        val central = Endpoint("中央车站", -33.8830, 151.2065)
+        val quay = Endpoint("Circular Quay", -33.8611, 151.2126)
+        val central = Endpoint("Central Station", -33.8830, 151.2065)
         fun from(json: JSONObject) = Endpoint(json.getString("name"), json.getDouble("lat"), json.getDouble("lng"))
     }
 }
@@ -46,10 +47,10 @@ data class Profile(
 
 object Money {
     fun cents(raw: String): Int {
-        val value = raw.trim().replace(',', '.').toBigDecimalOrNull() ?: error("请输入有效金额")
-        require(value > BigDecimal.ZERO && value < BigDecimal("100000")) { "金额须大于 0 且小于 100,000" }
+        val value = raw.trim().replace(',', '.').toBigDecimalOrNull() ?: error("Enter a valid amount")
+        require(value > BigDecimal.ZERO && value < BigDecimal("100000")) { "Enter an amount greater than 0 and less than 100,000." }
         val result = value.movePointRight(2).setScale(0, RoundingMode.HALF_UP).intValueExact()
-        require(result > 0) { "金额至少为 A$0.01" }
+        require(result > 0) { "The amount must be at least A$0.01." }
         return result
     }
     fun shares(cents: Int, people: Int): List<Int> {

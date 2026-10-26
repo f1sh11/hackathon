@@ -41,26 +41,26 @@ class WalkingLiveSmokeTest {
         val draft=api("plan","POST",Profile().json().put("mode","demo"))
         val trip=api("trips","POST",JSONObject().put("trip",draft).put("expectedRevision",0))
         try {
-            rule.waitUntil(30000){rule.onAllNodesWithText("Buddy 正在处理",substring=true).fetchSemanticsNodes().isEmpty()}
+            rule.waitUntil(30000){rule.onAllNodesWithText("Koko is on it",substring=true).fetchSemanticsNodes().isEmpty()}
             rule.activityRule.scenario.onActivity { activity ->
                 val store=ViewModelProvider(activity)[BuddyStore::class.java]
                 assertTrue(store.health?.optBoolean("navigationConfigured")==true)
                 store.select(trip);store.resumeSaved();store.chooseMapProvider(MapProvider.OSM);store.tab=0
             }
-            rule.waitUntil(30000){rule.onAllNodesWithText("Buddy 正在处理",substring=true).fetchSemanticsNodes().isEmpty()}
-            click("開始導航",false)
+            rule.waitUntil(30000){rule.onAllNodesWithText("Koko is on it",substring=true).fetchSemanticsNodes().isEmpty()}
+            click("Start navigation",false)
             rule.onNode(isToggleable()).performScrollTo().performClick()
-            click("预览整天步行路线")
-            rule.waitUntil(30000){rule.onAllNodesWithText("全天步行约",substring=true).fetchSemanticsNodes().isNotEmpty()}
-            click("开始模拟导航")
-            rule.waitUntil(60000){rule.onAllNodesWithText("前往下一站").fetchSemanticsNodes().isNotEmpty()}
-            rule.onNodeWithText("前往下一站").performScrollTo().assertIsDisplayed()
+            click("Preview daily walking route")
+            rule.waitUntil(30000){rule.onAllNodesWithText("Walk about",substring=true).fetchSemanticsNodes().isNotEmpty()}
+            click("Start navigation simulation")
+            rule.waitUntil(60000){rule.onAllNodesWithText("Go to next stop").fetchSemanticsNodes().isNotEmpty()}
+            rule.onNodeWithText("Go to next stop").performScrollTo().assertIsDisplayed()
             val screenshot=InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
             File(context.getExternalFilesDir(null),"navigation-android-live-arrival.png").outputStream().use{screenshot.compress(Bitmap.CompressFormat.PNG,100,it)}
             screenshot.recycle()
-            click("前往下一站")
-            rule.onNodeWithText("第 2 /",substring=true).assertExists()
-            click("关闭",false)
+            click("Go to next stop")
+            rule.onNodeWithText("Segment 2 of",substring=true).assertExists()
+            click("Close",false)
             rule.activityRule.scenario.onActivity { activity ->
                 assertEquals(canonical(trip),canonical(ViewModelProvider(activity)[BuddyStore::class.java].trip))
             }

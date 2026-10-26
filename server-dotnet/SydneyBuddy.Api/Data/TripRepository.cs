@@ -21,11 +21,11 @@ public sealed class TripRepository(BuddyDbContext database)
 
     public async Task<JsonObject> SaveAsync(JsonObject draft, int expectedRevision, CancellationToken ct = default)
     {
-        if (expectedRevision < 0 || expectedRevision == int.MaxValue) throw new ServiceException("行程版本不合法");
+        if (expectedRevision < 0 || expectedRevision == int.MaxValue) throw new ServiceException("Invalid trip revision");
         var trip = (JsonObject)draft.DeepClone();
         var id = trip.Str("id");
         if (string.IsNullOrEmpty(id)) id = Guid.NewGuid().ToString();
-        if (id.Length > 200) throw new ServiceException("行程标识过长");
+        if (id.Length > 200) throw new ServiceException("Trip ID is too long");
         trip["id"] = id;
         trip["revision"] = expectedRevision + 1;
         var json = trip.ToJsonString();

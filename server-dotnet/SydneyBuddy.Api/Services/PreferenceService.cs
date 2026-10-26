@@ -11,10 +11,10 @@ public sealed class PreferenceService(IMemoryService memory, MemoryRepository re
 {
     public async Task<JsonObject> SaveAsync(JsonObject input, CancellationToken ct = default)
     {
-        if (!input.Bool("consent")) throw new ServiceException("需要你明确同意保存记忆");
+        if (!input.Bool("consent")) throw new ServiceException("Your explicit consent is required to save a memory");
         var profile = input.Object("profile") ?? new JsonObject();
         var summary = input.Str("summary");
-        if (string.IsNullOrWhiteSpace(summary)) throw new ServiceException("请填写要记住的偏好。");
+        if (string.IsNullOrWhiteSpace(summary)) throw new ServiceException("Enter the preference you want remembered.");
         if (summary.Length > 500) summary = summary[..500];
         var dna=TravelProfiling.Read(profile.Object("travelDna"));
         if(dna is not null) {dna.Status="confirmed";dna.Scope="long_term";}
@@ -44,7 +44,7 @@ public sealed class PreferenceService(IMemoryService memory, MemoryRepository re
     public async Task<JsonObject> UpdateAsync(string id, JsonObject input, CancellationToken ct = default)
     {
         var existing = (await records.ListAsync(ct)).FirstOrDefault(x => x.Str("id") == id);
-        if (existing is null) throw new ServiceException("这条偏好已不存在，请刷新后重试。");
+        if (existing is null) throw new ServiceException("This preference no longer exists. Refresh and try again.");
         var saved = await SaveAsync(input, ct);
         try { await DeleteAsync(id, ct); }
         catch { await DeleteAsync(saved.Str("id"), CancellationToken.None); throw; }

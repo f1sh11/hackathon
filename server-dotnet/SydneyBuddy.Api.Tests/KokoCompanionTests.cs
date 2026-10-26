@@ -14,20 +14,20 @@ public sealed class KokoCompanionTests
     private static JsonObject Choose(PetSession s,string intent){var q=new PetQuickReply("choice",intent,intent);return KokoDialogue.DirectResponse(s,q.Text,q)!;}
     [Fact] public void MoodOpeningIsOptionalAndDoesNotFillTripFacts(){var s=Session();Assert.Equal(4,s.Messages.Single().QuickReplies!.Length);Assert.Empty(s.Fields);Assert.Empty(s.Preferences);Assert.Contains(s.Messages.Single().QuickReplies!,x=>x.Intent=="mood_skip");}
     [Fact] public void MoodFoodDoesNotRaiseBudgetAndRestDoesNotWriteMemory(){var s=Session();s.Fields["budget"]="60";Choose(s,"mood_food");Assert.Equal("60",s.Fields["budget"]);Assert.Contains("美食",s.Fields["interests"]);Choose(s,"mood_rest");Assert.Equal("低精力",s.Fields["energy"]);Assert.Equal("轻松随意",s.Fields["rhythm"]);Assert.Empty(s.Preferences);Assert.Empty(s.ConfirmedDna);Assert.False(s.Fields.ContainsKey("date"));}
-    [Fact] public void RecallUsesOnlyActiveConfirmedUnconditionalEvidenceAndRejectsCachedProfile(){var s=Session();s.PersonalProfile["rhythm"]="紧凑充实";s.ConfirmedDna.Add(new(){Key="daily_steps",Value="8000",Status="awaiting_confirmation",MemoryId="pending"});var result=Choose(s,"mood_rest");Assert.DoesNotContain("我记得",result.Str("reply"));Assert.False(result.Bool("companionTurn"));}
+    [Fact] public void RecallUsesOnlyActiveConfirmedUnconditionalEvidenceAndRejectsCachedProfile(){var s=Session();s.PersonalProfile["rhythm"]="紧凑充实";s.ConfirmedDna.Add(new(){Key="daily_steps",Value="8000",Status="awaiting_confirmation",MemoryId="pending"});var result=Choose(s,"mood_rest");Assert.DoesNotContain("You previously confirmed",result.Str("reply"));Assert.False(result.Bool("companionTurn"));}
     [Fact] public void RecallCanChangeThisTripWithoutChangingConfirmedHabit(){var s=Session();s.ConfirmedDna.Add(new(){Key="daily_steps",Value="8000",Status="confirmed",MemoryId="active",Source="user_statement"});var result=Choose(s,"mood_rest");Assert.Contains("8000",result.Str("reply"));Assert.Equal(3,KokoCompanion.Options(result).Length);Choose(s,"recall_change");Choose(s,"trip_steps_6000");Assert.Equal("约6000步",s.Fields["pace"]);Assert.Equal("8000",s.ConfirmedDna.Single().Value);Assert.Empty(s.Preferences);}
-    [Fact] public void RevocationBetweenQuestionAndChoiceCannotRestoreOldHabit(){var s=Session();s.ConfirmedDna.Add(new(){Key="daily_steps",Value="8000",Status="confirmed",MemoryId="active"});Choose(s,"mood_rest");s.ConfirmedDna.Clear();var result=Choose(s,"recall_keep");Assert.Contains("记录有变化",result.Str("reply"));Assert.False(s.Fields.ContainsKey("pace"));}
+    [Fact] public void RevocationBetweenQuestionAndChoiceCannotRestoreOldHabit(){var s=Session();s.ConfirmedDna.Add(new(){Key="daily_steps",Value="8000",Status="confirmed",MemoryId="active"});Choose(s,"mood_rest");s.ConfirmedDna.Clear();var result=Choose(s,"recall_keep");Assert.Contains("saved habit has changed",result.Str("reply"));Assert.False(s.Fields.ContainsKey("pace"));}
     [Fact] public void RestInFreeTextIsTripOnlyEvenIfModelProposesLongTerm(){var s=Session();var message="最近很累";KokoCompanion.ApplyFeeling(s,message);TravelProfiling.Apply(s,new(){["preferences"]=new JsonArray(new JsonObject{["key"]="rhythm",["value"]="轻松随意",["scope"]="long_term",["evidence"]=message,["confidence"]=1.0})},message,"message");Assert.Equal("低精力",s.Fields["energy"]);Assert.All(s.Preferences,x=>Assert.Equal("trip",x.Scope));Assert.DoesNotContain(s.Preferences,x=>x.Status=="confirmed");}
     [Fact] public void NegativeFeelingAndChangeNegationsAreNotMisread(){var s=Session();KokoCompanion.ApplyFeeling(s,"我不是很累，不要取消行程");Assert.Empty(s.Fields);var r=new PetMessage("r","assistant","我们继续聊。");Assert.Equal(r,KokoCompanion.RespondWithCare(s,r,"我不是很累，不要取消行程"));}
-    [Fact] public void ChangeOfMindNeverClaimsTheSavedTripAlreadyChanged(){var s=Session();var r=KokoCompanion.RespondWithCare(s,new("r","assistant","你想换成什么？"),"我改主意了");Assert.Contains("旅行又不是交作业",r.Text);Assert.Contains("确认后再更新行程",r.Text);Assert.DoesNotContain("已修改",r.Text);}
-    [Fact] public void RestButtonDoesNotReceiveTheSameComfortTwice(){var s=Session();var result=Choose(s,"mood_rest");var reply=KokoDialogue.CompleteTurn(s,result,result.Str("reply"),"relaxed");var cared=KokoCompanion.RespondWithCare(s,reply,"想歇一歇");Assert.Equal(1,cared.Text.Split("不用努力打卡").Length-1);}
+    [Fact] public void ChangeOfMindNeverClaimsTheSavedTripAlreadyChanged(){var s=Session();var r=KokoCompanion.RespondWithCare(s,new("r","assistant","你想换成什么？"),"我改主意了");Assert.Contains("trip isn't homework",r.Text);Assert.Contains("after you confirm",r.Text);Assert.DoesNotContain("已修改",r.Text);}
+    [Fact] public void RestButtonDoesNotReceiveTheSameComfortTwice(){var s=Session();var result=Choose(s,"mood_rest");var reply=KokoDialogue.CompleteTurn(s,result,result.Str("reply"),"relaxed");var cared=KokoCompanion.RespondWithCare(s,reply,"想歇一歇");Assert.Equal(1,cared.Text.Split("no need to tick everything off").Length-1);}
     [Fact] public void RhythmRecallOffersRhythmChoicesRatherThanInventingSteps(){var s=Session();s.ConfirmedDna.Add(new(){Key="rhythm",Value="轻松随意",Status="confirmed",MemoryId="rhythm"});Choose(s,"mood_rest");var change=Choose(s,"recall_change");Assert.Contains(KokoCompanion.Options(change),x=>x.Intent=="trip_rhythm_busy");Choose(s,"trip_rhythm_busy");Assert.Equal("紧凑充实",s.Fields["rhythm"]);Assert.False(s.Fields.ContainsKey("pace"));Assert.Equal("轻松随意",s.ConfirmedDna.Single().Value);}
-    [Fact] public void MoodWithoutRecallAsksDestinationWithMatchingOptions(){var s=Session();var result=Choose(s,"mood_rest");var reply=KokoDialogue.CompleteTurn(s,result,result.Str("reply"),"relaxed");Assert.Contains("哪个城市",reply.Text);Assert.Contains(reply.QuickReplies!,x=>x.Intent=="choose_sydney");Assert.DoesNotContain(reply.QuickReplies!,x=>x.Intent=="accept_direction");}
+    [Fact] public void MoodWithoutRecallAsksDestinationWithMatchingOptions(){var s=Session();var result=Choose(s,"mood_rest");var reply=KokoDialogue.CompleteTurn(s,result,result.Str("reply"),"relaxed");Assert.Contains("Which city",reply.Text);Assert.Contains(reply.QuickReplies!,x=>x.Intent=="choose_sydney");Assert.DoesNotContain(reply.QuickReplies!,x=>x.Intent=="accept_direction");}
     [Fact] public void LegacyClientsKeepTheirOriginalExperience(){var s=new PetSession();KokoDialogue.Enable(s,new(){["profilingVersion"]=2,["hasMetKoko"]=true});Assert.False(KokoCompanion.Enabled(s));Assert.Equal(3,s.Messages.Single().QuickReplies!.Length);var r=new PetMessage("r","assistant","原回复");Assert.Equal(r,KokoCompanion.RespondWithCare(s,r,"最近很累"));}
     [Fact] public void ShortOnTimeRequiresAnExplicitEndBeforeReplanning() {
         var s=Session();s.Fields["date"]="2026-11-01";
         var result=KokoCompanion.Direct(s,"关于「测试」第 1 天。时间不够了",null)!;
-        Assert.Equal("endTime",s.Fields["adjustmentNeed"]);Assert.Contains("最晚几点结束",result.Str("reply"));
+        Assert.Equal("endTime",s.Fields["adjustmentNeed"]);Assert.Contains("what time does this day need to finish",result.Str("reply"));
         var choice=KokoCompanion.Options(result).Single(x=>x.Intent=="adjust_end_840");
         KokoCompanion.Direct(s,choice.Text,choice);
         Assert.Equal("840",s.Fields["adjustmentEndMinute"]);Assert.False(s.Fields.ContainsKey("adjustmentNeed"));
@@ -35,6 +35,38 @@ public sealed class KokoCompanionTests
         Assert.Equal("990",s.Fields["adjustmentEndMinute"]);
         KokoCompanion.Direct(s,"先不改时间",null);
         Assert.False(s.Fields.ContainsKey("adjustmentEndMinute"));Assert.Empty(s.Preferences);
+    }
+
+    [Fact] public void EnglishCompanionRepliesAndRecallDoNotLeakInternalEnumLabels() {
+        var s=Session();
+        Assert.DoesNotMatch("[\\u3400-\\u9fff]",s.Messages.Single().Text);
+        Assert.All(s.Messages.Single().QuickReplies!,q=>Assert.DoesNotMatch("[\\u3400-\\u9fff]",q.Text));
+        s.ConfirmedDna.Add(new(){Key="rhythm",Value="轻松随意",Status="confirmed",MemoryId="active",Source="user_statement"});
+        var result=Choose(s,"mood_rest");
+        Assert.Contains("a relaxed pace",result.Str("reply"));
+        Assert.DoesNotMatch("[\\u3400-\\u9fff]",result.Str("reply"));
+        Assert.Equal("轻松随意",s.ConfirmedDna.Single().Value);
+    }
+    [Theory]
+    [InlineData("I'm tired today",true)]
+    [InlineData("I'd like a rest",true)]
+    [InlineData("I'm not very tired",false)]
+    [InlineData("I don't need a rest",false)]
+    public void EnglishRestStatementsRespectNegation(string text,bool expected) {
+        var s=Session();KokoCompanion.ApplyFeeling(s,text);
+        Assert.Equal(expected,s.Fields.ContainsKey("energy"));
+        Assert.Empty(s.Preferences);
+    }
+    [Fact] public void EnglishAdjustmentNeedsAClockAndSupportsCancellation() {
+        var s=Session();
+        var result=KokoCompanion.Direct(s,"About my trip, day 1. I'm short on time.",null)!;
+        Assert.Equal("endTime",s.Fields["adjustmentNeed"]);
+        Assert.Contains("what time",result.Str("reply"));
+        var choice=KokoCompanion.Options(result).Single(x=>x.Intent=="adjust_end_960");
+        KokoCompanion.Direct(s,choice.Text,choice);
+        Assert.Equal("960",s.Fields["adjustmentEndMinute"]);
+        KokoCompanion.Direct(s,"Keep the original time",null);
+        Assert.False(s.Fields.ContainsKey("adjustmentEndMinute"));
     }
 
 }

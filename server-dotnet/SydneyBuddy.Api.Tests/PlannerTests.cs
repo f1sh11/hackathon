@@ -45,13 +45,13 @@ public sealed class PlannerTests : IDisposable
         Assert.DoesNotContain(plan.Array("days")!.OfType<JsonObject>().SelectMany(x=>x.Array("stops")!.OfType<JsonObject>()),s=>s.Str("id")=="apple:seasonal");
         var shortlist=await Create().PrepareWalkingAsync(profile);
         Assert.DoesNotContain(shortlist.Array("candidateDays")!.OfType<JsonArray>().SelectMany(x=>x),id=>id!.GetValue<string>()=="apple:seasonal");
-        Assert.Contains(plan.Array("trace")!.OfType<JsonObject>(),x=>x.Str("title")=="核对限时活动");
+        Assert.Contains(plan.Array("trace")!.OfType<JsonObject>(),x=>x.Str("title")=="Check limited-time events");
     }
     [Fact] public async Task RequiredUnknownEventExplainsTheBlockInsteadOfSilentlyDroppingIt() {
         var profile=TestSupport.Profile();profile["mustDo"]="Le Jolly Christmas Market";
         profile["planningCandidates"]=new JsonArray(SearchPlace("seasonal","Le Jolly Christmas Market",-33.86));
         var error=await Assert.ThrowsAsync<ServiceException>(()=>Create().PlanAsync(profile,"demo"));
-        Assert.Contains("尚未核实",error.Message);Assert.Equal("Le Jolly Christmas Market",profile.Str("mustDo"));
+        Assert.Contains("unverified",error.Message);Assert.Equal("Le Jolly Christmas Market",profile.Str("mustDo"));
     }
     [Fact] public void PermanentRestaurantIsNotRemovedBecauseOfItsFestiveName() {
         var cafe=SearchPlace("cafe","Christmas Market Cafe",-33.86);cafe["activityType"]="meal";
@@ -64,7 +64,7 @@ public sealed class PlannerTests : IDisposable
         var profile=TestSupport.Profile(3);profile["avoid"]="不逛博物馆";profile["mustDo"]="悉尼歌剧院";
         var trip=await Create().PlanAsync(profile,"demo");
         var stops=trip.Array("days")!.OfType<JsonObject>().SelectMany(d=>d.Array("stops")!.OfType<JsonObject>()).ToArray();
-        Assert.DoesNotContain(stops,p=>p.Str("name").Contains("博物馆"));Assert.Contains(stops,p=>p.Str("id")=="opera");
+        Assert.DoesNotContain(stops,p=>p.Str("query").Contains("Museum",StringComparison.OrdinalIgnoreCase));Assert.Contains(stops,p=>p.Str("id")=="opera");
     }
     [Fact]
     public async Task UnknownOrConflictingRequirementsCannotSilentlyGenerate()
@@ -201,7 +201,7 @@ public sealed class PlannerTests : IDisposable
     {
         var profile = TestSupport.Profile(); profile["weatherOverride"] = "rain";
         var result = await Create().PlanAsync(profile, "demo");
-        Assert.Contains("非实时", result.Object("weather")!.Str("source"));
+        Assert.Contains("not live weather", result.Object("weather")!.Str("source"));
         Assert.All(result.Array("days")!.SelectMany(day => day!.Array("stops")!), stop => Assert.True(stop!.Bool("indoor")));
     }
 
@@ -289,9 +289,27 @@ public sealed class PlannerTests : IDisposable
         };
         var profile = TestSupport.Profile(2); profile["maxSteps"] = 18000; profile["interests"] = new JsonArray("风景");
         var result = await planner.PlanAsync(profile, "live");
-        Assert.All(result.Array("days")![0]!.Array("stops")!.OfType<JsonObject>().Where(s=>!s.Bool("indoor")), stop => {Assert.True(stop.Int("visitMinutes")<=30);Assert.Contains("预报有雨",stop.Str("note"));});
+        Assert.All(result.Array("days")![0]!.Array("stops")!.OfType<JsonObject>().Where(s=>!s.Bool("indoor")), stop => {Assert.True(stop.Int("visitMinutes")<=30);Assert.Contains("rain is forecast",stop.Str("note"));});
         Assert.Contains(result.Array("days")![1]!.Array("stops")!, stop => !stop!.Bool("indoor"));
         Assert.Equal(70, Assert.Single(_external.Calls, call => call.Url.Contains("chat/completions", StringComparison.Ordinal)).TimeoutSeconds);
+        Assert.Contains("Write all user-visible text in English",Assert.Single(_external.Calls,call=>call.Url.Contains("chat/completions",StringComparison.Ordinal)).Payload!.Array("messages")![0]!.Str("content"));
+        Assert.All(_external.Calls.Where(call=>call.Url.Contains("places:searchText",StringComparison.Ordinal)||call.Url.Contains("computeRoutes",StringComparison.Ordinal)),call=>Assert.Equal("en",call.Payload!.Str("languageCode")));
+    }
+
+    [Fact]
+    public async Task DemoAndSchedulePresentEnglishCopyWhileKeepingLegacyInterestCodes()
+    {
+        var profile=TestSupport.Profile();profile["interests"]=new JsonArray("美食");profile["budget"]=0;
+        var draft=await Create().PlanAsync(profile,"demo");
+        Assert.Equal("美食",Assert.Single(draft.Object("profile")!.Array("interests")!)!.GetValue<string>());
+        Assert.Contains(draft.Array("warnings")!,w=>w!.GetValue<string>().Contains("Unmet preference: Food"));
+        var visible=new List<string>{draft.Str("title"),draft.Str("explanation"),draft.Object("weather")!.Str("summary"),draft.Object("weather")!.Str("source")};
+        visible.AddRange(draft.Array("warnings")!.Select(x=>x!.GetValue<string>()));
+        visible.AddRange(draft.Array("trace")!.OfType<JsonObject>().SelectMany(x=>new[]{x.Str("title"),x.Str("detail"),x.Str("source")}));
+        Assert.All(visible,text=>Assert.False(text.Any(c=>c is >= '\u3400' and <= '\u9fff'),text));
+        var edited=new ScheduleEditorService(new PlaceCatalog(_cache,_paths)).Build(new JsonObject{["trip"]=draft});
+        Assert.Equal("Meal",ScheduleEditorService.KindLabel("meal"));
+        Assert.All(edited.Object("schedule")!.Array("issues")!.OfType<JsonObject>(),issue=>Assert.False(issue.Str("message").Any(c=>c is >= '\u3400' and <= '\u9fff'),issue.Str("message")));
     }
 
     public void Dispose()

@@ -7,6 +7,6 @@ public sealed class PaidServicePolicy(IConfiguration configuration)
     public void RequireAllowed()
     {
         if (!Allowed)
-            throw new ServiceException("后端已禁止付费服务。请使用 demo 模式；需要在线测试时由开发者设置 AllowPaidServices=true 并重启后端。");
+            throw new ServiceException("Paid services are disabled. Use demo mode. For online testing, a developer must set AllowPaidServices=true and restart the backend.");
     }
 }

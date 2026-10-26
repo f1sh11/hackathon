@@ -34,7 +34,7 @@ public sealed class RouteScheduler(RouteService routes)
                 var p=(JsonObject)x.DeepClone();
                 if(rainy&&!p.Bool("indoor")&&(p["indoorKnown"] is null||p.Bool("indoorKnown"))&&!mustVisit.Contains(p.Str("id"))) {
                     p["visitMinutes"]=Math.Min(p.Int("visitMinutes"),30);
-                    p["note"]=p.Str("note")+"；预报有雨，缩短户外停留，出发前确认天气。";
+                    p["note"]=p.Str("note")+"; rain is forecast, so outdoor visits are shortened. Check the weather before departure.";
                 }
                 return p;
             }).ToArray();
@@ -49,7 +49,7 @@ public sealed class RouteScheduler(RouteService routes)
                 activityLimit=Math.Min(activityLimit,Math.Max(1,(int)Math.Ceiling((double)visits/(profile.Int("days")-day))+meal));
             }
             var dailyLimit = Math.Min(Math.Max(activityLimit,required.Count),pool.Length);
-            if(dailyLimit>5)throw new ServiceException("单日必去地点过多，请分散到多天后再生成。");
+            if(dailyLimit>5)throw new ServiceException("Too many must-see places for one day. Spread them across more days before generating.");
             var options = new List<(double Score, JsonObject[] Order, double Travel, int Waiting)>();
 
             for (var length = 1; length <= dailyLimit; length++)
@@ -95,20 +95,20 @@ public sealed class RouteScheduler(RouteService routes)
                 selected=await ScheduleAsync([],daily,context,exact:true,ct);
                 if (selected is not null) {
                     selected["freeTime"]=true;
-                    selected.Array("warnings")!.Add("自由安排：剩余候选景点在当天的预算、步数或营业时间约束下无法安排；当天未安排景点活动，可自行补充地点。");
+                    selected.Array("warnings")!.Add("Free time: remaining places do not fit the day's budget, step limit or opening hours. No attractions are scheduled; you can add places yourself.");
                 }
             }
             if (selected is null)
-                throw new ServiceException($"第 {day + 1} 天没有满足预算、步数、营业时间和返程条件的路线。请增加时间/预算/步数，或减少必去地点。");
+                throw new ServiceException($"No route on day {day + 1} meets your budget, step limit, opening hours and return requirements. Increase the time, budget or step limit, or remove must-see places.");
             if(profile.Str("dayStyle")=="fullDay" && string.CompareOrdinal(selected.Str("finishTime"),"15:00")<0) {
-                selected.Array("warnings")!.Add("全天可用不代表必须排满：当前候选地点还需满足步数、预算、开放时间和跨天去重。余下时间可补附近地点、安排休息，或保留自由活动。");
+                selected.Array("warnings")!.Add("A full day does not need to be packed. Places must still meet step, budget, opening-hour and cross-day uniqueness limits. Add nearby places, rest or keep free time.");
             }
             selected["date"] = daily.Str("date");
             days.Add(selected);
             used.UnionWith(selected.Array("stops")!.OfType<JsonObject>().Select(x => x.Str("id")));
         }
 
-        if (!mustVisit.IsSubsetOf(used)) throw new ServiceException("无法安排全部必去地点，请放宽约束。");
+        if (!mustVisit.IsSubsetOf(used)) throw new ServiceException("All must-see places cannot fit. Please relax your limits.");
         RecommendationQuality.Assess(profile,days);
         return days;
     }
@@ -154,8 +154,8 @@ public sealed class RouteScheduler(RouteService routes)
             stops.Add(stop);
             legs.Add(leg);
             previous = point;
-            if(point["costKnown"] is not null&&!point.Bool("costKnown"))warnings.Add(point.Str("name")+"：费用未知，预算仅含已知或预留金额，不代表免费。");
-            if (!verified) warnings.Add(point.Str("name") + "：营业时间未核实");
+            if(point["costKnown"] is not null&&!point.Bool("costKnown"))warnings.Add(point.Str("name")+": cost unknown. The budget includes only known costs or allowances; this does not mean free entry.");
+            if (!verified) warnings.Add(point.Str("name") + ": opening hours unverified");
         }
         var back = exact ? await routes.TimedLegAsync(previous,profile.Object("end")!,profile,clock,context,ct):context.Walking is not null ? await routes.LegAsync(previous, profile.Object("end")!, context, ct):RouteService.EstimateLeg(previous,profile.Object("end")!);
         if(back.Bool("unreachable")){if(context.CompareTransit&&!exact)back=RouteService.EstimateLeg(previous,profile.Object("end")!);else return null;}

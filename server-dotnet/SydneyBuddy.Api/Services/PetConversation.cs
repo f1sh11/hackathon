@@ -12,7 +12,7 @@ public static class PetEmotion
 public sealed class PetSession
 {
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
-    public string ResponseLanguage { get; set; } = "";
+    public string ResponseLanguage { get; set; } = "en";
     public List<PetMessage> Messages { get; set; } = [];
     public Dictionary<string,string> Fields { get; set; } = [];
     public JsonObject PersonalProfile { get; set; } = new();
@@ -38,14 +38,17 @@ public sealed class PetSessionStore(ProjectPaths paths)
     private string DirectoryPath => Path.Combine(paths.DataDirectory,".pet-sessions");
     private string FilePath(string id)
     {
-        if (!Guid.TryParseExact(id,"N",out _)) throw new ServiceException("对话编号无效。");
+        if (!Guid.TryParseExact(id,"N",out _)) throw new ServiceException("Invalid conversation ID.");
         return Path.Combine(DirectoryPath,id+".json");
     }
     public PetSession Load(string id)
     {
         var path=FilePath(id);
-        if (!File.Exists(path)) throw new ServiceException("这段对话已清空，请开启新对话。");
-        return JsonSerializer.Deserialize<PetSession>(File.ReadAllText(path),JsonExtensions.Options)!;
+        if (!File.Exists(path)) throw new ServiceException("This conversation has been cleared. Start a new one.");
+        var session=JsonSerializer.Deserialize<PetSession>(File.ReadAllText(path),JsonExtensions.Options)!;
+        session.ResponseLanguage="en";
+        PetEnglishCopy.Refresh(session);
+        return session;
     }
     public void Save(PetSession session)
     {
@@ -65,16 +68,11 @@ public sealed class PetSessionStore(ProjectPaths paths)
 // Interface language is session metadata, never a travel preference or memory.
 public static class PetResponseLanguage
 {
-    public static void Apply(PetSession session,JsonObject input) {
-        var language=input.Str("language");
-        if(language is "zh-Hans" or "zh-Hant" or "en")session.ResponseLanguage=language;
-    }
-    public static string Prompt(PetSession session)=>session.ResponseLanguage switch {
-        "en"=>"\nWrite all user-visible replies, questions, option labels and trip inspiration in English. Keep JSON keys, enum values, place names, evidence quotes and the user's facts unchanged. The interface language does not change travel preferences or memory consent.",
-        "zh-Hans"=>"\n面向用户的回复、问题、选项文案和旅行灵感统一使用简体中文。JSON 键名、枚举值、地点原名、证据原文与用户事实保持不变。界面语言不是旅行偏好，不得写入记忆。",
-        "zh-Hant"=>"\n面向使用者的回覆、問題、選項文案與旅行靈感統一使用繁體中文。JSON 鍵名、列舉值、地點原名、證據原文與使用者事實保持不變。介面語言不是旅行偏好，不得寫入記憶。",
-        _=>""
-    };
+    // English is the product language, including drafts saved with a previous locale.
+    // Keep accepting the language field for older clients without making it a preference.
+    public static void Apply(PetSession session,JsonObject input)=>session.ResponseLanguage="en";
+    public static string Prompt(PetSession session)=>"\nWrite all user-visible replies, questions, option labels and trip inspiration in English, even if the user writes in another language or the saved conversation contains another language. Keep JSON keys, enum values, place names, evidence quotes and the user's facts unchanged. The interface language does not change travel preferences or memory consent.";
+
 }
 
 public static class PetQuestions
@@ -82,12 +80,12 @@ public static class PetQuestions
     public static readonly string[] Keys=["destination","date","days","companions","budget","interests","pace","notes","budgetCurrency","budgetBasis","travelers","origin","mustDo","avoid","energy","rhythm","queueTolerance","budgetCoverage","flights","bookings","tickets","companionNeeds","specialLimits","dayStyle","transportPreference"];
     public static readonly Dictionary<string,string> Labels=new()
     {
-        ["destination"]="目的地",["date"]="出发日期",["days"]="天数",["companions"]="同行伙伴",
-        ["budget"]="预算金额",["interests"]="这次想玩什么",["pace"]="旅行节奏",["notes"]="补充要求"
+        ["destination"]="Destination",["date"]="Departure date",["days"]="Days",["companions"]="Travel companions",
+        ["budget"]="Budget amount",["interests"]="Trip interests",["pace"]="Travel pace",["notes"]="Additional needs"
     };
     public static readonly string[] Required=["destination","date","days","budget","budgetCurrency","budgetBasis","travelers"];
     public static readonly string[] Optional=["origin","companions","mustDo","avoid"];
-    public static bool Known(string? value)=>!new[]{"","未确定","暂不确定","未知","稍后补充","还没确定","还没想好","未提供","unknown","不确定","不知道"}.Contains((value??"").Trim());
+    public static bool Known(string? value)=>!new[]{"","未确定","暂不确定","未知","稍后补充","还没确定","还没想好","未提供","unknown","不确定","不知道","Not sure yet","Not decided yet","Not determined","Undecided","Unknown","Add later","Not provided","Unsure","Don’t know","Don't know"}.Contains((value??"").Trim(),StringComparer.OrdinalIgnoreCase);
     public static bool SupportedDestination(string? value)=>new[]{"悉尼","雪梨","sydney"}.Contains((value??"").Trim().ToLowerInvariant());
     public static bool UnsupportedDestination(PetSession s)=>Known(s.Fields.GetValueOrDefault("destination")) && !SupportedDestination(s.Fields.GetValueOrDefault("destination"));
     public static bool Answered(PetSession s,string key) {
@@ -113,41 +111,41 @@ public static class PetQuestions
     }
     public static string Next(PetSession s)=>Required.FirstOrDefault(k=>!Answered(s,k)) ?? (s.Fields.GetValueOrDefault("budgetCoverage")=="totalTravel" ? "budget":"");
     public static string UncertainReply(string key)=>key switch {
-        "destination"=>"哼唧，小爪爪抱住地图！还不知道去哪儿，我可没法带路呀～先选一个城市，好不好？🐨",
-        "date"=>"哼，小日历都摊开啦！先挑个出发日期嘛，之后还可以改～",
-        "days"=>"小背包鼓起脸啦！玩几天得先告诉我呀～选 1 到 15 天，我们再慢慢调。",
-        "budget"=>"哼唧，小钱包还空着呢！先给我一个大概的活动预算嘛，之后可以改～",
-        "budgetCurrency"=>"小爪爪停一下！是澳元、人民币还是美元呀？币种不清楚，我会算糊涂的～",
-        "budgetBasis"=>"哼，这笔钱是每人还是大家一起、每天还是全程呀？说清楚，我才不会把小钱包算错嘛～",
-        "travelers"=>"小爪爪开始数人头啦！一共几个人呀？记得把自己也算进去哦～",
-        _=>"好呀，这个先留个小空位，不耽误我们出发～"
+        "destination"=>"Let’s give our map a starting point. Which city are you thinking of? 🐨",
+        "date"=>"Let’s pencil in a departure date. You can always change it later.",
+        "days"=>"How many days should we plan for? Choose 1 to 15 days; we can adjust it later.",
+        "budget"=>"What’s a comfortable activity budget? A rough amount is fine for now.",
+        "budgetCurrency"=>"Which currency is that: AUD, CNY or USD?",
+        "budgetBasis"=>"Is that per person or for everyone, and per day or for the whole trip?",
+        "travelers"=>"How many people are coming, including you?",
+        _=>"We can leave that open for now."
     };
     public static string Question(string key)=>key switch
     {
-        "destination"=>"这次想去哪里呀？目前可以生成悉尼路线；其他城市可以先保存想法。",
-        "date"=>"准备哪天出发？先选个日期，之后还可以改。",
-        "days"=>"想留几天给这次小冒险？",
-        "companions"=>"这次和谁一起出发呀？",
-        "budget"=>"这次活动预算大概多少？请一起告诉我币种，以及是每人还是全体、每天还是全程。",
-        "budgetCurrency"=>"这笔活动预算使用什么币种？目前支持澳元 AUD；其他币种需要先确认澳元金额。",
-        "budgetBasis"=>"这笔金额是每人还是全体、每天还是全程呢？",
-        "travelers"=>"这次总共几个人出发？包含你自己哦。",
-        "origin"=>"有出发地点或住宿位置了吗？还不知道也可以稍后补充。",
-        "mustDo"=>"这次特别想去哪里，或者想做什么？没有也可以先跳过。",
-        "avoid"=>"有没有必须避开的安排，或需要特别照顾的出行需求？",
-        "interests"=>"这次最想发现什么？也可以直接告诉我好几个喜好。",
-        "pace"=>"这次想慢悠悠，还是多逛几个地方？",
-        "notes"=>"还有饮食、步行或其他需要照顾的地方吗？没有就跳过吧。",
-        _=>"小背包准备好啦！可以直接点下面的「生成行程」，也可以继续聊。"
+        "destination"=>"Where would you like to go? I can plan Sydney routes now, or save ideas for another city.",
+        "date"=>"When would you like to leave? You can change the date later.",
+        "days"=>"How many days do you have for this little adventure?",
+        "companions"=>"Who’s coming along?",
+        "budget"=>"What’s your activity budget? Include the currency, whether it’s per person or for everyone, and per day or for the whole trip.",
+        "budgetCurrency"=>"Which currency is your activity budget in? Planning currently uses AUD; for another currency, we’ll need you to confirm an AUD amount.",
+        "budgetBasis"=>"Is this amount per person or for everyone, and per day or for the whole trip?",
+        "travelers"=>"How many people are travelling, including you?",
+        "origin"=>"Do you have a starting point or a place to stay? You can add it later.",
+        "mustDo"=>"Is there a place or experience you really want to include? It’s fine to skip this.",
+        "avoid"=>"Is there anything to avoid, or any travel needs I should consider?",
+        "interests"=>"What would you love to discover? You can mention a few interests.",
+        "pace"=>"Would you rather take it slow or fit in a few more places?",
+        "notes"=>"Any food, walking or other needs to consider? You can skip this.",
+        _=>"We’re ready to plan! Tap Generate itinerary below, or keep chatting."
     };
     public static string[] Choices(string key)=>key switch
     {
-        "destination"=>["悉尼","还没想好"],"date"=>["今天","明天","还没确定"],
-        "days"=>["1","3","7","15"],"companions"=>["一个人","两个人","和朋友","和家人"],
-        "budget"=>["50","100","200"],"interests"=>["艺术、文化","美食、城市","自然、风景"],
-        "pace"=>["慢悠悠（约6000步）","适中（约10000步）","多逛逛（约15000步）"],
-        "budgetCurrency"=>["AUD"],"budgetBasis"=>["perPersonPerDay","groupPerDay","perPersonTrip","groupTrip"],"travelers"=>["1","2","3","4"],"origin"=>["环形码头","中央车站","稍后补充"],"mustDo"=>["暂不确定"],"avoid"=>["无特别要求","需要多休息","避免长时间步行"],
-        "notes"=>["喜欢安静","需要多休息","没有其他要求"],_=>[]
+        "destination"=>["Sydney","Not sure yet"],"date"=>["Today","Tomorrow","Not decided yet"],
+        "days"=>["1","3","7","15"],"companions"=>["Solo","Two people","With friends","With family"],
+        "budget"=>["50","100","200"],"interests"=>["Art and culture","Food and city life","Nature and scenery"],
+        "pace"=>["Easy strolls (about 6,000 steps)","Moderate (about 10,000 steps)","Explore more (about 15,000 steps)"],
+        "budgetCurrency"=>["AUD"],"budgetBasis"=>["perPersonPerDay","groupPerDay","perPersonTrip","groupTrip"],"travelers"=>["1","2","3","4"],"origin"=>["Circular Quay","Central Station","Add later"],"mustDo"=>["Undecided"],"avoid"=>["No special requirements","More rest breaks","Avoid long walks"],
+        "notes"=>["Prefer quiet places","More rest breaks","No other requirements"],_=>[]
     };
     public static object View(PetSession s)=>new {s.Id,s.Messages,s.Fields,s.PendingMemory,s.UpdatedAt,s.MemoryWarning,s.DnaCompleted,s.Dialogue,travelDna=TravelProfiling.Dna(s),tripContext=s.Fields,planningFields=TravelProfiling.PlanningFields(s),pendingPreferences=s.Preferences.Where(x=>x.Status=="awaiting_confirmation"),tripPreferences=s.Preferences.Where(x=>x.Status=="trip_only"),missingImportantFields=TravelProfiling.Missing(s),nextField=Next(s),question=Question(Next(s)),options=Choices(Next(s)),completed=Required.Count(k=>Answered(s,k)), total=Required.Length};
     public static void Apply(PetSession s,JsonObject fields)
@@ -159,10 +157,10 @@ public static class PetQuestions
                 text=text.Trim();
                 if(key=="budgetCurrency")text=text.ToUpperInvariant() switch {"澳元" or "澳币" or "澳幣"=>"AUD","人民币" or "人民幣" or "RMB"=>"CNY","美元" or "美金"=>"USD",_=>text.ToUpperInvariant()};
                 if(key=="budgetCoverage")text=text switch {"活动预算" or "活動預算" or "活动"=>"activities","全旅行" or "全部旅行费用" or "含住宿交通"=>"totalTravel",_=>text};
-                if(key=="energy") {text=text switch {"低"=>"低精力","中等" or "中"=>"中等精力","高"=>"高精力",_=>text};if(text.Length>0 && text is not ("低精力" or "中等精力" or "高精力"))continue;}
-                if(key=="rhythm") {text=text switch {"轻松" or "慢悠悠"=>"轻松随意","中等"=>"适中","紧凑"=>"紧凑充实",_=>text};if(text.Length>0 && text is not ("轻松随意" or "适中" or "紧凑充实"))continue;}
+                if(key=="energy") {text=text switch {"低" or "low" or "Low energy"=>"低精力","中等" or "中" or "moderate" or "Moderate energy"=>"中等精力","高" or "high" or "High energy"=>"高精力",_=>text};if(text.Length>0 && text is not ("低精力" or "中等精力" or "高精力"))continue;}
+                if(key=="rhythm") {text=text switch {"轻松" or "慢悠悠" or "relaxed" or "Relaxed" or "Easy-going"=>"轻松随意","中等" or "moderate" or "Moderate"=>"适中","紧凑" or "busy" or "Busy"=>"紧凑充实",_=>text};if(text.Length>0 && text is not ("轻松随意" or "适中" or "紧凑充实"))continue;}
                 if(text.Length==0)s.Fields.Remove(key);else s.Fields[key]=text;
-                if(key=="companions" && !s.Fields.ContainsKey("travelers") && text is "一个人" or "两个人")s.Fields["travelers"]=text=="一个人"?"1":"2";
+                if(key=="companions" && !s.Fields.ContainsKey("travelers") && text is "一个人" or "两个人" or "Solo" or "Two people")s.Fields["travelers"]=text is "一个人" or "Solo" ? "1":"2";
             }
     }
     public static string PartialReply(string json)
@@ -192,13 +190,13 @@ public static class PetExplicitFacts
     {
         if(!MentionsBudget(message))foreach(var key in new[]{"budget","budgetCurrency","budgetBasis","budgetCoverage"})fields.Remove(key);
         var evidence=new Dictionary<string,string>{
-            ["energy"]="精力|体力|活力|電量|电量",
-            ["rhythm"]="节奏|節奏|轻松|輕鬆|紧凑|緊湊|适中|慢慢|慢逛|悠闲|充实",
-            ["pace"]=@"(?:[0-9一二两三四五六七八九十百千万][0-9一二两三四五六七八九十百千万,，]*\s*步|步[数數]\s*[:：]?\s*[0-9]|慢悠悠|少走|多走)",
-            ["queueTolerance"]="排队|排隊|等位|等候",
-            ["interests"]="兴趣|興趣|喜欢|喜歡|爱好|愛好|自然|风景|風景|美食|文化|艺术|藝術|购物|購物|城市"
+            ["energy"]=@"精力|体力|活力|電量|电量|\b(?:energy|fitness|stamina|tired|rest)\b",
+            ["rhythm"]=@"节奏|節奏|轻松|輕鬆|紧凑|緊湊|适中|慢慢|慢逛|悠闲|充实|\b(?:pace|relaxed|relaxing|slow|moderate|busy|packed|easy|leisurely)\b",
+            ["pace"]=@"(?:[0-9一二两三四五六七八九十百千万][0-9一二两三四五六七八九十百千万,，]*\s*步|步[数數]\s*[:：]?\s*[0-9]|慢悠悠|少走|多走|[0-9][0-9,]*\s*steps?|less walking|more walking)",
+            ["queueTolerance"]=@"排队|排隊|等位|等候|\b(?:queues?|queuing|queueing|wait|waiting)\b",
+            ["interests"]=@"兴趣|興趣|喜欢|喜歡|爱好|愛好|自然|风景|風景|美食|文化|艺术|藝術|购物|購物|城市|\b(?:interests?|like|love|enjoy|prefer|nature|scenery|scenic|food|culture|art|shopping|city)\b"
         };
-        foreach(var item in evidence)if(fields.ContainsKey(item.Key) && !System.Text.RegularExpressions.Regex.IsMatch(message,item.Value))fields.Remove(item.Key);
+        foreach(var item in evidence)if(fields.ContainsKey(item.Key) && !System.Text.RegularExpressions.Regex.IsMatch(message,item.Value,System.Text.RegularExpressions.RegexOptions.IgnoreCase))fields.Remove(item.Key);
     }
 
     public static void Apply(string message,JsonObject fields)
@@ -293,11 +291,11 @@ public static class PetExplicitFacts
         if(!double.TryParse(f.GetValueOrDefault("budget"),System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out var amount) || !double.IsFinite(amount) || amount<=0)return null;
         var currency=f.GetValueOrDefault("budgetCurrency","");
         var basis=f.GetValueOrDefault("budgetBasis","");
-        var basisLabel=basis switch {"perPersonPerDay"=>"每人每天","groupPerDay"=>"全体每天","perPersonTrip"=>"每人全程","groupTrip"=>"全体全程",_=>"范围待确认"};
-        var reply=$"收到！预算 {amount.ToString("0.##",System.Globalization.CultureInfo.InvariantCulture)} {currency}（{basisLabel}），先收进这次的小背包。";
-        if(currency=="AUD" && int.TryParse(f.GetValueOrDefault("days"),out var days) && days is >=1 and <=15 && int.TryParse(f.GetValueOrDefault("travelers"),out var people) && people is >=1 and <=30 && basisLabel!="范围待确认") {
+        var basisLabel=basis switch {"perPersonPerDay"=>"per person per day","groupPerDay"=>"for the group per day","perPersonTrip"=>"per person for the whole trip","groupTrip"=>"for the group for the whole trip",_=>"scope to confirm"};
+        var reply=$"Noted: {amount.ToString("0.##",System.Globalization.CultureInfo.InvariantCulture)} {currency}, {basisLabel}, for this trip.";
+        if(currency=="AUD" && int.TryParse(f.GetValueOrDefault("days"),out var days) && days is >=1 and <=15 && int.TryParse(f.GetValueOrDefault("travelers"),out var people) && people is >=1 and <=30 && basisLabel!="scope to confirm") {
             var perDay=amount/(basis.StartsWith("group") ? people:1)/(basis.EndsWith("Trip") ? days:1);
-            reply+=$"换算为每人每日活动预算约 {perDay.ToString("0.##",System.Globalization.CultureInfo.InvariantCulture)} AUD。";
+            reply+=$" That’s about {perDay.ToString("0.##",System.Globalization.CultureInfo.InvariantCulture)} AUD per person per day for activities.";
         }
         return reply;
     }

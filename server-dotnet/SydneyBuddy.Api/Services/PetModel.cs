@@ -16,11 +16,11 @@ public sealed class PetModel(HttpClient client,SecretStore secrets):IPetModel
     public async Task<JsonObject> RespondAsync(PetSession session,string message,JsonArray memories,Func<string,Task> onReply,CancellationToken ct)
     {
         var config=secrets.Read();var key=config.GetValueOrDefault("NVIDIA_API_KEY","");
-        if(key.Length==0)throw new ServiceException("还没有连接 AI。可以先用点选回答保存旅行进度。");
+        if(key.Length==0)throw new ServiceException("AI isn’t connected yet. You can use the choices to save your trip progress.");
         var model=config.GetValueOrDefault("NVIDIA_MODEL","");if(string.IsNullOrWhiteSpace(model))model=SecretStore.DefaultModel;
         var system=TravelProfiling.SystemPrompt+(session.Dialogue is not null ? "\n"+KokoDialogue.Prompt:"");
         if(KokoCompanion.Enabled(session))system+="\n"+KokoCompanion.Prompt;
-        system+="\ndayStyle 仅在明确半天游玩时为 halfDay，慢逛一整天为 fullDay；不确定为 flexible，不能用它补齐未知节奏。";
+        system+="\nUse dayStyle=halfDay only for an explicit half-day visit, fullDay for a relaxed whole day, and flexible when unknown. Do not use it to fill in an unknown pace.";
         system+=PetResponseLanguage.Prompt(session);
         var messages=new JsonArray(new JsonObject{["role"]="system",["content"]=system});
         var zone=TimeZoneInfo.FindSystemTimeZoneById("Australia/Sydney");
@@ -29,7 +29,7 @@ public sealed class PetModel(HttpClient client,SecretStore secrets):IPetModel
             context["dialogue"]=new JsonObject{["phase"]=dialogue.Phase,["nickname"]=dialogue.Nickname,["responsesUsed"]=dialogue.ResponseCount,["responsesRemaining"]=Math.Max(0,KokoDialogue.MaximumResponses-dialogue.ResponseCount),["mustDraft"]=dialogue.Inspiration is not null || dialogue.ResponseCount+1>=KokoDialogue.MaximumResponses,["currentIdeas"]=JsonSerializer.SerializeToNode(dialogue.Ideas)};
             context["currentChoice"]=JsonSerializer.SerializeToNode(session.CurrentChoice,JsonExtensions.Options);
         }
-        messages.Add(new JsonObject{["role"]="user",["content"]="当前资料："+context.ToJsonString()});
+        messages.Add(new JsonObject{["role"]="user",["content"]="Current context: "+context.ToJsonString()});
         foreach(var item in session.Messages.TakeLast(20))messages.Add(new JsonObject{["role"]=item.Role,["content"]=item.Text});
         messages.Add(new JsonObject{["role"]="user",["content"]=message});
         var payload=new JsonObject{["model"]=model,["stream"]=true,["temperature"]=0.6,["max_tokens"]=2600,["response_format"]=new JsonObject{["type"]="json_object"},["chat_template_kwargs"]=new JsonObject{["enable_thinking"]=false},["messages"]=messages};
@@ -40,7 +40,7 @@ public sealed class PetModel(HttpClient client,SecretStore secrets):IPetModel
         try
         {
             using var response=await client.SendAsync(req,HttpCompletionOption.ResponseHeadersRead,deadline.Token);
-            if(!response.IsSuccessStatusCode)throw new ServiceException($"AI 暂时无法回复（HTTP {(int)response.StatusCode}）。已有进度仍保留，可重试或改用点选回答。");
+            if(!response.IsSuccessStatusCode)throw new ServiceException($"AI is temporarily unavailable (HTTP {(int)response.StatusCode}). Your progress is saved; retry or use the choices.");
             using var reader=new StreamReader(await response.Content.ReadAsStreamAsync(deadline.Token));
             var content=new StringBuilder();var last="";
             while(await reader.ReadLineAsync(deadline.Token) is {} line)
@@ -49,7 +49,7 @@ public sealed class PetModel(HttpClient client,SecretStore secrets):IPetModel
                 var data=line[6..];if(data=="[DONE]")break;
                 var chunk=JsonNode.Parse(data);var choice=chunk?["choices"]?.AsArray().FirstOrDefault();
                 var delta=choice?["delta"]?.Str("content")??"";content.Append(delta);
-                if(content.Length>30000)throw new ServiceException("AI 回复过长，请把问题分成几小句。");
+                if(content.Length>30000)throw new ServiceException("The AI reply was too long. Please split your question into shorter parts.");
                 var partial=PetQuestions.PartialReply(content.ToString());
                 if(partial.Length>last.Length){last=partial;await onReply(partial);}
             }
@@ -57,7 +57,7 @@ public sealed class PetModel(HttpClient client,SecretStore secrets):IPetModel
             if(result is null||result.Str("reply").Length==0)throw new JsonException();
             return result;
         }
-        catch(OperationCanceledException)when(!ct.IsCancellationRequested){throw new ServiceException("AI 回复超时，进度未改变，请重试。");}
-        catch(Exception ex)when(ex is HttpRequestException or JsonException or IOException){throw new ServiceException("AI 连接中断或回复格式无效，进度未改变，请重试。");}
+        catch(OperationCanceledException)when(!ct.IsCancellationRequested){throw new ServiceException("The AI reply timed out. Your progress is unchanged; please retry.");}
+        catch(Exception ex)when(ex is HttpRequestException or JsonException or IOException){throw new ServiceException("The AI connection was interrupted or returned an invalid reply. Your progress is unchanged; please retry.");}
     }
 }

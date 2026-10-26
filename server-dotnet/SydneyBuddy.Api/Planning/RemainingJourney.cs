@@ -8,31 +8,31 @@ public static class RemainingJourney
 {
     public static JsonObject Build(JsonObject original,JsonObject request,ScheduleEditorService editor,PlaceCatalog catalog,CancellationToken ct=default,bool transportPreflight=false) {
         var index=request.Int("day",-1);var days=original.Array("days")!;
-        if(index<0||index>=days.Count)throw new ServiceException("调整日期无效。");
-        if(original.Str("mode")=="live")throw new ServiceException("请使用与 Google 地点匹配的路线服务调整。");
-        var evidence=request.Array("walkingRoutes")??throw new ServiceException("请先查询真实步行时间。");
+        if(index<0||index>=days.Count)throw new ServiceException("Invalid adjustment date.");
+        if(original.Str("mode")=="live")throw new ServiceException("Use a route service that matches the Google places to make adjustments.");
+        var evidence=request.Array("walkingRoutes")??throw new ServiceException("Search for actual walking times first.");
         var planningCatalog=PlanningCandidates.Merge(catalog.Get(),request.Array("planningCandidates")??original.Array("planningCandidates")).ToList();foreach(var point in original.Object("schedule")?.Array("candidates")?.OfType<JsonObject>().Where(PoiService.IsImported)??[]){if(planningCatalog.All(p=>p.Str("id")!=point.Str("id")))planningCatalog.Add(PoiService.Import(point));}
         var day=days[index]!.AsObject();var profile=(JsonObject)original.Object("profile")!.DeepClone();
         if(request.Object("constraints") is {} changes){foreach(var key in new[]{"budget","maxSteps","endMinute","mustDo","avoid","interests","transportPreference"})if(changes[key] is not null)profile[key]=changes[key]!.DeepClone();profile=PlanValidator.Validate(profile,planningCatalog);}
         var stops=day.Array("stops")!.OfType<JsonObject>().ToArray();
         var ids=request.Array("completedIds")?.Select(x=>x?.GetValue<string>()??"").ToHashSet()??[];
         var skipped=request.Array("skippedIds")?.Select(x=>x?.GetValue<string>()??"").ToHashSet()??[];
-        if(skipped.Overlaps(ids))throw new ServiceException("完成与跳过状态冲突。");
+        if(skipped.Overlaps(ids))throw new ServiceException("Completed and skipped statuses conflict.");
         var consumed=ids.Union(skipped).ToHashSet();
-        if(consumed.Any(id=>!stops.Any(s=>s.Str("id")==id)))throw new ServiceException("完成进度与当前行程不一致，请重新载入。");
+        if(consumed.Any(id=>!stops.Any(s=>s.Str("id")==id)))throw new ServiceException("Progress does not match the current trip. Please reload.");
         // Navigation completes an ordered prefix. Arbitrary completion would corrupt the past itinerary.
         var prefix=stops.TakeWhile(s=>consumed.Contains(s.Str("id"))).ToArray();
         var completed=prefix.Where(s=>ids.Contains(s.Str("id"))).ToArray();
-        if(prefix.Length!=consumed.Count)throw new ServiceException("请先确认当前站点进度，再调整后续行程。");
+        if(prefix.Length!=consumed.Count)throw new ServiceException("Confirm your progress at the current stop before adjusting the rest of the trip.");
         var message=request.Str("request");var origin=request.Object("origin")??day.Object("start")!;
         var start=profile.Int("startMinute");
         if(request["currentMinute"] is not null) {
             var zone=TimeZoneInfo.FindSystemTimeZoneById("Australia/Sydney");var today=TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow,zone).ToString("yyyy-MM-dd");
-            if(day.Str("date")!=today)throw new ServiceException("途中调整只适用于今天；其他日期请修改当天安排。");
-            start=request.Int("currentMinute");if(start<0||start>=profile.Int("endMinute"))throw new ServiceException("今天的可用时间已结束，请延长结束时间或保留返程。");
+            if(day.Str("date")!=today)throw new ServiceException("On-trip adjustments apply to today only. Edit the daily schedule for other dates.");
+            start=request.Int("currentMinute");if(start<0||start>=profile.Int("endMinute"))throw new ServiceException("Today's available time has ended. Extend the end time or keep the return journey.");
         }
-        if(consumed.Count>0 && request["currentMinute"] is null)throw new ServiceException("途中调整需要当前时间和位置。");
-        if(day.Array("completedStops")?.Count>0 && request["currentMinute"] is null)throw new ServiceException("途中调整需要当前时间和位置。");
+        if(consumed.Count>0 && request["currentMinute"] is null)throw new ServiceException("On-trip adjustments need your current time and location.");
+        if(day.Array("completedStops")?.Count>0 && request["currentMinute"] is null)throw new ServiceException("On-trip adjustments need your current time and location.");
         var baseline=(JsonObject)original.DeepClone();if(request.Array("planningCandidates") is {} added)baseline["planningCandidates"]=added.DeepClone();baseline.Array("days")![index]!["planningStartMinute"]=start;baseline.Array("days")![index]!["executionStarted"]=true;
         var state=baseline.Object("schedule");
         if(state is null) {
@@ -47,7 +47,7 @@ public static class RemainingJourney
         var allowed=TravelConstraints.Apply(profile,planningCatalog);var allowedIDs=allowed.Select(p=>p.Str("id")).ToHashSet();
         var knownIDs=planningCatalog.Select(p=>p.Str("id")).ToHashSet();
         foreach(var a in activities.OfType<JsonObject>().Where(a=>knownIDs.Contains(a.Str("placeId"))&&!allowedIDs.Contains(a.Str("placeId"))).ToArray()){
-            if(a.Bool("locked"))throw new ServiceException("避开要求与固定活动冲突，请先解除或修改固定安排。");activities.Remove(a);
+            if(a.Bool("locked"))throw new ServiceException("Your exclusions conflict with a fixed activity. Unlock or update it first.");activities.Remove(a);
         }
         var visited=completed.Concat(day.Array("completedStops")?.OfType<JsonObject>()??[]).Select(s=>s.Str("placeId",original.Object("schedule")?.Array("days")?[index]?.Array("activities")?.OfType<JsonObject>().FirstOrDefault(a=>a.Str("id")==s.Str("id"))?.Str("placeId",s.Str("id"))??s.Str("id"))).ToHashSet();
         var currentPlaces=activities.OfType<JsonObject>().Select(a=>a.Str("placeId")).ToHashSet();
@@ -68,7 +68,7 @@ public static class RemainingJourney
         var archived=day.Array("completedStops")?.OfType<JsonObject>().ToArray()??[];
         var completedSteps=completed.Concat(archived).Sum(s=>s.Int("steps"));var completedCost=completed.Concat(archived).Sum(s=>s.Number("cost"));
         var steps=profile.Int("maxSteps");if(TravelAdjustmentIntent.Lighter(message))steps=Math.Min(steps,7000);
-        if(!transportPreflight&&completedSteps>=steps)throw new ServiceException("今天已达到步数上限，请直接安排休息或返程，或提高步数上限。");
+        if(!transportPreflight&&completedSteps>=steps)throw new ServiceException("You have reached today's step limit. Rest, return or increase the limit.");
         daily["maxSteps"]=transportPreflight?60000:steps;daily["dailyBudget"]=profile.Number("budget");
         var allPast=(JsonArray)(day.Array("completedStops")?.DeepClone()??new JsonArray());
         foreach(var item in completed){var historyStop=(JsonObject)item.DeepClone();historyStop["placeId"]=original.Object("schedule")?.Array("days")?[index]?.Array("activities")?.OfType<JsonObject>().FirstOrDefault(a=>a.Str("id")==item.Str("id"))?.Str("placeId",item.Str("id"))??item.Str("id");allPast.Add(historyStop);}
@@ -87,13 +87,13 @@ public static class RemainingJourney
                 ct.ThrowIfCancellationRequested();
                 var arranged=(JsonArray)activities.DeepClone();for(var i=0;i<flexible.Length;i++)arranged[flexible[i]]=activities[order[i]]!.DeepClone();
                 try {var candidate=Evaluate(arranged);if(!Feasible(candidate))continue;var minutes=candidate.Object("schedule")!.Array("days")![index]!.Int("transportMinutes");if(minutes<bestMinutes){best=candidate;bestMinutes=minutes;}}
-                catch(ServiceException ex) when(ex.Message.StartsWith("无法步行")){ }
+                catch(ServiceException ex) when(ex.Message.StartsWith("Cannot walk")){ }
             }
             if(best is not null)break;
             var optional=activities.OfType<JsonObject>().LastOrDefault(a=>!a.Bool("locked")&&a["fixedStart"] is null&&(a.Str("kind") is "attraction" or "rest")&&!must.Contains(a.Str("placeId")));
             if(optional is null)break;activities.Remove(optional);
         }
-        if(best is null)throw new ServiceException("剩余时间、步数或固定预约无法同时满足。请延长结束时间、调整必去地点，或直接查看返程路线。原行程已保留。");
+        if(best is null)throw new ServiceException("The remaining time, steps and fixed bookings cannot all fit. Extend the end time, adjust must-see places or view the return route. Your original trip is kept.");
         var result=(JsonObject)original.DeepClone();if(request.Array("planningCandidates") is {} addedCandidates)result["planningCandidates"]=addedCandidates.DeepClone();var accepted=(JsonObject)best.Array("days")![index]!.DeepClone();
         var past=allPast;
         var skippedHistory=(JsonArray)(day.Array("skippedStops")?.DeepClone()??new JsonArray());foreach(var item in prefix.Where(s=>skipped.Contains(s.Str("id"))))skippedHistory.Add(item.DeepClone());
@@ -105,8 +105,8 @@ public static class RemainingJourney
         result.Object("schedule")!["settings"]=state["settings"]!.DeepClone();
         result.Object("schedule")!["issues"]=new JsonArray(best.Object("schedule")!.Array("issues")!.OfType<JsonObject>().Where(i=>i.Int("day")==index).Select(i=>i.DeepClone()).ToArray());
         result.Object("schedule")!["totalCost"]=result.Array("days")!.OfType<JsonObject>().Sum(d=>d.Number("estimatedCost"));
-        result["explanation"]=$"已保留 {past.Count} 个已完成地点，只调整第 {index+1} 天剩余安排。道路步行预计 {bestMinutes} 分钟；营业、休息和返程已重新校验。";
-        if(accepted.Array("stops")!.Count==0){accepted["freeTime"]=true;result["explanation"]=result.Str("explanation")+"剩余活动无法在当前限制内安排，已保留返程，可选择休息或放宽限制。";}
+        result["explanation"]=$"Kept {past.Count} completed places and adjusted only the rest of day {index+1}. Estimated road walking: {bestMinutes} minutes. Opening hours, breaks and the return journey were checked again.";
+        if(accepted.Array("stops")!.Count==0){accepted["freeTime"]=true;result["explanation"]=result.Str("explanation")+"Remaining activities do not fit your limits. The return journey is kept; you can rest or relax your limits.";}
         result["profile"]=profile.DeepClone();return result;
     }
     public static JsonObject AdaptDay(JsonObject d,JsonObject profile) {
