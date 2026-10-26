@@ -3,9 +3,12 @@ using System.Text.Json.Nodes;
 namespace SydneyBuddy.Api;
 
 /// Timetable calls only for bounded shortlisted routes; waits and access walking remain part of the trip.
-public sealed class TripTransportRouter(NswJourneyProvider nsw,SecretStore secrets)
+public sealed class TripTransportRouter(NswJourneyProvider nsw,SecretStore secrets,TravelDataContext? travel=null,ITravelWarehouse? warehouse=null)
 {
-    public bool Configured=>!string.IsNullOrWhiteSpace(secrets.Read()["TFNSW_API_KEY"]);
+    bool HasKey=>!string.IsNullOrWhiteSpace(secrets.Read()["TFNSW_API_KEY"]);
+    // Without a TfNSW key, Zetaris-selected trips use the transit route table stored in local/cloud Zetaris.
+    bool UseWarehouse=>!HasKey&&travel?.Warehouse==true&&warehouse is not null;
+    public bool Configured=>HasKey||UseWarehouse;
     public async Task<JsonObject> ChooseAsync(JsonObject from,JsonObject to,JsonObject walk,JsonObject profile,int minute,PlanningContext context,CancellationToken ct)
     {
         var policy=profile.Str("transportPreference","balanced");
@@ -20,7 +23,8 @@ public sealed class TripTransportRouter(NswJourneyProvider nsw,SecretStore secre
         if(context.TransitQueries>=40)throw new ServiceException("本次交通比较已达查询上限，请缩小每天的活动范围后重试。");
         context.TransitQueries++;
         try {
-            var steps=await nsw.RouteAsync(new(from.Str("name"),from.Number("lat"),from.Number("lng"),0),new(to.Str("name"),to.Number("lat"),to.Number("lng"),0),"transit",departure,ct);
+            var origin=new JourneyPoint(from.Str("name"),from.Number("lat"),from.Number("lng"),0);var target=new JourneyPoint(to.Str("name"),to.Number("lat"),to.Number("lng"),0);
+            var steps=UseWarehouse?ZetarisTransit.Plan(await warehouse!.TransitRoutesAsync(ct),origin,target,departure):await nsw.RouteAsync(origin,target,"transit",departure,ct);
             if(!steps.Any(s=>s.Mode!="walk"))return walk;
             var seconds=(steps[^1].ArrivalTime-departure).TotalSeconds;
             var walking=steps.Where(s=>s.Mode=="walk").Sum(s=>s.Meters);
@@ -29,7 +33,7 @@ public sealed class TripTransportRouter(NswJourneyProvider nsw,SecretStore secre
             var worthwhile=walk.Bool("unreachable")||seconds+transfers*240<walkSeconds-120||
                 ((policy=="lessWalking"||profile.Int("maxSteps")<=6000)&&walking+300<walk.Number("meters")&&seconds<walkSeconds+600);
             if(!worthwhile){context.TransitCache[key]=(JsonObject)walk.DeepClone();return walk;}
-            var result=new JsonObject{["meters"]=(int)Math.Ceiling(steps.Sum(s=>s.Meters)),["walkingMeters"]=(int)Math.Ceiling(walking),["minutes"]=(int)Math.Ceiling(seconds/60),["source"]="Transport for NSW / Trip Planner",["mode"]="transit",["polyline"]="",["departureTime"]=departure.ToString("O"),["arrivalTime"]=steps[^1].ArrivalTime.ToString("O"),["fetchedAt"]=DateTimeOffset.UtcNow.ToString("O"),["steps"]=JsonSerializer.SerializeToNode(steps,JsonExtensions.Options),["fareKnown"]=false,["transfers"]=transfers,["reason"]="比较了步行、等车、接驳与换乘；公交票价未知，未包含在预算。"};
+            var result=new JsonObject{["meters"]=(int)Math.Ceiling(steps.Sum(s=>s.Meters)),["walkingMeters"]=(int)Math.Ceiling(walking),["minutes"]=(int)Math.Ceiling(seconds/60),["source"]=UseWarehouse?(travel!.Mode=="zetaris-cloud"?"Transport for NSW / Zetaris Cloud":"Transport for NSW / Zetaris"):"Transport for NSW / Trip Planner",["mode"]="transit",["polyline"]="",["departureTime"]=departure.ToString("O"),["arrivalTime"]=steps[^1].ArrivalTime.ToString("O"),["fetchedAt"]=DateTimeOffset.UtcNow.ToString("O"),["steps"]=JsonSerializer.SerializeToNode(steps,JsonExtensions.Options),["fareKnown"]=false,["transfers"]=transfers,["reason"]="比较了步行、等车、接驳与换乘；公交票价未知，未包含在预算。"};
             context.TransitCache[key]=(JsonObject)result.DeepClone();return result;
         }catch(ServiceException ex) when(!walk.Bool("unreachable")&&(ex.Message=="NSW 未找到大众运输班次，可改选步行。"||ex.Message=="NSW 此区间或日期没有可用班次。")) {
             // A verified absence of transit is different from an unavailable/broken provider.

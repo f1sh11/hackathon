@@ -20,6 +20,7 @@ public sealed record TravelSnapshot(JsonObject Poi,JsonArray Catalog,JsonArray M
 public interface ITravelWarehouse {
     Task<TravelSnapshot> ReadAsync(CancellationToken token);
     Task<JsonArray> ActivityOffersAsync(CancellationToken token)=>throw new ServiceException("Zetaris 活動資料尚未設定。");
+    Task<JsonArray> TransitRoutesAsync(CancellationToken token)=>throw new ServiceException("Zetaris 公交路線資料尚未設定。");
     Task<JsonObject> InsightRawAsync(string kind,CancellationToken token)=>throw new ServiceException("Zetaris 尚未設定此公開資料來源。");
     Task<JsonObject> WeatherRawAsync(CancellationToken token)=>throw new ServiceException("Zetaris 即時天氣尚未設定。");
 }
@@ -96,6 +97,16 @@ public sealed class ZetarisTravelWarehouse(HttpClient http,IConfiguration config
             if(row.Count!=2)throw new ServiceException("Zetaris 活動資料格式無效。");
             if(row[0]!.GetValue<string>()=="sentinel")continue;
             result.Add(JsonNode.Parse(row[1]!.GetValue<string>())?.AsObject()??throw new ServiceException("Zetaris 活動資料格式無效。"));
+        }
+        return result;
+    }
+    public async Task<JsonArray> TransitRoutesAsync(CancellationToken token){
+        var rows=await QueryAsync("SELECT 'route' AS kind,payload FROM sydneybuddy_travel.travel_transit_routes UNION ALL SELECT 'sentinel','{}'",token);
+        var result=new JsonArray();
+        foreach(var row in rows.OfType<JsonArray>()){
+            if(row.Count!=2)throw new ServiceException("Zetaris 公交路線資料格式無效。");
+            if(row[0]!.GetValue<string>()=="sentinel")continue;
+            result.Add(JsonNode.Parse(row[1]!.GetValue<string>())?.AsObject()??throw new ServiceException("Zetaris 公交路線資料格式無效。"));
         }
         return result;
     }

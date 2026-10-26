@@ -1,0 +1,504 @@
+{
+  "schemaVersion": 1,
+  "city": "Sydney",
+  "timezone": "Australia/Sydney",
+  "sourceName": "Transport for NSW Public Timetable Reference",
+  "sourceUrl": "https://transportnsw.info/routes",
+  "observedOn": "2026-10-26",
+  "license": "CC BY 4.0 Transport for NSW Open Data Reference",
+  "routes": [
+    {
+      "id": "tfnsw:rail:t1",
+      "line": "T1",
+      "name": "T1 North Shore & Western Line",
+      "mode": "rail",
+      "agency": "Sydney Trains",
+      "bidirectional": true,
+      "headwayMinutes": 6,
+      "operatingStartMinute": 285,
+      "operatingEndMinute": 1439,
+      "stops": [
+        {"id": "parramatta-stn", "name": "Parramatta Station", "lat": -33.8175, "lng": 151.0054, "platform": "1", "cumulativeMinutes": 0, "cumulativeMeters": 0},
+        {"id": "strathfield-stn", "name": "Strathfield Station", "lat": -33.8716, "lng": 151.0941, "platform": "3", "cumulativeMinutes": 14, "cumulativeMeters": 11200},
+        {"id": "redfern-stn", "name": "Redfern Station", "lat": -33.8920, "lng": 151.1989, "platform": "2", "cumulativeMinutes": 25, "cumulativeMeters": 21500},
+        {"id": "central-stn", "name": "Central Station", "lat": -33.8830, "lng": 151.2070, "platform": "16", "cumulativeMinutes": 28, "cumulativeMeters": 22800},
+        {"id": "town-hall-stn", "name": "Town Hall Station", "lat": -33.8732, "lng": 151.2071, "platform": "3", "cumulativeMinutes": 31, "cumulativeMeters": 24000},
+        {"id": "wynyard-stn", "name": "Wynyard Station", "lat": -33.8660, "lng": 151.2059, "platform": "3", "cumulativeMinutes": 33, "cumulativeMeters": 24900},
+        {"id": "milsons-point-stn", "name": "Milsons Point Station", "lat": -33.8461, "lng": 151.2120, "platform": "1", "cumulativeMinutes": 36, "cumulativeMeters": 27400},
+        {"id": "north-sydney-stn", "name": "North Sydney Station", "lat": -33.8414, "lng": 151.2073, "platform": "1", "cumulativeMinutes": 39, "cumulativeMeters": 28300},
+        {"id": "waverton-stn", "name": "Waverton Station", "lat": -33.8378, "lng": 151.1972, "platform": "1", "cumulativeMinutes": 42, "cumulativeMeters": 29600},
+        {"id": "wollstonecraft-stn", "name": "Wollstonecraft Station", "lat": -33.8318, "lng": 151.1917, "platform": "1", "cumulativeMinutes": 44, "cumulativeMeters": 30700},
+        {"id": "st-leonards-stn", "name": "St Leonards Station", "lat": -33.8227, "lng": 151.1942, "platform": "1", "cumulativeMinutes": 47, "cumulativeMeters": 32100},
+        {"id": "chatswood-stn", "name": "Chatswood Station", "lat": -33.7969, "lng": 151.1806, "platform": "1", "cumulativeMinutes": 52, "cumulativeMeters": 35500}
+      ]
+    },
+    {
+      "id": "tfnsw:rail:t2",
+      "line": "T2",
+      "name": "T2 Inner West & City Circle Line",
+      "mode": "rail",
+      "agency": "Sydney Trains",
+      "bidirectional": true,
+      "headwayMinutes": 6,
+      "operatingStartMinute": 285,
+      "operatingEndMinute": 1439,
+      "stops": [
+        {"id": "ashfield-stn", "name": "Ashfield Station", "lat": -33.8878, "lng": 151.1260, "platform": "2", "cumulativeMinutes": 0, "cumulativeMeters": 0},
+        {"id": "newtown-stn", "name": "Newtown Station", "lat": -33.8979, "lng": 151.1795, "platform": "1", "cumulativeMinutes": 8, "cumulativeMeters": 5300},
+        {"id": "redfern-stn", "name": "Redfern Station", "lat": -33.8920, "lng": 151.1989, "platform": "4", "cumulativeMinutes": 12, "cumulativeMeters": 7400},
+        {"id": "central-stn", "name": "Central Station", "lat": -33.8830, "lng": 151.2070, "platform": "17", "cumulativeMinutes": 15, "cumulativeMeters": 8700},
+        {"id": "museum-stn", "name": "Museum Station", "lat": -33.8765, "lng": 151.2098, "platform": "1", "cumulativeMinutes": 18, "cumulativeMeters": 9700},
+        {"id": "st-james-stn", "name": "St James Station", "lat": -33.8703, "lng": 151.2119, "platform": "1", "cumulativeMinutes": 20, "cumulativeMeters": 10500},
+        {"id": "circular-quay-stn", "name": "Circular Quay Station", "lat": -33.8613, "lng": 151.2108, "platform": "1", "cumulativeMinutes": 23, "cumulativeMeters": 11700},
+        {"id": "wynyard-stn", "name": "Wynyard Station", "lat": -33.8660, "lng": 151.2059, "platform": "5", "cumulativeMinutes": 26, "cumulativeMeters": 12600},
+        {"id": "town-hall-stn", "name": "Town Hall Station", "lat": -33.8732, "lng": 151.2071, "platform": "1", "cumulativeMinutes": 28, "cumulativeMeters": 13500}
+      ]
+    },
+    {
+      "id": "tfnsw:rail:t3",
+      "line": "T3",
+      "name": "T3 City Circle & Inner South Line",
+      "mode": "rail",
+      "agency": "Sydney Trains",
+      "bidirectional": true,
+      "headwayMinutes": 8,
+      "operatingStartMinute": 300,
+      "operatingEndMinute": 1439,
+      "stops": [
+        {"id": "sydenham-stn", "name": "Sydenham Station", "lat": -33.9149, "lng": 151.1661, "platform": "1", "cumulativeMinutes": 0, "cumulativeMeters": 0},
+        {"id": "st-peters-stn", "name": "St Peters Station", "lat": -33.9076, "lng": 151.1807, "platform": "1", "cumulativeMinutes": 3, "cumulativeMeters": 1600},
+        {"id": "erskineville-stn", "name": "Erskineville Station", "lat": -33.9001, "lng": 151.1856, "platform": "1", "cumulativeMinutes": 5, "cumulativeMeters": 2600},
+        {"id": "redfern-stn", "name": "Redfern Station", "lat": -33.8920, "lng": 151.1989, "platform": "6", "cumulativeMinutes": 8, "cumulativeMeters": 4200},
+        {"id": "central-stn", "name": "Central Station", "lat": -33.8830, "lng": 151.2070, "platform": "18", "cumulativeMinutes": 11, "cumulativeMeters": 5500},
+        {"id": "town-hall-stn", "name": "Town Hall Station", "lat": -33.8732, "lng": 151.2071, "platform": "2", "cumulativeMinutes": 14, "cumulativeMeters": 6700},
+        {"id": "wynyard-stn", "name": "Wynyard Station", "lat": -33.8660, "lng": 151.2059, "platform": "6", "cumulativeMinutes": 16, "cumulativeMeters": 7600},
+        {"id": "circular-quay-stn", "name": "Circular Quay Station", "lat": -33.8613, "lng": 151.2108, "platform": "2", "cumulativeMinutes": 19, "cumulativeMeters": 8500},
+        {"id": "st-james-stn", "name": "St James Station", "lat": -33.8703, "lng": 151.2119, "platform": "2", "cumulativeMinutes": 22, "cumulativeMeters": 9700},
+        {"id": "museum-stn", "name": "Museum Station", "lat": -33.8765, "lng": 151.2098, "platform": "2", "cumulativeMinutes": 24, "cumulativeMeters": 10500}
+      ]
+    },
+    {
+      "id": "tfnsw:rail:t4",
+      "line": "T4",
+      "name": "T4 Eastern Suburbs & Illawarra Line",
+      "mode": "rail",
+      "agency": "Sydney Trains",
+      "bidirectional": true,
+      "headwayMinutes": 5,
+      "operatingStartMinute": 280,
+      "operatingEndMinute": 1439,
+      "stops": [
+        {"id": "wolli-creek-stn", "name": "Wolli Creek Station", "lat": -33.9288, "lng": 151.1541, "platform": "1", "cumulativeMinutes": 0, "cumulativeMeters": 0},
+        {"id": "sydenham-stn", "name": "Sydenham Station", "lat": -33.9149, "lng": 151.1661, "platform": "3", "cumulativeMinutes": 4, "cumulativeMeters": 2100},
+        {"id": "redfern-stn", "name": "Redfern Station", "lat": -33.8920, "lng": 151.1989, "platform": "11", "cumulativeMinutes": 9, "cumulativeMeters": 6200},
+        {"id": "central-stn", "name": "Central Station", "lat": -33.8830, "lng": 151.2070, "platform": "24", "cumulativeMinutes": 12, "cumulativeMeters": 7500},
+        {"id": "town-hall-stn", "name": "Town Hall Station", "lat": -33.8732, "lng": 151.2071, "platform": "4", "cumulativeMinutes": 15, "cumulativeMeters": 8700},
+        {"id": "martin-place-stn", "name": "Martin Place Station", "lat": -33.8679, "lng": 151.2116, "platform": "1", "cumulativeMinutes": 17, "cumulativeMeters": 9600},
+        {"id": "kings-cross-stn", "name": "Kings Cross Station", "lat": -33.8744, "lng": 151.2245, "platform": "1", "cumulativeMinutes": 20, "cumulativeMeters": 11200},
+        {"id": "edgecliff-stn", "name": "Edgecliff Station", "lat": -33.8797, "lng": 151.2368, "platform": "1", "cumulativeMinutes": 23, "cumulativeMeters": 12800},
+        {"id": "bondi-junction-stn", "name": "Bondi Junction Station", "lat": -33.8914, "lng": 151.2478, "platform": "1", "cumulativeMinutes": 26, "cumulativeMeters": 14700}
+      ]
+    },
+    {
+      "id": "tfnsw:rail:t8",
+      "line": "T8",
+      "name": "T8 Airport & South Line",
+      "mode": "rail",
+      "agency": "Sydney Trains",
+      "bidirectional": true,
+      "headwayMinutes": 7,
+      "operatingStartMinute": 285,
+      "operatingEndMinute": 1439,
+      "stops": [
+        {"id": "intl-airport-stn", "name": "International Airport Station", "lat": -33.9348, "lng": 151.1659, "platform": "1", "cumulativeMinutes": 0, "cumulativeMeters": 0},
+        {"id": "domestic-airport-stn", "name": "Domestic Airport Station", "lat": -33.9333, "lng": 151.1811, "platform": "1", "cumulativeMinutes": 3, "cumulativeMeters": 1600},
+        {"id": "mascot-stn", "name": "Mascot Station", "lat": -33.9234, "lng": 151.1876, "platform": "1", "cumulativeMinutes": 5, "cumulativeMeters": 3100},
+        {"id": "green-square-stn", "name": "Green Square Station", "lat": -33.9061, "lng": 151.2030, "platform": "1", "cumulativeMinutes": 8, "cumulativeMeters": 5600},
+        {"id": "central-stn", "name": "Central Station", "lat": -33.8830, "lng": 151.2070, "platform": "21", "cumulativeMinutes": 11, "cumulativeMeters": 8300},
+        {"id": "museum-stn", "name": "Museum Station", "lat": -33.8765, "lng": 151.2098, "platform": "1", "cumulativeMinutes": 14, "cumulativeMeters": 9300},
+        {"id": "st-james-stn", "name": "St James Station", "lat": -33.8703, "lng": 151.2119, "platform": "1", "cumulativeMinutes": 16, "cumulativeMeters": 10100},
+        {"id": "circular-quay-stn", "name": "Circular Quay Station", "lat": -33.8613, "lng": 151.2108, "platform": "1", "cumulativeMinutes": 19, "cumulativeMeters": 11300},
+        {"id": "wynyard-stn", "name": "Wynyard Station", "lat": -33.8660, "lng": 151.2059, "platform": "5", "cumulativeMinutes": 22, "cumulativeMeters": 12200},
+        {"id": "town-hall-stn", "name": "Town Hall Station", "lat": -33.8732, "lng": 151.2071, "platform": "1", "cumulativeMinutes": 24, "cumulativeMeters": 13100}
+      ]
+    },
+    {
+      "id": "tfnsw:rail:t9",
+      "line": "T9",
+      "name": "T9 Northern Line",
+      "mode": "rail",
+      "agency": "Sydney Trains",
+      "bidirectional": true,
+      "headwayMinutes": 8,
+      "operatingStartMinute": 290,
+      "operatingEndMinute": 1439,
+      "stops": [
+        {"id": "epping-stn", "name": "Epping Station", "lat": -33.7726, "lng": 151.0819, "platform": "1", "cumulativeMinutes": 0, "cumulativeMeters": 0},
+        {"id": "rhodes-stn", "name": "Rhodes Station", "lat": -33.8308, "lng": 151.0868, "platform": "1", "cumulativeMinutes": 9, "cumulativeMeters": 7200},
+        {"id": "strathfield-stn", "name": "Strathfield Station", "lat": -33.8716, "lng": 151.0941, "platform": "5", "cumulativeMinutes": 16, "cumulativeMeters": 12400},
+        {"id": "burwood-stn", "name": "Burwood Station", "lat": -33.8772, "lng": 151.1041, "platform": "3", "cumulativeMinutes": 18, "cumulativeMeters": 13600},
+        {"id": "redfern-stn", "name": "Redfern Station", "lat": -33.8920, "lng": 151.1989, "platform": "2", "cumulativeMinutes": 27, "cumulativeMeters": 22500},
+        {"id": "central-stn", "name": "Central Station", "lat": -33.8830, "lng": 151.2070, "platform": "16", "cumulativeMinutes": 30, "cumulativeMeters": 23800},
+        {"id": "town-hall-stn", "name": "Town Hall Station", "lat": -33.8732, "lng": 151.2071, "platform": "3", "cumulativeMinutes": 33, "cumulativeMeters": 25000},
+        {"id": "wynyard-stn", "name": "Wynyard Station", "lat": -33.8660, "lng": 151.2059, "platform": "3", "cumulativeMinutes": 35, "cumulativeMeters": 25900},
+        {"id": "north-sydney-stn", "name": "North Sydney Station", "lat": -33.8414, "lng": 151.2073, "platform": "1", "cumulativeMinutes": 40, "cumulativeMeters": 29300}
+      ]
+    },
+    {
+      "id": "tfnsw:metro:m1",
+      "line": "M1",
+      "name": "M1 Metro North West & Bankstown Line",
+      "mode": "metro",
+      "agency": "Sydney Metro",
+      "bidirectional": true,
+      "headwayMinutes": 4,
+      "operatingStartMinute": 270,
+      "operatingEndMinute": 1439,
+      "stops": [
+        {"id": "chatswood-stn", "name": "Chatswood Station", "lat": -33.7969, "lng": 151.1806, "platform": "M1", "cumulativeMinutes": 0, "cumulativeMeters": 0},
+        {"id": "crows-nest-metro", "name": "Crows Nest Metro Station", "lat": -33.8266, "lng": 151.1997, "platform": "M1", "cumulativeMinutes": 4, "cumulativeMeters": 4100},
+        {"id": "victoria-cross-metro", "name": "Victoria Cross Metro Station", "lat": -33.8380, "lng": 151.2075, "platform": "M1", "cumulativeMinutes": 6, "cumulativeMeters": 5700},
+        {"id": "barangaroo-metro", "name": "Barangaroo Metro Station", "lat": -33.8601, "lng": 151.2031, "platform": "M1", "cumulativeMinutes": 9, "cumulativeMeters": 8500},
+        {"id": "martin-place-stn", "name": "Martin Place Station", "lat": -33.8679, "lng": 151.2116, "platform": "M1", "cumulativeMinutes": 11, "cumulativeMeters": 9800},
+        {"id": "gadigal-metro", "name": "Gadigal Metro Station", "lat": -33.8732, "lng": 151.2085, "platform": "M1", "cumulativeMinutes": 13, "cumulativeMeters": 10600},
+        {"id": "central-stn", "name": "Central Station", "lat": -33.8830, "lng": 151.2070, "platform": "M1", "cumulativeMinutes": 15, "cumulativeMeters": 11900},
+        {"id": "waterloo-metro", "name": "Waterloo Metro Station", "lat": -33.8962, "lng": 151.2015, "platform": "M1", "cumulativeMinutes": 17, "cumulativeMeters": 13500},
+        {"id": "sydenham-stn", "name": "Sydenham Station", "lat": -33.9149, "lng": 151.1661, "platform": "M1", "cumulativeMinutes": 21, "cumulativeMeters": 17600}
+      ]
+    },
+    {
+      "id": "tfnsw:tram:l1",
+      "line": "L1",
+      "name": "L1 Dulwich Hill Light Rail",
+      "mode": "tram",
+      "agency": "Sydney Light Rail",
+      "bidirectional": true,
+      "headwayMinutes": 8,
+      "operatingStartMinute": 330,
+      "operatingEndMinute": 1430,
+      "stops": [
+        {"id": "central-chalmers-lr", "name": "Central Grand Concourse Light Rail", "lat": -33.8825, "lng": 151.2063, "platform": "LR1", "cumulativeMinutes": 0, "cumulativeMeters": 0},
+        {"id": "capitol-square-lr", "name": "Capitol Square Light Rail", "lat": -33.8794, "lng": 151.2062, "platform": "LR1", "cumulativeMinutes": 2, "cumulativeMeters": 450},
+        {"id": "paddys-markets-lr", "name": "Paddy's Markets Light Rail", "lat": -33.8797, "lng": 151.2032, "platform": "LR1", "cumulativeMinutes": 4, "cumulativeMeters": 850},
+        {"id": "exhibition-centre-lr", "name": "Exhibition Centre Light Rail", "lat": -33.8759, "lng": 151.1997, "platform": "LR1", "cumulativeMinutes": 6, "cumulativeMeters": 1450},
+        {"id": "convention-lr", "name": "Convention Light Rail", "lat": -33.8722, "lng": 151.1987, "platform": "LR1", "cumulativeMinutes": 8, "cumulativeMeters": 1950},
+        {"id": "pyrmont-bay-lr", "name": "Pyrmont Bay Light Rail", "lat": -33.8694, "lng": 151.1976, "platform": "LR1", "cumulativeMinutes": 10, "cumulativeMeters": 2400},
+        {"id": "the-star-lr", "name": "The Star Light Rail", "lat": -33.8681, "lng": 151.1948, "platform": "LR1", "cumulativeMinutes": 12, "cumulativeMeters": 2800},
+        {"id": "fish-market-lr", "name": "Fish Market Light Rail", "lat": -33.8732, "lng": 151.1924, "platform": "LR1", "cumulativeMinutes": 15, "cumulativeMeters": 3600},
+        {"id": "glebe-lr", "name": "Glebe Light Rail", "lat": -33.8768, "lng": 151.1856, "platform": "LR1", "cumulativeMinutes": 18, "cumulativeMeters": 4500},
+        {"id": "rozelle-bay-lr", "name": "Rozelle Bay Light Rail", "lat": -33.8727, "lng": 151.1743, "platform": "LR1", "cumulativeMinutes": 22, "cumulativeMeters": 5900},
+        {"id": "dulwich-hill-lr", "name": "Dulwich Hill Light Rail", "lat": -33.9102, "lng": 151.1404, "platform": "LR1", "cumulativeMinutes": 35, "cumulativeMeters": 12700}
+      ]
+    },
+    {
+      "id": "tfnsw:tram:l2",
+      "line": "L2",
+      "name": "L2 Randwick Light Rail",
+      "mode": "tram",
+      "agency": "Sydney Light Rail",
+      "bidirectional": true,
+      "headwayMinutes": 6,
+      "operatingStartMinute": 300,
+      "operatingEndMinute": 1439,
+      "stops": [
+        {"id": "circular-quay-lr", "name": "Circular Quay Light Rail", "lat": -33.8617, "lng": 151.2102, "platform": "LR1", "cumulativeMinutes": 0, "cumulativeMeters": 0},
+        {"id": "bridge-street-lr", "name": "Bridge Street Light Rail", "lat": -33.8641, "lng": 151.2082, "platform": "LR1", "cumulativeMinutes": 2, "cumulativeMeters": 400},
+        {"id": "wynyard-lr", "name": "Wynyard Light Rail", "lat": -33.8671, "lng": 151.2073, "platform": "LR1", "cumulativeMinutes": 5, "cumulativeMeters": 850},
+        {"id": "qvb-lr", "name": "QVB Light Rail", "lat": -33.8718, "lng": 151.2069, "platform": "LR1", "cumulativeMinutes": 8, "cumulativeMeters": 1400},
+        {"id": "town-hall-lr", "name": "Town Hall Light Rail", "lat": -33.8744, "lng": 151.2067, "platform": "LR1", "cumulativeMinutes": 10, "cumulativeMeters": 1750},
+        {"id": "chinatown-lr", "name": "Chinatown Light Rail", "lat": -33.8788, "lng": 151.2054, "platform": "LR1", "cumulativeMinutes": 13, "cumulativeMeters": 2300},
+        {"id": "haymarket-lr", "name": "Haymarket Light Rail", "lat": -33.8814, "lng": 151.2051, "platform": "LR1", "cumulativeMinutes": 15, "cumulativeMeters": 2650},
+        {"id": "central-chalmers-lr", "name": "Central Chalmers Street Light Rail", "lat": -33.8839, "lng": 151.2079, "platform": "LR1", "cumulativeMinutes": 18, "cumulativeMeters": 3100},
+        {"id": "surry-hills-lr", "name": "Surry Hills Light Rail", "lat": -33.8868, "lng": 151.2127, "platform": "LR1", "cumulativeMinutes": 21, "cumulativeMeters": 3850},
+        {"id": "moore-park-lr", "name": "Moore Park Light Rail", "lat": -33.8935, "lng": 151.2215, "platform": "LR1", "cumulativeMinutes": 25, "cumulativeMeters": 5100},
+        {"id": "unsw-high-st-lr", "name": "UNSW High Street Light Rail", "lat": -33.9163, "lng": 151.2361, "platform": "LR1", "cumulativeMinutes": 32, "cumulativeMeters": 8200},
+        {"id": "randwick-lr", "name": "Randwick Light Rail", "lat": -33.9148, "lng": 151.2415, "platform": "LR1", "cumulativeMinutes": 35, "cumulativeMeters": 8900}
+      ]
+    },
+    {
+      "id": "tfnsw:tram:l3",
+      "line": "L3",
+      "name": "L3 Kingsford Light Rail",
+      "mode": "tram",
+      "agency": "Sydney Light Rail",
+      "bidirectional": true,
+      "headwayMinutes": 6,
+      "operatingStartMinute": 300,
+      "operatingEndMinute": 1439,
+      "stops": [
+        {"id": "circular-quay-lr", "name": "Circular Quay Light Rail", "lat": -33.8617, "lng": 151.2102, "platform": "LR2", "cumulativeMinutes": 0, "cumulativeMeters": 0},
+        {"id": "bridge-street-lr", "name": "Bridge Street Light Rail", "lat": -33.8641, "lng": 151.2082, "platform": "LR2", "cumulativeMinutes": 2, "cumulativeMeters": 400},
+        {"id": "wynyard-lr", "name": "Wynyard Light Rail", "lat": -33.8671, "lng": 151.2073, "platform": "LR2", "cumulativeMinutes": 5, "cumulativeMeters": 850},
+        {"id": "qvb-lr", "name": "QVB Light Rail", "lat": -33.8718, "lng": 151.2069, "platform": "LR2", "cumulativeMinutes": 8, "cumulativeMeters": 1400},
+        {"id": "town-hall-lr", "name": "Town Hall Light Rail", "lat": -33.8744, "lng": 151.2067, "platform": "LR2", "cumulativeMinutes": 10, "cumulativeMeters": 1750},
+        {"id": "chinatown-lr", "name": "Chinatown Light Rail", "lat": -33.8788, "lng": 151.2054, "platform": "LR2", "cumulativeMinutes": 13, "cumulativeMeters": 2300},
+        {"id": "haymarket-lr", "name": "Haymarket Light Rail", "lat": -33.8814, "lng": 151.2051, "platform": "LR2", "cumulativeMinutes": 15, "cumulativeMeters": 2650},
+        {"id": "central-chalmers-lr", "name": "Central Chalmers Street Light Rail", "lat": -33.8839, "lng": 151.2079, "platform": "LR2", "cumulativeMinutes": 18, "cumulativeMeters": 3100},
+        {"id": "surry-hills-lr", "name": "Surry Hills Light Rail", "lat": -33.8868, "lng": 151.2127, "platform": "LR2", "cumulativeMinutes": 21, "cumulativeMeters": 3850},
+        {"id": "moore-park-lr", "name": "Moore Park Light Rail", "lat": -33.8935, "lng": 151.2215, "platform": "LR2", "cumulativeMinutes": 25, "cumulativeMeters": 5100},
+        {"id": "kensington-lr", "name": "Kensington Light Rail", "lat": -33.9122, "lng": 151.2225, "platform": "LR2", "cumulativeMinutes": 30, "cumulativeMeters": 7400},
+        {"id": "unsw-anzac-lr", "name": "UNSW Anzac Parade Light Rail", "lat": -33.9181, "lng": 151.2256, "platform": "LR2", "cumulativeMinutes": 33, "cumulativeMeters": 8300},
+        {"id": "juniors-kingsford-lr", "name": "Juniors Kingsford Light Rail", "lat": -33.9242, "lng": 151.2279, "platform": "LR2", "cumulativeMinutes": 36, "cumulativeMeters": 9100}
+      ]
+    },
+    {
+      "id": "tfnsw:ferry:f1",
+      "line": "F1",
+      "name": "F1 Manly Ferry",
+      "mode": "ferry",
+      "agency": "Sydney Ferries",
+      "bidirectional": true,
+      "headwayMinutes": 20,
+      "operatingStartMinute": 360,
+      "operatingEndMinute": 1410,
+      "stops": [
+        {"id": "circular-quay-wharf", "name": "Circular Quay Wharf 3", "lat": -33.8610, "lng": 151.2110, "platform": "Wharf 3", "cumulativeMinutes": 0, "cumulativeMeters": 0},
+        {"id": "manly-wharf", "name": "Manly Wharf", "lat": -33.8002, "lng": 151.2842, "platform": "Wharf 2", "cumulativeMinutes": 22, "cumulativeMeters": 11200}
+      ]
+    },
+    {
+      "id": "tfnsw:ferry:f2",
+      "line": "F2",
+      "name": "F2 Taronga Zoo Ferry",
+      "mode": "ferry",
+      "agency": "Sydney Ferries",
+      "bidirectional": true,
+      "headwayMinutes": 20,
+      "operatingStartMinute": 390,
+      "operatingEndMinute": 1260,
+      "stops": [
+        {"id": "circular-quay-wharf", "name": "Circular Quay Wharf 4", "lat": -33.8610, "lng": 151.2110, "platform": "Wharf 4", "cumulativeMinutes": 0, "cumulativeMeters": 0},
+        {"id": "taronga-zoo-wharf", "name": "Taronga Zoo Wharf", "lat": -33.8458, "lng": 151.2398, "platform": "Wharf 1", "cumulativeMinutes": 12, "cumulativeMeters": 4100}
+      ]
+    },
+    {
+      "id": "tfnsw:ferry:f3",
+      "line": "F3",
+      "name": "F3 Parramatta River Ferry",
+      "mode": "ferry",
+      "agency": "Sydney Ferries",
+      "bidirectional": true,
+      "headwayMinutes": 20,
+      "operatingStartMinute": 360,
+      "operatingEndMinute": 1350,
+      "stops": [
+        {"id": "circular-quay-wharf", "name": "Circular Quay Wharf 5", "lat": -33.8610, "lng": 151.2110, "platform": "Wharf 5", "cumulativeMinutes": 0, "cumulativeMeters": 0},
+        {"id": "milsons-point-wharf", "name": "Milsons Point Wharf", "lat": -33.8482, "lng": 151.2102, "platform": "Wharf 1", "cumulativeMinutes": 5, "cumulativeMeters": 1600},
+        {"id": "barangaroo-wharf", "name": "Barangaroo Wharf", "lat": -33.8648, "lng": 151.2012, "platform": "Wharf 1", "cumulativeMinutes": 12, "cumulativeMeters": 3900},
+        {"id": "cockatoo-island-wharf", "name": "Cockatoo Island Wharf", "lat": -33.8468, "lng": 151.1714, "platform": "Wharf 1", "cumulativeMinutes": 22, "cumulativeMeters": 7900},
+        {"id": "sydney-olympic-park-wharf", "name": "Sydney Olympic Park Wharf", "lat": -33.8224, "lng": 151.0792, "platform": "Wharf 1", "cumulativeMinutes": 45, "cumulativeMeters": 18200}
+      ]
+    },
+    {
+      "id": "tfnsw:ferry:f4",
+      "line": "F4",
+      "name": "F4 Pyrmont Bay Ferry",
+      "mode": "ferry",
+      "agency": "Sydney Ferries",
+      "bidirectional": true,
+      "headwayMinutes": 15,
+      "operatingStartMinute": 360,
+      "operatingEndMinute": 1380,
+      "stops": [
+        {"id": "circular-quay-wharf", "name": "Circular Quay Wharf 5", "lat": -33.8610, "lng": 151.2110, "platform": "Wharf 5", "cumulativeMinutes": 0, "cumulativeMeters": 0},
+        {"id": "milsons-point-wharf", "name": "Milsons Point Wharf", "lat": -33.8482, "lng": 151.2102, "platform": "Wharf 1", "cumulativeMinutes": 5, "cumulativeMeters": 1600},
+        {"id": "mcmahons-point-wharf", "name": "McMahons Point Wharf", "lat": -33.8492, "lng": 151.2035, "platform": "Wharf 1", "cumulativeMinutes": 9, "cumulativeMeters": 2400},
+        {"id": "balmain-east-wharf", "name": "Balmain East Wharf", "lat": -33.8573, "lng": 151.1966, "platform": "Wharf 1", "cumulativeMinutes": 14, "cumulativeMeters": 3600},
+        {"id": "barangaroo-wharf", "name": "Barangaroo Wharf", "lat": -33.8648, "lng": 151.2012, "platform": "Wharf 2", "cumulativeMinutes": 18, "cumulativeMeters": 4600},
+        {"id": "pyrmont-bay-wharf", "name": "Pyrmont Bay Wharf (Darling Harbour)", "lat": -33.8698, "lng": 151.1989, "platform": "Wharf 1", "cumulativeMinutes": 23, "cumulativeMeters": 5400}
+      ]
+    },
+    {
+      "id": "tfnsw:ferry:f6",
+      "line": "F6",
+      "name": "F6 Mosman Bay Ferry",
+      "mode": "ferry",
+      "agency": "Sydney Ferries",
+      "bidirectional": true,
+      "headwayMinutes": 20,
+      "operatingStartMinute": 380,
+      "operatingEndMinute": 1320,
+      "stops": [
+        {"id": "circular-quay-wharf", "name": "Circular Quay Wharf 4", "lat": -33.8610, "lng": 151.2110, "platform": "Wharf 4", "cumulativeMinutes": 0, "cumulativeMeters": 0},
+        {"id": "cremorne-point-wharf", "name": "Cremorne Point Wharf", "lat": -33.8483, "lng": 151.2324, "platform": "Wharf 1", "cumulativeMinutes": 9, "cumulativeMeters": 2900},
+        {"id": "mosman-bay-wharf", "name": "Mosman Bay Wharf", "lat": -33.8380, "lng": 151.2325, "platform": "Wharf 1", "cumulativeMinutes": 15, "cumulativeMeters": 4300}
+      ]
+    },
+    {
+      "id": "tfnsw:ferry:f7",
+      "line": "F7",
+      "name": "F7 Double Bay Ferry",
+      "mode": "ferry",
+      "agency": "Sydney Ferries",
+      "bidirectional": true,
+      "headwayMinutes": 20,
+      "operatingStartMinute": 390,
+      "operatingEndMinute": 1260,
+      "stops": [
+        {"id": "circular-quay-wharf", "name": "Circular Quay Wharf 4", "lat": -33.8610, "lng": 151.2110, "platform": "Wharf 4", "cumulativeMinutes": 0, "cumulativeMeters": 0},
+        {"id": "darling-point-wharf", "name": "Darling Point Wharf (McKell Park)", "lat": -33.8670, "lng": 151.2395, "platform": "Wharf 1", "cumulativeMinutes": 11, "cumulativeMeters": 3600},
+        {"id": "double-bay-wharf", "name": "Double Bay Wharf", "lat": -33.8726, "lng": 151.2427, "platform": "Wharf 1", "cumulativeMinutes": 15, "cumulativeMeters": 4500}
+      ]
+    },
+    {
+      "id": "tfnsw:ferry:f9",
+      "line": "F9",
+      "name": "F9 Watsons Bay Ferry",
+      "mode": "ferry",
+      "agency": "Sydney Ferries",
+      "bidirectional": true,
+      "headwayMinutes": 20,
+      "operatingStartMinute": 390,
+      "operatingEndMinute": 1320,
+      "stops": [
+        {"id": "circular-quay-wharf", "name": "Circular Quay Wharf 4", "lat": -33.8610, "lng": 151.2110, "platform": "Wharf 4", "cumulativeMinutes": 0, "cumulativeMeters": 0},
+        {"id": "rose-bay-wharf", "name": "Rose Bay Wharf", "lat": -33.8698, "lng": 151.2636, "platform": "Wharf 1", "cumulativeMinutes": 14, "cumulativeMeters": 5800},
+        {"id": "watsons-bay-wharf", "name": "Watsons Bay Wharf", "lat": -33.8434, "lng": 151.2819, "platform": "Wharf 1", "cumulativeMinutes": 23, "cumulativeMeters": 9400}
+      ]
+    },
+    {
+      "id": "tfnsw:bus:333",
+      "line": "333",
+      "name": "333 City Circular Quay to North Bondi PrePay",
+      "mode": "bus",
+      "agency": "Transdev John Holland Buses",
+      "bidirectional": true,
+      "headwayMinutes": 6,
+      "operatingStartMinute": 300,
+      "operatingEndMinute": 1439,
+      "stops": [
+        {"id": "circular-quay-stn", "name": "Circular Quay Alfred St, Stand B", "lat": -33.8616, "lng": 151.2105, "platform": "Stand B", "cumulativeMinutes": 0, "cumulativeMeters": 0},
+        {"id": "martin-place-stn", "name": "Elizabeth St at Martin Place", "lat": -33.8685, "lng": 151.2102, "platform": "Stand A", "cumulativeMinutes": 4, "cumulativeMeters": 850},
+        {"id": "museum-stn", "name": "Museum Station, Elizabeth St", "lat": -33.8760, "lng": 151.2096, "platform": "Stand C", "cumulativeMinutes": 7, "cumulativeMeters": 1750},
+        {"id": "taylor-square-bus", "name": "Oxford St at Taylor Square", "lat": -33.8807, "lng": 151.2165, "platform": "Stop", "cumulativeMinutes": 11, "cumulativeMeters": 2700},
+        {"id": "paddington-town-hall-bus", "name": "Oxford St before Paddington Town Hall", "lat": -33.8855, "lng": 151.2266, "platform": "Stop", "cumulativeMinutes": 15, "cumulativeMeters": 3800},
+        {"id": "centennial-park-gates-bus", "name": "Oxford St at Queen St (Centennial Park)", "lat": -33.8895, "lng": 151.2369, "platform": "Stop", "cumulativeMinutes": 19, "cumulativeMeters": 4900},
+        {"id": "bondi-junction-stn", "name": "Bondi Junction Station, Stand G", "lat": -33.8914, "lng": 151.2478, "platform": "Stand G", "cumulativeMinutes": 24, "cumulativeMeters": 6100},
+        {"id": "bondi-beach-bus", "name": "Campbell Pde at Bondi Beach", "lat": -33.8908, "lng": 151.2743, "platform": "Stop", "cumulativeMinutes": 32, "cumulativeMeters": 8900},
+        {"id": "north-bondi-bus", "name": "North Bondi Terminus, Campbell Pde", "lat": -33.8891, "lng": 151.2818, "platform": "Stop", "cumulativeMinutes": 35, "cumulativeMeters": 9700}
+      ]
+    },
+    {
+      "id": "tfnsw:bus:304",
+      "line": "304",
+      "name": "304 Circular Quay to Green Square via Botanic Garden & Art Gallery",
+      "mode": "bus",
+      "agency": "Transit Systems NSW",
+      "bidirectional": true,
+      "headwayMinutes": 8,
+      "operatingStartMinute": 330,
+      "operatingEndMinute": 1410,
+      "stops": [
+        {"id": "opera-house-macquarie-bus", "name": "Sydney Opera House Forecourt, Macquarie St", "lat": -33.8582, "lng": 151.2144, "platform": "Stop", "cumulativeMinutes": 0, "cumulativeMeters": 0},
+        {"id": "circular-quay-stn", "name": "Circular Quay Phillip St", "lat": -33.8622, "lng": 151.2116, "platform": "Stop", "cumulativeMinutes": 3, "cumulativeMeters": 600},
+        {"id": "botanic-garden-macquarie-bus", "name": "Macquarie St opp Royal Botanic Garden", "lat": -33.8658, "lng": 151.2136, "platform": "Stop", "cumulativeMinutes": 5, "cumulativeMeters": 1150},
+        {"id": "art-gallery-nsw-bus", "name": "Art Gallery of NSW, Art Gallery Rd", "lat": -33.8688, "lng": 151.2173, "platform": "Stop", "cumulativeMinutes": 8, "cumulativeMeters": 1750},
+        {"id": "australian-museum-bus", "name": "Australian Museum, College St", "lat": -33.8746, "lng": 151.2130, "platform": "Stop", "cumulativeMinutes": 11, "cumulativeMeters": 2550},
+        {"id": "crown-st-surry-hills-bus", "name": "Crown St at Campbell St, Surry Hills", "lat": -33.8825, "lng": 151.2145, "platform": "Stop", "cumulativeMinutes": 15, "cumulativeMeters": 3600},
+        {"id": "crown-st-cleveland-bus", "name": "Crown St at Cleveland St, Surry Hills", "lat": -33.8906, "lng": 151.2136, "platform": "Stop", "cumulativeMinutes": 18, "cumulativeMeters": 4600},
+        {"id": "green-square-stn", "name": "Green Square Station, Botany Rd", "lat": -33.9061, "lng": 151.2030, "platform": "Stop", "cumulativeMinutes": 24, "cumulativeMeters": 6600}
+      ]
+    },
+    {
+      "id": "tfnsw:bus:324",
+      "line": "324",
+      "name": "324 Walsh Bay & The Rocks to Watsons Bay via QVB & Kings Cross",
+      "mode": "bus",
+      "agency": "Transdev John Holland Buses",
+      "bidirectional": true,
+      "headwayMinutes": 8,
+      "operatingStartMinute": 330,
+      "operatingEndMinute": 1425,
+      "stops": [
+        {"id": "walsh-bay-bus", "name": "Hickson Rd at Walsh Bay Arts Precinct", "lat": -33.8565, "lng": 151.2054, "platform": "Stop", "cumulativeMinutes": 0, "cumulativeMeters": 0},
+        {"id": "the-rocks-bus", "name": "Argyle St at The Rocks", "lat": -33.8594, "lng": 151.2084, "platform": "Stop", "cumulativeMinutes": 3, "cumulativeMeters": 550},
+        {"id": "wynyard-stn", "name": "Wynyard Station, George St", "lat": -33.8662, "lng": 151.2070, "platform": "Stop", "cumulativeMinutes": 6, "cumulativeMeters": 1400},
+        {"id": "qvb-lr", "name": "QVB, George St", "lat": -33.8719, "lng": 151.2067, "platform": "Stop", "cumulativeMinutes": 9, "cumulativeMeters": 2050},
+        {"id": "australian-museum-bus", "name": "William St opp Australian Museum", "lat": -33.8744, "lng": 151.2140, "platform": "Stop", "cumulativeMinutes": 12, "cumulativeMeters": 2950},
+        {"id": "kings-cross-stn", "name": "William St at Kings Cross Station", "lat": -33.8744, "lng": 151.2245, "platform": "Stop", "cumulativeMinutes": 15, "cumulativeMeters": 4000},
+        {"id": "edgecliff-stn", "name": "Edgecliff Station, New South Head Rd", "lat": -33.8797, "lng": 151.2368, "platform": "Stop", "cumulativeMinutes": 19, "cumulativeMeters": 5400},
+        {"id": "double-bay-wharf", "name": "New South Head Rd at Double Bay", "lat": -33.8772, "lng": 151.2428, "platform": "Stop", "cumulativeMinutes": 22, "cumulativeMeters": 6200},
+        {"id": "rose-bay-wharf", "name": "New South Head Rd at Rose Bay", "lat": -33.8705, "lng": 151.2640, "platform": "Stop", "cumulativeMinutes": 27, "cumulativeMeters": 8400},
+        {"id": "vaucluse-light-bus", "name": "New South Head Rd at Vaucluse Bay", "lat": -33.8515, "lng": 151.2742, "platform": "Stop", "cumulativeMinutes": 32, "cumulativeMeters": 10800},
+        {"id": "watsons-bay-wharf", "name": "Military Rd at Watsons Bay", "lat": -33.8434, "lng": 151.2819, "platform": "Stop", "cumulativeMinutes": 35, "cumulativeMeters": 12100}
+      ]
+    },
+    {
+      "id": "tfnsw:bus:389",
+      "line": "389",
+      "name": "389 Pyrmont & Darling Harbour to Bondi Junction via Town Hall",
+      "mode": "bus",
+      "agency": "Transdev John Holland Buses",
+      "bidirectional": true,
+      "headwayMinutes": 8,
+      "operatingStartMinute": 330,
+      "operatingEndMinute": 1410,
+      "stops": [
+        {"id": "pyrmont-bay-wharf", "name": "Murray St at Darling Harbour (Maritime Museum)", "lat": -33.8705, "lng": 151.1986, "platform": "Stop", "cumulativeMinutes": 0, "cumulativeMeters": 0},
+        {"id": "darling-harbour-bus", "name": "Market St at Darling Harbour Bridge", "lat": -33.8722, "lng": 151.2022, "platform": "Stop", "cumulativeMinutes": 3, "cumulativeMeters": 600},
+        {"id": "qvb-lr", "name": "QVB, Market St", "lat": -33.8716, "lng": 151.2067, "platform": "Stop", "cumulativeMinutes": 6, "cumulativeMeters": 1150},
+        {"id": "australian-museum-bus", "name": "College St at Australian Museum", "lat": -33.8746, "lng": 151.2130, "platform": "Stop", "cumulativeMinutes": 9, "cumulativeMeters": 1950},
+        {"id": "taylor-square-bus", "name": "Crown St at Taylor Square", "lat": -33.8807, "lng": 151.2165, "platform": "Stop", "cumulativeMinutes": 13, "cumulativeMeters": 2850},
+        {"id": "paddington-five-ways-bus", "name": "Glenmore Rd at Five Ways Paddington", "lat": -33.8819, "lng": 151.2292, "platform": "Stop", "cumulativeMinutes": 17, "cumulativeMeters": 4200},
+        {"id": "bondi-junction-stn", "name": "Bondi Junction Station, Stand K", "lat": -33.8914, "lng": 151.2478, "platform": "Stand K", "cumulativeMinutes": 24, "cumulativeMeters": 6500}
+      ]
+    },
+    {
+      "id": "tfnsw:bus:373",
+      "line": "373",
+      "name": "373 City Museum to Coogee Beach via Randwick",
+      "mode": "bus",
+      "agency": "Transdev John Holland Buses",
+      "bidirectional": true,
+      "headwayMinutes": 8,
+      "operatingStartMinute": 330,
+      "operatingEndMinute": 1420,
+      "stops": [
+        {"id": "museum-stn", "name": "Museum Station, Elizabeth St", "lat": -33.8765, "lng": 151.2098, "platform": "Stand D", "cumulativeMinutes": 0, "cumulativeMeters": 0},
+        {"id": "taylor-square-bus", "name": "Oxford St at Taylor Square", "lat": -33.8807, "lng": 151.2165, "platform": "Stop", "cumulativeMinutes": 4, "cumulativeMeters": 950},
+        {"id": "moore-park-lr", "name": "Anzac Pde at Moore Park", "lat": -33.8935, "lng": 151.2215, "platform": "Stop", "cumulativeMinutes": 9, "cumulativeMeters": 2600},
+        {"id": "randwick-lr", "name": "Belmore Rd at Randwick", "lat": -33.9148, "lng": 151.2415, "platform": "Stop", "cumulativeMinutes": 17, "cumulativeMeters": 5800},
+        {"id": "coogee-beach-bus", "name": "Arden St at Coogee Beach", "lat": -33.9206, "lng": 151.2580, "platform": "Stop", "cumulativeMinutes": 23, "cumulativeMeters": 7600}
+      ]
+    },
+    {
+      "id": "tfnsw:bus:431",
+      "line": "431",
+      "name": "431 Martin Place to Glebe Point via Central & USYD",
+      "mode": "bus",
+      "agency": "Transit Systems NSW",
+      "bidirectional": true,
+      "headwayMinutes": 8,
+      "operatingStartMinute": 330,
+      "operatingEndMinute": 1410,
+      "stops": [
+        {"id": "martin-place-stn", "name": "Pitt St at Martin Place", "lat": -33.8679, "lng": 151.2090, "platform": "Stop", "cumulativeMinutes": 0, "cumulativeMeters": 0},
+        {"id": "qvb-lr", "name": "George St at QVB", "lat": -33.8719, "lng": 151.2067, "platform": "Stop", "cumulativeMinutes": 3, "cumulativeMeters": 650},
+        {"id": "chinatown-lr", "name": "George St at Chinatown / Darling Square", "lat": -33.8784, "lng": 151.2045, "platform": "Stop", "cumulativeMinutes": 6, "cumulativeMeters": 1450},
+        {"id": "central-stn", "name": "Railway Square, Central Station", "lat": -33.8835, "lng": 151.2043, "platform": "Stop", "cumulativeMinutes": 9, "cumulativeMeters": 2050},
+        {"id": "usyd-city-rd-bus", "name": "University of Sydney, Parramatta Rd", "lat": -33.8858, "lng": 151.1920, "platform": "Stop", "cumulativeMinutes": 13, "cumulativeMeters": 3300},
+        {"id": "glebe-point-rd-bus", "name": "Glebe Point Rd at St Johns Rd", "lat": -33.8810, "lng": 151.1869, "platform": "Stop", "cumulativeMinutes": 16, "cumulativeMeters": 4100},
+        {"id": "glebe-point-terminus-bus", "name": "Glebe Point Terminus, Bicentennial Park", "lat": -33.8726, "lng": 151.1820, "platform": "Stop", "cumulativeMinutes": 20, "cumulativeMeters": 5200}
+      ]
+    },
+    {
+      "id": "tfnsw:bus:100",
+      "line": "100",
+      "name": "100 QVB to Taronga Zoo via North Sydney & Mosman",
+      "mode": "bus",
+      "agency": "Keolis Downer Northern Beaches",
+      "bidirectional": true,
+      "headwayMinutes": 10,
+      "operatingStartMinute": 345,
+      "operatingEndMinute": 1400,
+      "stops": [
+        {"id": "qvb-lr", "name": "QVB, York St, Stand B", "lat": -33.8712, "lng": 151.2061, "platform": "Stand B", "cumulativeMinutes": 0, "cumulativeMeters": 0},
+        {"id": "wynyard-stn", "name": "Wynyard Station, Clarence St", "lat": -33.8660, "lng": 151.2054, "platform": "Stop", "cumulativeMinutes": 3, "cumulativeMeters": 700},
+        {"id": "milsons-point-stn", "name": "Bradfield Hwy at Milsons Point", "lat": -33.8458, "lng": 151.2118, "platform": "Stop", "cumulativeMinutes": 8, "cumulativeMeters": 3200},
+        {"id": "neutral-bay-junction-bus", "name": "Military Rd at Neutral Bay Junction", "lat": -33.8315, "lng": 151.2215, "platform": "Stop", "cumulativeMinutes": 13, "cumulativeMeters": 5300},
+        {"id": "mosman-junction-bus", "name": "Military Rd at Mosman Junction", "lat": -33.8278, "lng": 151.2412, "platform": "Stop", "cumulativeMinutes": 18, "cumulativeMeters": 7400},
+        {"id": "taronga-zoo-wharf", "name": "Taronga Zoo Top Entrance, Bradleys Head Rd", "lat": -33.8428, "lng": 151.2419, "platform": "Stop", "cumulativeMinutes": 24, "cumulativeMeters": 9300}
+      ]
+    }
+  ]
+}
