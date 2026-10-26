@@ -585,7 +585,7 @@
 "僅調整這一天，保留其餘日期和已完成活動；先展示建議，確認後再保存。" = "Adjust only this day, keep the rest and completed activities. Suggestions shown first, saved after confirmation.";
 "僅限這次" = "Just this trip";
 "僅顯示站點" = "Stops only";
-"價格等級映射：" = "Price tier mapping:";
+"價格等級映射：" = "Price tier mapping: ";
 "儲存" = "Save";
 "先不" = "Not now";
 "先不改时间" = "Don't change time yet";
@@ -1190,8 +1190,8 @@
 "尚未取得准确位置，请到开阔处重试，或选择模拟导航。" = "Unable to get accurate location. Please try again in an open area, or select simulated navigation.";
 "尚未取得準確位置，請到開闊處重試。" = "Unable to get accurate location. Please try again in an open area.";
 "尚未取得準確位置，請到開闊處重試，或選擇模擬導航。" = "Unable to get accurate location. Please try again in an open area, or select simulated navigation.";
-"尚未接入有來源的旅客評價，可查看商家官網瞭解詳情。" = "No passenger reviews available. Check the merchant's website for details.";
-"尚未接入有来源的旅客评价，可查看商家官网了解详情。" = "No passenger reviews available. Check the merchant's website for details.";
+"尚未接入有來源的旅客評價，可查看商家官網瞭解詳情。" = "No verified traveller reviews yet. Visit the business website for details.";
+"尚未接入有来源的旅客评价，可查看商家官网了解详情。" = "No verified traveller reviews yet. Visit the business website for details.";
 "尚未查詢" = "Not loaded";
 "尚未查詢道路路線 · 僅顯示站點" = "Road route not loaded · showing stops";
 "尚未查询" = "Not loaded";
@@ -2809,7 +2809,7 @@
 "貼文萃取會使用已設定的 AI；JSON 匯入不需 AI。" = "Text extraction uses your configured AI. JSON import does not require AI.";
 "資料來源已連線 · {0} 個行程景點" = "Connected · {0} itinerary places";
 "資料來源由後端統一管理；手機不需設定 Zetaris 網址或帳密。" = "Data source is managed uniformly by the backend; no need to set Zetaris URL or account on phone.";
-"資料來源：" = "Data source:";
+"資料來源：" = "Data source: ";
 "資料取得方式" = "Data access";
 "資料已保存。目前僅支持悉尼路線；你可以修改城市，或返回我的行程保留草稿。" = "Saved. Currently only supports Sydney routes. You can change the city or go back to save your draft itinerary.";
 "資料日期：{0}" = "Data date: {0}";
@@ -3373,7 +3373,7 @@
 "，點擊修改" = ", click to edit";
 "，點開查看" = ", tap to view";
 "；採用的假設：" = "；Assumed hypothesis:";
-"；費用及營業資訊未確認。" = "；Cost & business info unconfirmed.";
+"；費用及營業資訊未確認。" = "; costs and opening information are unverified.";
 "；费用及营业信息未确认。" = "；Cost & business info unconfirmed.";
 "；费用及营业资讯未确认。" = "；Cost & business info unconfirmed.";
 "；采用的假设：" = "；Assumed hypothesis:";

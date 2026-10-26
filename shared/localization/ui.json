@@ -2930,7 +2930,7 @@
     "zh-Hant": "僅顯示站點"
   },
   "價格等級映射：": {
-    "en": "Price tier mapping:",
+    "en": "Price tier mapping: ",
     "zh-Hans": "价格等级映射：",
     "zh-Hant": "價格等級映射："
   },
@@ -5955,12 +5955,12 @@
     "zh-Hant": "尚未取得準確位置，請到開闊處重試，或選擇模擬導航。"
   },
   "尚未接入有來源的旅客評價，可查看商家官網瞭解詳情。": {
-    "en": "No passenger reviews available. Check the merchant's website for details.",
+    "en": "No verified traveller reviews yet. Visit the business website for details.",
     "zh-Hans": "尚未接入有来源的旅客评价，可查看商家官网了解详情。",
     "zh-Hant": "尚未接入有來源的旅客評價，可查看商家官網瞭解詳情。"
   },
   "尚未接入有来源的旅客评价，可查看商家官网了解详情。": {
-    "en": "No passenger reviews available. Check the merchant's website for details.",
+    "en": "No verified traveller reviews yet. Visit the business website for details.",
     "zh-Hans": "尚未接入有来源的旅客评价，可查看商家官网了解详情。",
     "zh-Hant": "尚未接入有來源的旅客評價，可查看商家官網瞭解詳情。"
   },
@@ -14050,7 +14050,7 @@
     "zh-Hant": "資料來源由後端統一管理；手機不需設定 Zetaris 網址或帳密。"
   },
   "資料來源：": {
-    "en": "Data source:",
+    "en": "Data source: ",
     "zh-Hans": "数据来源：",
     "zh-Hant": "資料來源："
   },
@@ -16870,7 +16870,7 @@
     "zh-Hant": "；採用的假設："
   },
   "；費用及營業資訊未確認。": {
-    "en": "；Cost & business info unconfirmed.",
+    "en": "; costs and opening information are unverified.",
     "zh-Hans": "；费用及营业信息未确认。",
     "zh-Hant": "；費用及營業資訊未確認。"
   },
