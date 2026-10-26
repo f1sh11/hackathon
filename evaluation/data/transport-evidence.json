@@ -1,5 +1,5 @@
 {
-  "mode": "not-recorded",
-  "note": "The default evaluation deliberately contains no Apple MapKit or public-transit replay. It uses the existing demo estimator and labels every route as an estimate. E08 verifies that remaining-journey replanning refuses to invent road evidence. Add separate, dated provider responses only for a dedicated replay run.",
+  "mode": "historical-walking-replay-only",
+  "note": "E08 consumes evaluation/data/recorded-walking-replay.json: five dated Valhalla/OpenStreetMap pedestrian legs plus one explicitly disclosed concatenation used only when fatigue removes the optional Opera House visit. There is still no Apple MapKit replay and no TfNSW/public-transit replay. Other default cases use the demo estimator and are labelled as estimates.",
   "routes": []
 }

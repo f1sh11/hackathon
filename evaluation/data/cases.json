@@ -78,16 +78,22 @@
   },
   {
     "id": "E08",
-    "title": "途中疲劳但缺少步行回放证据",
-    "module": "RemainingJourney / WalkingEvidence",
-    "scenario": "remaining_without_walking_evidence",
+    "title": "疲劳后使用录制道路回放重算",
+    "module": "RemainingJourney / WalkingEvidence / ScheduleEditorService",
+    "scenario": "remaining_with_recorded_walking_replay",
+    "strategies": ["local_rule"],
+    "replayActivities": [
+      { "id": "garden", "duration": 15, "locked": true },
+      { "id": "opera", "duration": 150, "locked": false },
+      { "id": "rocks", "duration": 15, "locked": true },
+      { "id": "mca", "duration": 15, "locked": true }
+    ],
     "profile": {
-      "date": "2026-10-26", "days": 1, "budget": 100, "maxSteps": 10000, "startMinute": 600, "endMinute": 1080,
-      "interests": ["文化"], "request": "先按正常体力规划", "mustVisit": [],
+      "date": "2026-10-23", "days": 1, "budget": 100, "maxSteps": 10000, "startMinute": 600, "endMinute": 1439,
+      "interests": ["文化", "艺术", "自然", "风景"], "request": "先按正常体力规划", "mustVisit": [],
       "start": { "name": "环形码头", "lat": -33.8611, "lng": 151.2126 }, "end": { "name": "环形码头", "lat": -33.8611, "lng": 151.2126 }
     },
-    "remainingRequest": { "day": 0, "request": "我累了，少走一点", "currentMinute": 780, "origin": { "name": "环形码头", "lat": -33.8611, "lng": 151.2126 }, "completedIds": [], "skippedIds": [] },
-    "expected": { "outcome": "error", "messageContains": "请先查询真实步行时间", "expectedBehavior": "缺少可回放道路证据时明确停止，不用直线距离伪造途中重算。" }
+    "expected": { "outcome": "success", "currentMinute": 640, "maxSteps": 7000, "minimumOriginalSteps": 7001, "mustExcludeAfterFatigue": ["opera"], "preserveCompleted": true, "recordedRoadReplay": true, "requiresComposedHistoricalPath": true, "assertMissingEvidenceRejected": true, "endsAtRequestedDestination": true, "expectedBehavior": "先证明移除道路证据会明确停止；原方案把可选歌剧院停留设为 150 分钟而超过 7,000 步疲劳上限。重算只使用有日期和来源的历史 Valhalla/OSM 道路回放：自动移除可选歌剧院停留，并使用由两段原始路段透明拼接的经歌剧院步行路径连接植物园与岩石区。保留已完成活动，不把回放标作 Apple 或实时导航。" }
   },
   {
     "id": "E09",

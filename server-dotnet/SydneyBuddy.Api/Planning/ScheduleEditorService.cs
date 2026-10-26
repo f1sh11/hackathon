@@ -28,11 +28,11 @@ public sealed class ScheduleEditorService(PlaceCatalog catalog,RestaurantStore? 
     static JsonObject Radar(string name,double value)=>new(){["name"]=name,["value"]=Math.Clamp(value,0,1)};
     public static string KindLabel(string kind)=>kind switch {"meal"=>"用餐","restroom"=>"廁所","rest"=>"休息","stay"=>"入住","checkout"=>"退房","bag-drop"=>"寄放","bag-pickup"=>"取件",_=>"景點"};
 
-    public JsonObject Build(JsonObject request,bool allowHistoricalTransit=false) {
+    public JsonObject Build(JsonObject request,bool allowHistoricalTransit=false,bool allowHistoricalWalkingReplay=false) {
         var trip=Copy(request.Object("trip")??throw new ServiceException("缺少行程。"));
         if(trip.Str("mode")=="live")throw new ServiceException("Google 来源行程请使用匹配的道路服务编辑。");
         var evidence=request.Array("walkingRoutes")??trip.Array("walkingRoutes");
-        var walking=evidence is null ? null:new WalkingEvidence(evidence);
+        var walking=evidence is null ? null:new WalkingEvidence(evidence,allowHistoricalWalkingReplay);
         if(trip.Str("mode")!="demo" && walking is null)throw new ServiceException("在线行程修改需要真实步行数据。");
         if(evidence is not null)trip["walkingRoutes"]=evidence.DeepClone();
         var transportInput=request.Array("transportRoutes")??trip.Array("transportRoutes");
@@ -182,7 +182,12 @@ public sealed class ScheduleEditorService(PlaceCatalog catalog,RestaurantStore? 
             days.Add(new JsonObject{["date"]=date,["startMinute"]=startM,["endMinute"]=endM,["startOverride"]=input?.Bool("startOverride")==true,["endOverride"]=input?.Bool("endOverride")==true,["start"]=start.DeepClone(),["end"]=end.DeepClone(),["stay"]=stay,["activities"]=activities,["transportMinutes"]=travel,["queueMinutes"]=queueTotal,["timeUsed"]=travel+queueTotal,["timeRemaining"]=settings.Int("timeLimit")-travel-queueTotal,["unknownQueue"]=unknown,["estimatedSteps"]=steps,["estimatedCost"]=costTotal,["finishTime"]=Time(clock)});
             if(input?["maxSteps"] is not null)days[days.Count-1]!["maxSteps"]=dailySteps;
             if(input?["dailyBudget"] is not null)days[days.Count-1]!["dailyBudget"]=dailyBudget;
-            legacy.Add(new JsonObject{["date"]=date,["planningStartMinute"]=startM,["executionStarted"]=previousDays?[d]?.Bool("executionStarted")??false,["stops"]=stops,["legs"]=legs,["estimatedCost"]=costTotal,["estimatedSteps"]=steps,["finishTime"]=Time(clock),["warnings"]=new JsonArray(walking is null ? "時間軸示例：設施待確認，交通為估算，不是導航路線。":"交通按 Apple 步行查询安排，设施、费用和排队仍需确认。"),["start"]=start.DeepClone(),["end"]=end.DeepClone()});
+            var walkingWarning=walking is null
+                ? "時間軸示例：設施待確認，交通為估算，不是導航路線。"
+                : walking.IsHistoricalReplay
+                    ? "交通按历史道路回放安排；这不是实时导航，设施、费用和排队仍需确认。"
+                    : "交通按 Apple 步行查询安排，设施、费用和排队仍需确认。";
+            legacy.Add(new JsonObject{["date"]=date,["planningStartMinute"]=startM,["executionStarted"]=previousDays?[d]?.Bool("executionStarted")??false,["stops"]=stops,["legs"]=legs,["estimatedCost"]=costTotal,["estimatedSteps"]=steps,["finishTime"]=Time(clock),["warnings"]=new JsonArray(walkingWarning),["start"]=start.DeepClone(),["end"]=end.DeepClone()});
             previousStay=Copy(stay);totalCost+=costTotal;
         }
         foreach(var old in previousDays?.OfType<JsonObject>()??[])foreach(var past in old.Array("completedStops")?.OfType<JsonObject>()??[])selected.Add(past.Str("placeId",past.Str("id")));
@@ -193,7 +198,14 @@ public sealed class ScheduleEditorService(PlaceCatalog catalog,RestaurantStore? 
         trip["weather"]=new JsonObject{["summary"]=rainy?"下雨示例情境":"晴天示例情境",["rainy"]=rainy,["source"]="使用者測試情境，非即時天氣",["status"]="demo"};
         for(var i=0;i<legacy.Count;i++)if(previousDays?[i] is JsonObject old && old.Array("completedStops") is {} past){legacy[i]!["completedStops"]=past.DeepClone();if(old.Array("skippedStops") is {} skipped)legacy[i]!["skippedStops"]=skipped.DeepClone();}
         trip["days"]=legacy;trip["profile"]=profile;trip["explanation"]="依偏好產生多日時間軸草案，可拖動、拉伸及勾選景點；確認後才儲存。";
-        if(walking is not null){trip["warnings"]=new JsonArray("步行已按 Apple 道路查询；费用、排队和未核实营业时段仍需确认。");trip.Object("schedule")!["source"]="Apple Maps / MapKit 步行排程";}
+        if(walking is not null){
+            trip["warnings"]=new JsonArray(walking.IsHistoricalReplay
+                ? "步行按历史道路回放重放，不是实时导航；费用、排队和未核实营业时段仍需确认。"
+                : "步行已按 Apple 道路查询；费用、排队和未核实营业时段仍需确认。");
+            trip.Object("schedule")!["source"]=walking.IsHistoricalReplay
+                ? "历史道路回放 / "+walking.SourceSummary
+                : "Apple Maps / MapKit 步行排程";
+        }
         if(request["rainy"] is null && request.Object("trip")?.Object("weather") is {} originalWeather)trip["weather"]=originalWeather.DeepClone();
         if(trip["recommendationStatus"] is not null) {
             RecommendationQuality.Assess(profile,legacy);
