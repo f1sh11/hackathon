@@ -21,7 +21,7 @@ internal static class EvaluationProgram
         var habitsPath = Path.Combine(dataDirectory, "user-habits.csv");
         var expectationsPath = Path.Combine(dataDirectory, "expected-checks.csv");
         var transportPath = Path.Combine(dataDirectory, "transport-evidence.json");
-        var recordedWalkingReplayPath = Path.Combine(dataDirectory, "recorded-walking-replay.json");
+        var recordedWalkingReplayPath = options.WalkingReplay ?? Path.Combine(dataDirectory, "apple-mapkit-walking-replay.json");
         var cases = JsonNode.Parse(await File.ReadAllTextAsync(casesPath)) as JsonArray
             ?? throw new InvalidDataException("evaluation/data/cases.json must be a JSON array.");
         if (cases.Count != 10) throw new InvalidDataException("The evaluation suite must contain exactly 10 cases.");
@@ -30,7 +30,7 @@ internal static class EvaluationProgram
         var transportFixture = JsonNode.Parse(await File.ReadAllTextAsync(transportPath)) as JsonObject
             ?? throw new InvalidDataException("evaluation/data/transport-evidence.json must be a JSON object.");
         var recordedWalkingReplay = JsonNode.Parse(await File.ReadAllTextAsync(recordedWalkingReplayPath)) as JsonObject
-            ?? throw new InvalidDataException("evaluation/data/recorded-walking-replay.json must be a JSON object.");
+            ?? throw new InvalidDataException("The selected walking replay must be a JSON object.");
         ValidateRecordedWalkingReplay(root, recordedWalkingReplay);
 
         var output = options.Output ?? Path.Combine(root, "evaluation", "output",
@@ -69,6 +69,13 @@ internal static class EvaluationProgram
             WriteCaseArtifact(output, ai);
         }
 
+        var aiResults = results.Where(result => result.Strategy == "ai_plus_rules" && result.Status != "not_applicable").ToArray();
+        var configuredModel = secrets.Read().GetValueOrDefault("NVIDIA_MODEL", SecretStore.DefaultModel);
+        if (string.IsNullOrWhiteSpace(configuredModel)) configuredModel = SecretStore.DefaultModel;
+        var aiExecuted = aiResults.Count(result => result.Output?.Array("trace")?.OfType<JsonObject>()
+            .Any(trace => trace.Str("source") == "NVIDIA NIM") == true);
+        var ruleRejectedBeforeModel = aiResults.Count(result => result.Status == "expected_rejection" &&
+            result.Output?.Array("trace")?.OfType<JsonObject>().Any(trace => trace.Str("source") == "NVIDIA NIM") != true);
         WriteCatalogSnapshot(output, catalog.Get());
         await WriteJsonAsync(Path.Combine(output, "run-metadata.json"), new JsonObject
         {
@@ -78,12 +85,27 @@ internal static class EvaluationProgram
             ["aiStrategy"] = aiConfigured
                 ? "assisted mode: current NVIDIA recommendation followed by the same deterministic scheduler"
                 : "not run; no model result is substituted or simulated",
+            ["aiComparison"] = new JsonObject
+            {
+                ["requested"] = options.WithAi,
+                ["configured"] = aiConfigured,
+                ["provider"] = aiConfigured ? "NVIDIA NIM" : null,
+                ["model"] = aiConfigured ? configuredModel : null,
+                ["applicableCaseCount"] = aiResults.Length,
+                ["providerExecutedCaseCount"] = aiExecuted,
+                ["ruleRejectedBeforeModelCaseCount"] = ruleRejectedBeforeModel,
+                ["passedCaseCount"] = aiResults.Count(result => result.Passed),
+                ["notRunCaseCount"] = aiResults.Count(result => result.Status == "not_run"),
+                ["comparisonBoundary"] = "The same fixed catalog, input profile, demo weather and empty evaluation memory are used; the model ranks known IDs while deterministic rules validate the itinerary."
+            },
             ["transportFixture"] = transportFixture["mode"]?.DeepClone(),
             ["transportFixtureNote"] = transportFixture["note"]?.DeepClone(),
             ["recordedWalkingReplay"] = new JsonObject
             {
                 ["provider"] = recordedWalkingReplay["provider"]?.DeepClone(),
                 ["recordedDate"] = recordedWalkingReplay["recordedDate"]?.DeepClone(),
+                ["capturedAt"] = recordedWalkingReplay["capturedAt"]?.DeepClone(),
+                ["captureClient"] = recordedWalkingReplay["captureClient"]?.DeepClone(),
                 ["sourceFixture"] = recordedWalkingReplay["sourceFixture"]?.DeepClone(),
                 ["notLiveNavigation"] = recordedWalkingReplay["notLiveNavigation"]?.DeepClone(),
                 ["legCount"] = recordedWalkingReplay.Array("legs")?.Count,
@@ -91,8 +113,8 @@ internal static class EvaluationProgram
             }
         });
         await File.WriteAllTextAsync(Path.Combine(output, "results.csv"), RenderCsv(results), new UTF8Encoding(false));
-        await File.WriteAllTextAsync(Path.Combine(output, "report.html"), RenderHtml(results, aiConfigured), new UTF8Encoding(false));
-        await File.WriteAllTextAsync(Path.Combine(output, "issues.md"), RenderIssues(results), new UTF8Encoding(false));
+        await File.WriteAllTextAsync(Path.Combine(output, "report.html"), RenderHtml(results, aiConfigured, recordedWalkingReplay), new UTF8Encoding(false));
+        await File.WriteAllTextAsync(Path.Combine(output, "issues.md"), RenderIssues(results, recordedWalkingReplay), new UTF8Encoding(false));
 
         var localResults = results.Where(x => x.Strategy == "local_rule").ToArray();
         var localFailures = localResults.Where(x => !x.Passed).ToArray();
@@ -102,7 +124,7 @@ internal static class EvaluationProgram
         Console.WriteLine($"Evaluation report written to {output}");
         Console.WriteLine($"Local-rule assertions: {localResults.Count(x => x.Passed)}/10 matched ({localRoutes} routes; {localExpectedRejections} expected safety rejections).");
         Console.WriteLine(aiConfigured
-            ? $"AI + rule cases: {results.Count(x => x.Strategy == "ai_plus_rules" && x.Passed)}/{results.Count(x => x.Strategy == "ai_plus_rules" && x.Status != "not_applicable")} passed (recorded-road replay is not applicable to the model comparison)."
+            ? $"AI + rule assertions: {aiResults.Count(x => x.Passed)}/{aiResults.Length} passed; NVIDIA was actually called for {aiExecuted}/{aiResults.Length} cases ({ruleRejectedBeforeModel} safely rejected by rules before a model call)."
             : "AI + rule cases: not run (no model result was fabricated).");
         return localFailures.Length == 0 && (!options.WithAi || aiFailures.Length == 0) ? 0 : 1;
     }
@@ -189,7 +211,7 @@ internal static class EvaluationProgram
             updated["evaluationReplay"] = new JsonObject
             {
                 ["provider"] = replay.Str("provider"), ["recordedDate"] = replay.Str("recordedDate"),
-                ["sourceFixture"] = replay.Str("sourceFixture"),
+                ["sourceFixture"] = ReplayIdentity(replay),
                 ["preFatigueSteps"] = original.Array("days")![0]!.AsObject().Int("estimatedSteps"),
                 ["postFatigueSteps"] = updated.Array("days")![0]!.AsObject().Int("estimatedSteps"),
                 ["initialStopIds"] = new JsonArray(original.Array("days")![0]!.AsObject().Array("stops")!.OfType<JsonObject>().Select(stop => (JsonNode)JsonValue.Create(stop.Str("id"))!).ToArray()),
@@ -270,9 +292,9 @@ internal static class EvaluationProgram
                 ["from"] = from.DeepClone(), ["to"] = to.DeepClone(),
                 ["meters"] = node.Number("meters"), ["seconds"] = node.Number("seconds"),
                 ["source"] = replay.Str("provider") + " historical recorded replay",
-                ["sourceFixture"] = replay.Str("sourceFixture"),
+                ["sourceFixture"] = ReplayIdentity(replay),
                 ["recordedReplay"] = true, ["recordedDate"] = replay.Str("recordedDate"),
-                ["replayKind"] = node.Str("kind"), ["derivedFrom"] = node["derivedFrom"]?.DeepClone()
+                ["replayKind"] = node.Str("kind"), ["replayLegId"] = node.Str("id"), ["derivedFrom"] = node["derivedFrom"]?.DeepClone()
             });
         }
         return routes;
@@ -314,17 +336,20 @@ internal static class EvaluationProgram
             var provider = replay.Str("provider");
             var legs = day.Array("legs")!.OfType<JsonObject>().ToArray();
             if (legs.Length == 0 || legs.Any(leg => !leg.Bool("recordedReplay") || !leg.Str("source").Contains(provider, StringComparison.Ordinal) ||
-                leg.Str("sourceFixture") != replay.Str("sourceFixture")))
+                leg.Str("sourceFixture") != ReplayIdentity(replay)))
                 return new Assessment(false, "The replanned route did not retain the recorded-road evidence on every leg.");
             var source = updated.Object("schedule")!.Str("source");
-            if (!source.Contains(provider, StringComparison.Ordinal) || source.Contains("Apple", StringComparison.OrdinalIgnoreCase))
+            if (!source.Contains(provider, StringComparison.Ordinal))
                 return new Assessment(false, "The replay provenance was mislabeled in the resulting schedule.");
-            if (expected.Bool("requiresComposedHistoricalPath") && !legs.Any(leg => leg.Str("replayKind") == "composed_historical_path" && leg.Array("derivedFrom") is { Count: > 0 }))
+            if (replay.Str("rerouteEvidence") == "composed_historical_path" && !legs.Any(leg => leg.Str("replayKind") == "composed_historical_path" && leg.Array("derivedFrom") is { Count: > 0 }))
                 return new Assessment(false, "The reroute did not disclose the composed historical path it needed after removing the optional stop.");
+            if (replay.Str("rerouteEvidence") == "direct_provider_recorded_leg" && !legs.Any(leg => leg.Str("replayKind") == "provider_recorded_leg" &&
+                leg.Str("replayLegId") == "garden_to_rocks" && leg.Str("source").Contains(provider, StringComparison.Ordinal)))
+                return new Assessment(false, "The reroute did not retain the direct provider-recorded garden-to-rocks path.");
         }
         if (!StringComparer.Ordinal.Equals(original.Str("mode"), "demo"))
             return new Assessment(false, "The replay seed unexpectedly changed transport mode.");
-        return new Assessment(true, "Historical Valhalla/OSM replay safely rejected missing evidence, then removed the optional Opera House visit to satisfy the fatigue cap while preserving the completed stop.");
+        return new Assessment(true, $"Historical {replay.Str("provider")} replay safely rejected missing evidence, then removed the optional Opera House visit to satisfy the fatigue cap while preserving the completed stop.");
     }
 
     private static bool SameRecordedStop(JsonObject expected, JsonObject actual) =>
@@ -336,48 +361,101 @@ internal static class EvaluationProgram
     private static bool AppliesToStrategy(JsonObject testCase, string strategy) =>
         testCase.Array("strategies") is not JsonArray strategies || strategies.OfType<JsonValue>().Any(node => node.GetValue<string>() == strategy);
 
+    private static string ReplayIdentity(JsonObject replay) => replay.Str("sourceFixture", replay.Str("captureClient", "recorded provider snapshot"));
+
     private static void ValidateRecordedWalkingReplay(string root, JsonObject replay)
     {
-        if (replay.Str("provider").Length == 0 || replay.Str("sourceFixture").Length == 0 || !replay.Bool("notLiveNavigation"))
-            throw new InvalidDataException("Recorded walking replay must declare provider, source fixture, and non-live status.");
-        if (!DateOnly.TryParse(replay.Str("recordedDate"), out _))
+        if (replay.Str("provider").Length == 0 || !replay.Bool("notLiveNavigation"))
+            throw new InvalidDataException("Recorded walking replay must declare provider and non-live status.");
+        if (!DateOnly.TryParse(replay.Str("recordedDate"), out var recordedDate))
             throw new InvalidDataException("Recorded walking replay must declare a valid recordedDate.");
+        var sydney = TimeZoneInfo.FindSystemTimeZoneById("Australia/Sydney");
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, sydney).DateTime);
+        if (recordedDate > today) throw new InvalidDataException("Recorded walking replay cannot be dated in the future.");
         var legs = replay.Array("legs")?.OfType<JsonObject>().ToArray() ?? [];
         if (legs.Any(leg => leg.Str("id").Length == 0 || leg.Str("from").Length == 0 || leg.Str("to").Length == 0 ||
             leg.Number("meters") <= 0 || leg.Number("seconds") <= 0) || legs.Select(leg => leg.Str("id")).Distinct(StringComparer.Ordinal).Count() != legs.Length)
             throw new InvalidDataException("Recorded walking replay contains an invalid or duplicate leg.");
         var direct = legs.Where(leg => leg.Str("kind") == "provider_recorded_leg").ToArray();
-        var expectedPairs = new[] { ("start", "garden"), ("garden", "opera"), ("opera", "rocks"), ("rocks", "mca"), ("mca", "end") };
-        if (direct.Length != expectedPairs.Length || direct.Where((leg, index) => leg.Str("from") != expectedPairs[index].Item1 || leg.Str("to") != expectedPairs[index].Item2).Any())
+        var expectedPairs = new[] { (From: "start", To: "garden"), (From: "garden", To: "opera"), (From: "opera", To: "rocks"), (From: "rocks", To: "mca"), (From: "mca", To: "end") };
+        if (expectedPairs.Any(pair => direct.Count(leg => leg.Str("from") == pair.From && leg.Str("to") == pair.To) != 1))
             throw new InvalidDataException("Recorded walking replay must retain the five ordered provider legs.");
-
-        var rootPath = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
-        var fixturePath = Path.GetFullPath(Path.Combine(root, replay.Str("sourceFixture")));
-        if (!fixturePath.StartsWith(rootPath, StringComparison.Ordinal) || !File.Exists(fixturePath))
-            throw new InvalidDataException("Recorded walking replay source fixture is missing or outside the repository root.");
-        var fixture = JsonNode.Parse(File.ReadAllText(fixturePath)) as JsonObject
-            ?? throw new InvalidDataException("Recorded walking replay source fixture is not a JSON object.");
-        var fixtureSteps = fixture.Array("legs")?.OfType<JsonObject>().Select(leg => leg.Array("steps")?.OfType<JsonObject>().FirstOrDefault()).ToArray() ?? [];
-        if (fixtureSteps.Length != direct.Length || fixtureSteps.Any(step => step is null))
-            throw new InvalidDataException("Recorded walking replay source fixture does not contain the expected walking legs.");
-        for (var index = 0; index < direct.Length; index++)
-        {
-            var fixtureStep = fixtureSteps[index]!;
-            if (Math.Abs(direct[index].Number("meters") - fixtureStep.Number("meters")) > 0.001 ||
-                Math.Abs(direct[index].Number("seconds") - fixtureStep.Number("seconds")) > 0.001)
-                throw new InvalidDataException("Recorded walking replay differs from its declared source fixture.");
-        }
+        var directReroute = direct.SingleOrDefault(leg => leg.Str("from") == "garden" && leg.Str("to") == "rocks");
+        if (direct.Length != expectedPairs.Length + (directReroute is null ? 0 : 1))
+            throw new InvalidDataException("Recorded walking replay contains an unexpected direct provider leg.");
 
         var composed = legs.Where(leg => leg.Str("kind") == "composed_historical_path").ToArray();
-        if (composed.Length != 1 || composed[0].Str("from") != "garden" || composed[0].Str("to") != "rocks")
-            throw new InvalidDataException("Recorded walking replay must declare one garden-to-rocks composed path.");
-        var componentIds = composed[0].Array("derivedFrom")?.OfType<JsonValue>().Select(node => node.GetValue<string>()).ToArray() ?? [];
-        var directById = direct.ToDictionary(leg => leg.Str("id"), StringComparer.Ordinal);
-        if (componentIds.Length != 2 || componentIds.Any(id => !directById.ContainsKey(id)))
-            throw new InvalidDataException("The composed historical path must identify two recorded source legs.");
-        if (Math.Abs(composed[0].Number("meters") - componentIds.Sum(id => directById[id].Number("meters"))) > 0.001 ||
-            Math.Abs(composed[0].Number("seconds") - componentIds.Sum(id => directById[id].Number("seconds"))) > 0.001)
-            throw new InvalidDataException("The composed historical path must equal the sum of its recorded source legs.");
+        var rerouteEvidence = replay.Str("rerouteEvidence");
+        if (rerouteEvidence == "direct_provider_recorded_leg")
+        {
+            if (directReroute is null || composed.Length != 0)
+                throw new InvalidDataException("The direct fatigue reroute must include one fresh garden-to-rocks provider leg and no composed substitute.");
+        }
+        else if (rerouteEvidence == "composed_historical_path")
+        {
+            if (directReroute is not null || composed.Length != 1 || composed[0].Str("from") != "garden" || composed[0].Str("to") != "rocks")
+                throw new InvalidDataException("The composed fatigue reroute must declare exactly one garden-to-rocks path.");
+            var componentIds = composed[0].Array("derivedFrom")?.OfType<JsonValue>().Select(node => node.GetValue<string>()).ToArray() ?? [];
+            var directById = direct.ToDictionary(leg => leg.Str("id"), StringComparer.Ordinal);
+            if (componentIds.Length != 2 || componentIds.Any(id => !directById.ContainsKey(id)))
+                throw new InvalidDataException("The composed historical path must identify two recorded source legs.");
+            if (Math.Abs(composed[0].Number("meters") - componentIds.Sum(id => directById[id].Number("meters"))) > 0.001 ||
+                Math.Abs(composed[0].Number("seconds") - componentIds.Sum(id => directById[id].Number("seconds"))) > 0.001)
+                throw new InvalidDataException("The composed historical path must equal the sum of its recorded source legs.");
+        }
+        else throw new InvalidDataException("Recorded walking replay must declare direct or composed fatigue-reroute evidence.");
+
+        var sourceFixture = replay.Str("sourceFixture");
+        if (sourceFixture.Length > 0)
+        {
+            var rootPath = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            var fixturePath = Path.GetFullPath(Path.Combine(root, sourceFixture));
+            if (!fixturePath.StartsWith(rootPath, StringComparison.Ordinal) || !File.Exists(fixturePath))
+                throw new InvalidDataException("Recorded walking replay source fixture is missing or outside the repository root.");
+            var fixture = JsonNode.Parse(File.ReadAllText(fixturePath)) as JsonObject
+                ?? throw new InvalidDataException("Recorded walking replay source fixture is not a JSON object.");
+            var fixtureSteps = fixture.Array("legs")?.OfType<JsonObject>().Select(leg => leg.Array("steps")?.OfType<JsonObject>().FirstOrDefault()).ToArray() ?? [];
+            var originalDirect = expectedPairs.Select(pair => direct.Single(leg => leg.Str("from") == pair.From && leg.Str("to") == pair.To)).ToArray();
+            if (fixtureSteps.Length != originalDirect.Length || fixtureSteps.Any(step => step is null))
+                throw new InvalidDataException("Recorded walking replay source fixture does not contain the expected walking legs.");
+            for (var index = 0; index < originalDirect.Length; index++)
+            {
+                var fixtureStep = fixtureSteps[index]!;
+                if (Math.Abs(originalDirect[index].Number("meters") - fixtureStep.Number("meters")) > 0.001 ||
+                    Math.Abs(originalDirect[index].Number("seconds") - fixtureStep.Number("seconds")) > 0.001)
+                    throw new InvalidDataException("Recorded walking replay differs from its declared source fixture.");
+            }
+        }
+        else ValidateMapKitCapture(replay, direct, recordedDate, sydney);
+    }
+
+    private static void ValidateMapKitCapture(JsonObject replay, IReadOnlyList<JsonObject> direct, DateOnly recordedDate, TimeZoneInfo sydney)
+    {
+        if (replay.Str("provider") != "Apple Maps / MapKit" || !replay.Str("captureClient").Contains("MapKit", StringComparison.Ordinal) ||
+            replay.Str("requestTransportType") != "walking" || replay.Str("timeZone") != "Australia/Sydney" || replay["usesDeviceLocation"] is null || replay.Bool("usesDeviceLocation"))
+            throw new InvalidDataException("A self-contained replay must be an explicit non-location Apple MapKit walking capture.");
+        if (!DateTimeOffset.TryParse(replay.Str("capturedAt"), out var replayCapturedAt))
+            throw new InvalidDataException("Apple MapKit replay is missing a parseable capture timestamp.");
+        var captureDate = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(replayCapturedAt, sydney).DateTime);
+        if (captureDate != recordedDate) throw new InvalidDataException("Apple MapKit replay date differs from its capture timestamp.");
+        var expectedPoints = new Dictionary<string, (double Lat, double Lng)>(StringComparer.Ordinal)
+        {
+            ["start"] = (-33.8611, 151.2126), ["end"] = (-33.8611, 151.2126),
+            ["garden"] = (-33.8642, 151.2166), ["opera"] = (-33.8568, 151.2153),
+            ["rocks"] = (-33.8599, 151.2090), ["mca"] = (-33.8599, 151.2091)
+        };
+        foreach (var leg in direct)
+        {
+            if (!DateTimeOffset.TryParse(leg.Str("capturedAt"), out var legCapturedAt))
+                throw new InvalidDataException("Apple MapKit replay leg is missing a parseable capture timestamp.");
+            if (DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(legCapturedAt, sydney).DateTime) != recordedDate)
+                throw new InvalidDataException("Apple MapKit replay leg date differs from the manifest.");
+            if (!expectedPoints.TryGetValue(leg.Str("from"), out var from) || !expectedPoints.TryGetValue(leg.Str("to"), out var to) ||
+                leg.Object("fromCoordinate") is not { } fromPoint || leg.Object("toCoordinate") is not { } toPoint ||
+                Math.Abs(fromPoint.Number("lat") - from.Lat) > 0.000001 || Math.Abs(fromPoint.Number("lng") - from.Lng) > 0.000001 ||
+                Math.Abs(toPoint.Number("lat") - to.Lat) > 0.000001 || Math.Abs(toPoint.Number("lng") - to.Lng) > 0.000001)
+                throw new InvalidDataException("Apple MapKit replay leg endpoints do not match the fixed public landmark manifest.");
+        }
     }
 
     private static Assessment AssessSuccess(JsonObject trip, JsonObject expected)
@@ -508,7 +586,7 @@ internal static class EvaluationProgram
         return rows.ToString();
     }
 
-    private static string RenderHtml(IReadOnlyList<CaseResult> results, bool aiConfigured)
+    private static string RenderHtml(IReadOnlyList<CaseResult> results, bool aiConfigured, JsonObject replay)
     {
         var local = results.Where(result => result.Strategy == "local_rule").ToArray();
         var rows = new StringBuilder();
@@ -537,13 +615,13 @@ internal static class EvaluationProgram
                 var transportSource = (day.Array("legs")?.OfType<JsonObject>() ?? []).FirstOrDefault()?.Str("source", "未提供");
                 return $"{day.Str("date")}: 结束 {day.Str("finishTime")}；步数 {day.Int("estimatedSteps")}；花费 A${day.Number("estimatedCost"):0.##}；交通 {transportMinutes} 分钟（{transportSource}）";
             }));
-            var replay = result.Output?.Object("evaluationReplay");
-            if (replay is not null)
+            var evaluationReplay = result.Output?.Object("evaluationReplay");
+            if (evaluationReplay is not null)
             {
-                var initial = replay.Array("initialStopIds")?.OfType<JsonValue>().Select(node => node.GetValue<string>()).ToHashSet(StringComparer.Ordinal) ?? [];
-                var remaining = replay.Array("remainingStopIds")?.OfType<JsonValue>().Select(node => node.GetValue<string>()).ToHashSet(StringComparer.Ordinal) ?? [];
+                var initial = evaluationReplay.Array("initialStopIds")?.OfType<JsonValue>().Select(node => node.GetValue<string>()).ToHashSet(StringComparer.Ordinal) ?? [];
+                var remaining = evaluationReplay.Array("remainingStopIds")?.OfType<JsonValue>().Select(node => node.GetValue<string>()).ToHashSet(StringComparer.Ordinal) ?? [];
                 var removed = initial.Except(remaining).Select(DisplayCasePlace).ToArray();
-                var replayLine = $"评测回放：疲劳前 {replay.Int("preFatigueSteps")} 步 → 疲劳后 {replay.Int("postFatigueSteps")} 步；移除 {string.Join("、", removed)}";
+                var replayLine = $"评测回放：疲劳前 {evaluationReplay.Int("preFatigueSteps")} 步 → 疲劳后 {evaluationReplay.Int("postFatigueSteps")} 步；移除 {string.Join("、", removed)}";
                 estimates = string.IsNullOrWhiteSpace(estimates) ? replayLine : estimates + "<br>" + replayLine;
             }
             var warnings = (result.Output?.Array("warnings")?.OfType<JsonValue>().Select(node => node.GetValue<string>()) ?? [])
@@ -578,11 +656,22 @@ internal static class EvaluationProgram
         var localRoutes = local.Count(result => result.Status == "passed");
         var localExpectedRejections = local.Count(result => result.Status == "expected_rejection");
         var localFailures = local.Count(result => result.Status == "failed");
-        var aiNote = aiConfigured ? "已尝试真实 NVIDIA 调用；逐案查看状态。" : "未运行；报告未将任何模拟结果称为 AI 结果。";
+        var aiResults = results.Where(result => result.Strategy == "ai_plus_rules" && result.Status != "not_applicable").ToArray();
+        var aiExecuted = aiResults.Count(result => result.Output?.Array("trace")?.OfType<JsonObject>()
+            .Any(trace => trace.Str("source") == "NVIDIA NIM") == true);
+        var rejectedBeforeModel = aiResults.Count(result => result.Status == "expected_rejection" &&
+            result.Output?.Array("trace")?.OfType<JsonObject>().Any(trace => trace.Str("source") == "NVIDIA NIM") != true);
+        var aiNote = aiConfigured
+            ? $"已真实调用 NVIDIA：{aiExecuted}/{aiResults.Length} 个适用案例到达模型；{rejectedBeforeModel} 个案例先被确定性规则按预期拒绝。逐案查看状态。"
+            : "未运行；报告未将任何模拟结果称为 AI 结果。";
+        var replayEvidence = replay.Str("rerouteEvidence") == "direct_provider_recorded_leg"
+            ? "疲劳后使用一段独立录制的植物园→岩石区路段"
+            : "疲劳后使用由两段原始路段透明拼接的植物园→岩石区连接段";
+        var replayNote = $"E08 仅使用有日期和来源的 {replay.Str("provider")} 历史道路回放（录制日期 {replay.Str("recordedDate")}）；{replayEvidence}。它验证途中重算的证据门槛、已完成活动保留和疲劳步数导致的可选站点移除；它不是实时导航或 TfNSW 公交回放。其余路线仍是本地演示估算；只有实际执行的 AI 结果才能被称为模型策略验证。";
         return "<!doctype html><html lang=\"zh-CN\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
             + "<title>SydneyBuddy 推荐与路线评测</title><style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin:32px;color:#173642;background:#f6fbfa}main{max-width:1800px;margin:auto}h1{margin-bottom:4px}.note{background:#e6f3f0;padding:14px;border-radius:10px}table{width:100%;border-collapse:collapse;background:#fff;margin-top:20px;font-size:13px}th,td{text-align:left;vertical-align:top;padding:10px;border-bottom:1px solid #d9e4e1;line-height:1.5}th{background:#0f6d69;color:#fff;position:sticky;top:0}.pass{color:#167242;font-weight:700}.expected,.skip{color:#8a5a00;font-weight:700}.fail{color:#b42318;font-weight:700}.detail{font-weight:400;color:#35545b}code{font-size:12px}</style>"
             + "<main><h1>推荐与路线算法独立评测</h1><p>本地：" + localRoutes.ToString(CultureInfo.InvariantCulture) + " 个路线案例通过；" + localExpectedRejections.ToString(CultureInfo.InvariantCulture) + " 个案例按预期明确拒绝；" + localFailures.ToString(CultureInfo.InvariantCulture) + " 个真实失败。AI + 规则：" + Html(aiNote) + "</p>"
-            + "<p class=\"note\">固定输入：<code>evaluation/data/cases.json</code>。地点快照、案例原始输出、CSV 与问题报告均保存在本次输出目录。除 E08 外，默认路线为本地演示估算，非道路导航；E08 仅使用有日期和来源的 Valhalla/OSM 历史道路回放，并透明标注一个由两段原始路段拼接的连接段。它验证途中重算的证据门槛、已完成活动保留和疲劳步数导致的可选站点移除；它<strong>不是</strong>实时导航、Apple MapKit 或 TfNSW 公交回放，不能据此声称真实道路/公交或模型策略已经验证完成。</p>"
+            + "<p class=\"note\">固定输入：<code>evaluation/data/cases.json</code>。地点快照、案例原始输出、CSV 与问题报告均保存在本次输出目录。除 E08 外，默认路线为本地演示估算，非道路导航；" + Html(replayNote) + "</p>"
             + "<table><thead><tr><th>案例</th><th>需求与约束</th><th>策略</th><th>检查结果</th><th>地点顺序（抵达–离开）</th><th>时间、步数、花费与交通估计</th><th>未核实项 / 问题</th></tr></thead><tbody>" + rows + "</tbody></table></main></html>";
     }
 
@@ -601,7 +690,7 @@ internal static class EvaluationProgram
         if (expected.Bool("preserveCompleted")) parts.Add("保留已完成活动");
         if (expected.Bool("recordedRoadReplay")) parts.Add("仅使用注明来源的历史道路回放");
         if (expected.Array("mustExcludeAfterFatigue") is { Count: > 0 } fatigueExcludes) parts.Add("疲劳后移除 " + string.Join("、", fatigueExcludes.OfType<JsonValue>().Select(node => DisplayCasePlace(node.GetValue<string>()))));
-        if (expected.Bool("requiresComposedHistoricalPath")) parts.Add("披露历史路段拼接");
+        if (expected.Bool("requiresRecordedRerouteEvidence")) parts.Add("保留声明的疲劳后道路证据");
         return string.Join("；", parts);
     }
 
@@ -611,7 +700,7 @@ internal static class EvaluationProgram
         _ => id
     };
 
-    private static string RenderIssues(IReadOnlyList<CaseResult> results)
+    private static string RenderIssues(IReadOnlyList<CaseResult> results, JsonObject replay)
     {
         var issueCases = results.Where(result => result.Status == "failed").Take(3).ToArray();
         var report = new StringBuilder("# 实际失败的评测发现\n\n");
@@ -627,7 +716,8 @@ internal static class EvaluationProgram
             report.Append(results.Any(result => result.Status == "not_run")
                 ? "AI + 规则未运行；没有模拟模型结果。"
                 : "AI + 规则已按本轮配置执行；结果仍应结合每案输出和模型非确定性解读。");
-            report.Append("E08 已用固定 Valhalla/OSM 道路回放验证疲劳后的成功重算、已完成活动保留、可选站点移除及缺证据时拒绝；其中一段连接明确标为原始路段拼接。它不是 Apple MapKit、实时导航或 TfNSW 公交数据。其余路线仍是本地演示估算；本轮不能据此宣称真实道路、公交或模型策略已经验证完成。\n");
+            var reroute = replay.Str("rerouteEvidence") == "direct_provider_recorded_leg" ? "一段独立录制的植物园→岩石区路线" : "一段明确标为原始路段拼接的连接";
+            report.Append("E08 已用固定 ").Append(replay.Str("provider")).Append(" 道路回放验证疲劳后的成功重算、已完成活动保留、可选站点移除及缺证据时拒绝；疲劳后使用 ").Append(reroute).Append("。它不是实时导航或 TfNSW 公交数据。其余路线仍是本地演示估算；本轮不能据此宣称真实公交或未执行的模型策略已经验证完成。\n");
             return report.ToString();
         }
         foreach (var result in issueCases)
@@ -671,12 +761,13 @@ internal static class EvaluationProgram
             Task.FromException<JsonObject>(new ServiceException("评测默认禁止外部请求；此策略只能运行本地确定性规则。"));
     }
 
-    private sealed record Options(string? Root, string? Output, bool WithAi)
+    private sealed record Options(string? Root, string? Output, bool WithAi, string? WalkingReplay)
     {
         public static Options Parse(IReadOnlyList<string> args)
         {
             string? root = null;
             string? output = null;
+            string? walkingReplay = null;
             var withAi = false;
             for (var index = 0; index < args.Count; index++)
             {
@@ -684,11 +775,12 @@ internal static class EvaluationProgram
                 {
                     case "--root" when index + 1 < args.Count: root = Path.GetFullPath(args[++index]); break;
                     case "--output" when index + 1 < args.Count: output = Path.GetFullPath(args[++index]); break;
+                    case "--walking-replay" when index + 1 < args.Count: walkingReplay = Path.GetFullPath(args[++index]); break;
                     case "--with-ai": withAi = true; break;
-                    default: throw new ArgumentException("Usage: dotnet run --project server-dotnet/SydneyBuddy.Evaluation -- [--root path] [--output path] [--with-ai]");
+                    default: throw new ArgumentException("Usage: dotnet run --project server-dotnet/SydneyBuddy.Evaluation -- [--root path] [--output path] [--walking-replay path] [--with-ai]");
                 }
             }
-            return new Options(root, output, withAi);
+            return new Options(root, output, withAi, walkingReplay);
         }
     }
 }

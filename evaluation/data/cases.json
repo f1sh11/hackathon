@@ -84,7 +84,7 @@
     "strategies": ["local_rule"],
     "replayActivities": [
       { "id": "garden", "duration": 15, "locked": true },
-      { "id": "opera", "duration": 150, "locked": false },
+      { "id": "opera", "duration": 210, "locked": false },
       { "id": "rocks", "duration": 15, "locked": true },
       { "id": "mca", "duration": 15, "locked": true }
     ],
@@ -93,7 +93,7 @@
       "interests": ["文化", "艺术", "自然", "风景"], "request": "先按正常体力规划", "mustVisit": [],
       "start": { "name": "环形码头", "lat": -33.8611, "lng": 151.2126 }, "end": { "name": "环形码头", "lat": -33.8611, "lng": 151.2126 }
     },
-    "expected": { "outcome": "success", "currentMinute": 640, "maxSteps": 7000, "minimumOriginalSteps": 7001, "mustExcludeAfterFatigue": ["opera"], "preserveCompleted": true, "recordedRoadReplay": true, "requiresComposedHistoricalPath": true, "assertMissingEvidenceRejected": true, "endsAtRequestedDestination": true, "expectedBehavior": "先证明移除道路证据会明确停止；原方案把可选歌剧院停留设为 150 分钟而超过 7,000 步疲劳上限。重算只使用有日期和来源的历史 Valhalla/OSM 道路回放：自动移除可选歌剧院停留，并使用由两段原始路段透明拼接的经歌剧院步行路径连接植物园与岩石区。保留已完成活动，不把回放标作 Apple 或实时导航。" }
+    "expected": { "outcome": "success", "currentMinute": 640, "maxSteps": 7000, "minimumOriginalSteps": 7001, "mustExcludeAfterFatigue": ["opera"], "preserveCompleted": true, "recordedRoadReplay": true, "requiresRecordedRerouteEvidence": true, "assertMissingEvidenceRejected": true, "endsAtRequestedDestination": true, "expectedBehavior": "先证明移除道路证据会明确停止；原方案把可选歌剧院停留设为 210 分钟而超过 7,000 步疲劳上限。重算只使用有日期、来源和明确疲劳后连接证据的历史道路回放：自动移除可选歌剧院停留、保留已完成活动，并持续标明实际 provider 与非实时性质。" }
   },
   {
     "id": "E09",

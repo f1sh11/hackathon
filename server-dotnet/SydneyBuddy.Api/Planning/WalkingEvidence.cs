@@ -38,7 +38,7 @@ public sealed class WalkingEvidence
             if(x.Bool("unreachable")){legs[key]=new(){["unreachable"]=true};continue;}
             var meters=x.Number("meters",double.NaN);var seconds=x.Number("seconds",double.NaN);
             if(!double.IsFinite(meters)||!double.IsFinite(seconds)||meters<0||meters>100000||seconds<0||seconds>86400||meters>0&&seconds==0)throw new ServiceException("步行时间或距离无效。");
-            legs[key]=new(){["meters"]=(int)Math.Ceiling(meters),["minutes"]=(int)Math.Ceiling(seconds/60),["polyline"]="",["source"]=source,["fetchedAt"]=x.Str("fetchedAt"),["recordedReplay"]=recordedReplay,["recordedDate"]=recordedReplay?x.Str("recordedDate"):null,["sourceFixture"]=recordedReplay?x.Str("sourceFixture"):null,["replayKind"]=recordedReplay?x.Str("replayKind"):null,["derivedFrom"]=recordedReplay?x["derivedFrom"]?.DeepClone():null};
+            legs[key]=new(){["meters"]=(int)Math.Ceiling(meters),["minutes"]=(int)Math.Ceiling(seconds/60),["polyline"]="",["source"]=source,["fetchedAt"]=x.Str("fetchedAt"),["recordedReplay"]=recordedReplay,["recordedDate"]=recordedReplay?x.Str("recordedDate"):null,["sourceFixture"]=recordedReplay?x.Str("sourceFixture"):null,["replayKind"]=recordedReplay?x.Str("replayKind"):null,["replayLegId"]=recordedReplay?x.Str("replayLegId"):null,["derivedFrom"]=recordedReplay?x["derivedFrom"]?.DeepClone():null};
         }
     }
     public JsonObject Get(JsonObject a,JsonObject b) {
