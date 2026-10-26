@@ -23,7 +23,12 @@ public static class PetEndpoints
         routes.MapPatch("/pet/sessions/{id}",async(string id,HttpContext ctx,PetSessionStore store)=>
         {
             var input=await RequestJson.ReadAsync(ctx);await store.Gate.WaitAsync(ctx.RequestAborted);
-            try{var s=store.Load(id);PetResponseLanguage.Apply(s,input);PetQuestions.Apply(s,input.Object("fields")??new());KokoDialogue.Enable(s,input);KokoDialogue.DetailsUpdated(s,input.Object("fields")??new());store.Save(s);return Results.Json(await PreparedView(s,store,ctx));}finally{store.Gate.Release();}
+            try{var s=store.Load(id);PetResponseLanguage.Apply(s,input);
+                if(input.Str("acceptedDirection").Length>0){
+                    if((input.Object("fields")?.Count ?? 0)>0)throw new ServiceException("Save trip details separately from choosing an idea.");
+                    if(KokoDialogue.AcceptInspiration(s,input.Str("acceptedDirection")))store.Save(s);
+                }else{PetQuestions.Apply(s,input.Object("fields")??new());KokoDialogue.Enable(s,input);KokoDialogue.DetailsUpdated(s,input.Object("fields")??new());store.Save(s);}
+                return Results.Json(await PreparedView(s,store,ctx));}finally{store.Gate.Release();}
         });
         routes.MapPost("/pet/sessions/{id}/memory",async(string id,HttpContext ctx,PetSessionStore store,PreferenceService preferences,MemoryRepository records,IMemoryService memory)=>
         {

@@ -67,6 +67,7 @@ enum KokoInspirationPresentation {
 struct KokoInspirationCard:View {
     let direction:String
     var busy=false
+    var accepted=false
     var accept:()->Void
     var another:()->Void
     var close:()->Void
@@ -84,7 +85,7 @@ struct KokoInspirationCard:View {
         }.padding(16).frame(maxWidth:.infinity,alignment:.leading).background(blue.opacity(0.035),in:RoundedRectangle(cornerRadius:16)).overlay(RoundedRectangle(cornerRadius:16).stroke(blue.opacity(0.13))).disabled(busy).accessibilityIdentifier("koko-inspiration")
     }
     private var acceptButton:some View {
-        Button(action:accept){Text(uiText("Sounds like me")).font(.subheadline.weight(.semibold)).frame(maxWidth:.infinity,minHeight:46)}.buttonStyle(TripsCreateButtonStyle()).accessibilityIdentifier("inspiration-accept")
+        Button(action:accept){Text(uiText(busy ? "Saving…":accepted ? "Added to this trip":"Sounds like me")).font(.subheadline.weight(.semibold)).frame(maxWidth:.infinity,minHeight:46)}.buttonStyle(TripsCreateButtonStyle()).disabled(accepted).accessibilityIdentifier("inspiration-accept")
     }
     private var anotherButton:some View {
         Button(action:another){Text(uiText("Try another idea")).font(.subheadline.weight(.semibold)).foregroundStyle(blue).frame(maxWidth:.infinity,minHeight:46)}.buttonStyle(BuddyPressStyle()).accessibilityIdentifier("inspiration-another")

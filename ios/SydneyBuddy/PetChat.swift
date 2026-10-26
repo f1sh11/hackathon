@@ -124,6 +124,13 @@ let travelExtraFields:[(String,String)]=[("budgetCoverage","预算包含范围")
         guard let id=session?.id else{return}
         await run{session=try await request("pet/sessions/"+id,method:"PATCH",body:["fields":fields])}
     }
+    func acceptInspiration(_ direction:String) async {
+        guard let id=session?.id else{return}
+        await run {
+            session=try await request("pet/sessions/"+id,method:"PATCH",body:["acceptedDirection":direction])
+            koalaCue=KoalaCue(event:.choiceAccepted,id:"idea-accepted:"+direction+":"+UUID().uuidString)
+        }
+    }
     func decideMemory(_ consent:Bool) async {
         guard let id=session?.id else{return}
         await run{session=try await request("pet/sessions/\(id)/memory",method:"POST",body:["consent":consent]);if consent{koalaCue=KoalaCue(event:.preferenceConfirmed)}}
@@ -361,9 +368,9 @@ struct PetChatView:View {
                             Color.clear.frame(height:1).id("companion-turn")
                         }
                         if !personalSetup,(!canPlanDirectly || requestedInspiration),let session=chat.session,presentsInspiration(session),let direction=inspirationOverride ?? KokoInspirationPresentation.direction(session){
-                            KokoInspirationCard(direction:direction,busy:chat.busy,accept:{
+                            KokoInspirationCard(direction:direction,busy:chat.busy,accepted:chat.session?.dialogue?.selectedDirection==direction,accept:{
                                 composing=false
-                                Task{if inspirationOverride==nil,let reply=session.contextualReplies.first(where:{$0.intent=="accept_direction"}){await chat.send(reply.text,reply:reply)}else{await chat.update(["interests":KokoInspirationPresentation.interests(direction)])};if chat.error==nil{acceptedInspiration=direction;requestedInspiration=false;inspirationOverride=nil}}
+                                Task{await chat.acceptInspiration(direction);if chat.error==nil{acceptedInspiration=direction;requestedInspiration=false;inspirationOverride=nil}}
                             },another:{
                                 composing=false
                                 let directions=["nature","culture","food"]
@@ -499,8 +506,8 @@ struct PetChatView:View {
                         if chat.busy{HStack{ProgressView();Text(uiText("在认真整理你的想法…")).font(.caption).foregroundStyle(Palette.muted)}}
                         if requestedInspiration{
                             let direction=inspirationOverride ?? chat.session.flatMap{KokoInspirationPresentation.direction($0)} ?? "nature"
-                            KokoInspirationCard(direction:direction,busy:chat.busy,accept:{
-                                Task{await chat.update(["interests":KokoInspirationPresentation.interests(direction)]);if chat.error==nil{acceptedInspiration=direction;requestedInspiration=false;inspirationOverride=nil}}
+                            KokoInspirationCard(direction:direction,busy:chat.busy,accepted:chat.session?.dialogue?.selectedDirection==direction,accept:{
+                                Task{await chat.acceptInspiration(direction);if chat.error==nil{acceptedInspiration=direction;requestedInspiration=false;inspirationOverride=nil}}
                             },another:{let all=["nature","culture","food"];inspirationOverride=all[((all.firstIndex(of:direction) ?? 0)+1)%all.count]},close:{requestedInspiration=false;inspirationOverride=nil})
                         }
                         ForEach(chat.session?.pendingPreferences ?? []){preference in
@@ -518,6 +525,9 @@ struct PetChatView:View {
                 .onChange(of:chat.session?.messages.count){_,_ in withAnimation{proxy.scrollTo("studio-bottom",anchor:.bottom)}}
                 .onChange(of:requestedInspiration){_,_ in Task{@MainActor in await Task.yield();withAnimation{proxy.scrollTo("studio-bottom",anchor:.bottom)}}}
                 .onChange(of:composing){_,_ in Task{@MainActor in await Task.yield();proxy.scrollTo("studio-bottom",anchor:.bottom)}}
+            }
+            if !requestedInspiration,let direction=chat.session?.dialogue?.selectedDirection,["nature","culture","food"].contains(direction){
+                Label(uiText("Added to this trip")+" · "+uiText(KokoInspirationPresentation.title(direction)),systemImage:"checkmark.circle.fill").font(.caption).foregroundStyle(chatBlue).padding(.horizontal,20).padding(.top,6).accessibilityIdentifier("inspiration-saved")
             }
             if !requestedInspiration && !composing{
                 Button{requestedInspiration=true;inspirationOverride=nil}label:{Label(uiText("Get a travel idea"),systemImage:"sparkles").font(.subheadline.weight(.semibold)).frame(maxWidth:.infinity,minHeight:48).background(chatBlue.opacity(0.035),in:RoundedRectangle(cornerRadius:14)).overlay(RoundedRectangle(cornerRadius:14).stroke(chatBlue.opacity(0.5)))}.buttonStyle(BuddyPressStyle()).padding(.horizontal,20).disabled(chat.busy).accessibilityIdentifier("studio-inspiration")

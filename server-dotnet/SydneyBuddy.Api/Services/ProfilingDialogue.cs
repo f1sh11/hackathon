@@ -221,6 +221,21 @@ nickname、ideas、quickReplies 都不能来自产品文档里的模拟用户。
         _=>"资料准备齐啦！可以直接生成行程，也可以继续聊或单独修改。"
     };
     private static JsonObject StepResult(PetSession s,string text,string focus)=>new(){["reply"]=text+"\n"+StepQuestion(s),["readyForDraft"]=true,["followTripStep"]=true};
+    public static bool AcceptInspiration(PetSession s,string direction) {
+        if(s.Dialogue is not {} d || !DirectionKeys.Contains(direction))throw new ServiceException("Please choose a current travel idea.");
+        var added=direction switch {"culture"=>new[]{"文化","艺术"},"food"=>new[]{"美食","城市"},_=>new[]{"自然","风景"}};
+        var current=s.Fields.GetValueOrDefault("interests","");
+        var interests=(PetQuestions.Known(current) ? current.Split(['、',',','，',';','；'],StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries):[]).ToList();
+        if(d.SelectedDirection==direction && added.All(interests.Contains))return false;
+        s.Fields["interests"]=string.Join("、",interests.Concat(added).Distinct());
+        d.SelectedDirection=direction;d.ProposedDirection=direction;d.IdeaRevision++;
+        Finish(s,DirectionIdeas(s,direction));
+        var title=direction switch {"culture"=>"A little culture, a little wandering.","food"=>"Good food, without the rush.",_=>"A little greenery, a slower day."};
+        var reply=s.ResponseLanguage=="en" ? "Added to this trip: "+title+" I’ll keep your other interests too. You can generate the itinerary or keep chatting.":"这个灵感加入这次旅行啦，之前的兴趣也留着。可以生成行程，也可以继续聊。";
+        s.Messages.Add(new(Guid.NewGuid().ToString("N"),"assistant",reply,"excited"));
+        if(s.Messages.Count>100)s.Messages=s.Messages.TakeLast(100).ToList();
+        return true;
+    }
     public static void DetailsUpdated(PetSession s,JsonObject changes) {
         if(s.Dialogue is null || !changes.Any(x=>PetQuestions.Required.Contains(x.Key) || new[]{"budgetCoverage","origin","mustDo","avoid","companionNeeds"}.Contains(x.Key)))return;
         if(changes.ContainsKey("date"))s.Dialogue.DateDeferred=!PetQuestions.Answered(s,"date");

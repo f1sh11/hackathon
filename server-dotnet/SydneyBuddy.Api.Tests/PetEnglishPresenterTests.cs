@@ -71,6 +71,21 @@ public sealed class PetEnglishPresenterHttpTests(ApiFixture fixture):IClassFixtu
         public Task<JsonObject> RespondAsync(PetSession s,string message,JsonArray memories,Func<string,Task> onReply,CancellationToken ct)=>Task.FromResult(new JsonObject{
             ["reply"]=PetEnglishPresenterTests.Source,["fields"]=new JsonObject{["date"]="2026-10-30"},["quickReplies"]=new JsonArray(new JsonObject{["text"]="我想先在海边喝杯拿铁"})});
     }
+    [Fact] public async Task AcceptIdeaEndpointPersistsConfirmationAndRetryDoesNotDuplicate() {
+        var translator=new PetEnglishPresenterTests.Translator();
+        using var factory=fixture.CreateFactory().WithWebHostBuilder(b=>b.ConfigureServices(s=>{s.RemoveAll<IPetEnglishTranslator>();s.AddSingleton<IPetEnglishTranslator>(translator);}));
+        using var client=factory.CreateClient(new(){BaseAddress=new Uri("http://localhost")});
+        var created=(await (await client.PostAsJsonAsync("/pet/sessions",new{language="en",profilingVersion=2,fields=new{interests="咖啡",date="2026-10-30"}})).Content.ReadFromJsonAsync<JsonObject>())!;
+        var path="/pet/sessions/"+created.Str("id");
+        var first=(await (await client.PatchAsJsonAsync(path,new{language="en",acceptedDirection="culture"})).Content.ReadFromJsonAsync<JsonObject>())!;
+        Assert.Equal("咖啡、文化、艺术",first.Object("fields")!.Str("interests"));Assert.Equal("culture",first.Object("dialogue")!.Str("selectedDirection"));
+        Assert.Contains("Added to this trip",first.Array("messages")!.Last()!.Str("text"));
+        var second=(await (await client.PatchAsJsonAsync(path,new{language="en",acceptedDirection="culture"})).Content.ReadFromJsonAsync<JsonObject>())!;
+        Assert.Equal(first.ToJsonString(),second.ToJsonString());
+        var resumed=(await client.GetFromJsonAsync<JsonObject>(path))!;Assert.Equal("culture",resumed.Object("dialogue")!.Str("selectedDirection"));
+        Assert.Equal("2026-10-30",resumed.Object("fields")!.Str("date"));Assert.Empty(resumed.Array("pendingPreferences")!);
+        var bad=await client.PatchAsJsonAsync(path,new{language="en",acceptedDirection="unsupported"});Assert.Equal(System.Net.HttpStatusCode.UnprocessableEntity,bad.StatusCode);
+    }
     [Fact] public async Task TurnResumeAndTranslatedChoicePreserveIdsAndDate() {
         var translator=new PetEnglishPresenterTests.Translator();
         using var factory=fixture.CreateFactory().WithWebHostBuilder(b=>b.ConfigureServices(s=>{s.RemoveAll<IPetModel>();s.AddSingleton<IPetModel>(new Model());s.RemoveAll<IPetEnglishTranslator>();s.AddSingleton<IPetEnglishTranslator>(translator);}));

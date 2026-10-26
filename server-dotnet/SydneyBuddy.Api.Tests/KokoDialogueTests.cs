@@ -20,6 +20,19 @@ public sealed class KokoDialogueUnitTests
     }
 
     [Fact]
+    public void AcceptingVisibleIdeaPreservesInterestsAndIsIdempotent() {
+        var s=new PetSession{ResponseLanguage="en"};KokoDialogue.Enable(s,new(){["profilingVersion"]=2});
+        s.Fields["interests"]="建筑、咖啡";s.Fields["date"]="2026-10-30";
+        Assert.True(KokoDialogue.AcceptInspiration(s,"nature"));
+        Assert.Equal("建筑、咖啡、自然、风景",s.Fields["interests"]);Assert.Equal("nature",s.Dialogue!.SelectedDirection);
+        Assert.Equal("2026-10-30",s.Fields["date"]);Assert.Empty(s.Preferences);Assert.Empty(s.PendingMemory);
+        Assert.Contains("Added to this trip",s.Messages.Last().Text);
+        var count=s.Messages.Count;Assert.False(KokoDialogue.AcceptInspiration(s,"nature"));Assert.Equal(count,s.Messages.Count);
+        var restored=JsonSerializer.Deserialize<PetSession>(JsonSerializer.Serialize(s))!;
+        Assert.Equal("nature",restored.Dialogue!.SelectedDirection);Assert.False(KokoDialogue.AcceptInspiration(restored,"nature"));
+        Assert.Throws<ServiceException>(()=>KokoDialogue.AcceptInspiration(s,"unsupported"));
+    }
+    [Fact]
     public void OptionalNameCountsAsOneRoundAndDoesNotRequireModelOrTyping()
     {
         var s=new PetSession();KokoDialogue.Enable(s,new(){["profilingVersion"]=2});

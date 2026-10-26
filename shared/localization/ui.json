@@ -18658,5 +18658,10 @@
     "en": "Activities only. Meals, stays and transport are extra.",
     "zh-Hans": "仅活动预算，餐饮、住宿和交通另计。",
     "zh-Hant": "僅活動預算，餐飲、住宿和交通另計。"
+  },
+  "Added to this trip": {
+    "en": "Added to this trip",
+    "zh-Hans": "已加入这次旅行",
+    "zh-Hant": "已加入這次旅行"
   }
 }
