@@ -14,11 +14,11 @@ English presentation now uses optional `nameEn` and `descriptionEn` source field
 
 - ASP.NET Core complete suite: 407 passed after adding the bounded-cache regression test.
 - Android unit suite: 37 passed, including two POI language tests.
-- iOS build and three simulator language regression tests passed.
+- iOS build and three simulator language regression tests passed; the reference-charge marker interpolation test also passed after visual inspection found the remaining Chinese price tooltip.
 - OSM importer suite: five passed, including bilingual source retention.
 - Real local and cloud Zetaris: 13,510 OSM records and 55 catalog records matched the enriched payloads individually after synchronization.
 - Isolated ASP.NET Core integration: `Opera` and `悉尼歌剧院` both returned catalog ID `opera`, English name `Sydney Opera House` and its English description, through each Zetaris source. Required iOS decoding fields were present.
-- Generated iOS localization resources validated against the 3,750-entry shared catalog. Added entries retain Traditional and Simplified Chinese scripts.
+- Generated iOS localization resources validated against the 3,752-entry shared catalog. Added entries retain Traditional and Simplified Chinese scripts.
 - Added source-English display fallbacks for bilingual Overture business names; proper names without an English source remain unchanged.
 
 ## Oracle recovery and deployment

@@ -578,6 +578,7 @@ import MapKit
         XCTAssertFalse(translated.unicodeScalars.contains(where:{(0x3400...0x9FFF).contains($0.value)}),translated)
         XCTAssertNotEqual(AppLanguage.english.display("选悉尼"),"选悉尼")
         XCTAssertEqual(AppLanguage.english.display("Kittyhawk"),"Kittyhawk")
+        XCTAssertEqual(AppLanguage.english.display("參考收費：7 AUD · 非即時報價"),"Reference charge: 7 AUD · Not a live quote")
         XCTAssertEqual(AppLanguage.english.display("https://example.com"),"https://example.com")
     }
     func testPreferenceSummaryLocalizesForDisplayWithoutMutatingProfile() {

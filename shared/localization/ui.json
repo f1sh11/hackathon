@@ -18748,5 +18748,15 @@
     "en": "Costs, opening status and queues are unknown. No budget has been reserved; please check before visiting.",
     "zh-Hans": "费用、营业状态与排队未知；尚未预留费用，请自行确认。",
     "zh-Hant": "費用、營業狀態與排隊未知；尚未預留費用，請自行確認。"
+  },
+  "參考收費：{0} · 非即時報價": {
+    "en": "Reference charge: {0} · Not a live quote",
+    "zh-Hans": "参考收费：{0} · 非实时报价",
+    "zh-Hant": "參考收費：{0} · 非即時報價"
+  },
+  "參考收費：{0}": {
+    "en": "Reference charge: {0}",
+    "zh-Hans": "参考收费：{0}",
+    "zh-Hant": "參考收費：{0}"
   }
 }

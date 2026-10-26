@@ -555,7 +555,7 @@ struct PoiNativeMap:UIViewRepresentable {
         let key=AppLanguage.current.rawValue+places.map{ $0.id+$0.displayName }.joined(separator:",")+insightMarkers.map{$0.id+$0.title}.joined()+(focus?.point.id ?? "")
         if context.coordinator.key != key {
             context.coordinator.key=key;map.removeAnnotations(map.annotations);map.addAnnotations(places.map(PoiPin.init))
-            for item in insightMarkers{let pin=InsightMapPin();pin.kind=item.kind;pin.coordinate = .init(latitude:item.lat,longitude:item.lng);pin.title=item.title;pin.subtitle=item.summary;map.addAnnotation(pin)}
+            for item in insightMarkers{let pin=InsightMapPin();pin.kind=item.kind;pin.coordinate = .init(latitude:item.lat,longitude:item.lng);pin.title=uiText(item.title);pin.subtitle=uiText(item.summary);map.addAnnotation(pin)}
         }
         if let focus,context.coordinator.focusToken != focus.token,let pin=map.annotations.compactMap({$0 as? PoiPin}).first(where:{$0.point.id==focus.point.id}) {
             context.coordinator.focusToken=focus.token;context.coordinator.focusing=true
@@ -602,7 +602,7 @@ private struct PoiGoogleMap:UIViewRepresentable {
         }
         let key=AppLanguage.current.rawValue+places.map{ $0.id+$0.displayName }.joined(separator:",")+insightMarkers.map{$0.id+$0.title}.joined()+(focus?.point.id ?? "")
         if key != context.coordinator.key {context.coordinator.key=key;map.clear();context.coordinator.markers=[:]
-        for item in insightMarkers{let pin=GMSMarker(position:.init(latitude:item.lat,longitude:item.lng));pin.title=item.title;pin.snippet=item.summary;pin.icon=GMSMarker.markerImage(with:item.kind == "price" ? .systemGreen:.systemOrange);pin.map=map}
+        for item in insightMarkers{let pin=GMSMarker(position:.init(latitude:item.lat,longitude:item.lng));pin.title=uiText(item.title);pin.snippet=uiText(item.summary);pin.icon=GMSMarker.markerImage(with:item.kind == "price" ? .systemGreen:.systemOrange);pin.map=map}
         for point in places{let marker=GMSMarker(position:CLLocationCoordinate2D(latitude:point.lat,longitude:point.lng));marker.title=point.displayName;marker.userData=point.id;marker.icon=GMSMarker.markerImage(with:point.id==focus?.point.id ? .systemBlue:point.category=="美食" ? .systemOrange:.systemTeal);marker.zIndex=point.id==focus?.point.id ? 1000:0;marker.map=map;context.coordinator.markers[point.id]=marker}
         }
         if let focus,context.coordinator.focusToken != focus.token {

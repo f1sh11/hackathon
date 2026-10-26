@@ -3749,3 +3749,5 @@
 "整合已匯入的新南威爾斯州 (NSW) 地點；底圖原生標記可能不同。探索候選不代表已確認冷門；房價、營業狀態與評論未即時核實；社群推薦為附原文證據的作者意見。" = "Imported places in New South Wales. Base-map labels may differ. Discovery results are not verified hidden gems; room rates, opening status and reviews are not checked live. Community recommendations reflect their authors’ opinions and retain source evidence.";
 "由地圖搜尋加入工具箱" = "Added to your toolbox from map search";
 "費用、營業狀態與排隊未知；尚未預留費用，請自行確認。" = "Costs, opening status and queues are unknown. No budget has been reserved; please check before visiting.";
+"參考收費：{0} · 非即時報價" = "Reference charge: {0} · Not a live quote";
+"參考收費：{0}" = "Reference charge: {0}";

@@ -108,7 +108,7 @@ struct GoogleRouteMap: UIViewRepresentable {
         guard context.coordinator.sceneKey != key else {context.coordinator.refreshNearby(map);return}
         context.coordinator.sceneKey=key
         map.clear();context.coordinator.markers=[];context.coordinator.nearbyKey="";context.coordinator.refreshNearby(map)
-        for item in insightMarkers {let pin=GMSMarker(position:.init(latitude:item.lat,longitude:item.lng));pin.title=(item.kind == "price" ? "💰 ":"⚠️ ")+item.title;pin.snippet=item.summary+" · "+item.source;pin.icon=GMSMarker.markerImage(with:item.kind == "price" ? .systemGreen:.systemOrange);pin.map=map}
+        for item in insightMarkers {let pin=GMSMarker(position:.init(latitude:item.lat,longitude:item.lng));pin.title=(item.kind == "price" ? "💰 ":"⚠️ ")+uiText(item.title);pin.snippet=uiText(item.summary)+" · "+item.source;pin.icon=GMSMarker.markerImage(with:item.kind == "price" ? .systemGreen:.systemOrange);pin.map=map}
         context.coordinator.walkingLines=[]
         guard let day else {
             if let saved=viewport, saved.sceneKey==mapSceneKey(day) {map.camera=GMSCameraPosition(latitude:saved.lat,longitude:saved.lng,zoom:Float(saved.zoom))}
@@ -328,7 +328,7 @@ struct NativeRouteMap:UIViewRepresentable {
         context.coordinator.walkingDots?.setNeedsDisplay()
         map.removeAnnotations(map.annotations)
         context.coordinator.nearbyKey="";context.coordinator.refreshNearby(map)
-        for item in insightMarkers {let pin=InsightMapPin();pin.kind=item.kind;pin.coordinate = .init(latitude:item.lat,longitude:item.lng);pin.title=(item.kind == "price" ? "💰 ":"⚠️ ")+item.title;pin.subtitle=item.summary+" · "+item.source;map.addAnnotation(pin)}
+        for item in insightMarkers {let pin=InsightMapPin();pin.kind=item.kind;pin.coordinate = .init(latitude:item.lat,longitude:item.lng);pin.title=(item.kind == "price" ? "💰 ":"⚠️ ")+uiText(item.title);pin.subtitle=uiText(item.summary)+" · "+item.source;map.addAnnotation(pin)}
         map.removeOverlays(map.overlays.filter {!($0 is MKTileOverlay)})
         let start=day?.start ?? .quay,end=day?.end ?? .central
         let coordinates=[start.location]+(day?.stops.map(\.coordinate) ?? [])+[end.location]

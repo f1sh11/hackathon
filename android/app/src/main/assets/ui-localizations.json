@@ -5180,5 +5180,7 @@
   "OSM 社群地點，詳細介紹尚未提供。": {"en": "OSM community place; no detailed description is available.", "zh-Hans": "OSM 社群地点，详细介绍尚未提供。", "zh-Hant": "OSM 社群地點，詳細介紹尚未提供。"},
   "整合已匯入的新南威爾斯州 (NSW) 地點；底圖原生標記可能不同。探索候選不代表已確認冷門；房價、營業狀態與評論未即時核實；社群推薦為附原文證據的作者意見。": {"en": "Imported places in New South Wales. Base-map labels may differ. Discovery results are not verified hidden gems; room rates, opening status and reviews are not checked live. Community recommendations reflect their authors’ opinions and retain source evidence.", "zh-Hans": "整合已汇入的新南威尔斯州 (NSW) 地点；底图原生标记可能不同。探索候选不代表已确认冷门；房价、营业状态与评论未即时核实；社群推荐为附原文证据的作者意见。", "zh-Hant": "整合已匯入的新南威爾斯州 (NSW) 地點；底圖原生標記可能不同。探索候選不代表已確認冷門；房價、營業狀態與評論未即時核實；社群推薦為附原文證據的作者意見。"},
   "由地圖搜尋加入工具箱": {"en": "Added to your toolbox from map search", "zh-Hans": "由地图搜寻加入工具箱", "zh-Hant": "由地圖搜尋加入工具箱"},
-  "費用、營業狀態與排隊未知；尚未預留費用，請自行確認。": {"en": "Costs, opening status and queues are unknown. No budget has been reserved; please check before visiting.", "zh-Hans": "费用、营业状态与排队未知；尚未预留费用，请自行确认。", "zh-Hant": "費用、營業狀態與排隊未知；尚未預留費用，請自行確認。"}
+  "費用、營業狀態與排隊未知；尚未預留費用，請自行確認。": {"en": "Costs, opening status and queues are unknown. No budget has been reserved; please check before visiting.", "zh-Hans": "费用、营业状态与排队未知；尚未预留费用，请自行确认。", "zh-Hant": "費用、營業狀態與排隊未知；尚未預留費用，請自行確認。"},
+  "參考收費：{0} · 非即時報價": {"en": "Reference charge: {0} · Not a live quote", "zh-Hans": "参考收费：{0} · 非实时报价", "zh-Hant": "參考收費：{0} · 非即時報價"},
+  "參考收費：{0}": {"en": "Reference charge: {0}", "zh-Hans": "参考收费：{0}", "zh-Hant": "參考收費：{0}"}
 }
