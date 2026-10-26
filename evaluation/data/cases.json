@@ -8,7 +8,7 @@
       "interests": ["风景", "文化"], "request": "今天想少走一点，看看港湾风景", "mustVisit": [],
       "start": { "name": "环形码头", "lat": -33.8611, "lng": 151.2126 }, "end": { "name": "环形码头", "lat": -33.8611, "lng": 151.2126 }
     },
-    "expected": { "outcome": "success", "maxSteps": 7000 }
+    "expected": { "outcome": "success", "maxSteps": 7000, "endsAtRequestedDestination": true }
   },
   {
     "id": "E02",
@@ -19,7 +19,7 @@
       "interests": ["美食", "文化"], "request": "想吃一顿具体的悉尼午餐，再看看历史街区", "mustVisit": [],
       "start": { "name": "环形码头", "lat": -33.8611, "lng": 151.2126 }, "end": { "name": "达令港", "lat": -33.873, "lng": 151.2009 }
     },
-    "expected": { "outcome": "success", "maxCost": 120 }
+    "expected": { "outcome": "success", "maxCost": 120, "minimumMealStops": 1, "endsAtRequestedDestination": true }
   },
   {
     "id": "E03",
@@ -30,7 +30,7 @@
       "interests": ["艺术"], "request": "预算为零，只想看免费艺术地点", "mustVisit": [],
       "start": { "name": "环形码头", "lat": -33.8611, "lng": 151.2126 }, "end": { "name": "环形码头", "lat": -33.8611, "lng": 151.2126 }
     },
-    "expected": { "outcome": "success", "maxCost": 0 }
+    "expected": { "outcome": "success", "maxCost": 0, "endsAtRequestedDestination": true }
   },
   {
     "id": "E04",
@@ -41,7 +41,7 @@
       "interests": ["艺术", "文化"], "request": "下雨天优先室内，但一定要去歌剧院", "mustVisit": ["opera"], "weatherOverride": "rain",
       "start": { "name": "环形码头", "lat": -33.8611, "lng": 151.2126 }, "end": { "name": "环形码头", "lat": -33.8611, "lng": 151.2126 }
     },
-    "expected": { "outcome": "success", "mustInclude": ["opera"], "indoorOnly": true }
+    "expected": { "outcome": "success", "mustInclude": ["opera"], "indoorOnly": true, "endsAtRequestedDestination": true }
   },
   {
     "id": "E05",
@@ -63,7 +63,7 @@
       "interests": ["文化", "艺术", "自然"], "request": "三天慢慢逛，不要重复同一景点", "mustVisit": [],
       "start": { "name": "环形码头", "lat": -33.8611, "lng": 151.2126 }, "end": { "name": "环形码头", "lat": -33.8611, "lng": 151.2126 }
     },
-    "expected": { "outcome": "success", "maxCost": 90 }
+    "expected": { "outcome": "success", "maxCost": 90, "uniqueStops": true, "endsAtRequestedDestination": true }
   },
   {
     "id": "E07",
@@ -74,7 +74,7 @@
       "interests": ["文化", "风景"], "request": "不想逛博物馆，歌剧院一定要去", "mustVisit": [], "mustDo": "悉尼歌剧院", "avoid": "博物馆",
       "start": { "name": "环形码头", "lat": -33.8611, "lng": 151.2126 }, "end": { "name": "环形码头", "lat": -33.8611, "lng": 151.2126 }
     },
-    "expected": { "outcome": "success", "mustInclude": ["opera"], "mustExclude": ["mca", "museum"] }
+    "expected": { "outcome": "success", "mustInclude": ["opera"], "mustExclude": ["mca", "museum"], "uniqueStops": true, "endsAtRequestedDestination": true }
   },
   {
     "id": "E08",
@@ -98,7 +98,7 @@
       "interests": ["艺术"], "request": "十五天都住在市区，候选不够时必须说明", "mustVisit": [],
       "start": { "name": "环形码头", "lat": -33.8611, "lng": 151.2126 }, "end": { "name": "环形码头", "lat": -33.8611, "lng": 151.2126 }
     },
-    "expected": { "outcome": "success", "minimumFreeDays": 1, "maxCost": 20 }
+    "expected": { "outcome": "success", "minimumFreeDays": 1, "maxCost": 20, "uniqueStops": true, "endsAtRequestedDestination": true }
   },
   {
     "id": "E10",

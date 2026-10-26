@@ -79,13 +79,17 @@ internal static class EvaluationProgram
         await File.WriteAllTextAsync(Path.Combine(output, "report.html"), RenderHtml(results, aiConfigured), new UTF8Encoding(false));
         await File.WriteAllTextAsync(Path.Combine(output, "issues.md"), RenderIssues(results), new UTF8Encoding(false));
 
-        var localFailures = results.Where(x => x.Strategy == "local_rule" && !x.Passed).ToArray();
+        var localResults = results.Where(x => x.Strategy == "local_rule").ToArray();
+        var localFailures = localResults.Where(x => !x.Passed).ToArray();
+        var localRoutes = localResults.Count(x => x.Status == "passed");
+        var localExpectedRejections = localResults.Count(x => x.Status == "expected_rejection");
+        var aiFailures = results.Where(x => x.Strategy == "ai_plus_rules" && !x.Passed).ToArray();
         Console.WriteLine($"Evaluation report written to {output}");
-        Console.WriteLine($"Local rule cases: {results.Count(x => x.Strategy == "local_rule" && x.Passed)}/10 passed.");
+        Console.WriteLine($"Local-rule assertions: {localResults.Count(x => x.Passed)}/10 matched ({localRoutes} routes; {localExpectedRejections} expected safety rejections).");
         Console.WriteLine(aiConfigured
             ? $"AI + rule cases: {results.Count(x => x.Strategy == "ai_plus_rules" && x.Passed)}/10 passed."
             : "AI + rule cases: not run (no model result was fabricated).");
-        return localFailures.Length == 0 ? 0 : 1;
+        return localFailures.Length == 0 && (!options.WithAi || aiFailures.Length == 0) ? 0 : 1;
     }
 
     private static Planner CreatePlanner(PlaceCatalog catalog, ProjectPaths paths, IExternalJsonClient external) => new(
@@ -109,12 +113,12 @@ internal static class EvaluationProgram
                 trip = RemainingJourney.Build(trip, request, editor, catalog);
             }
             var assessment = AssessSuccess(trip, expected);
-            return new CaseResult(testCase, strategy, "completed", assessment.Passed, assessment.Summary, trip, null);
+            return new CaseResult(testCase, strategy, assessment.Passed ? "passed" : "failed", assessment.Passed, assessment.Summary, trip, null);
         }
         catch (ServiceException error)
         {
             var expectedError = expected.Str("outcome") == "error" && error.Message.Contains(expected.Str("messageContains"), StringComparison.Ordinal);
-            return new CaseResult(testCase, strategy, "error", expectedError,
+            return new CaseResult(testCase, strategy, expectedError ? "expected_rejection" : "failed", expectedError,
                 expectedError ? "Expected constraint or evidence failure." : "Unexpected service failure.", null, error.Message);
         }
     }
@@ -136,8 +140,21 @@ internal static class EvaluationProgram
             return new Assessment(false, "A daily estimate exceeds the configured step ceiling.");
         if (expected["minimumFreeDays"] is not null && trip.Array("days")!.OfType<JsonObject>().Count(day => day.Bool("freeTime")) < expected.Int("minimumFreeDays"))
             return new Assessment(false, "Candidate shortage was not surfaced as free time.");
+        if (expected["minimumMealStops"] is not null && stops.Count(stop => stop.Str("activityType") == "meal") < expected.Int("minimumMealStops"))
+            return new Assessment(false, "The food-focused request did not schedule a concrete meal stop.");
+        if (expected.Bool("uniqueStops") && stops.GroupBy(stop => stop.Str("id"), StringComparer.Ordinal).Any(group => group.Key.Length > 0 && group.Count() > 1))
+            return new Assessment(false, "A place was repeated despite the no-repeat requirement.");
+        if (expected.Bool("endsAtRequestedDestination"))
+        {
+            var destination = trip.Object("profile")!.Object("end")!;
+            if (trip.Array("days")!.OfType<JsonObject>().Any(day => !SamePoint(day.Object("end")!, destination)))
+                return new Assessment(false, "A day did not end at the requested destination.");
+        }
         return new Assessment(true, "All declared expectations were met.");
     }
+
+    private static bool SamePoint(JsonObject a, JsonObject b) =>
+        Math.Abs(a.Number("lat") - b.Number("lat")) < 0.000001 && Math.Abs(a.Number("lng") - b.Number("lng")) < 0.000001;
 
     private static void ValidateHabits(string habitsPath, JsonArray cases)
     {
@@ -261,20 +278,36 @@ internal static class EvaluationProgram
                 .Distinct()
                 .ToArray();
             var issue = result.Error is null ? string.Join("<br>", warnings.Select(Html)) : Html(result.Error);
-            var status = result.Passed ? "通过" : result.Status == "not_run" ? "未运行" : "未通过";
+            var status = result.Status switch
+            {
+                "passed" => "通过",
+                "expected_rejection" => "符合预期：明确拒绝",
+                "not_run" => "未运行",
+                _ => "未通过"
+            };
+            var statusClass = result.Status switch
+            {
+                "passed" => "pass",
+                "expected_rejection" => "expected",
+                "not_run" => "skip",
+                _ => "fail"
+            };
             rows.Append("<tr><td>").Append(Html(result.Id)).Append("<br><strong>").Append(Html(result.Title)).Append("</strong></td><td>")
                 .Append(string.Join("<br>", requirements.Select(Html))).Append("</td><td>").Append(Html(result.Strategy)).Append("</td><td class=\"")
-                .Append(result.Passed ? "pass" : result.Status == "not_run" ? "skip" : "fail").Append("\">").Append(status)
+                .Append(statusClass).Append("\">").Append(status)
                 .Append("<br><span class=\"detail\">").Append(Html(result.Summary)).Append("</span></td><td>")
                 .Append(string.IsNullOrWhiteSpace(sequence) ? "—" : Html(sequence).Replace("\n", "<br>")).Append("</td><td>")
                 .Append(string.IsNullOrWhiteSpace(estimates) ? "—" : Html(estimates).Replace("&lt;br&gt;", "<br>")).Append("</td><td>")
                 .Append(string.IsNullOrWhiteSpace(issue) ? "—" : issue).AppendLine("</td></tr>");
         }
+        var localRoutes = local.Count(result => result.Status == "passed");
+        var localExpectedRejections = local.Count(result => result.Status == "expected_rejection");
+        var localFailures = local.Count(result => result.Status == "failed");
         var aiNote = aiConfigured ? "已尝试真实 NVIDIA 调用；逐案查看状态。" : "未运行；报告未将任何模拟结果称为 AI 结果。";
         return "<!doctype html><html lang=\"zh-CN\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
-            + "<title>SydneyBuddy 推荐与路线评测</title><style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin:32px;color:#173642;background:#f6fbfa}main{max-width:1800px;margin:auto}h1{margin-bottom:4px}.note{background:#e6f3f0;padding:14px;border-radius:10px}table{width:100%;border-collapse:collapse;background:#fff;margin-top:20px;font-size:13px}th,td{text-align:left;vertical-align:top;padding:10px;border-bottom:1px solid #d9e4e1;line-height:1.5}th{background:#0f6d69;color:#fff;position:sticky;top:0}.pass{color:#167242;font-weight:700}.fail{color:#b42318;font-weight:700}.skip{color:#8a5a00;font-weight:700}.detail{font-weight:400;color:#35545b}code{font-size:12px}</style>"
-            + "<main><h1>推荐与路线算法独立评测</h1><p>本地规则通过 " + local.Count(result => result.Passed).ToString(CultureInfo.InvariantCulture) + "/10。AI + 规则：" + Html(aiNote) + "</p>"
-            + "<p class=\"note\">固定输入：<code>evaluation/data/cases.json</code>。地点快照、案例原始输出、CSV 与问题报告均保存在本次输出目录。默认路线为本地演示估算，非道路导航；未知价格、营业时间和排队会保留为未核实信息。</p>"
+            + "<title>SydneyBuddy 推荐与路线评测</title><style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin:32px;color:#173642;background:#f6fbfa}main{max-width:1800px;margin:auto}h1{margin-bottom:4px}.note{background:#e6f3f0;padding:14px;border-radius:10px}table{width:100%;border-collapse:collapse;background:#fff;margin-top:20px;font-size:13px}th,td{text-align:left;vertical-align:top;padding:10px;border-bottom:1px solid #d9e4e1;line-height:1.5}th{background:#0f6d69;color:#fff;position:sticky;top:0}.pass{color:#167242;font-weight:700}.expected,.skip{color:#8a5a00;font-weight:700}.fail{color:#b42318;font-weight:700}.detail{font-weight:400;color:#35545b}code{font-size:12px}</style>"
+            + "<main><h1>推荐与路线算法独立评测</h1><p>本地：" + localRoutes.ToString(CultureInfo.InvariantCulture) + " 个路线案例通过；" + localExpectedRejections.ToString(CultureInfo.InvariantCulture) + " 个案例按预期明确拒绝；" + localFailures.ToString(CultureInfo.InvariantCulture) + " 个真实失败。AI + 规则：" + Html(aiNote) + "</p>"
+            + "<p class=\"note\">固定输入：<code>evaluation/data/cases.json</code>。地点快照、案例原始输出、CSV 与问题报告均保存在本次输出目录。默认路线为本地演示估算，非道路导航；未知价格、营业时间和排队会保留为未核实信息。当前没有固定的真实 MapKit/TfNSW 回放，因此<strong>不声称验证了途中疲劳后的成功重算，或真实道路/公交可行性</strong>。</p>"
             + "<table><thead><tr><th>案例</th><th>需求与约束</th><th>策略</th><th>检查结果</th><th>地点顺序（抵达–离开）</th><th>时间、步数、花费与交通估计</th><th>未核实项 / 问题</th></tr></thead><tbody>" + rows + "</tbody></table></main></html>";
     }
 
@@ -287,22 +320,31 @@ internal static class EvaluationProgram
         if (expected.Array("mustExclude") is { Count: > 0 } exclude) parts.Add("不含 " + string.Join("、", exclude.OfType<JsonValue>().Select(node => node.GetValue<string>())));
         if (expected.Bool("indoorOnly")) parts.Add("雨天活动均为室内");
         if (expected["minimumFreeDays"] is not null) parts.Add($"至少 {expected.Int("minimumFreeDays")} 天明确留白");
+        if (expected["minimumMealStops"] is not null) parts.Add($"至少 {expected.Int("minimumMealStops")} 个具体用餐地点");
+        if (expected.Bool("uniqueStops")) parts.Add("地点不重复");
+        if (expected.Bool("endsAtRequestedDestination")) parts.Add("抵达指定终点");
         return string.Join("；", parts);
     }
 
     private static string RenderIssues(IReadOnlyList<CaseResult> results)
     {
-        var issueCases = results.Where(result => result.Strategy == "local_rule" && result.Status == "error").Take(3).ToArray();
-        var report = new StringBuilder("# 最值得讨论的 3 个评测发现\n\n");
-        if (issueCases.Length == 0) return report.Append("本次本地规则未出现失败案例；请审阅 HTML 报告中的未核实信息。\n").ToString();
+        var issueCases = results.Where(result => result.Status == "failed").Take(3).ToArray();
+        var report = new StringBuilder("# 实际失败的评测发现\n\n");
+        if (issueCases.Length == 0)
+        {
+            report.Append("本次已执行策略未出现实际失败。E05、E08、E10 是符合预期的安全拒绝，不应被列为缺陷。\n\n");
+            if (results.Any(result => result.Status == "not_run"))
+                report.Append("## 覆盖缺口\n\nAI + 规则未运行；且没有固定的真实 MapKit/TfNSW 回放，所以本轮不验证真实道路/公交可行性，也不验证疲劳后成功重算和已完成活动保持不变。\n");
+            return report.ToString();
+        }
         foreach (var result in issueCases)
         {
             report.Append("## ").Append(result.Id).Append(" - ").Append(result.Title).Append("\n\n")
                 .Append("- 对应模块：`").Append(result.TestCase.Str("module")).Append("`\n")
                 .Append("- 输入：`").Append(result.TestCase.Object("profile")!.ToJsonString()).Append("`\n")
-                .Append("- 实际输出：").Append(result.Error).Append("\n")
-                .Append("- 期望行为：").Append(result.TestCase.Object("expected")!.Str("expectedBehavior")).Append("\n")
-                .Append("- 评测结论：这是明确失败而非静默满足；是否要改善提示或补足固定证据，应由产品和后端共同决定。\n\n");
+                .Append("- 实际输出：").Append(result.Error ?? result.Summary).Append("\n")
+                .Append("- 期望行为：").Append(result.TestCase.Object("expected")!.Str("expectedBehavior", RenderExpectation(result.TestCase.Object("expected")!))).Append("\n")
+                .Append("- 评测结论：这是实际断言失败，需要修复或调整预期后再提交。\n\n");
         }
         return report.ToString();
     }
@@ -316,7 +358,7 @@ internal static class EvaluationProgram
     {
         public string Id => TestCase.Str("id");
         public string Title => TestCase.Str("title");
-        public static CaseResult NotRun(JsonObject testCase, string strategy, string reason) => new(testCase, strategy, "not_run", true, reason, null, reason);
+        public static CaseResult NotRun(JsonObject testCase, string strategy, string reason) => new(testCase, strategy, "not_run", false, reason, null, reason);
     }
 
     private sealed class EmptyMemoryService : IMemoryService
