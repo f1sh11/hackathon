@@ -18528,5 +18528,85 @@
     "en": "Just for this trip. Your other details stay as they are.",
     "zh-Hans": "只修改本次旅行，其他资料会保留。",
     "zh-Hant": "只修改本次旅行，其他資料會保留。"
+  },
+  "Koko’s little idea": {
+    "en": "Koko’s little idea",
+    "zh-Hans": "Koko 的小提议",
+    "zh-Hant": "Koko 的小提議"
+  },
+  "A little greenery, a slower day.": {
+    "en": "A little greenery, a slower day.",
+    "zh-Hans": "一点绿意，慢慢过一天。",
+    "zh-Hant": "一點綠意，慢慢過一天。"
+  },
+  "A little culture, a little wandering.": {
+    "en": "A little culture, a little wandering.",
+    "zh-Hans": "看看故事，也随心逛逛。",
+    "zh-Hant": "看看故事，也隨心逛逛。"
+  },
+  "Good food, without the rush.": {
+    "en": "Good food, without the rush.",
+    "zh-Hans": "好好吃饭，不用赶路。",
+    "zh-Hant": "好好吃飯，不用趕路。"
+  },
+  "Local stories, interesting streets, and time to pause.": {
+    "en": "Local stories, interesting streets, and time to pause.",
+    "zh-Hans": "街区故事、有趣的小路，再留些休息时间。",
+    "zh-Hant": "街區故事、有趣的小路，再留些休息時間。"
+  },
+  "A food-filled neighborhood, small shops, and a well-earned break.": {
+    "en": "A food-filled neighborhood, small shops, and a well-earned break.",
+    "zh-Hans": "逛吃街区、看看小店，再舒服地歇一会儿。",
+    "zh-Hant": "逛吃街區、看看小店，再舒服地歇一會兒。"
+  },
+  "A waterside wander, a café break, and room to explore.": {
+    "en": "A waterside wander, a café break, and room to explore.",
+    "zh-Hans": "沿水边走走，喝杯咖啡，再留点自由探索的时间。",
+    "zh-Hant": "沿水邊走走，喝杯咖啡，再留點自由探索的時間。"
+  },
+  "Sounds like me": {
+    "en": "Sounds like me",
+    "zh-Hans": "喜欢这个方向",
+    "zh-Hant": "喜歡這個方向"
+  },
+  "Try another idea": {
+    "en": "Try another idea",
+    "zh-Hans": "换个想法",
+    "zh-Hant": "換個想法"
+  },
+  "An idea for now. Places and routes come next.": {
+    "en": "An idea for now. Places and routes come next.",
+    "zh-Hans": "先选玩法，具体地点和路线接着核实。",
+    "zh-Hant": "先選玩法，具體地點和路線接著核實。"
+  },
+  "Get a travel idea": {
+    "en": "Get a travel idea",
+    "zh-Hans": "给我一点旅行灵感",
+    "zh-Hant": "給我一點旅行靈感"
+  },
+  "Back to planning": {
+    "en": "Back to planning",
+    "zh-Hans": "返回旅行规划",
+    "zh-Hant": "返回旅行規劃"
+  },
+  "Your ideas are saved": {
+    "en": "Your ideas are saved",
+    "zh-Hans": "想法都收好啦",
+    "zh-Hant": "想法都收好啦"
+  },
+  "Dates are still open. Choose them whenever you’re ready to generate your itinerary.": {
+    "en": "Dates are still open. Choose them whenever you’re ready to generate your itinerary.",
+    "zh-Hans": "日期先留空，想生成行程时再选择就好。",
+    "zh-Hant": "日期先留空，想產生行程時再選擇就好。"
+  },
+  "Choose dates to generate": {
+    "en": "Choose dates to generate",
+    "zh-Hans": "选日期再生成",
+    "zh-Hant": "選日期再產生"
+  },
+  "Dates undecided": {
+    "en": "Dates undecided",
+    "zh-Hans": "日期待定",
+    "zh-Hant": "日期待定"
   }
 }

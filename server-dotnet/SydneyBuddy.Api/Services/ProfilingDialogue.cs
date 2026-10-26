@@ -24,6 +24,7 @@ public sealed class ProfilingDialogue
     public int IdeaRevision { get; set; }
     public string ProposedDirection { get; set; } = "";
     public string RequestedField {get;set;}="";
+    public bool DateDeferred {get;set;}
     public string SelectedDirection { get; set; } = "";
     public TravelInspiration? Inspiration { get; set; }
 }
@@ -72,6 +73,25 @@ nickname、ideas、quickReplies 都不能来自产品文档里的模拟用户。
         session.Messages.Add(new(Guid.NewGuid().ToString("N"),"assistant",KokoCompanion.Enabled(session) && returning ? KokoCompanion.Greeting:greeting,"greeting",KokoCompanion.Enabled(session) && returning ? KokoCompanion.MoodReplies():returning ? ExplorationReplies():NameReplies()));
     }
 
+    public static bool RepeatedChoice(PetSession s,JsonObject input) {
+        if(input.Str("field").Length>0 || input.Str("questionId").Length==0 || input.Str("optionId").Length==0)return false;
+        var previous=s.Messages.LastOrDefault(x=>x.Role=="user" && x.Choice?.QuestionMessageId==input.Str("questionId") && x.Choice.OptionId==input.Str("optionId"));
+        return previous?.Choice is {} choice && (input.Str("message").Trim()==choice.OptionText || s.ResponseLanguage=="en" && input.Str("message").Trim()==PetEnglishCopy.Translate(choice.OptionText));
+    }
+    public static bool DateIsDeferred(PetSession s) {
+        if(s.Dialogue is not {} d || PetQuestions.Answered(s,"date") && PetQuestions.Answered(s,"days"))return false;
+        return d.DateDeferred || d.RequestedField=="time" || s.Messages.Any(x=>x.Role=="user" && (x.Choice?.OptionText=="日期还没定" || x.Text is "日期还没定" or "Date still open"));
+    }
+    // Repair old drafts' available actions without appending conversation or touching facts.
+    public static void RefreshDeferredState(PetSession s) {
+        if(s.Dialogue is not {} d)return;
+        d.DateDeferred=DateIsDeferred(s);
+        var last=s.Messages.FindLastIndex(x=>x.Role=="assistant");
+        if(d.DateDeferred && last>=0 && s.Messages[last].QuickReplies?.Any(x=>x.Intent=="defer_time")==true){
+            var options=s.Messages[last].QuickReplies!.Where(x=>x.Intent!="defer_time").ToArray();
+            s.Messages[last]=s.Messages[last] with {QuickReplies=options};
+        }
+    }
     public static PetQuickReply? ResolveChoice(PetSession s,JsonObject input)
     {
         s.CurrentChoice=null;
@@ -99,7 +119,7 @@ nickname、ideas、quickReplies 都不能来自产品文档里的模拟用户。
             s.Fields["budget"]=choice.Intent[7..];s.Fields["budgetCurrency"]="AUD";s.Fields["budgetBasis"]="perPersonPerDay";s.Fields["budgetCoverage"]="activities";d.RequestedField="";
             return StepResult(s,"这次按每人每天 "+s.Fields["budget"]+" AUD 活动预算来安排，不含住宿、交通和全部餐饮。", "budget");
         }
-        if(choice?.Intent=="defer_time") {s.Fields.Remove("date");d.RequestedField="time";return StepResult(s,"日期先留空，我不会替你确定。草稿会保留，准备生成时再选日期。", "time");}
+        if(choice?.Intent=="defer_time") {s.Fields.Remove("date");d.DateDeferred=true;d.RequestedField="";return StepResult(s,"日期先留空，我不会替你确定。草稿会保留，准备生成时再选日期。", "time");}
         if(BudgetQuestion(text)) {
             s.Fields.Remove("budget");d.RequestedField="budget";
             return new(){["reply"]="原预算先不采用。可以先选每人每天 60 或 120 AUD 作为活动预算，再自由调整；这只是预算档位，不代表已核实的花费。住宿、交通和全部餐饮另计。",["readyForDraft"]=true,["followTripStep"]=true};
@@ -183,7 +203,7 @@ nickname、ideas、quickReplies 都不能来自产品文档里的模拟用户。
     public static string NextNeed(PetSession s) {
         if(s.Dialogue?.RequestedField=="budget" && !PetQuestions.Answered(s,"budget"))return "budget";
         if(!PetQuestions.Answered(s,"destination"))return "destination";
-        if(s.Dialogue?.RequestedField!="time" && (!PetQuestions.Answered(s,"date") || !PetQuestions.Answered(s,"days")))return "time";
+        if(!DateIsDeferred(s) && (!PetQuestions.Answered(s,"date") || !PetQuestions.Answered(s,"days")))return "time";
         if(!PetQuestions.Answered(s,"travelers"))return "travelers";
         if(!PetQuestions.Answered(s,"budget") || !PetQuestions.Answered(s,"budgetCurrency") || !PetQuestions.Answered(s,"budgetBasis"))return "budget";
         if(!PetQuestions.Answered(s,"date") || !PetQuestions.Answered(s,"days"))return "time";
@@ -191,7 +211,7 @@ nickname、ideas、quickReplies 都不能来自产品文档里的模拟用户。
     }
     public static string StepQuestion(PetSession s)=>NextNeed(s) switch {
         "destination"=>PetQuestions.UnsupportedDestination(s) ? "资料会保留。目前只支持悉尼路线，可以改选悉尼或先保存草稿。":"这次想去哪个城市？目前可以生成悉尼路线，也能先保存其他城市的想法。",
-        "time"=>"接下来选出发日期和天数，最多 15 天；没定日期也可以先保留草稿。",
+        "time"=>DateIsDeferred(s) ? "其他资料都收好啦。日期继续留空，准备生成时再选日期和天数。":"接下来选出发日期和天数，最多 15 天；没定日期也可以先保留草稿。",
         "travelers"=>"这次一共几个人？记得包括自己呀。",
         "budget"=>"活动预算可以选 60 / 120 AUD 每人每天，或自定义金额与范围；住宿、交通和全部餐饮另计。",
         _=>"资料准备齐啦！可以直接生成行程，也可以继续聊或单独修改。"
@@ -199,6 +219,7 @@ nickname、ideas、quickReplies 都不能来自产品文档里的模拟用户。
     private static JsonObject StepResult(PetSession s,string text,string focus)=>new(){["reply"]=text+"\n"+StepQuestion(s),["readyForDraft"]=true,["followTripStep"]=true};
     public static void DetailsUpdated(PetSession s,JsonObject changes) {
         if(s.Dialogue is null || !changes.Any(x=>PetQuestions.Required.Contains(x.Key) || new[]{"budgetCoverage","origin","mustDo","avoid","companionNeeds"}.Contains(x.Key)))return;
+        if(changes.ContainsKey("date"))s.Dialogue.DateDeferred=!PetQuestions.Answered(s,"date");
         if(PetQuestions.Answered(s,"budget"))s.Dialogue.RequestedField="";
         if(s.Dialogue.Inspiration is null)Finish(s,[]);
         var labels=new Dictionary<string,string>{{"destination","目的地"},{"date","日期"},{"days","天数"},{"travelers","人数"},{"budget","预算"},{"origin","出发地点"},{"mustDo","必去安排"},{"avoid","避开安排"},{"companionNeeds","同行需要"}};
@@ -212,7 +233,7 @@ nickname、ideas、quickReplies 都不能来自产品文档里的模拟用户。
         if(s.Dialogue is {} d && d.ProposedDirection.Length>0 && d.SelectedDirection!=d.ProposedDirection && d.RequestedField.Length==0 && !s.Fields.Keys.Any(PetQuestions.Required.Contains))return [Reply("就选这个方向","accept_direction"),Reply("换个玩法","change_direction"),Reply("我想自己说","compose_idea")];
         return NextNeed(s) switch {
             "destination"=>PetQuestions.UnsupportedDestination(s) ? [Reply("改选悉尼","choose_sydney"),Reply("修改城市","details_destination"),Reply("保留草稿","keep_draft")]:[Reply("选悉尼","choose_sydney"),Reply("其他城市","details_destination"),Reply("我想自己说","compose_idea")],
-            "time"=>[Reply("选日期和天数","details_time"),Reply("日期还没定","defer_time"),Reply("我想自己说","compose_idea")],
+            "time"=>DateIsDeferred(s) ? [Reply("选日期再生成","details_time"),Reply("保留草稿","keep_draft"),Reply("我想自己说","compose_idea")]:[Reply("选日期和天数","details_time"),Reply("日期还没定","defer_time"),Reply("我想自己说","compose_idea")],
             "travelers"=>[Reply("1 人","people_1"),Reply("2 人","people_2"),Reply("其他人数","details_people")],
             "budget"=>[Reply("60 AUD / 人 / 天","budget_60"),Reply("120 AUD / 人 / 天","budget_120"),Reply("自定义预算","details_budget")],
             _=>[Reply("修改旅行资料","details"),Reply("再换个玩法","change_direction"),Reply("我想自己说","compose_idea")]

@@ -18,7 +18,7 @@ public static class PetEndpoints
             return Results.Json(PetQuestions.View(s));
         });
         routes.MapGet("/pet/sessions/{id}",async(string id,HttpContext ctx,PetSessionStore store,MemoryRepository records,CancellationToken ct)=>
-        {await store.Gate.WaitAsync(ct);try{var s=store.Load(id);TravelProfiling.Refresh(s,await records.ListAsync(ct));store.Save(s);PetResponseLanguage.Apply(s,new JsonObject{["language"]=ctx.Request.Headers["X-App-Language"].ToString()});return Results.Json(PetQuestions.View(s));}finally{store.Gate.Release();}});
+        {await store.Gate.WaitAsync(ct);try{var s=store.Load(id);TravelProfiling.Refresh(s,await records.ListAsync(ct));KokoDialogue.RefreshDeferredState(s);store.Save(s);PetResponseLanguage.Apply(s,new JsonObject{["language"]=ctx.Request.Headers["X-App-Language"].ToString()});return Results.Json(PetQuestions.View(s));}finally{store.Gate.Release();}});
         routes.MapDelete("/pet/sessions/{id}",async(string id,PetSessionStore store,IMemoryService memory,CancellationToken ct)=>
         {await store.Gate.WaitAsync(ct);try{await memory.RunAsync("discard_session",new JsonObject{["sessionId"]=id},ct);store.Delete(id);return Results.Json(new{deleted=true});}finally{store.Gate.Release();}});
         routes.MapPatch("/pet/sessions/{id}",async(string id,HttpContext ctx,PetSessionStore store)=>
@@ -74,7 +74,7 @@ public static class PetEndpoints
             ctx.Response.ContentType="application/x-ndjson; charset=utf-8";
             ctx.Response.Headers.CacheControl="no-store";ctx.Response.Headers["X-Accel-Buffering"]="no";
             async Task Emit(object value){await ctx.Response.WriteAsync(JsonSerializer.Serialize(value,JsonExtensions.Options)+"\n",ctx.RequestAborted);await ctx.Response.Body.FlushAsync(ctx.RequestAborted);}
-            if(s.CompletedRequests.Contains(requestId)){await Emit(new{type="done",session=PetQuestions.View(s)});return;}
+            if(s.CompletedRequests.Contains(requestId) || KokoDialogue.RepeatedChoice(s,input)){await Emit(new{type="done",session=PetQuestions.View(s)});return;}
             try
             {
                 var choice=KokoDialogue.ResolveChoice(s,input);

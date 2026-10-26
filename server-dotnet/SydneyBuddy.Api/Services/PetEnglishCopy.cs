@@ -149,6 +149,8 @@ internal static class PetEnglishCopy
         ["日期"]="Date",
         ["日期先留空，我不会替你确定。草稿会保留，准备生成时再选日期。"]="We'll leave the date open and keep your draft. Choose a date when you're ready to generate the itinerary.",
         ["日期还没定"]="Date still open",
+        ["选日期再生成"]="Choose dates to generate",
+        ["其他资料都收好啦。日期继续留空，准备生成时再选日期和天数。"]="The other details are ready. We can leave the dates open until you’re ready to generate your itinerary.",
         ["明天"]="Tomorrow",
         ["暂不确定"]="Undecided",
         ["有出发地点或住宿位置了吗？还不知道也可以稍后补充。"]="Do you have a starting point or a place to stay? You can add it later.",
