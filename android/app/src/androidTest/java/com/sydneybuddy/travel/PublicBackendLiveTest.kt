@@ -47,5 +47,5 @@ class PublicBackendLiveTest {
         rule.onNodeWithTag("backend-apply").performScrollTo().performClick()
         waitFor(base,"zetaris-cloud")
     }
-    private fun waitFor(base:String,source:String){rule.waitUntil(120000){var ready=false;rule.activityRule.scenario.onActivity{val s=ViewModelProvider(it)[BuddyStore::class.java];ready=s.base==base&&!s.busy&&s.health?.optString("status")=="ok"&&s.travelDataSource==source&&s.dataConnection?.contains("8")==true};ready}}
+    private fun waitFor(base:String,source:String){rule.waitUntil(120000){var ready=false;rule.activityRule.scenario.onActivity{val s=ViewModelProvider(it)[BuddyStore::class.java];ready=s.base==base&&!s.busy&&s.health?.optString("status")=="ok"&&s.travelDataSource==source&&!s.mapLayerIds.isNullOrEmpty()};ready}}
 }

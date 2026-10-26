@@ -142,7 +142,7 @@ Zetaris 連線只放在 Oracle 的 `/opt/sydneybuddy/zetaris-cloud.env`（root:r
 
 App 的雲端連線碼使用 iOS Keychain／Android Keystore 加密保存，只傳給指定 HTTPS 後端，不傳給地圖、照片或其他第三方主機。iOS 模擬器需正常簽章（可使用 `CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=-` 的本機臨時簽章）；未簽章測試沒有 Keychain 權限時會拒絕保存，不會退回明文。手機只設定 Oracle 網址與 App 連線碼，不需填 Zetaris。
 
-這版公開入口用於持有連線碼的團隊共用測試：使用同一份後端行程資料，並非每位使用者獨立登入與資料隔離。對外入口與 Oracle 私有 Zetaris 設定尚待本次明確確認後啟用；已完成本機的受管理來源、即時天氣、存取驗證及手機安全儲存測試。
+這版公開入口用於持有連線碼的團隊共用測試：使用同一份後端行程資料，並非每位使用者獨立登入與資料隔離。已依使用者明確授權啟用公開入口並保存 Oracle 私有 Zetaris 設定；已完成受管理來源、即時天氣、存取驗證及手機安全儲存測試。
 
 
 ### 受管理後端部署順序（Oracle Linux E2 Micro）
@@ -176,3 +176,18 @@ python3 scripts/oracle_cloud.py enable-https --host YOUR_VM_IP --key /secure/id_
 手機進入「我的／設定 → 後端連線」，選雲端、填 HTTPS 網址與 App 連線碼，再按「套用並測試連線」。應顯示後端已連線、資料來源由後端管理及 8 個行程景點；不需輸入任何 Zetaris 設定。日常切換可將連線碼留空，沿用安全儲存的值。選本機即可回到個人電腦的服務，兩端資料不會自動互相搬移。
 
 Android 公網驗證測試 `PublicBackendLiveTest` 預設跳過；需 `publicBackendSmoke=true` 及 App 私有目錄的 `backend-public-smoke.json`，內容為上述 HTTPS 設定。測試讀入後移除暫存檔，透過設定畫面保存連線碼，確認匿名請求被拒、雲端來源自動切換及即時天氣。不可將實際連線碼作為測試參數或寫入測試程式碼。
+
+
+### 2026-10-26 公開 HTTPS 上線紀錄
+
+- 入口：`https://api.161-33-225-15.sslip.io`，Let's Encrypt 憑證已簽發，未停用任何憑證驗證。
+- Oracle API／PostgreSQL／Caddy systemd 服務均 active；8787 綁定 loopback，5432 不映射到主機。Security List 對外僅新增 TCP 80／443，SSH 仍限管理電腦的來源 IPv4 `/32`。
+- API 回報 `managedTravelDataSource=zetaris-cloud`；雲端讀取 POI 5968、秘境 12、OSM 5318、規劃目錄 8。今日天氣兩次讀取均 `status=ok`、`cached=false`，取得時間及供應商生成時間不同。
+- 匿名健康查詢 401；帶正確連線碼成功；`/setup`、大小寫及 URL 編碼變形均 404。
+- iOS／Android 模擬器已使用公網 HTTPS 直連，沒有依賴 SSH 或 `adb reverse` 的雲端連線。尚未接上實體手機，實體裝置仍需安裝新版 App 並填入同一入口及私有連線碼。
+- Oracle Linux 原先以 crashkernel 預留 448 MiB，令可用記憶體總量約 498 MiB。依使用者明確同意停用 kdump 並釋放預留，增至約 946 MiB；已將開機參數設 `crashkernel=0`，不再產生完整核心記憶體轉儲。資料 volume、一般日誌與網路防護保留。
+- 重載 firewalld 後需執行 `sudo podman network reload --all`，恢復既有容器轉送規則；部署工具已包含此步驟。它不增加公開連接埠。
+
+實際連線碼只在專案外的私有設定與手機安全儲存中，沒有收入本文件、Git 或映像。管理帳密亦只由 Oracle 後端使用。這份部署未新增付費資源；既有 AWS Zetaris 仍按先前要求保留，AWS 帳單繼續依用量計算。
+
+最終驗證：後端受管理來源 13 項測試、iOS 4 項連線安全／過期回應測試、Android Keystore 測試通過；Android 公網即時天氣及雲端→本機→雲端來回切換通過（本機目錄 14、雲端目錄 8，數量可不同）。iOS 交通預覽改用可水平滑動的日期列，以 10 天合成行程確認第 3 天及第 10 天完整可讀。
