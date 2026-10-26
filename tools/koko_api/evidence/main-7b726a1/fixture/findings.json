@@ -1,0 +1,3864 @@
+{
+  "sourceCommit": "7b726a1b84af5fd3e2c8bb7eca83b85f9cae4a79",
+  "mode": "fixture",
+  "runId": "910746d3-8683-4b38-9403-4c27f7baa689",
+  "cases": [
+    {
+      "category": "07 混合输入",
+      "cleanup": [
+        {
+          "data": {
+            "deleted": true
+          },
+          "httpStatus": 200,
+          "path": "/pet/sessions/2045ac78e0254374adb1dd65c01cedf8"
+        }
+      ],
+      "create": {
+        "request": {
+          "body": {
+            "companionVersion": 1,
+            "fields": {
+              "budget": "100",
+              "budgetBasis": "groupTrip",
+              "budgetCoverage": "activities",
+              "budgetCurrency": "CNY",
+              "date": "2026-11-25",
+              "days": "3",
+              "destination": "悉尼",
+              "travelers": "2"
+            },
+            "hasMetKoko": true,
+            "language": "zh-Hans",
+            "nickname": "",
+            "profilingVersion": 2
+          },
+          "method": "POST",
+          "path": "/pet/sessions",
+          "requestId": null
+        },
+        "response": {
+          "data": {
+            "completed": 6,
+            "dialogue": {
+              "companionVersion": 1,
+              "ideaRevision": 0,
+              "ideas": [],
+              "inspiration": null,
+              "moodAnswered": false,
+              "nickname": "",
+              "phase": "exploring",
+              "proposedDirection": "",
+              "recallKey": "",
+              "recallOffered": false,
+              "recallSourceId": "",
+              "recallValue": "",
+              "requestedField": "",
+              "responseCount": 0,
+              "selectedDirection": "",
+              "version": 2
+            },
+            "dnaCompleted": false,
+            "fields": {
+              "budget": "100",
+              "budgetBasis": "groupTrip",
+              "budgetCoverage": "activities",
+              "budgetCurrency": "CNY",
+              "date": "2026-11-25",
+              "days": "3",
+              "destination": "悉尼",
+              "travelers": "2"
+            },
+            "id": "2045ac78e0254374adb1dd65c01cedf8",
+            "memoryWarning": "",
+            "messages": [
+              {
+                "choice": null,
+                "id": "b009dfcf51524469964f45eacf39c3fc",
+                "mood": "greeting",
+                "quickReplies": [
+                  {
+                    "id": "c5daa48f8d4f4db79c59d5043a99c73d",
+                    "intent": "mood_rest",
+                    "text": "想歇一歇"
+                  },
+                  {
+                    "id": "268e3a95ec5e4ce1ad8697a3e1d40c6a",
+                    "intent": "mood_food",
+                    "text": "想吃点好的"
+                  },
+                  {
+                    "id": "6a643c1115ed402ab820f3d4fe4a96f8",
+                    "intent": "mood_explore",
+                    "text": "想找点新鲜感"
+                  },
+                  {
+                    "id": "b247d69347ab4825b601625e3ef92fa2",
+                    "intent": "mood_skip",
+                    "text": "先聊旅行"
+                  }
+                ],
+                "role": "assistant",
+                "text": "小背包带好啦。你这次想歇一歇、吃点好的，还是找点新鲜感？也可以直接告诉我想去哪儿。"
+              }
+            ],
+            "missingImportantFields": [
+              "budgetCurrency"
+            ],
+            "nextField": "budgetCurrency",
+            "options": [
+              "AUD"
+            ],
+            "pendingMemory": "",
+            "pendingPreferences": [],
+            "planningFields": {
+              "budget": "100",
+              "budgetBasis": "groupTrip",
+              "budgetCoverage": "activities",
+              "budgetCurrency": "CNY",
+              "date": "2026-11-25",
+              "days": "3",
+              "destination": "悉尼",
+              "notes": "",
+              "travelers": "2"
+            },
+            "question": "这笔活动预算使用什么币种？目前支持澳元 AUD；其他币种需要先确认澳元金额。",
+            "total": 7,
+            "travelDna": [],
+            "tripContext": {
+              "budget": "100",
+              "budgetBasis": "groupTrip",
+              "budgetCoverage": "activities",
+              "budgetCurrency": "CNY",
+              "date": "2026-11-25",
+              "days": "3",
+              "destination": "悉尼",
+              "travelers": "2"
+            },
+            "tripPreferences": [],
+            "updatedAt": "2026-10-26T03:57:33.2991900+00:00"
+          },
+          "httpStatus": 200
+        }
+      },
+      "humanReview": [
+        "预期清掉旧币种金额；若实际保留 CNY 的100并变为可规划，应报告为业务缺陷，不调整断言迎合当前实现。"
+      ],
+      "id": "13-probe-patch-currency",
+      "modelTrace": {
+        "calls": [],
+        "caseId": "13-probe-patch-currency",
+        "matchedCalls": 0,
+        "mode": "fixture",
+        "totalCalls": 0,
+        "unexpectedCalls": 0,
+        "unusedResponses": 0
+      },
+      "reason": "",
+      "status": "FAIL",
+      "steps": [
+        {
+          "after": {
+            "assistantMessageCount": 1,
+            "derivedReady": false,
+            "error": null,
+            "lastEvent": null,
+            "lastStatus": 200,
+            "memories": [],
+            "memoryCount": 0,
+            "memoryDelta": 0,
+            "messageIds": [
+              "b009dfcf51524469964f45eacf39c3fc"
+            ],
+            "session": {
+              "completed": 6,
+              "dialogue": {
+                "companionVersion": 1,
+                "ideaRevision": 0,
+                "ideas": [],
+                "inspiration": null,
+                "moodAnswered": false,
+                "nickname": "",
+                "phase": "exploring",
+                "proposedDirection": "",
+                "recallKey": "",
+                "recallOffered": false,
+                "recallSourceId": "",
+                "recallValue": "",
+                "requestedField": "",
+                "responseCount": 0,
+                "selectedDirection": "",
+                "version": 2
+              },
+              "dnaCompleted": false,
+              "fields": {
+                "budget": "100",
+                "budgetBasis": "groupTrip",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "CNY",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "travelers": "2"
+              },
+              "id": "2045ac78e0254374adb1dd65c01cedf8",
+              "memoryWarning": "",
+              "messages": [
+                {
+                  "choice": null,
+                  "id": "b009dfcf51524469964f45eacf39c3fc",
+                  "mood": "greeting",
+                  "quickReplies": [
+                    {
+                      "id": "c5daa48f8d4f4db79c59d5043a99c73d",
+                      "intent": "mood_rest",
+                      "text": "想歇一歇"
+                    },
+                    {
+                      "id": "268e3a95ec5e4ce1ad8697a3e1d40c6a",
+                      "intent": "mood_food",
+                      "text": "想吃点好的"
+                    },
+                    {
+                      "id": "6a643c1115ed402ab820f3d4fe4a96f8",
+                      "intent": "mood_explore",
+                      "text": "想找点新鲜感"
+                    },
+                    {
+                      "id": "b247d69347ab4825b601625e3ef92fa2",
+                      "intent": "mood_skip",
+                      "text": "先聊旅行"
+                    }
+                  ],
+                  "role": "assistant",
+                  "text": "小背包带好啦。你这次想歇一歇、吃点好的，还是找点新鲜感？也可以直接告诉我想去哪儿。"
+                }
+              ],
+              "missingImportantFields": [
+                "budgetCurrency"
+              ],
+              "nextField": "budgetCurrency",
+              "options": [
+                "AUD"
+              ],
+              "pendingMemory": "",
+              "pendingPreferences": [],
+              "planningFields": {
+                "budget": "100",
+                "budgetBasis": "groupTrip",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "CNY",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "notes": "",
+                "travelers": "2"
+              },
+              "question": "这笔活动预算使用什么币种？目前支持澳元 AUD；其他币种需要先确认澳元金额。",
+              "total": 7,
+              "travelDna": [],
+              "tripContext": {
+                "budget": "100",
+                "budgetBasis": "groupTrip",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "CNY",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "travelers": "2"
+              },
+              "tripPreferences": [],
+              "updatedAt": "2026-10-26T03:57:33.3171506+00:00"
+            },
+            "userMessageCount": 0
+          },
+          "assertions": [
+            {
+              "actual": false,
+              "expected": false,
+              "message": "error/complete outcome matches expectation",
+              "passed": true,
+              "path": "response.error"
+            },
+            {
+              "actual": 200,
+              "expected": 200,
+              "passed": true,
+              "path": "response.httpStatus"
+            }
+          ],
+          "before": {
+            "assistantMessageCount": 1,
+            "derivedReady": false,
+            "error": null,
+            "lastEvent": null,
+            "lastStatus": 200,
+            "memories": [],
+            "memoryCount": 0,
+            "memoryDelta": 0,
+            "messageIds": [
+              "b009dfcf51524469964f45eacf39c3fc"
+            ],
+            "session": {
+              "completed": 6,
+              "dialogue": {
+                "companionVersion": 1,
+                "ideaRevision": 0,
+                "ideas": [],
+                "inspiration": null,
+                "moodAnswered": false,
+                "nickname": "",
+                "phase": "exploring",
+                "proposedDirection": "",
+                "recallKey": "",
+                "recallOffered": false,
+                "recallSourceId": "",
+                "recallValue": "",
+                "requestedField": "",
+                "responseCount": 0,
+                "selectedDirection": "",
+                "version": 2
+              },
+              "dnaCompleted": false,
+              "fields": {
+                "budget": "100",
+                "budgetBasis": "groupTrip",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "CNY",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "travelers": "2"
+              },
+              "id": "2045ac78e0254374adb1dd65c01cedf8",
+              "memoryWarning": "",
+              "messages": [
+                {
+                  "choice": null,
+                  "id": "b009dfcf51524469964f45eacf39c3fc",
+                  "mood": "greeting",
+                  "quickReplies": [
+                    {
+                      "id": "c5daa48f8d4f4db79c59d5043a99c73d",
+                      "intent": "mood_rest",
+                      "text": "想歇一歇"
+                    },
+                    {
+                      "id": "268e3a95ec5e4ce1ad8697a3e1d40c6a",
+                      "intent": "mood_food",
+                      "text": "想吃点好的"
+                    },
+                    {
+                      "id": "6a643c1115ed402ab820f3d4fe4a96f8",
+                      "intent": "mood_explore",
+                      "text": "想找点新鲜感"
+                    },
+                    {
+                      "id": "b247d69347ab4825b601625e3ef92fa2",
+                      "intent": "mood_skip",
+                      "text": "先聊旅行"
+                    }
+                  ],
+                  "role": "assistant",
+                  "text": "小背包带好啦。你这次想歇一歇、吃点好的，还是找点新鲜感？也可以直接告诉我想去哪儿。"
+                }
+              ],
+              "missingImportantFields": [
+                "budgetCurrency"
+              ],
+              "nextField": "budgetCurrency",
+              "options": [
+                "AUD"
+              ],
+              "pendingMemory": "",
+              "pendingPreferences": [],
+              "planningFields": {
+                "budget": "100",
+                "budgetBasis": "groupTrip",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "CNY",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "notes": "",
+                "travelers": "2"
+              },
+              "question": "这笔活动预算使用什么币种？目前支持澳元 AUD；其他币种需要先确认澳元金额。",
+              "total": 7,
+              "travelDna": [],
+              "tripContext": {
+                "budget": "100",
+                "budgetBasis": "groupTrip",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "CNY",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "travelers": "2"
+              },
+              "tripPreferences": [],
+              "updatedAt": "2026-10-26T03:57:33.3063049+00:00"
+            },
+            "userMessageCount": 0
+          },
+          "clock": {
+            "source": "system",
+            "sydney": "2026-10-26T14:57:33.310985+11:00",
+            "timeZone": "Australia/Sydney",
+            "utc": "2026-10-26T03:57:33.310985+00:00"
+          },
+          "durationMs": 13,
+          "fieldChanges": {},
+          "finishedClock": {
+            "source": "system",
+            "sydney": "2026-10-26T14:57:33.323989+11:00",
+            "timeZone": "Australia/Sydney",
+            "utc": "2026-10-26T03:57:33.323989+00:00"
+          },
+          "index": 1,
+          "input": {
+            "op": "get",
+            "saveAs": "baseline"
+          },
+          "op": "get",
+          "request": {
+            "body": null,
+            "method": "GET",
+            "path": "/pet/sessions/2045ac78e0254374adb1dd65c01cedf8",
+            "requestId": null
+          },
+          "response": {
+            "data": {
+              "completed": 6,
+              "dialogue": {
+                "companionVersion": 1,
+                "ideaRevision": 0,
+                "ideas": [],
+                "inspiration": null,
+                "moodAnswered": false,
+                "nickname": "",
+                "phase": "exploring",
+                "proposedDirection": "",
+                "recallKey": "",
+                "recallOffered": false,
+                "recallSourceId": "",
+                "recallValue": "",
+                "requestedField": "",
+                "responseCount": 0,
+                "selectedDirection": "",
+                "version": 2
+              },
+              "dnaCompleted": false,
+              "fields": {
+                "budget": "100",
+                "budgetBasis": "groupTrip",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "CNY",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "travelers": "2"
+              },
+              "id": "2045ac78e0254374adb1dd65c01cedf8",
+              "memoryWarning": "",
+              "messages": [
+                {
+                  "choice": null,
+                  "id": "b009dfcf51524469964f45eacf39c3fc",
+                  "mood": "greeting",
+                  "quickReplies": [
+                    {
+                      "id": "c5daa48f8d4f4db79c59d5043a99c73d",
+                      "intent": "mood_rest",
+                      "text": "想歇一歇"
+                    },
+                    {
+                      "id": "268e3a95ec5e4ce1ad8697a3e1d40c6a",
+                      "intent": "mood_food",
+                      "text": "想吃点好的"
+                    },
+                    {
+                      "id": "6a643c1115ed402ab820f3d4fe4a96f8",
+                      "intent": "mood_explore",
+                      "text": "想找点新鲜感"
+                    },
+                    {
+                      "id": "b247d69347ab4825b601625e3ef92fa2",
+                      "intent": "mood_skip",
+                      "text": "先聊旅行"
+                    }
+                  ],
+                  "role": "assistant",
+                  "text": "小背包带好啦。你这次想歇一歇、吃点好的，还是找点新鲜感？也可以直接告诉我想去哪儿。"
+                }
+              ],
+              "missingImportantFields": [
+                "budgetCurrency"
+              ],
+              "nextField": "budgetCurrency",
+              "options": [
+                "AUD"
+              ],
+              "pendingMemory": "",
+              "pendingPreferences": [],
+              "planningFields": {
+                "budget": "100",
+                "budgetBasis": "groupTrip",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "CNY",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "notes": "",
+                "travelers": "2"
+              },
+              "question": "这笔活动预算使用什么币种？目前支持澳元 AUD；其他币种需要先确认澳元金额。",
+              "total": 7,
+              "travelDna": [],
+              "tripContext": {
+                "budget": "100",
+                "budgetBasis": "groupTrip",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "CNY",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "travelers": "2"
+              },
+              "tripPreferences": [],
+              "updatedAt": "2026-10-26T03:57:33.3136154+00:00"
+            },
+            "httpStatus": 200
+          },
+          "status": "PASS"
+        },
+        {
+          "after": {
+            "assistantMessageCount": 1,
+            "derivedReady": false,
+            "error": null,
+            "lastEvent": null,
+            "lastStatus": 200,
+            "memories": [],
+            "memoryCount": 0,
+            "memoryDelta": 0,
+            "messageIds": [
+              "b009dfcf51524469964f45eacf39c3fc"
+            ],
+            "session": {
+              "completed": 6,
+              "dialogue": {
+                "companionVersion": 1,
+                "ideaRevision": 0,
+                "ideas": [],
+                "inspiration": null,
+                "moodAnswered": false,
+                "nickname": "",
+                "phase": "exploring",
+                "proposedDirection": "",
+                "recallKey": "",
+                "recallOffered": false,
+                "recallSourceId": "",
+                "recallValue": "",
+                "requestedField": "",
+                "responseCount": 0,
+                "selectedDirection": "",
+                "version": 2
+              },
+              "dnaCompleted": false,
+              "fields": {
+                "budget": "100",
+                "budgetBasis": "groupTrip",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "CNY",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "travelers": "2"
+              },
+              "id": "2045ac78e0254374adb1dd65c01cedf8",
+              "memoryWarning": "",
+              "messages": [
+                {
+                  "choice": null,
+                  "id": "b009dfcf51524469964f45eacf39c3fc",
+                  "mood": "greeting",
+                  "quickReplies": [
+                    {
+                      "id": "c5daa48f8d4f4db79c59d5043a99c73d",
+                      "intent": "mood_rest",
+                      "text": "想歇一歇"
+                    },
+                    {
+                      "id": "268e3a95ec5e4ce1ad8697a3e1d40c6a",
+                      "intent": "mood_food",
+                      "text": "想吃点好的"
+                    },
+                    {
+                      "id": "6a643c1115ed402ab820f3d4fe4a96f8",
+                      "intent": "mood_explore",
+                      "text": "想找点新鲜感"
+                    },
+                    {
+                      "id": "b247d69347ab4825b601625e3ef92fa2",
+                      "intent": "mood_skip",
+                      "text": "先聊旅行"
+                    }
+                  ],
+                  "role": "assistant",
+                  "text": "小背包带好啦。你这次想歇一歇、吃点好的，还是找点新鲜感？也可以直接告诉我想去哪儿。"
+                }
+              ],
+              "missingImportantFields": [
+                "budgetCurrency"
+              ],
+              "nextField": "budgetCurrency",
+              "options": [
+                "AUD"
+              ],
+              "pendingMemory": "",
+              "pendingPreferences": [],
+              "planningFields": {
+                "budget": "100",
+                "budgetBasis": "groupTrip",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "CNY",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "notes": "",
+                "travelers": "2"
+              },
+              "question": "这笔活动预算使用什么币种？目前支持澳元 AUD；其他币种需要先确认澳元金额。",
+              "total": 7,
+              "travelDna": [],
+              "tripContext": {
+                "budget": "100",
+                "budgetBasis": "groupTrip",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "CNY",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "travelers": "2"
+              },
+              "tripPreferences": [],
+              "updatedAt": "2026-10-26T03:57:33.3308582+00:00"
+            },
+            "userMessageCount": 0
+          },
+          "assertions": [
+            {
+              "actual": false,
+              "expected": false,
+              "message": "error/complete outcome matches expectation",
+              "passed": true,
+              "path": "response.error"
+            },
+            {
+              "actual": 200,
+              "expected": 200,
+              "passed": true,
+              "path": "response.httpStatus"
+            },
+            {
+              "actual": false,
+              "expected": {
+                "equals": false
+              },
+              "message": "matches the expected state",
+              "passed": true,
+              "path": "derivedReady"
+            },
+            {
+              "actual": "100",
+              "expected": {
+                "equals": "100"
+              },
+              "message": "matches the expected state",
+              "passed": true,
+              "path": "session.fields.budget"
+            },
+            {
+              "actual": "CNY",
+              "expected": {
+                "equals": "CNY"
+              },
+              "message": "matches the expected state",
+              "passed": true,
+              "path": "session.fields.budgetCurrency"
+            }
+          ],
+          "before": {
+            "assistantMessageCount": 1,
+            "derivedReady": false,
+            "error": null,
+            "lastEvent": null,
+            "lastStatus": 200,
+            "memories": [],
+            "memoryCount": 0,
+            "memoryDelta": 0,
+            "messageIds": [
+              "b009dfcf51524469964f45eacf39c3fc"
+            ],
+            "session": {
+              "completed": 6,
+              "dialogue": {
+                "companionVersion": 1,
+                "ideaRevision": 0,
+                "ideas": [],
+                "inspiration": null,
+                "moodAnswered": false,
+                "nickname": "",
+                "phase": "exploring",
+                "proposedDirection": "",
+                "recallKey": "",
+                "recallOffered": false,
+                "recallSourceId": "",
+                "recallValue": "",
+                "requestedField": "",
+                "responseCount": 0,
+                "selectedDirection": "",
+                "version": 2
+              },
+              "dnaCompleted": false,
+              "fields": {
+                "budget": "100",
+                "budgetBasis": "groupTrip",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "CNY",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "travelers": "2"
+              },
+              "id": "2045ac78e0254374adb1dd65c01cedf8",
+              "memoryWarning": "",
+              "messages": [
+                {
+                  "choice": null,
+                  "id": "b009dfcf51524469964f45eacf39c3fc",
+                  "mood": "greeting",
+                  "quickReplies": [
+                    {
+                      "id": "c5daa48f8d4f4db79c59d5043a99c73d",
+                      "intent": "mood_rest",
+                      "text": "想歇一歇"
+                    },
+                    {
+                      "id": "268e3a95ec5e4ce1ad8697a3e1d40c6a",
+                      "intent": "mood_food",
+                      "text": "想吃点好的"
+                    },
+                    {
+                      "id": "6a643c1115ed402ab820f3d4fe4a96f8",
+                      "intent": "mood_explore",
+                      "text": "想找点新鲜感"
+                    },
+                    {
+                      "id": "b247d69347ab4825b601625e3ef92fa2",
+                      "intent": "mood_skip",
+                      "text": "先聊旅行"
+                    }
+                  ],
+                  "role": "assistant",
+                  "text": "小背包带好啦。你这次想歇一歇、吃点好的，还是找点新鲜感？也可以直接告诉我想去哪儿。"
+                }
+              ],
+              "missingImportantFields": [
+                "budgetCurrency"
+              ],
+              "nextField": "budgetCurrency",
+              "options": [
+                "AUD"
+              ],
+              "pendingMemory": "",
+              "pendingPreferences": [],
+              "planningFields": {
+                "budget": "100",
+                "budgetBasis": "groupTrip",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "CNY",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "notes": "",
+                "travelers": "2"
+              },
+              "question": "这笔活动预算使用什么币种？目前支持澳元 AUD；其他币种需要先确认澳元金额。",
+              "total": 7,
+              "travelDna": [],
+              "tripContext": {
+                "budget": "100",
+                "budgetBasis": "groupTrip",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "CNY",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "travelers": "2"
+              },
+              "tripPreferences": [],
+              "updatedAt": "2026-10-26T03:57:33.3171506+00:00"
+            },
+            "userMessageCount": 0
+          },
+          "clock": {
+            "source": "system",
+            "sydney": "2026-10-26T14:57:33.324050+11:00",
+            "timeZone": "Australia/Sydney",
+            "utc": "2026-10-26T03:57:33.324050+00:00"
+          },
+          "durationMs": 12,
+          "fieldChanges": {},
+          "finishedClock": {
+            "source": "system",
+            "sydney": "2026-10-26T14:57:33.335744+11:00",
+            "timeZone": "Australia/Sydney",
+            "utc": "2026-10-26T03:57:33.335744+00:00"
+          },
+          "index": 2,
+          "input": {
+            "assertions": [
+              {
+                "equals": false,
+                "path": "derivedReady"
+              },
+              {
+                "equals": "100",
+                "path": "session.fields.budget"
+              },
+              {
+                "equals": "CNY",
+                "path": "session.fields.budgetCurrency"
+              }
+            ],
+            "op": "get"
+          },
+          "op": "get",
+          "request": {
+            "body": null,
+            "method": "GET",
+            "path": "/pet/sessions/2045ac78e0254374adb1dd65c01cedf8",
+            "requestId": null
+          },
+          "response": {
+            "data": {
+              "completed": 6,
+              "dialogue": {
+                "companionVersion": 1,
+                "ideaRevision": 0,
+                "ideas": [],
+                "inspiration": null,
+                "moodAnswered": false,
+                "nickname": "",
+                "phase": "exploring",
+                "proposedDirection": "",
+                "recallKey": "",
+                "recallOffered": false,
+                "recallSourceId": "",
+                "recallValue": "",
+                "requestedField": "",
+                "responseCount": 0,
+                "selectedDirection": "",
+                "version": 2
+              },
+              "dnaCompleted": false,
+              "fields": {
+                "budget": "100",
+                "budgetBasis": "groupTrip",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "CNY",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "travelers": "2"
+              },
+              "id": "2045ac78e0254374adb1dd65c01cedf8",
+              "memoryWarning": "",
+              "messages": [
+                {
+                  "choice": null,
+                  "id": "b009dfcf51524469964f45eacf39c3fc",
+                  "mood": "greeting",
+                  "quickReplies": [
+                    {
+                      "id": "c5daa48f8d4f4db79c59d5043a99c73d",
+                      "intent": "mood_rest",
+                      "text": "想歇一歇"
+                    },
+                    {
+                      "id": "268e3a95ec5e4ce1ad8697a3e1d40c6a",
+                      "intent": "mood_food",
+                      "text": "想吃点好的"
+                    },
+                    {
+                      "id": "6a643c1115ed402ab820f3d4fe4a96f8",
+                      "intent": "mood_explore",
+                      "text": "想找点新鲜感"
+                    },
+                    {
+                      "id": "b247d69347ab4825b601625e3ef92fa2",
+                      "intent": "mood_skip",
+                      "text": "先聊旅行"
+                    }
+                  ],
+                  "role": "assistant",
+                  "text": "小背包带好啦。你这次想歇一歇、吃点好的，还是找点新鲜感？也可以直接告诉我想去哪儿。"
+                }
+              ],
+              "missingImportantFields": [
+                "budgetCurrency"
+              ],
+              "nextField": "budgetCurrency",
+              "options": [
+                "AUD"
+              ],
+              "pendingMemory": "",
+              "pendingPreferences": [],
+              "planningFields": {
+                "budget": "100",
+                "budgetBasis": "groupTrip",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "CNY",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "notes": "",
+                "travelers": "2"
+              },
+              "question": "这笔活动预算使用什么币种？目前支持澳元 AUD；其他币种需要先确认澳元金额。",
+              "total": 7,
+              "travelDna": [],
+              "tripContext": {
+                "budget": "100",
+                "budgetBasis": "groupTrip",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "CNY",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "travelers": "2"
+              },
+              "tripPreferences": [],
+              "updatedAt": "2026-10-26T03:57:33.3271533+00:00"
+            },
+            "httpStatus": 200
+          },
+          "status": "PASS"
+        },
+        {
+          "after": {
+            "assistantMessageCount": 2,
+            "derivedReady": true,
+            "error": null,
+            "lastEvent": null,
+            "lastStatus": 200,
+            "memories": [],
+            "memoryCount": 0,
+            "memoryDelta": 0,
+            "messageIds": [
+              "b009dfcf51524469964f45eacf39c3fc",
+              "4238da6e011948a386b2118ac503b99b"
+            ],
+            "session": {
+              "completed": 7,
+              "dialogue": {
+                "companionVersion": 1,
+                "ideaRevision": 0,
+                "ideas": [
+                  "如果目的地有合适的公园、绿道或海边，先留一段轻松散步；具体地点之后核实。",
+                  "走累了就找个方便休息的地方，下午留给附近的街景，不把一天排满。"
+                ],
+                "inspiration": {
+                  "ideas": [
+                    "如果目的地有合适的公园、绿道或海边，先留一段轻松散步；具体地点之后核实。",
+                    "走累了就找个方便休息的地方，下午留给附近的街景，不把一天排满。"
+                  ],
+                  "placesVerified": false,
+                  "status": "inspiration",
+                  "title": "悉尼 · 绿意慢走"
+                },
+                "moodAnswered": false,
+                "nickname": "",
+                "phase": "inspiration",
+                "proposedDirection": "nature",
+                "recallKey": "",
+                "recallOffered": false,
+                "recallSourceId": "",
+                "recallValue": "",
+                "requestedField": "",
+                "responseCount": 0,
+                "selectedDirection": "",
+                "version": 2
+              },
+              "dnaCompleted": false,
+              "fields": {
+                "budget": "100",
+                "budgetBasis": "groupTrip",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "travelers": "2"
+              },
+              "id": "2045ac78e0254374adb1dd65c01cedf8",
+              "memoryWarning": "",
+              "messages": [
+                {
+                  "choice": null,
+                  "id": "b009dfcf51524469964f45eacf39c3fc",
+                  "mood": "greeting",
+                  "quickReplies": [
+                    {
+                      "id": "c5daa48f8d4f4db79c59d5043a99c73d",
+                      "intent": "mood_rest",
+                      "text": "想歇一歇"
+                    },
+                    {
+                      "id": "268e3a95ec5e4ce1ad8697a3e1d40c6a",
+                      "intent": "mood_food",
+                      "text": "想吃点好的"
+                    },
+                    {
+                      "id": "6a643c1115ed402ab820f3d4fe4a96f8",
+                      "intent": "mood_explore",
+                      "text": "想找点新鲜感"
+                    },
+                    {
+                      "id": "b247d69347ab4825b601625e3ef92fa2",
+                      "intent": "mood_skip",
+                      "text": "先聊旅行"
+                    }
+                  ],
+                  "role": "assistant",
+                  "text": "小背包带好啦。你这次想歇一歇、吃点好的，还是找点新鲜感？也可以直接告诉我想去哪儿。"
+                },
+                {
+                  "choice": null,
+                  "id": "4238da6e011948a386b2118ac503b99b",
+                  "mood": "curious",
+                  "quickReplies": [
+                    {
+                      "id": "1a77d73333414b52a15e8b6137c14694",
+                      "intent": "details",
+                      "text": "修改旅行资料"
+                    },
+                    {
+                      "id": "58424b6f776248eea15d4c1a502b2c04",
+                      "intent": "change_direction",
+                      "text": "再换个玩法"
+                    },
+                    {
+                      "id": "b6c0cde571fb4fbea87a1f321d67a067",
+                      "intent": "compose_idea",
+                      "text": "我想自己说"
+                    }
+                  ],
+                  "role": "assistant",
+                  "text": "旅行资料已更新。\n资料准备齐啦！可以直接生成行程，也可以继续聊或单独修改。"
+                }
+              ],
+              "missingImportantFields": [],
+              "nextField": "",
+              "options": [],
+              "pendingMemory": "",
+              "pendingPreferences": [],
+              "planningFields": {
+                "budget": "100",
+                "budgetBasis": "groupTrip",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "notes": "",
+                "travelers": "2"
+              },
+              "question": "小背包准备好啦！可以直接点下面的「生成行程」，也可以继续聊。",
+              "total": 7,
+              "travelDna": [],
+              "tripContext": {
+                "budget": "100",
+                "budgetBasis": "groupTrip",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "travelers": "2"
+              },
+              "tripPreferences": [],
+              "updatedAt": "2026-10-26T03:57:33.3430941+00:00"
+            },
+            "userMessageCount": 0
+          },
+          "assertions": [
+            {
+              "actual": false,
+              "expected": false,
+              "message": "error/complete outcome matches expectation",
+              "passed": true,
+              "path": "response.error"
+            },
+            {
+              "actual": 200,
+              "expected": 200,
+              "passed": true,
+              "path": "response.httpStatus"
+            },
+            {
+              "actual": "AUD",
+              "expected": {
+                "equals": "AUD"
+              },
+              "message": "matches the expected state",
+              "passed": true,
+              "path": "session.fields.budgetCurrency"
+            },
+            {
+              "actual": "100",
+              "expected": {
+                "absent": true
+              },
+              "message": "actual state differs from the expected condition",
+              "passed": false,
+              "path": "session.fields.budget"
+            },
+            {
+              "actual": true,
+              "expected": {
+                "equals": false
+              },
+              "message": "actual state differs from the expected condition",
+              "passed": false,
+              "path": "derivedReady"
+            }
+          ],
+          "before": {
+            "assistantMessageCount": 1,
+            "derivedReady": false,
+            "error": null,
+            "lastEvent": null,
+            "lastStatus": 200,
+            "memories": [],
+            "memoryCount": 0,
+            "memoryDelta": 0,
+            "messageIds": [
+              "b009dfcf51524469964f45eacf39c3fc"
+            ],
+            "session": {
+              "completed": 6,
+              "dialogue": {
+                "companionVersion": 1,
+                "ideaRevision": 0,
+                "ideas": [],
+                "inspiration": null,
+                "moodAnswered": false,
+                "nickname": "",
+                "phase": "exploring",
+                "proposedDirection": "",
+                "recallKey": "",
+                "recallOffered": false,
+                "recallSourceId": "",
+                "recallValue": "",
+                "requestedField": "",
+                "responseCount": 0,
+                "selectedDirection": "",
+                "version": 2
+              },
+              "dnaCompleted": false,
+              "fields": {
+                "budget": "100",
+                "budgetBasis": "groupTrip",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "CNY",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "travelers": "2"
+              },
+              "id": "2045ac78e0254374adb1dd65c01cedf8",
+              "memoryWarning": "",
+              "messages": [
+                {
+                  "choice": null,
+                  "id": "b009dfcf51524469964f45eacf39c3fc",
+                  "mood": "greeting",
+                  "quickReplies": [
+                    {
+                      "id": "c5daa48f8d4f4db79c59d5043a99c73d",
+                      "intent": "mood_rest",
+                      "text": "想歇一歇"
+                    },
+                    {
+                      "id": "268e3a95ec5e4ce1ad8697a3e1d40c6a",
+                      "intent": "mood_food",
+                      "text": "想吃点好的"
+                    },
+                    {
+                      "id": "6a643c1115ed402ab820f3d4fe4a96f8",
+                      "intent": "mood_explore",
+                      "text": "想找点新鲜感"
+                    },
+                    {
+                      "id": "b247d69347ab4825b601625e3ef92fa2",
+                      "intent": "mood_skip",
+                      "text": "先聊旅行"
+                    }
+                  ],
+                  "role": "assistant",
+                  "text": "小背包带好啦。你这次想歇一歇、吃点好的，还是找点新鲜感？也可以直接告诉我想去哪儿。"
+                }
+              ],
+              "missingImportantFields": [
+                "budgetCurrency"
+              ],
+              "nextField": "budgetCurrency",
+              "options": [
+                "AUD"
+              ],
+              "pendingMemory": "",
+              "pendingPreferences": [],
+              "planningFields": {
+                "budget": "100",
+                "budgetBasis": "groupTrip",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "CNY",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "notes": "",
+                "travelers": "2"
+              },
+              "question": "这笔活动预算使用什么币种？目前支持澳元 AUD；其他币种需要先确认澳元金额。",
+              "total": 7,
+              "travelDna": [],
+              "tripContext": {
+                "budget": "100",
+                "budgetBasis": "groupTrip",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "CNY",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "travelers": "2"
+              },
+              "tripPreferences": [],
+              "updatedAt": "2026-10-26T03:57:33.3308582+00:00"
+            },
+            "userMessageCount": 0
+          },
+          "clock": {
+            "source": "system",
+            "sydney": "2026-10-26T14:57:33.335830+11:00",
+            "timeZone": "Australia/Sydney",
+            "utc": "2026-10-26T03:57:33.335830+00:00"
+          },
+          "durationMs": 17,
+          "fieldChanges": {
+            "fields.budgetCurrency": {
+              "after": "AUD",
+              "before": "CNY"
+            },
+            "planningFields.budgetCurrency": {
+              "after": "AUD",
+              "before": "CNY"
+            },
+            "tripContext.budgetCurrency": {
+              "after": "AUD",
+              "before": "CNY"
+            }
+          },
+          "finishedClock": {
+            "source": "system",
+            "sydney": "2026-10-26T14:57:33.352923+11:00",
+            "timeZone": "Australia/Sydney",
+            "utc": "2026-10-26T03:57:33.352923+00:00"
+          },
+          "index": 3,
+          "input": {
+            "assertions": [
+              {
+                "equals": "AUD",
+                "path": "session.fields.budgetCurrency"
+              },
+              {
+                "absent": true,
+                "path": "session.fields.budget"
+              },
+              {
+                "equals": false,
+                "path": "derivedReady"
+              }
+            ],
+            "fields": {
+              "budgetCurrency": "AUD"
+            },
+            "op": "patch"
+          },
+          "op": "patch",
+          "request": {
+            "body": {
+              "fields": {
+                "budgetCurrency": "AUD"
+              },
+              "language": "zh-Hans"
+            },
+            "method": "PATCH",
+            "path": "/pet/sessions/2045ac78e0254374adb1dd65c01cedf8",
+            "requestId": null
+          },
+          "response": {
+            "data": {
+              "completed": 7,
+              "dialogue": {
+                "companionVersion": 1,
+                "ideaRevision": 0,
+                "ideas": [
+                  "如果目的地有合适的公园、绿道或海边，先留一段轻松散步；具体地点之后核实。",
+                  "走累了就找个方便休息的地方，下午留给附近的街景，不把一天排满。"
+                ],
+                "inspiration": {
+                  "ideas": [
+                    "如果目的地有合适的公园、绿道或海边，先留一段轻松散步；具体地点之后核实。",
+                    "走累了就找个方便休息的地方，下午留给附近的街景，不把一天排满。"
+                  ],
+                  "placesVerified": false,
+                  "status": "inspiration",
+                  "title": "悉尼 · 绿意慢走"
+                },
+                "moodAnswered": false,
+                "nickname": "",
+                "phase": "inspiration",
+                "proposedDirection": "nature",
+                "recallKey": "",
+                "recallOffered": false,
+                "recallSourceId": "",
+                "recallValue": "",
+                "requestedField": "",
+                "responseCount": 0,
+                "selectedDirection": "",
+                "version": 2
+              },
+              "dnaCompleted": false,
+              "fields": {
+                "budget": "100",
+                "budgetBasis": "groupTrip",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "travelers": "2"
+              },
+              "id": "2045ac78e0254374adb1dd65c01cedf8",
+              "memoryWarning": "",
+              "messages": [
+                {
+                  "choice": null,
+                  "id": "b009dfcf51524469964f45eacf39c3fc",
+                  "mood": "greeting",
+                  "quickReplies": [
+                    {
+                      "id": "c5daa48f8d4f4db79c59d5043a99c73d",
+                      "intent": "mood_rest",
+                      "text": "想歇一歇"
+                    },
+                    {
+                      "id": "268e3a95ec5e4ce1ad8697a3e1d40c6a",
+                      "intent": "mood_food",
+                      "text": "想吃点好的"
+                    },
+                    {
+                      "id": "6a643c1115ed402ab820f3d4fe4a96f8",
+                      "intent": "mood_explore",
+                      "text": "想找点新鲜感"
+                    },
+                    {
+                      "id": "b247d69347ab4825b601625e3ef92fa2",
+                      "intent": "mood_skip",
+                      "text": "先聊旅行"
+                    }
+                  ],
+                  "role": "assistant",
+                  "text": "小背包带好啦。你这次想歇一歇、吃点好的，还是找点新鲜感？也可以直接告诉我想去哪儿。"
+                },
+                {
+                  "choice": null,
+                  "id": "4238da6e011948a386b2118ac503b99b",
+                  "mood": "curious",
+                  "quickReplies": [
+                    {
+                      "id": "1a77d73333414b52a15e8b6137c14694",
+                      "intent": "details",
+                      "text": "修改旅行资料"
+                    },
+                    {
+                      "id": "58424b6f776248eea15d4c1a502b2c04",
+                      "intent": "change_direction",
+                      "text": "再换个玩法"
+                    },
+                    {
+                      "id": "b6c0cde571fb4fbea87a1f321d67a067",
+                      "intent": "compose_idea",
+                      "text": "我想自己说"
+                    }
+                  ],
+                  "role": "assistant",
+                  "text": "旅行资料已更新。\n资料准备齐啦！可以直接生成行程，也可以继续聊或单独修改。"
+                }
+              ],
+              "missingImportantFields": [],
+              "nextField": "",
+              "options": [],
+              "pendingMemory": "",
+              "pendingPreferences": [],
+              "planningFields": {
+                "budget": "100",
+                "budgetBasis": "groupTrip",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "notes": "",
+                "travelers": "2"
+              },
+              "question": "小背包准备好啦！可以直接点下面的「生成行程」，也可以继续聊。",
+              "total": 7,
+              "travelDna": [],
+              "tripContext": {
+                "budget": "100",
+                "budgetBasis": "groupTrip",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "travelers": "2"
+              },
+              "tripPreferences": [],
+              "updatedAt": "2026-10-26T03:57:33.3369903+00:00"
+            },
+            "httpStatus": 200
+          },
+          "status": "FAIL"
+        }
+      ],
+      "title": "回归探针：PATCH 改币种不能复用旧金额"
+    },
+    {
+      "category": "08 临时偏好",
+      "cleanup": [
+        {
+          "data": {
+            "deleted": true
+          },
+          "httpStatus": 200,
+          "path": "/pet/sessions/285b16c197b34c73bb35c953080a640d"
+        }
+      ],
+      "create": {
+        "request": {
+          "body": {
+            "companionVersion": 1,
+            "fields": {
+              "budget": "120",
+              "budgetBasis": "perPersonPerDay",
+              "budgetCoverage": "activities",
+              "budgetCurrency": "AUD",
+              "date": "2026-11-25",
+              "days": "3",
+              "destination": "悉尼",
+              "travelers": "2"
+            },
+            "hasMetKoko": true,
+            "language": "zh-Hans",
+            "nickname": "",
+            "profilingVersion": 2
+          },
+          "method": "POST",
+          "path": "/pet/sessions",
+          "requestId": null
+        },
+        "response": {
+          "data": {
+            "completed": 7,
+            "dialogue": {
+              "companionVersion": 1,
+              "ideaRevision": 0,
+              "ideas": [],
+              "inspiration": null,
+              "moodAnswered": false,
+              "nickname": "",
+              "phase": "exploring",
+              "proposedDirection": "",
+              "recallKey": "",
+              "recallOffered": false,
+              "recallSourceId": "",
+              "recallValue": "",
+              "requestedField": "",
+              "responseCount": 0,
+              "selectedDirection": "",
+              "version": 2
+            },
+            "dnaCompleted": false,
+            "fields": {
+              "budget": "120",
+              "budgetBasis": "perPersonPerDay",
+              "budgetCoverage": "activities",
+              "budgetCurrency": "AUD",
+              "date": "2026-11-25",
+              "days": "3",
+              "destination": "悉尼",
+              "travelers": "2"
+            },
+            "id": "285b16c197b34c73bb35c953080a640d",
+            "memoryWarning": "",
+            "messages": [
+              {
+                "choice": null,
+                "id": "1b87100842e9441fa693bc5559c5c192",
+                "mood": "greeting",
+                "quickReplies": [
+                  {
+                    "id": "9078d8c4d9fe47b38c3c841dee99ac36",
+                    "intent": "mood_rest",
+                    "text": "想歇一歇"
+                  },
+                  {
+                    "id": "626260cb01ad41eb9e4aa103d16dcccd",
+                    "intent": "mood_food",
+                    "text": "想吃点好的"
+                  },
+                  {
+                    "id": "ce44c03fdfc44ff3b3b184bb7b1c020e",
+                    "intent": "mood_explore",
+                    "text": "想找点新鲜感"
+                  },
+                  {
+                    "id": "7ca8dfd8d14b4e9e86f2673476dc7782",
+                    "intent": "mood_skip",
+                    "text": "先聊旅行"
+                  }
+                ],
+                "role": "assistant",
+                "text": "小背包带好啦。你这次想歇一歇、吃点好的，还是找点新鲜感？也可以直接告诉我想去哪儿。"
+              }
+            ],
+            "missingImportantFields": [],
+            "nextField": "",
+            "options": [],
+            "pendingMemory": "",
+            "pendingPreferences": [],
+            "planningFields": {
+              "budget": "120",
+              "budgetBasis": "perPersonPerDay",
+              "budgetCoverage": "activities",
+              "budgetCurrency": "AUD",
+              "date": "2026-11-25",
+              "days": "3",
+              "destination": "悉尼",
+              "notes": "",
+              "travelers": "2"
+            },
+            "question": "小背包准备好啦！可以直接点下面的「生成行程」，也可以继续聊。",
+            "total": 7,
+            "travelDna": [],
+            "tripContext": {
+              "budget": "120",
+              "budgetBasis": "perPersonPerDay",
+              "budgetCoverage": "activities",
+              "budgetCurrency": "AUD",
+              "date": "2026-11-25",
+              "days": "3",
+              "destination": "悉尼",
+              "travelers": "2"
+            },
+            "tripPreferences": [],
+            "updatedAt": "2026-10-26T03:57:33.7195027+00:00"
+          },
+          "httpStatus": 200
+        }
+      },
+      "humanReview": [
+        "固定桩 fields 为空，专门验证生产显式短语解析器。若保存为 balanced，应附原请求/响应报告，不能宣称真实模型必然如此。"
+      ],
+      "id": "14-probe-negated-transport",
+      "modelTrace": {
+        "calls": [
+          {
+            "callId": "8a4ec6f941314e1da5f110ba2d884f90",
+            "caseId": "14-probe-negated-transport",
+            "kind": "json",
+            "matched": true,
+            "message": "这次不要坐公交，想步行",
+            "model": "koko/scripted-sse-fixture",
+            "outcome": "scripted_sse",
+            "sequence": 1,
+            "status": 200,
+            "systemPromptSha256": "464c576a5c9e90d0c1e049f71884cd80409d2bfa235c7a801d86d617893bd0e5",
+            "timestampUtc": "2026-10-26T03:57:33.7475292+00:00"
+          }
+        ],
+        "caseId": "14-probe-negated-transport",
+        "matchedCalls": 1,
+        "mode": "fixture",
+        "totalCalls": 1,
+        "unexpectedCalls": 0,
+        "unusedResponses": 0
+      },
+      "reason": "",
+      "status": "FAIL",
+      "steps": [
+        {
+          "after": {
+            "assistantMessageCount": 1,
+            "derivedReady": true,
+            "error": null,
+            "lastEvent": null,
+            "lastStatus": 200,
+            "memories": [],
+            "memoryCount": 0,
+            "memoryDelta": 0,
+            "messageIds": [
+              "1b87100842e9441fa693bc5559c5c192"
+            ],
+            "session": {
+              "completed": 7,
+              "dialogue": {
+                "companionVersion": 1,
+                "ideaRevision": 0,
+                "ideas": [],
+                "inspiration": null,
+                "moodAnswered": false,
+                "nickname": "",
+                "phase": "exploring",
+                "proposedDirection": "",
+                "recallKey": "",
+                "recallOffered": false,
+                "recallSourceId": "",
+                "recallValue": "",
+                "requestedField": "",
+                "responseCount": 0,
+                "selectedDirection": "",
+                "version": 2
+              },
+              "dnaCompleted": false,
+              "fields": {
+                "budget": "120",
+                "budgetBasis": "perPersonPerDay",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "travelers": "2"
+              },
+              "id": "285b16c197b34c73bb35c953080a640d",
+              "memoryWarning": "",
+              "messages": [
+                {
+                  "choice": null,
+                  "id": "1b87100842e9441fa693bc5559c5c192",
+                  "mood": "greeting",
+                  "quickReplies": [
+                    {
+                      "id": "9078d8c4d9fe47b38c3c841dee99ac36",
+                      "intent": "mood_rest",
+                      "text": "想歇一歇"
+                    },
+                    {
+                      "id": "626260cb01ad41eb9e4aa103d16dcccd",
+                      "intent": "mood_food",
+                      "text": "想吃点好的"
+                    },
+                    {
+                      "id": "ce44c03fdfc44ff3b3b184bb7b1c020e",
+                      "intent": "mood_explore",
+                      "text": "想找点新鲜感"
+                    },
+                    {
+                      "id": "7ca8dfd8d14b4e9e86f2673476dc7782",
+                      "intent": "mood_skip",
+                      "text": "先聊旅行"
+                    }
+                  ],
+                  "role": "assistant",
+                  "text": "小背包带好啦。你这次想歇一歇、吃点好的，还是找点新鲜感？也可以直接告诉我想去哪儿。"
+                }
+              ],
+              "missingImportantFields": [],
+              "nextField": "",
+              "options": [],
+              "pendingMemory": "",
+              "pendingPreferences": [],
+              "planningFields": {
+                "budget": "120",
+                "budgetBasis": "perPersonPerDay",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "notes": "",
+                "travelers": "2"
+              },
+              "question": "小背包准备好啦！可以直接点下面的「生成行程」，也可以继续聊。",
+              "total": 7,
+              "travelDna": [],
+              "tripContext": {
+                "budget": "120",
+                "budgetBasis": "perPersonPerDay",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "travelers": "2"
+              },
+              "tripPreferences": [],
+              "updatedAt": "2026-10-26T03:57:33.7378060+00:00"
+            },
+            "userMessageCount": 0
+          },
+          "assertions": [
+            {
+              "actual": false,
+              "expected": false,
+              "message": "error/complete outcome matches expectation",
+              "passed": true,
+              "path": "response.error"
+            },
+            {
+              "actual": 200,
+              "expected": 200,
+              "passed": true,
+              "path": "response.httpStatus"
+            }
+          ],
+          "before": {
+            "assistantMessageCount": 1,
+            "derivedReady": true,
+            "error": null,
+            "lastEvent": null,
+            "lastStatus": 200,
+            "memories": [],
+            "memoryCount": 0,
+            "memoryDelta": 0,
+            "messageIds": [
+              "1b87100842e9441fa693bc5559c5c192"
+            ],
+            "session": {
+              "completed": 7,
+              "dialogue": {
+                "companionVersion": 1,
+                "ideaRevision": 0,
+                "ideas": [],
+                "inspiration": null,
+                "moodAnswered": false,
+                "nickname": "",
+                "phase": "exploring",
+                "proposedDirection": "",
+                "recallKey": "",
+                "recallOffered": false,
+                "recallSourceId": "",
+                "recallValue": "",
+                "requestedField": "",
+                "responseCount": 0,
+                "selectedDirection": "",
+                "version": 2
+              },
+              "dnaCompleted": false,
+              "fields": {
+                "budget": "120",
+                "budgetBasis": "perPersonPerDay",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "travelers": "2"
+              },
+              "id": "285b16c197b34c73bb35c953080a640d",
+              "memoryWarning": "",
+              "messages": [
+                {
+                  "choice": null,
+                  "id": "1b87100842e9441fa693bc5559c5c192",
+                  "mood": "greeting",
+                  "quickReplies": [
+                    {
+                      "id": "9078d8c4d9fe47b38c3c841dee99ac36",
+                      "intent": "mood_rest",
+                      "text": "想歇一歇"
+                    },
+                    {
+                      "id": "626260cb01ad41eb9e4aa103d16dcccd",
+                      "intent": "mood_food",
+                      "text": "想吃点好的"
+                    },
+                    {
+                      "id": "ce44c03fdfc44ff3b3b184bb7b1c020e",
+                      "intent": "mood_explore",
+                      "text": "想找点新鲜感"
+                    },
+                    {
+                      "id": "7ca8dfd8d14b4e9e86f2673476dc7782",
+                      "intent": "mood_skip",
+                      "text": "先聊旅行"
+                    }
+                  ],
+                  "role": "assistant",
+                  "text": "小背包带好啦。你这次想歇一歇、吃点好的，还是找点新鲜感？也可以直接告诉我想去哪儿。"
+                }
+              ],
+              "missingImportantFields": [],
+              "nextField": "",
+              "options": [],
+              "pendingMemory": "",
+              "pendingPreferences": [],
+              "planningFields": {
+                "budget": "120",
+                "budgetBasis": "perPersonPerDay",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "notes": "",
+                "travelers": "2"
+              },
+              "question": "小背包准备好啦！可以直接点下面的「生成行程」，也可以继续聊。",
+              "total": 7,
+              "travelDna": [],
+              "tripContext": {
+                "budget": "120",
+                "budgetBasis": "perPersonPerDay",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "travelers": "2"
+              },
+              "tripPreferences": [],
+              "updatedAt": "2026-10-26T03:57:33.7262428+00:00"
+            },
+            "userMessageCount": 0
+          },
+          "clock": {
+            "source": "system",
+            "sydney": "2026-10-26T14:57:33.731501+11:00",
+            "timeZone": "Australia/Sydney",
+            "utc": "2026-10-26T03:57:33.731501+00:00"
+          },
+          "durationMs": 11,
+          "fieldChanges": {},
+          "finishedClock": {
+            "source": "system",
+            "sydney": "2026-10-26T14:57:33.742838+11:00",
+            "timeZone": "Australia/Sydney",
+            "utc": "2026-10-26T03:57:33.742838+00:00"
+          },
+          "index": 1,
+          "input": {
+            "op": "get",
+            "saveAs": "baseline"
+          },
+          "op": "get",
+          "request": {
+            "body": null,
+            "method": "GET",
+            "path": "/pet/sessions/285b16c197b34c73bb35c953080a640d",
+            "requestId": null
+          },
+          "response": {
+            "data": {
+              "completed": 7,
+              "dialogue": {
+                "companionVersion": 1,
+                "ideaRevision": 0,
+                "ideas": [],
+                "inspiration": null,
+                "moodAnswered": false,
+                "nickname": "",
+                "phase": "exploring",
+                "proposedDirection": "",
+                "recallKey": "",
+                "recallOffered": false,
+                "recallSourceId": "",
+                "recallValue": "",
+                "requestedField": "",
+                "responseCount": 0,
+                "selectedDirection": "",
+                "version": 2
+              },
+              "dnaCompleted": false,
+              "fields": {
+                "budget": "120",
+                "budgetBasis": "perPersonPerDay",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "travelers": "2"
+              },
+              "id": "285b16c197b34c73bb35c953080a640d",
+              "memoryWarning": "",
+              "messages": [
+                {
+                  "choice": null,
+                  "id": "1b87100842e9441fa693bc5559c5c192",
+                  "mood": "greeting",
+                  "quickReplies": [
+                    {
+                      "id": "9078d8c4d9fe47b38c3c841dee99ac36",
+                      "intent": "mood_rest",
+                      "text": "想歇一歇"
+                    },
+                    {
+                      "id": "626260cb01ad41eb9e4aa103d16dcccd",
+                      "intent": "mood_food",
+                      "text": "想吃点好的"
+                    },
+                    {
+                      "id": "ce44c03fdfc44ff3b3b184bb7b1c020e",
+                      "intent": "mood_explore",
+                      "text": "想找点新鲜感"
+                    },
+                    {
+                      "id": "7ca8dfd8d14b4e9e86f2673476dc7782",
+                      "intent": "mood_skip",
+                      "text": "先聊旅行"
+                    }
+                  ],
+                  "role": "assistant",
+                  "text": "小背包带好啦。你这次想歇一歇、吃点好的，还是找点新鲜感？也可以直接告诉我想去哪儿。"
+                }
+              ],
+              "missingImportantFields": [],
+              "nextField": "",
+              "options": [],
+              "pendingMemory": "",
+              "pendingPreferences": [],
+              "planningFields": {
+                "budget": "120",
+                "budgetBasis": "perPersonPerDay",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "notes": "",
+                "travelers": "2"
+              },
+              "question": "小背包准备好啦！可以直接点下面的「生成行程」，也可以继续聊。",
+              "total": 7,
+              "travelDna": [],
+              "tripContext": {
+                "budget": "120",
+                "budgetBasis": "perPersonPerDay",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "travelers": "2"
+              },
+              "tripPreferences": [],
+              "updatedAt": "2026-10-26T03:57:33.7340445+00:00"
+            },
+            "httpStatus": 200
+          },
+          "status": "PASS"
+        },
+        {
+          "after": {
+            "assistantMessageCount": 2,
+            "derivedReady": true,
+            "error": null,
+            "lastEvent": "done",
+            "lastStatus": 200,
+            "memories": [],
+            "memoryCount": 0,
+            "memoryDelta": 0,
+            "messageIds": [
+              "1b87100842e9441fa693bc5559c5c192",
+              "35593ccf-847f-40d7-b695-89783406bf0c",
+              "2a494186608d459f8245a08b4850902b"
+            ],
+            "session": {
+              "completed": 7,
+              "dialogue": {
+                "companionVersion": 1,
+                "ideaRevision": 0,
+                "ideas": [
+                  "如果目的地有合适的公园、绿道或海边，先留一段轻松散步；具体地点之后核实。",
+                  "走累了就找个方便休息的地方，下午留给附近的街景，不把一天排满。"
+                ],
+                "inspiration": {
+                  "ideas": [
+                    "如果目的地有合适的公园、绿道或海边，先留一段轻松散步；具体地点之后核实。",
+                    "走累了就找个方便休息的地方，下午留给附近的街景，不把一天排满。"
+                  ],
+                  "placesVerified": false,
+                  "status": "inspiration",
+                  "title": "悉尼 · 绿意慢走"
+                },
+                "moodAnswered": false,
+                "nickname": "",
+                "phase": "inspiration",
+                "proposedDirection": "nature",
+                "recallKey": "",
+                "recallOffered": false,
+                "recallSourceId": "",
+                "recallValue": "",
+                "requestedField": "",
+                "responseCount": 1,
+                "selectedDirection": "",
+                "version": 2
+              },
+              "dnaCompleted": false,
+              "fields": {
+                "budget": "120",
+                "budgetBasis": "perPersonPerDay",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "transportPreference": "balanced",
+                "travelers": "2"
+              },
+              "id": "285b16c197b34c73bb35c953080a640d",
+              "memoryWarning": "",
+              "messages": [
+                {
+                  "choice": null,
+                  "id": "1b87100842e9441fa693bc5559c5c192",
+                  "mood": "greeting",
+                  "quickReplies": [
+                    {
+                      "id": "9078d8c4d9fe47b38c3c841dee99ac36",
+                      "intent": "mood_rest",
+                      "text": "想歇一歇"
+                    },
+                    {
+                      "id": "626260cb01ad41eb9e4aa103d16dcccd",
+                      "intent": "mood_food",
+                      "text": "想吃点好的"
+                    },
+                    {
+                      "id": "ce44c03fdfc44ff3b3b184bb7b1c020e",
+                      "intent": "mood_explore",
+                      "text": "想找点新鲜感"
+                    },
+                    {
+                      "id": "7ca8dfd8d14b4e9e86f2673476dc7782",
+                      "intent": "mood_skip",
+                      "text": "先聊旅行"
+                    }
+                  ],
+                  "role": "assistant",
+                  "text": "小背包带好啦。你这次想歇一歇、吃点好的，还是找点新鲜感？也可以直接告诉我想去哪儿。"
+                },
+                {
+                  "choice": null,
+                  "id": "35593ccf-847f-40d7-b695-89783406bf0c",
+                  "mood": "greeting",
+                  "quickReplies": null,
+                  "role": "user",
+                  "text": "这次不要坐公交，想步行"
+                },
+                {
+                  "choice": null,
+                  "id": "2a494186608d459f8245a08b4850902b",
+                  "mood": "curious",
+                  "quickReplies": [
+                    {
+                      "id": "4ff43321a52a41c0bea4ed4ffbb18512",
+                      "intent": "details",
+                      "text": "修改旅行资料"
+                    },
+                    {
+                      "id": "b6eb500721274b29af6a7ceefb185c4f",
+                      "intent": "change_direction",
+                      "text": "再换个玩法"
+                    },
+                    {
+                      "id": "7e2d0563851748e3b0ae3aaa7b14535a",
+                      "intent": "compose_idea",
+                      "text": "我想自己说"
+                    }
+                  ],
+                  "role": "assistant",
+                  "text": "这次先按你想步行的方式准备。\n资料准备齐啦！可以直接生成行程，也可以继续聊或单独修改。"
+                }
+              ],
+              "missingImportantFields": [],
+              "nextField": "",
+              "options": [],
+              "pendingMemory": "",
+              "pendingPreferences": [],
+              "planningFields": {
+                "budget": "120",
+                "budgetBasis": "perPersonPerDay",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "notes": "",
+                "transportPreference": "balanced",
+                "travelers": "2"
+              },
+              "question": "小背包准备好啦！可以直接点下面的「生成行程」，也可以继续聊。",
+              "total": 7,
+              "travelDna": [],
+              "tripContext": {
+                "budget": "120",
+                "budgetBasis": "perPersonPerDay",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "transportPreference": "balanced",
+                "travelers": "2"
+              },
+              "tripPreferences": [],
+              "updatedAt": "2026-10-26T03:57:33.7537394+00:00"
+            },
+            "userMessageCount": 1
+          },
+          "assertions": [
+            {
+              "actual": false,
+              "expected": false,
+              "message": "error/complete outcome matches expectation",
+              "passed": true,
+              "path": "response.error"
+            },
+            {
+              "actual": 200,
+              "expected": 200,
+              "passed": true,
+              "path": "response.httpStatus"
+            },
+            {
+              "actual": "done",
+              "expected": "done",
+              "passed": true,
+              "path": "response.terminal"
+            },
+            {
+              "actual": "balanced",
+              "expected": {
+                "equals": "walk"
+              },
+              "message": "actual state differs from the expected condition",
+              "passed": false,
+              "path": "session.fields.transportPreference"
+            },
+            {
+              "actual": 0,
+              "expected": {
+                "equals": 0
+              },
+              "message": "matches the expected state",
+              "passed": true,
+              "path": "memoryDelta"
+            }
+          ],
+          "before": {
+            "assistantMessageCount": 1,
+            "derivedReady": true,
+            "error": null,
+            "lastEvent": null,
+            "lastStatus": 200,
+            "memories": [],
+            "memoryCount": 0,
+            "memoryDelta": 0,
+            "messageIds": [
+              "1b87100842e9441fa693bc5559c5c192"
+            ],
+            "session": {
+              "completed": 7,
+              "dialogue": {
+                "companionVersion": 1,
+                "ideaRevision": 0,
+                "ideas": [],
+                "inspiration": null,
+                "moodAnswered": false,
+                "nickname": "",
+                "phase": "exploring",
+                "proposedDirection": "",
+                "recallKey": "",
+                "recallOffered": false,
+                "recallSourceId": "",
+                "recallValue": "",
+                "requestedField": "",
+                "responseCount": 0,
+                "selectedDirection": "",
+                "version": 2
+              },
+              "dnaCompleted": false,
+              "fields": {
+                "budget": "120",
+                "budgetBasis": "perPersonPerDay",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "travelers": "2"
+              },
+              "id": "285b16c197b34c73bb35c953080a640d",
+              "memoryWarning": "",
+              "messages": [
+                {
+                  "choice": null,
+                  "id": "1b87100842e9441fa693bc5559c5c192",
+                  "mood": "greeting",
+                  "quickReplies": [
+                    {
+                      "id": "9078d8c4d9fe47b38c3c841dee99ac36",
+                      "intent": "mood_rest",
+                      "text": "想歇一歇"
+                    },
+                    {
+                      "id": "626260cb01ad41eb9e4aa103d16dcccd",
+                      "intent": "mood_food",
+                      "text": "想吃点好的"
+                    },
+                    {
+                      "id": "ce44c03fdfc44ff3b3b184bb7b1c020e",
+                      "intent": "mood_explore",
+                      "text": "想找点新鲜感"
+                    },
+                    {
+                      "id": "7ca8dfd8d14b4e9e86f2673476dc7782",
+                      "intent": "mood_skip",
+                      "text": "先聊旅行"
+                    }
+                  ],
+                  "role": "assistant",
+                  "text": "小背包带好啦。你这次想歇一歇、吃点好的，还是找点新鲜感？也可以直接告诉我想去哪儿。"
+                }
+              ],
+              "missingImportantFields": [],
+              "nextField": "",
+              "options": [],
+              "pendingMemory": "",
+              "pendingPreferences": [],
+              "planningFields": {
+                "budget": "120",
+                "budgetBasis": "perPersonPerDay",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "notes": "",
+                "travelers": "2"
+              },
+              "question": "小背包准备好啦！可以直接点下面的「生成行程」，也可以继续聊。",
+              "total": 7,
+              "travelDna": [],
+              "tripContext": {
+                "budget": "120",
+                "budgetBasis": "perPersonPerDay",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "travelers": "2"
+              },
+              "tripPreferences": [],
+              "updatedAt": "2026-10-26T03:57:33.7378060+00:00"
+            },
+            "userMessageCount": 0
+          },
+          "clock": {
+            "source": "system",
+            "sydney": "2026-10-26T14:57:33.742896+11:00",
+            "timeZone": "Australia/Sydney",
+            "utc": "2026-10-26T03:57:33.742896+00:00"
+          },
+          "durationMs": 15,
+          "fieldChanges": {
+            "fields.transportPreference": {
+              "after": "balanced",
+              "before": null
+            },
+            "planningFields.transportPreference": {
+              "after": "balanced",
+              "before": null
+            },
+            "tripContext.transportPreference": {
+              "after": "balanced",
+              "before": null
+            }
+          },
+          "finishedClock": {
+            "source": "system",
+            "sydney": "2026-10-26T14:57:33.757726+11:00",
+            "timeZone": "Australia/Sydney",
+            "utc": "2026-10-26T03:57:33.757726+00:00"
+          },
+          "index": 2,
+          "input": {
+            "assertions": [
+              {
+                "equals": "walk",
+                "path": "session.fields.transportPreference"
+              },
+              {
+                "equals": 0,
+                "path": "memoryDelta"
+              }
+            ],
+            "op": "turn",
+            "text": "这次不要坐公交，想步行"
+          },
+          "op": "turn",
+          "request": {
+            "body": {
+              "language": "zh-Hans",
+              "message": "这次不要坐公交，想步行",
+              "requestId": "35593ccf-847f-40d7-b695-89783406bf0c"
+            },
+            "method": "POST",
+            "path": "/pet/sessions/285b16c197b34c73bb35c953080a640d/turn",
+            "requestId": "35593ccf-847f-40d7-b695-89783406bf0c"
+          },
+          "response": {
+            "error": null,
+            "events": [
+              {
+                "text": "这次先按你想步行的方式准备。\n资料准备齐啦！可以直接生成行程，也可以继续聊或单独修改。",
+                "type": "reply"
+              },
+              {
+                "session": {
+                  "completed": 7,
+                  "dialogue": {
+                    "companionVersion": 1,
+                    "ideaRevision": 0,
+                    "ideas": [
+                      "如果目的地有合适的公园、绿道或海边，先留一段轻松散步；具体地点之后核实。",
+                      "走累了就找个方便休息的地方，下午留给附近的街景，不把一天排满。"
+                    ],
+                    "inspiration": {
+                      "ideas": [
+                        "如果目的地有合适的公园、绿道或海边，先留一段轻松散步；具体地点之后核实。",
+                        "走累了就找个方便休息的地方，下午留给附近的街景，不把一天排满。"
+                      ],
+                      "placesVerified": false,
+                      "status": "inspiration",
+                      "title": "悉尼 · 绿意慢走"
+                    },
+                    "moodAnswered": false,
+                    "nickname": "",
+                    "phase": "inspiration",
+                    "proposedDirection": "nature",
+                    "recallKey": "",
+                    "recallOffered": false,
+                    "recallSourceId": "",
+                    "recallValue": "",
+                    "requestedField": "",
+                    "responseCount": 1,
+                    "selectedDirection": "",
+                    "version": 2
+                  },
+                  "dnaCompleted": false,
+                  "fields": {
+                    "budget": "120",
+                    "budgetBasis": "perPersonPerDay",
+                    "budgetCoverage": "activities",
+                    "budgetCurrency": "AUD",
+                    "date": "2026-11-25",
+                    "days": "3",
+                    "destination": "悉尼",
+                    "transportPreference": "balanced",
+                    "travelers": "2"
+                  },
+                  "id": "285b16c197b34c73bb35c953080a640d",
+                  "memoryWarning": "",
+                  "messages": [
+                    {
+                      "choice": null,
+                      "id": "1b87100842e9441fa693bc5559c5c192",
+                      "mood": "greeting",
+                      "quickReplies": [
+                        {
+                          "id": "9078d8c4d9fe47b38c3c841dee99ac36",
+                          "intent": "mood_rest",
+                          "text": "想歇一歇"
+                        },
+                        {
+                          "id": "626260cb01ad41eb9e4aa103d16dcccd",
+                          "intent": "mood_food",
+                          "text": "想吃点好的"
+                        },
+                        {
+                          "id": "ce44c03fdfc44ff3b3b184bb7b1c020e",
+                          "intent": "mood_explore",
+                          "text": "想找点新鲜感"
+                        },
+                        {
+                          "id": "7ca8dfd8d14b4e9e86f2673476dc7782",
+                          "intent": "mood_skip",
+                          "text": "先聊旅行"
+                        }
+                      ],
+                      "role": "assistant",
+                      "text": "小背包带好啦。你这次想歇一歇、吃点好的，还是找点新鲜感？也可以直接告诉我想去哪儿。"
+                    },
+                    {
+                      "choice": null,
+                      "id": "35593ccf-847f-40d7-b695-89783406bf0c",
+                      "mood": "greeting",
+                      "quickReplies": null,
+                      "role": "user",
+                      "text": "这次不要坐公交，想步行"
+                    },
+                    {
+                      "choice": null,
+                      "id": "2a494186608d459f8245a08b4850902b",
+                      "mood": "curious",
+                      "quickReplies": [
+                        {
+                          "id": "4ff43321a52a41c0bea4ed4ffbb18512",
+                          "intent": "details",
+                          "text": "修改旅行资料"
+                        },
+                        {
+                          "id": "b6eb500721274b29af6a7ceefb185c4f",
+                          "intent": "change_direction",
+                          "text": "再换个玩法"
+                        },
+                        {
+                          "id": "7e2d0563851748e3b0ae3aaa7b14535a",
+                          "intent": "compose_idea",
+                          "text": "我想自己说"
+                        }
+                      ],
+                      "role": "assistant",
+                      "text": "这次先按你想步行的方式准备。\n资料准备齐啦！可以直接生成行程，也可以继续聊或单独修改。"
+                    }
+                  ],
+                  "missingImportantFields": [],
+                  "nextField": "",
+                  "options": [],
+                  "pendingMemory": "",
+                  "pendingPreferences": [],
+                  "planningFields": {
+                    "budget": "120",
+                    "budgetBasis": "perPersonPerDay",
+                    "budgetCoverage": "activities",
+                    "budgetCurrency": "AUD",
+                    "date": "2026-11-25",
+                    "days": "3",
+                    "destination": "悉尼",
+                    "notes": "",
+                    "transportPreference": "balanced",
+                    "travelers": "2"
+                  },
+                  "question": "小背包准备好啦！可以直接点下面的「生成行程」，也可以继续聊。",
+                  "total": 7,
+                  "travelDna": [],
+                  "tripContext": {
+                    "budget": "120",
+                    "budgetBasis": "perPersonPerDay",
+                    "budgetCoverage": "activities",
+                    "budgetCurrency": "AUD",
+                    "date": "2026-11-25",
+                    "days": "3",
+                    "destination": "悉尼",
+                    "transportPreference": "balanced",
+                    "travelers": "2"
+                  },
+                  "tripPreferences": [],
+                  "updatedAt": "2026-10-26T03:57:33.7493881+00:00"
+                },
+                "type": "done"
+              }
+            ],
+            "httpStatus": 200,
+            "session": {
+              "completed": 7,
+              "dialogue": {
+                "companionVersion": 1,
+                "ideaRevision": 0,
+                "ideas": [
+                  "如果目的地有合适的公园、绿道或海边，先留一段轻松散步；具体地点之后核实。",
+                  "走累了就找个方便休息的地方，下午留给附近的街景，不把一天排满。"
+                ],
+                "inspiration": {
+                  "ideas": [
+                    "如果目的地有合适的公园、绿道或海边，先留一段轻松散步；具体地点之后核实。",
+                    "走累了就找个方便休息的地方，下午留给附近的街景，不把一天排满。"
+                  ],
+                  "placesVerified": false,
+                  "status": "inspiration",
+                  "title": "悉尼 · 绿意慢走"
+                },
+                "moodAnswered": false,
+                "nickname": "",
+                "phase": "inspiration",
+                "proposedDirection": "nature",
+                "recallKey": "",
+                "recallOffered": false,
+                "recallSourceId": "",
+                "recallValue": "",
+                "requestedField": "",
+                "responseCount": 1,
+                "selectedDirection": "",
+                "version": 2
+              },
+              "dnaCompleted": false,
+              "fields": {
+                "budget": "120",
+                "budgetBasis": "perPersonPerDay",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "transportPreference": "balanced",
+                "travelers": "2"
+              },
+              "id": "285b16c197b34c73bb35c953080a640d",
+              "memoryWarning": "",
+              "messages": [
+                {
+                  "choice": null,
+                  "id": "1b87100842e9441fa693bc5559c5c192",
+                  "mood": "greeting",
+                  "quickReplies": [
+                    {
+                      "id": "9078d8c4d9fe47b38c3c841dee99ac36",
+                      "intent": "mood_rest",
+                      "text": "想歇一歇"
+                    },
+                    {
+                      "id": "626260cb01ad41eb9e4aa103d16dcccd",
+                      "intent": "mood_food",
+                      "text": "想吃点好的"
+                    },
+                    {
+                      "id": "ce44c03fdfc44ff3b3b184bb7b1c020e",
+                      "intent": "mood_explore",
+                      "text": "想找点新鲜感"
+                    },
+                    {
+                      "id": "7ca8dfd8d14b4e9e86f2673476dc7782",
+                      "intent": "mood_skip",
+                      "text": "先聊旅行"
+                    }
+                  ],
+                  "role": "assistant",
+                  "text": "小背包带好啦。你这次想歇一歇、吃点好的，还是找点新鲜感？也可以直接告诉我想去哪儿。"
+                },
+                {
+                  "choice": null,
+                  "id": "35593ccf-847f-40d7-b695-89783406bf0c",
+                  "mood": "greeting",
+                  "quickReplies": null,
+                  "role": "user",
+                  "text": "这次不要坐公交，想步行"
+                },
+                {
+                  "choice": null,
+                  "id": "2a494186608d459f8245a08b4850902b",
+                  "mood": "curious",
+                  "quickReplies": [
+                    {
+                      "id": "4ff43321a52a41c0bea4ed4ffbb18512",
+                      "intent": "details",
+                      "text": "修改旅行资料"
+                    },
+                    {
+                      "id": "b6eb500721274b29af6a7ceefb185c4f",
+                      "intent": "change_direction",
+                      "text": "再换个玩法"
+                    },
+                    {
+                      "id": "7e2d0563851748e3b0ae3aaa7b14535a",
+                      "intent": "compose_idea",
+                      "text": "我想自己说"
+                    }
+                  ],
+                  "role": "assistant",
+                  "text": "这次先按你想步行的方式准备。\n资料准备齐啦！可以直接生成行程，也可以继续聊或单独修改。"
+                }
+              ],
+              "missingImportantFields": [],
+              "nextField": "",
+              "options": [],
+              "pendingMemory": "",
+              "pendingPreferences": [],
+              "planningFields": {
+                "budget": "120",
+                "budgetBasis": "perPersonPerDay",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "notes": "",
+                "transportPreference": "balanced",
+                "travelers": "2"
+              },
+              "question": "小背包准备好啦！可以直接点下面的「生成行程」，也可以继续聊。",
+              "total": 7,
+              "travelDna": [],
+              "tripContext": {
+                "budget": "120",
+                "budgetBasis": "perPersonPerDay",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "transportPreference": "balanced",
+                "travelers": "2"
+              },
+              "tripPreferences": [],
+              "updatedAt": "2026-10-26T03:57:33.7493881+00:00"
+            },
+            "terminal": "done"
+          },
+          "status": "FAIL"
+        }
+      ],
+      "title": "回归探针：否定公交不能识别成公交偏好"
+    },
+    {
+      "category": "02 预算歧义",
+      "cleanup": [
+        {
+          "data": {
+            "deleted": true
+          },
+          "httpStatus": 200,
+          "path": "/pet/sessions/cd0b1a90afd64578b073f7a135ead4e2"
+        }
+      ],
+      "create": {
+        "request": {
+          "body": {
+            "companionVersion": 1,
+            "fields": {
+              "budget": "120",
+              "budgetBasis": "perPersonPerDay",
+              "budgetCoverage": "activities",
+              "budgetCurrency": "AUD",
+              "date": "2026-11-25",
+              "days": "3",
+              "destination": "悉尼",
+              "travelers": "2"
+            },
+            "hasMetKoko": true,
+            "language": "zh-Hans",
+            "nickname": "",
+            "profilingVersion": 2
+          },
+          "method": "POST",
+          "path": "/pet/sessions",
+          "requestId": null
+        },
+        "response": {
+          "data": {
+            "completed": 7,
+            "dialogue": {
+              "companionVersion": 1,
+              "ideaRevision": 0,
+              "ideas": [],
+              "inspiration": null,
+              "moodAnswered": false,
+              "nickname": "",
+              "phase": "exploring",
+              "proposedDirection": "",
+              "recallKey": "",
+              "recallOffered": false,
+              "recallSourceId": "",
+              "recallValue": "",
+              "requestedField": "",
+              "responseCount": 0,
+              "selectedDirection": "",
+              "version": 2
+            },
+            "dnaCompleted": false,
+            "fields": {
+              "budget": "120",
+              "budgetBasis": "perPersonPerDay",
+              "budgetCoverage": "activities",
+              "budgetCurrency": "AUD",
+              "date": "2026-11-25",
+              "days": "3",
+              "destination": "悉尼",
+              "travelers": "2"
+            },
+            "id": "cd0b1a90afd64578b073f7a135ead4e2",
+            "memoryWarning": "",
+            "messages": [
+              {
+                "choice": null,
+                "id": "3de6daa0c3b54068bf1ffed001dafbeb",
+                "mood": "greeting",
+                "quickReplies": [
+                  {
+                    "id": "edb0f1c58a5d4f03992c3ad8eb13dda2",
+                    "intent": "mood_rest",
+                    "text": "想歇一歇"
+                  },
+                  {
+                    "id": "73e8448164da439cae2755952369aa0b",
+                    "intent": "mood_food",
+                    "text": "想吃点好的"
+                  },
+                  {
+                    "id": "bdd0904cf13b447d97c3f4d2854d5dfb",
+                    "intent": "mood_explore",
+                    "text": "想找点新鲜感"
+                  },
+                  {
+                    "id": "9ffec995f95543a1a34841a2dbc8e64d",
+                    "intent": "mood_skip",
+                    "text": "先聊旅行"
+                  }
+                ],
+                "role": "assistant",
+                "text": "小背包带好啦。你这次想歇一歇、吃点好的，还是找点新鲜感？也可以直接告诉我想去哪儿。"
+              }
+            ],
+            "missingImportantFields": [],
+            "nextField": "",
+            "options": [],
+            "pendingMemory": "",
+            "pendingPreferences": [],
+            "planningFields": {
+              "budget": "120",
+              "budgetBasis": "perPersonPerDay",
+              "budgetCoverage": "activities",
+              "budgetCurrency": "AUD",
+              "date": "2026-11-25",
+              "days": "3",
+              "destination": "悉尼",
+              "notes": "",
+              "travelers": "2"
+            },
+            "question": "小背包准备好啦！可以直接点下面的「生成行程」，也可以继续聊。",
+            "total": 7,
+            "travelDna": [],
+            "tripContext": {
+              "budget": "120",
+              "budgetBasis": "perPersonPerDay",
+              "budgetCoverage": "activities",
+              "budgetCurrency": "AUD",
+              "date": "2026-11-25",
+              "days": "3",
+              "destination": "悉尼",
+              "travelers": "2"
+            },
+            "tripPreferences": [],
+            "updatedAt": "2026-10-26T03:57:34.1226443+00:00"
+          },
+          "httpStatus": 200
+        }
+      },
+      "humanReview": [
+        "固定桩 fields 为空，专门验证生产显式预算解析器。若不是全程仍覆盖为 perPersonTrip，应如实列为缺陷。"
+      ],
+      "id": "15-probe-negated-budget-basis",
+      "modelTrace": {
+        "calls": [
+          {
+            "callId": "c16d384f89dd4235abdb864f1eea9b7c",
+            "caseId": "15-probe-negated-budget-basis",
+            "kind": "json",
+            "matched": true,
+            "message": "每人每天100澳元活动预算，不是全程",
+            "model": "koko/scripted-sse-fixture",
+            "outcome": "scripted_sse",
+            "sequence": 1,
+            "status": 200,
+            "systemPromptSha256": "464c576a5c9e90d0c1e049f71884cd80409d2bfa235c7a801d86d617893bd0e5",
+            "timestampUtc": "2026-10-26T03:57:34.1509713+00:00"
+          }
+        ],
+        "caseId": "15-probe-negated-budget-basis",
+        "matchedCalls": 1,
+        "mode": "fixture",
+        "totalCalls": 1,
+        "unexpectedCalls": 0,
+        "unusedResponses": 0
+      },
+      "reason": "",
+      "status": "FAIL",
+      "steps": [
+        {
+          "after": {
+            "assistantMessageCount": 1,
+            "derivedReady": true,
+            "error": null,
+            "lastEvent": null,
+            "lastStatus": 200,
+            "memories": [],
+            "memoryCount": 0,
+            "memoryDelta": 0,
+            "messageIds": [
+              "3de6daa0c3b54068bf1ffed001dafbeb"
+            ],
+            "session": {
+              "completed": 7,
+              "dialogue": {
+                "companionVersion": 1,
+                "ideaRevision": 0,
+                "ideas": [],
+                "inspiration": null,
+                "moodAnswered": false,
+                "nickname": "",
+                "phase": "exploring",
+                "proposedDirection": "",
+                "recallKey": "",
+                "recallOffered": false,
+                "recallSourceId": "",
+                "recallValue": "",
+                "requestedField": "",
+                "responseCount": 0,
+                "selectedDirection": "",
+                "version": 2
+              },
+              "dnaCompleted": false,
+              "fields": {
+                "budget": "120",
+                "budgetBasis": "perPersonPerDay",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "travelers": "2"
+              },
+              "id": "cd0b1a90afd64578b073f7a135ead4e2",
+              "memoryWarning": "",
+              "messages": [
+                {
+                  "choice": null,
+                  "id": "3de6daa0c3b54068bf1ffed001dafbeb",
+                  "mood": "greeting",
+                  "quickReplies": [
+                    {
+                      "id": "edb0f1c58a5d4f03992c3ad8eb13dda2",
+                      "intent": "mood_rest",
+                      "text": "想歇一歇"
+                    },
+                    {
+                      "id": "73e8448164da439cae2755952369aa0b",
+                      "intent": "mood_food",
+                      "text": "想吃点好的"
+                    },
+                    {
+                      "id": "bdd0904cf13b447d97c3f4d2854d5dfb",
+                      "intent": "mood_explore",
+                      "text": "想找点新鲜感"
+                    },
+                    {
+                      "id": "9ffec995f95543a1a34841a2dbc8e64d",
+                      "intent": "mood_skip",
+                      "text": "先聊旅行"
+                    }
+                  ],
+                  "role": "assistant",
+                  "text": "小背包带好啦。你这次想歇一歇、吃点好的，还是找点新鲜感？也可以直接告诉我想去哪儿。"
+                }
+              ],
+              "missingImportantFields": [],
+              "nextField": "",
+              "options": [],
+              "pendingMemory": "",
+              "pendingPreferences": [],
+              "planningFields": {
+                "budget": "120",
+                "budgetBasis": "perPersonPerDay",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "notes": "",
+                "travelers": "2"
+              },
+              "question": "小背包准备好啦！可以直接点下面的「生成行程」，也可以继续聊。",
+              "total": 7,
+              "travelDna": [],
+              "tripContext": {
+                "budget": "120",
+                "budgetBasis": "perPersonPerDay",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "travelers": "2"
+              },
+              "tripPreferences": [],
+              "updatedAt": "2026-10-26T03:57:34.1410851+00:00"
+            },
+            "userMessageCount": 0
+          },
+          "assertions": [
+            {
+              "actual": false,
+              "expected": false,
+              "message": "error/complete outcome matches expectation",
+              "passed": true,
+              "path": "response.error"
+            },
+            {
+              "actual": 200,
+              "expected": 200,
+              "passed": true,
+              "path": "response.httpStatus"
+            }
+          ],
+          "before": {
+            "assistantMessageCount": 1,
+            "derivedReady": true,
+            "error": null,
+            "lastEvent": null,
+            "lastStatus": 200,
+            "memories": [],
+            "memoryCount": 0,
+            "memoryDelta": 0,
+            "messageIds": [
+              "3de6daa0c3b54068bf1ffed001dafbeb"
+            ],
+            "session": {
+              "completed": 7,
+              "dialogue": {
+                "companionVersion": 1,
+                "ideaRevision": 0,
+                "ideas": [],
+                "inspiration": null,
+                "moodAnswered": false,
+                "nickname": "",
+                "phase": "exploring",
+                "proposedDirection": "",
+                "recallKey": "",
+                "recallOffered": false,
+                "recallSourceId": "",
+                "recallValue": "",
+                "requestedField": "",
+                "responseCount": 0,
+                "selectedDirection": "",
+                "version": 2
+              },
+              "dnaCompleted": false,
+              "fields": {
+                "budget": "120",
+                "budgetBasis": "perPersonPerDay",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "travelers": "2"
+              },
+              "id": "cd0b1a90afd64578b073f7a135ead4e2",
+              "memoryWarning": "",
+              "messages": [
+                {
+                  "choice": null,
+                  "id": "3de6daa0c3b54068bf1ffed001dafbeb",
+                  "mood": "greeting",
+                  "quickReplies": [
+                    {
+                      "id": "edb0f1c58a5d4f03992c3ad8eb13dda2",
+                      "intent": "mood_rest",
+                      "text": "想歇一歇"
+                    },
+                    {
+                      "id": "73e8448164da439cae2755952369aa0b",
+                      "intent": "mood_food",
+                      "text": "想吃点好的"
+                    },
+                    {
+                      "id": "bdd0904cf13b447d97c3f4d2854d5dfb",
+                      "intent": "mood_explore",
+                      "text": "想找点新鲜感"
+                    },
+                    {
+                      "id": "9ffec995f95543a1a34841a2dbc8e64d",
+                      "intent": "mood_skip",
+                      "text": "先聊旅行"
+                    }
+                  ],
+                  "role": "assistant",
+                  "text": "小背包带好啦。你这次想歇一歇、吃点好的，还是找点新鲜感？也可以直接告诉我想去哪儿。"
+                }
+              ],
+              "missingImportantFields": [],
+              "nextField": "",
+              "options": [],
+              "pendingMemory": "",
+              "pendingPreferences": [],
+              "planningFields": {
+                "budget": "120",
+                "budgetBasis": "perPersonPerDay",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "notes": "",
+                "travelers": "2"
+              },
+              "question": "小背包准备好啦！可以直接点下面的「生成行程」，也可以继续聊。",
+              "total": 7,
+              "travelDna": [],
+              "tripContext": {
+                "budget": "120",
+                "budgetBasis": "perPersonPerDay",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "travelers": "2"
+              },
+              "tripPreferences": [],
+              "updatedAt": "2026-10-26T03:57:34.1295329+00:00"
+            },
+            "userMessageCount": 0
+          },
+          "clock": {
+            "source": "system",
+            "sydney": "2026-10-26T14:57:34.133980+11:00",
+            "timeZone": "Australia/Sydney",
+            "utc": "2026-10-26T03:57:34.133980+00:00"
+          },
+          "durationMs": 12,
+          "fieldChanges": {},
+          "finishedClock": {
+            "source": "system",
+            "sydney": "2026-10-26T14:57:34.146095+11:00",
+            "timeZone": "Australia/Sydney",
+            "utc": "2026-10-26T03:57:34.146095+00:00"
+          },
+          "index": 1,
+          "input": {
+            "op": "get",
+            "saveAs": "baseline"
+          },
+          "op": "get",
+          "request": {
+            "body": null,
+            "method": "GET",
+            "path": "/pet/sessions/cd0b1a90afd64578b073f7a135ead4e2",
+            "requestId": null
+          },
+          "response": {
+            "data": {
+              "completed": 7,
+              "dialogue": {
+                "companionVersion": 1,
+                "ideaRevision": 0,
+                "ideas": [],
+                "inspiration": null,
+                "moodAnswered": false,
+                "nickname": "",
+                "phase": "exploring",
+                "proposedDirection": "",
+                "recallKey": "",
+                "recallOffered": false,
+                "recallSourceId": "",
+                "recallValue": "",
+                "requestedField": "",
+                "responseCount": 0,
+                "selectedDirection": "",
+                "version": 2
+              },
+              "dnaCompleted": false,
+              "fields": {
+                "budget": "120",
+                "budgetBasis": "perPersonPerDay",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "travelers": "2"
+              },
+              "id": "cd0b1a90afd64578b073f7a135ead4e2",
+              "memoryWarning": "",
+              "messages": [
+                {
+                  "choice": null,
+                  "id": "3de6daa0c3b54068bf1ffed001dafbeb",
+                  "mood": "greeting",
+                  "quickReplies": [
+                    {
+                      "id": "edb0f1c58a5d4f03992c3ad8eb13dda2",
+                      "intent": "mood_rest",
+                      "text": "想歇一歇"
+                    },
+                    {
+                      "id": "73e8448164da439cae2755952369aa0b",
+                      "intent": "mood_food",
+                      "text": "想吃点好的"
+                    },
+                    {
+                      "id": "bdd0904cf13b447d97c3f4d2854d5dfb",
+                      "intent": "mood_explore",
+                      "text": "想找点新鲜感"
+                    },
+                    {
+                      "id": "9ffec995f95543a1a34841a2dbc8e64d",
+                      "intent": "mood_skip",
+                      "text": "先聊旅行"
+                    }
+                  ],
+                  "role": "assistant",
+                  "text": "小背包带好啦。你这次想歇一歇、吃点好的，还是找点新鲜感？也可以直接告诉我想去哪儿。"
+                }
+              ],
+              "missingImportantFields": [],
+              "nextField": "",
+              "options": [],
+              "pendingMemory": "",
+              "pendingPreferences": [],
+              "planningFields": {
+                "budget": "120",
+                "budgetBasis": "perPersonPerDay",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "notes": "",
+                "travelers": "2"
+              },
+              "question": "小背包准备好啦！可以直接点下面的「生成行程」，也可以继续聊。",
+              "total": 7,
+              "travelDna": [],
+              "tripContext": {
+                "budget": "120",
+                "budgetBasis": "perPersonPerDay",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "travelers": "2"
+              },
+              "tripPreferences": [],
+              "updatedAt": "2026-10-26T03:57:34.1364159+00:00"
+            },
+            "httpStatus": 200
+          },
+          "status": "PASS"
+        },
+        {
+          "after": {
+            "assistantMessageCount": 2,
+            "derivedReady": true,
+            "error": null,
+            "lastEvent": "done",
+            "lastStatus": 200,
+            "memories": [],
+            "memoryCount": 0,
+            "memoryDelta": 0,
+            "messageIds": [
+              "3de6daa0c3b54068bf1ffed001dafbeb",
+              "e07bc0ea-3b94-49c5-bd12-cd0f24d0e705",
+              "ed109728ee954fc8aaf15b8fc80a3e3e"
+            ],
+            "session": {
+              "completed": 7,
+              "dialogue": {
+                "companionVersion": 1,
+                "ideaRevision": 0,
+                "ideas": [
+                  "如果目的地有合适的公园、绿道或海边，先留一段轻松散步；具体地点之后核实。",
+                  "走累了就找个方便休息的地方，下午留给附近的街景，不把一天排满。"
+                ],
+                "inspiration": {
+                  "ideas": [
+                    "如果目的地有合适的公园、绿道或海边，先留一段轻松散步；具体地点之后核实。",
+                    "走累了就找个方便休息的地方，下午留给附近的街景，不把一天排满。"
+                  ],
+                  "placesVerified": false,
+                  "status": "inspiration",
+                  "title": "悉尼 · 绿意慢走"
+                },
+                "moodAnswered": false,
+                "nickname": "",
+                "phase": "inspiration",
+                "proposedDirection": "nature",
+                "recallKey": "",
+                "recallOffered": false,
+                "recallSourceId": "",
+                "recallValue": "",
+                "requestedField": "",
+                "responseCount": 1,
+                "selectedDirection": "",
+                "version": 2
+              },
+              "dnaCompleted": false,
+              "fields": {
+                "budget": "100",
+                "budgetBasis": "perPersonTrip",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "travelers": "2"
+              },
+              "id": "cd0b1a90afd64578b073f7a135ead4e2",
+              "memoryWarning": "",
+              "messages": [
+                {
+                  "choice": null,
+                  "id": "3de6daa0c3b54068bf1ffed001dafbeb",
+                  "mood": "greeting",
+                  "quickReplies": [
+                    {
+                      "id": "edb0f1c58a5d4f03992c3ad8eb13dda2",
+                      "intent": "mood_rest",
+                      "text": "想歇一歇"
+                    },
+                    {
+                      "id": "73e8448164da439cae2755952369aa0b",
+                      "intent": "mood_food",
+                      "text": "想吃点好的"
+                    },
+                    {
+                      "id": "bdd0904cf13b447d97c3f4d2854d5dfb",
+                      "intent": "mood_explore",
+                      "text": "想找点新鲜感"
+                    },
+                    {
+                      "id": "9ffec995f95543a1a34841a2dbc8e64d",
+                      "intent": "mood_skip",
+                      "text": "先聊旅行"
+                    }
+                  ],
+                  "role": "assistant",
+                  "text": "小背包带好啦。你这次想歇一歇、吃点好的，还是找点新鲜感？也可以直接告诉我想去哪儿。"
+                },
+                {
+                  "choice": null,
+                  "id": "e07bc0ea-3b94-49c5-bd12-cd0f24d0e705",
+                  "mood": "greeting",
+                  "quickReplies": null,
+                  "role": "user",
+                  "text": "每人每天100澳元活动预算，不是全程"
+                },
+                {
+                  "choice": null,
+                  "id": "ed109728ee954fc8aaf15b8fc80a3e3e",
+                  "mood": "curious",
+                  "quickReplies": [
+                    {
+                      "id": "688de1de2e6c44199138686b128887dc",
+                      "intent": "details",
+                      "text": "修改旅行资料"
+                    },
+                    {
+                      "id": "c551ffb563ab40fc9fc090b2655c4bf3",
+                      "intent": "change_direction",
+                      "text": "再换个玩法"
+                    },
+                    {
+                      "id": "6f9974a7a4614275872926c0f48581d1",
+                      "intent": "compose_idea",
+                      "text": "我想自己说"
+                    }
+                  ],
+                  "role": "assistant",
+                  "text": "收到！预算 100 AUD（每人全程），先收进这次的小背包。换算为每人每日活动预算约 33.33 AUD。\n资料准备齐啦！可以直接生成行程，也可以继续聊或单独修改。"
+                }
+              ],
+              "missingImportantFields": [],
+              "nextField": "",
+              "options": [],
+              "pendingMemory": "",
+              "pendingPreferences": [],
+              "planningFields": {
+                "budget": "100",
+                "budgetBasis": "perPersonTrip",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "notes": "",
+                "travelers": "2"
+              },
+              "question": "小背包准备好啦！可以直接点下面的「生成行程」，也可以继续聊。",
+              "total": 7,
+              "travelDna": [],
+              "tripContext": {
+                "budget": "100",
+                "budgetBasis": "perPersonTrip",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "travelers": "2"
+              },
+              "tripPreferences": [],
+              "updatedAt": "2026-10-26T03:57:34.1588599+00:00"
+            },
+            "userMessageCount": 1
+          },
+          "assertions": [
+            {
+              "actual": false,
+              "expected": false,
+              "message": "error/complete outcome matches expectation",
+              "passed": true,
+              "path": "response.error"
+            },
+            {
+              "actual": 200,
+              "expected": 200,
+              "passed": true,
+              "path": "response.httpStatus"
+            },
+            {
+              "actual": "done",
+              "expected": "done",
+              "passed": true,
+              "path": "response.terminal"
+            },
+            {
+              "actual": "100",
+              "expected": {
+                "equals": "100"
+              },
+              "message": "matches the expected state",
+              "passed": true,
+              "path": "session.fields.budget"
+            },
+            {
+              "actual": "AUD",
+              "expected": {
+                "equals": "AUD"
+              },
+              "message": "matches the expected state",
+              "passed": true,
+              "path": "session.fields.budgetCurrency"
+            },
+            {
+              "actual": "perPersonTrip",
+              "expected": {
+                "equals": "perPersonPerDay"
+              },
+              "message": "actual state differs from the expected condition",
+              "passed": false,
+              "path": "session.fields.budgetBasis"
+            },
+            {
+              "actual": "activities",
+              "expected": {
+                "equals": "activities"
+              },
+              "message": "matches the expected state",
+              "passed": true,
+              "path": "session.fields.budgetCoverage"
+            }
+          ],
+          "before": {
+            "assistantMessageCount": 1,
+            "derivedReady": true,
+            "error": null,
+            "lastEvent": null,
+            "lastStatus": 200,
+            "memories": [],
+            "memoryCount": 0,
+            "memoryDelta": 0,
+            "messageIds": [
+              "3de6daa0c3b54068bf1ffed001dafbeb"
+            ],
+            "session": {
+              "completed": 7,
+              "dialogue": {
+                "companionVersion": 1,
+                "ideaRevision": 0,
+                "ideas": [],
+                "inspiration": null,
+                "moodAnswered": false,
+                "nickname": "",
+                "phase": "exploring",
+                "proposedDirection": "",
+                "recallKey": "",
+                "recallOffered": false,
+                "recallSourceId": "",
+                "recallValue": "",
+                "requestedField": "",
+                "responseCount": 0,
+                "selectedDirection": "",
+                "version": 2
+              },
+              "dnaCompleted": false,
+              "fields": {
+                "budget": "120",
+                "budgetBasis": "perPersonPerDay",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "travelers": "2"
+              },
+              "id": "cd0b1a90afd64578b073f7a135ead4e2",
+              "memoryWarning": "",
+              "messages": [
+                {
+                  "choice": null,
+                  "id": "3de6daa0c3b54068bf1ffed001dafbeb",
+                  "mood": "greeting",
+                  "quickReplies": [
+                    {
+                      "id": "edb0f1c58a5d4f03992c3ad8eb13dda2",
+                      "intent": "mood_rest",
+                      "text": "想歇一歇"
+                    },
+                    {
+                      "id": "73e8448164da439cae2755952369aa0b",
+                      "intent": "mood_food",
+                      "text": "想吃点好的"
+                    },
+                    {
+                      "id": "bdd0904cf13b447d97c3f4d2854d5dfb",
+                      "intent": "mood_explore",
+                      "text": "想找点新鲜感"
+                    },
+                    {
+                      "id": "9ffec995f95543a1a34841a2dbc8e64d",
+                      "intent": "mood_skip",
+                      "text": "先聊旅行"
+                    }
+                  ],
+                  "role": "assistant",
+                  "text": "小背包带好啦。你这次想歇一歇、吃点好的，还是找点新鲜感？也可以直接告诉我想去哪儿。"
+                }
+              ],
+              "missingImportantFields": [],
+              "nextField": "",
+              "options": [],
+              "pendingMemory": "",
+              "pendingPreferences": [],
+              "planningFields": {
+                "budget": "120",
+                "budgetBasis": "perPersonPerDay",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "notes": "",
+                "travelers": "2"
+              },
+              "question": "小背包准备好啦！可以直接点下面的「生成行程」，也可以继续聊。",
+              "total": 7,
+              "travelDna": [],
+              "tripContext": {
+                "budget": "120",
+                "budgetBasis": "perPersonPerDay",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "travelers": "2"
+              },
+              "tripPreferences": [],
+              "updatedAt": "2026-10-26T03:57:34.1410851+00:00"
+            },
+            "userMessageCount": 0
+          },
+          "clock": {
+            "source": "system",
+            "sydney": "2026-10-26T14:57:34.146223+11:00",
+            "timeZone": "Australia/Sydney",
+            "utc": "2026-10-26T03:57:34.146223+00:00"
+          },
+          "durationMs": 17,
+          "fieldChanges": {
+            "fields.budget": {
+              "after": "100",
+              "before": "120"
+            },
+            "fields.budgetBasis": {
+              "after": "perPersonTrip",
+              "before": "perPersonPerDay"
+            },
+            "planningFields.budget": {
+              "after": "100",
+              "before": "120"
+            },
+            "planningFields.budgetBasis": {
+              "after": "perPersonTrip",
+              "before": "perPersonPerDay"
+            },
+            "tripContext.budget": {
+              "after": "100",
+              "before": "120"
+            },
+            "tripContext.budgetBasis": {
+              "after": "perPersonTrip",
+              "before": "perPersonPerDay"
+            }
+          },
+          "finishedClock": {
+            "source": "system",
+            "sydney": "2026-10-26T14:57:34.163076+11:00",
+            "timeZone": "Australia/Sydney",
+            "utc": "2026-10-26T03:57:34.163076+00:00"
+          },
+          "index": 2,
+          "input": {
+            "assertions": [
+              {
+                "equals": "100",
+                "path": "session.fields.budget"
+              },
+              {
+                "equals": "AUD",
+                "path": "session.fields.budgetCurrency"
+              },
+              {
+                "equals": "perPersonPerDay",
+                "path": "session.fields.budgetBasis"
+              },
+              {
+                "equals": "activities",
+                "path": "session.fields.budgetCoverage"
+              }
+            ],
+            "op": "turn",
+            "text": "每人每天100澳元活动预算，不是全程"
+          },
+          "op": "turn",
+          "request": {
+            "body": {
+              "language": "zh-Hans",
+              "message": "每人每天100澳元活动预算，不是全程",
+              "requestId": "e07bc0ea-3b94-49c5-bd12-cd0f24d0e705"
+            },
+            "method": "POST",
+            "path": "/pet/sessions/cd0b1a90afd64578b073f7a135ead4e2/turn",
+            "requestId": "e07bc0ea-3b94-49c5-bd12-cd0f24d0e705"
+          },
+          "response": {
+            "error": null,
+            "events": [
+              {
+                "text": "收到！预算 100 AUD（每人全程），先收进这次的小背包。换算为每人每日活动预算约 33.33 AUD。\n资料准备齐啦！可以直接生成行程，也可以继续聊或单独修改。",
+                "type": "reply"
+              },
+              {
+                "session": {
+                  "completed": 7,
+                  "dialogue": {
+                    "companionVersion": 1,
+                    "ideaRevision": 0,
+                    "ideas": [
+                      "如果目的地有合适的公园、绿道或海边，先留一段轻松散步；具体地点之后核实。",
+                      "走累了就找个方便休息的地方，下午留给附近的街景，不把一天排满。"
+                    ],
+                    "inspiration": {
+                      "ideas": [
+                        "如果目的地有合适的公园、绿道或海边，先留一段轻松散步；具体地点之后核实。",
+                        "走累了就找个方便休息的地方，下午留给附近的街景，不把一天排满。"
+                      ],
+                      "placesVerified": false,
+                      "status": "inspiration",
+                      "title": "悉尼 · 绿意慢走"
+                    },
+                    "moodAnswered": false,
+                    "nickname": "",
+                    "phase": "inspiration",
+                    "proposedDirection": "nature",
+                    "recallKey": "",
+                    "recallOffered": false,
+                    "recallSourceId": "",
+                    "recallValue": "",
+                    "requestedField": "",
+                    "responseCount": 1,
+                    "selectedDirection": "",
+                    "version": 2
+                  },
+                  "dnaCompleted": false,
+                  "fields": {
+                    "budget": "100",
+                    "budgetBasis": "perPersonTrip",
+                    "budgetCoverage": "activities",
+                    "budgetCurrency": "AUD",
+                    "date": "2026-11-25",
+                    "days": "3",
+                    "destination": "悉尼",
+                    "travelers": "2"
+                  },
+                  "id": "cd0b1a90afd64578b073f7a135ead4e2",
+                  "memoryWarning": "",
+                  "messages": [
+                    {
+                      "choice": null,
+                      "id": "3de6daa0c3b54068bf1ffed001dafbeb",
+                      "mood": "greeting",
+                      "quickReplies": [
+                        {
+                          "id": "edb0f1c58a5d4f03992c3ad8eb13dda2",
+                          "intent": "mood_rest",
+                          "text": "想歇一歇"
+                        },
+                        {
+                          "id": "73e8448164da439cae2755952369aa0b",
+                          "intent": "mood_food",
+                          "text": "想吃点好的"
+                        },
+                        {
+                          "id": "bdd0904cf13b447d97c3f4d2854d5dfb",
+                          "intent": "mood_explore",
+                          "text": "想找点新鲜感"
+                        },
+                        {
+                          "id": "9ffec995f95543a1a34841a2dbc8e64d",
+                          "intent": "mood_skip",
+                          "text": "先聊旅行"
+                        }
+                      ],
+                      "role": "assistant",
+                      "text": "小背包带好啦。你这次想歇一歇、吃点好的，还是找点新鲜感？也可以直接告诉我想去哪儿。"
+                    },
+                    {
+                      "choice": null,
+                      "id": "e07bc0ea-3b94-49c5-bd12-cd0f24d0e705",
+                      "mood": "greeting",
+                      "quickReplies": null,
+                      "role": "user",
+                      "text": "每人每天100澳元活动预算，不是全程"
+                    },
+                    {
+                      "choice": null,
+                      "id": "ed109728ee954fc8aaf15b8fc80a3e3e",
+                      "mood": "curious",
+                      "quickReplies": [
+                        {
+                          "id": "688de1de2e6c44199138686b128887dc",
+                          "intent": "details",
+                          "text": "修改旅行资料"
+                        },
+                        {
+                          "id": "c551ffb563ab40fc9fc090b2655c4bf3",
+                          "intent": "change_direction",
+                          "text": "再换个玩法"
+                        },
+                        {
+                          "id": "6f9974a7a4614275872926c0f48581d1",
+                          "intent": "compose_idea",
+                          "text": "我想自己说"
+                        }
+                      ],
+                      "role": "assistant",
+                      "text": "收到！预算 100 AUD（每人全程），先收进这次的小背包。换算为每人每日活动预算约 33.33 AUD。\n资料准备齐啦！可以直接生成行程，也可以继续聊或单独修改。"
+                    }
+                  ],
+                  "missingImportantFields": [],
+                  "nextField": "",
+                  "options": [],
+                  "pendingMemory": "",
+                  "pendingPreferences": [],
+                  "planningFields": {
+                    "budget": "100",
+                    "budgetBasis": "perPersonTrip",
+                    "budgetCoverage": "activities",
+                    "budgetCurrency": "AUD",
+                    "date": "2026-11-25",
+                    "days": "3",
+                    "destination": "悉尼",
+                    "notes": "",
+                    "travelers": "2"
+                  },
+                  "question": "小背包准备好啦！可以直接点下面的「生成行程」，也可以继续聊。",
+                  "total": 7,
+                  "travelDna": [],
+                  "tripContext": {
+                    "budget": "100",
+                    "budgetBasis": "perPersonTrip",
+                    "budgetCoverage": "activities",
+                    "budgetCurrency": "AUD",
+                    "date": "2026-11-25",
+                    "days": "3",
+                    "destination": "悉尼",
+                    "travelers": "2"
+                  },
+                  "tripPreferences": [],
+                  "updatedAt": "2026-10-26T03:57:34.1518953+00:00"
+                },
+                "type": "done"
+              }
+            ],
+            "httpStatus": 200,
+            "session": {
+              "completed": 7,
+              "dialogue": {
+                "companionVersion": 1,
+                "ideaRevision": 0,
+                "ideas": [
+                  "如果目的地有合适的公园、绿道或海边，先留一段轻松散步；具体地点之后核实。",
+                  "走累了就找个方便休息的地方，下午留给附近的街景，不把一天排满。"
+                ],
+                "inspiration": {
+                  "ideas": [
+                    "如果目的地有合适的公园、绿道或海边，先留一段轻松散步；具体地点之后核实。",
+                    "走累了就找个方便休息的地方，下午留给附近的街景，不把一天排满。"
+                  ],
+                  "placesVerified": false,
+                  "status": "inspiration",
+                  "title": "悉尼 · 绿意慢走"
+                },
+                "moodAnswered": false,
+                "nickname": "",
+                "phase": "inspiration",
+                "proposedDirection": "nature",
+                "recallKey": "",
+                "recallOffered": false,
+                "recallSourceId": "",
+                "recallValue": "",
+                "requestedField": "",
+                "responseCount": 1,
+                "selectedDirection": "",
+                "version": 2
+              },
+              "dnaCompleted": false,
+              "fields": {
+                "budget": "100",
+                "budgetBasis": "perPersonTrip",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "travelers": "2"
+              },
+              "id": "cd0b1a90afd64578b073f7a135ead4e2",
+              "memoryWarning": "",
+              "messages": [
+                {
+                  "choice": null,
+                  "id": "3de6daa0c3b54068bf1ffed001dafbeb",
+                  "mood": "greeting",
+                  "quickReplies": [
+                    {
+                      "id": "edb0f1c58a5d4f03992c3ad8eb13dda2",
+                      "intent": "mood_rest",
+                      "text": "想歇一歇"
+                    },
+                    {
+                      "id": "73e8448164da439cae2755952369aa0b",
+                      "intent": "mood_food",
+                      "text": "想吃点好的"
+                    },
+                    {
+                      "id": "bdd0904cf13b447d97c3f4d2854d5dfb",
+                      "intent": "mood_explore",
+                      "text": "想找点新鲜感"
+                    },
+                    {
+                      "id": "9ffec995f95543a1a34841a2dbc8e64d",
+                      "intent": "mood_skip",
+                      "text": "先聊旅行"
+                    }
+                  ],
+                  "role": "assistant",
+                  "text": "小背包带好啦。你这次想歇一歇、吃点好的，还是找点新鲜感？也可以直接告诉我想去哪儿。"
+                },
+                {
+                  "choice": null,
+                  "id": "e07bc0ea-3b94-49c5-bd12-cd0f24d0e705",
+                  "mood": "greeting",
+                  "quickReplies": null,
+                  "role": "user",
+                  "text": "每人每天100澳元活动预算，不是全程"
+                },
+                {
+                  "choice": null,
+                  "id": "ed109728ee954fc8aaf15b8fc80a3e3e",
+                  "mood": "curious",
+                  "quickReplies": [
+                    {
+                      "id": "688de1de2e6c44199138686b128887dc",
+                      "intent": "details",
+                      "text": "修改旅行资料"
+                    },
+                    {
+                      "id": "c551ffb563ab40fc9fc090b2655c4bf3",
+                      "intent": "change_direction",
+                      "text": "再换个玩法"
+                    },
+                    {
+                      "id": "6f9974a7a4614275872926c0f48581d1",
+                      "intent": "compose_idea",
+                      "text": "我想自己说"
+                    }
+                  ],
+                  "role": "assistant",
+                  "text": "收到！预算 100 AUD（每人全程），先收进这次的小背包。换算为每人每日活动预算约 33.33 AUD。\n资料准备齐啦！可以直接生成行程，也可以继续聊或单独修改。"
+                }
+              ],
+              "missingImportantFields": [],
+              "nextField": "",
+              "options": [],
+              "pendingMemory": "",
+              "pendingPreferences": [],
+              "planningFields": {
+                "budget": "100",
+                "budgetBasis": "perPersonTrip",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "notes": "",
+                "travelers": "2"
+              },
+              "question": "小背包准备好啦！可以直接点下面的「生成行程」，也可以继续聊。",
+              "total": 7,
+              "travelDna": [],
+              "tripContext": {
+                "budget": "100",
+                "budgetBasis": "perPersonTrip",
+                "budgetCoverage": "activities",
+                "budgetCurrency": "AUD",
+                "date": "2026-11-25",
+                "days": "3",
+                "destination": "悉尼",
+                "travelers": "2"
+              },
+              "tripPreferences": [],
+              "updatedAt": "2026-10-26T03:57:34.1518953+00:00"
+            },
+            "terminal": "done"
+          },
+          "status": "FAIL"
+        }
+      ],
+      "title": "回归探针：不是全程不能覆盖每天口径"
+    }
+  ]
+}

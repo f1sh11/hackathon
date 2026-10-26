@@ -1,0 +1,90 @@
+name: Koko API audit tooling
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/koko-api-test-harness-20261026]
+    paths: ['tools/koko_api/**', 'tools/koko_api_cli.py', '.github/workflows/koko-api-audit.yml']
+  pull_request:
+    paths: ['tools/koko_api/**', 'tools/koko_api_cli.py', '.github/workflows/koko-api-audit.yml']
+permissions:
+  contents: read
+jobs:
+  recorded-api-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: koko_api_test
+          POSTGRES_USER: koko_audit
+          POSTGRES_PASSWORD: koko_audit_dev
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd 'pg_isready -U koko_audit -d koko_api_test'
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      KOKO_TEST_CONNECTION: Host=127.0.0.1;Port=5432;Database=koko_api_test;Username=koko_audit;Password=koko_audit_dev
+      KOKO_TEST_DB_ENGINE: PostgreSQL 17 (native, isolated CI database)
+      KOKO_TEST_NVIDIA_API_KEY: ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test transport, ownership, recovery, and report integrity
+        run: python3 -m unittest discover -s tools/koko_api/tests -p 'test_*.py'
+      - name: Build the test-only host
+        run: dotnet build tools/koko_api/FixtureHost/KokoApiFixtureHost.csproj -c Release --nologo
+      - name: Record actual API outcomes with a labelled fixture model
+        shell: bash
+        run: |
+          set +e
+          python3 tools/koko_api/run_suite.py --mode fixture --no-build --out artifacts/koko-api/fixture
+          audit_status=$?
+          set -e
+          if [ "$audit_status" -gt 1 ]; then exit "$audit_status"; fi
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          result=json.loads(Path('artifacts/koko-api/fixture/run.json').read_text())
+          assert result['mode']=='fixture'
+          assert len(result['cases']) >= 19 and result['totals']['NOT_RUN']==0
+          assert all(c.get('modelTrace',{}).get('unexpectedCalls',0)==0 for c in result['cases'])
+          failed=[c['id'] for c in result['cases'] if c['status']=='FAIL']
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as file:
+              file.write('## Recorded App API outcomes (fixture model)\n\n')
+              file.write(str(result['totals'])+'\n\n')
+              file.write('Failed application expectations: '+(', '.join(failed) or 'none')+'\n\n')
+              file.write('This job validates the audit tool and preserves all outcomes; a green job does not turn failed App cases into passes. Naturalness and iOS remain manual.\n')
+          for case in failed:
+              print('::warning::Recorded App expectation failed: '+case+'; inspect the uploaded report')
+          PY
+      - name: Record missing real-model configuration without fake replies
+        shell: bash
+        run: |
+          set +e
+          python3 tools/koko_api/run_suite.py --mode live --no-build --out artifacts/koko-api/live-unconfigured
+          audit_status=$?
+          set -e
+          if [ "$audit_status" -eq 2 ] || [ "$audit_status" -gt 3 ]; then exit "$audit_status"; fi
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          result=json.loads(Path('artifacts/koko-api/live-unconfigured/run.json').read_text())
+          assert result['mode']=='live' and result['environment']['modelConfigured'] is False
+          assert result['environment']['modelCallsObserved']==0
+          assert result['totals']['NOT_RUN'] > 0
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: koko-api-recorded-outcomes
+          path: artifacts/koko-api/
+          if-no-files-found: error

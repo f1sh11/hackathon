@@ -41,6 +41,10 @@ infra/poi/data/
 # Private pet conversations and journey drafts
 server/.pet-sessions/
 
+# Isolated Koko CLI journals and generated runs (reviewed sample ZIPs live in tools/koko_api/evidence).
+.koko-api-state*.json
+artifacts/koko-api/
+
 # Public-data staging exports and private Zetaris distribution/config
 infra/zetaris/data/
 infra/zetaris/.env.local
