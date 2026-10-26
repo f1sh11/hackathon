@@ -1,0 +1,5 @@
+{
+  "mode": "apple-mapkit-historical-walking-replay-only",
+  "note": "E08 consumes evaluation/data/apple-mapkit-walking-replay.json: six dated Apple Maps / MapKit walking legs captured against fixed public landmarks, including a direct Garden-to-Rocks reroute leg. The snapshot is not live navigation. There is still no TfNSW/public-transit replay. Other default cases use the demo estimator and are labelled as estimates.",
+  "routes": []
+}

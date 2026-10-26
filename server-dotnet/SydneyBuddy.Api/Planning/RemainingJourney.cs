@@ -6,11 +6,12 @@ namespace SydneyBuddy.Api;
 /// A proposal only. The existing revision is unchanged until the user accepts it.
 public static class RemainingJourney
 {
-    public static JsonObject Build(JsonObject original,JsonObject request,ScheduleEditorService editor,PlaceCatalog catalog,CancellationToken ct=default,bool transportPreflight=false) {
+    public static JsonObject Build(JsonObject original,JsonObject request,ScheduleEditorService editor,PlaceCatalog catalog,CancellationToken ct=default,bool transportPreflight=false,bool allowHistoricalWalkingReplay=false) {
         var index=request.Int("day",-1);var days=original.Array("days")!;
         if(index<0||index>=days.Count)throw new ServiceException("调整日期无效。");
         if(original.Str("mode")=="live")throw new ServiceException("请使用与 Google 地点匹配的路线服务调整。");
         var evidence=request.Array("walkingRoutes")??throw new ServiceException("请先查询真实步行时间。");
+        if(allowHistoricalWalkingReplay&&!new WalkingEvidence(evidence,allowHistoricalReplay:true).IsHistoricalReplay)throw new ServiceException("历史途中回放必须使用完整且注明日期的历史步行证据。");
         var planningCatalog=PlanningCandidates.Merge(catalog.Get(),request.Array("planningCandidates")??original.Array("planningCandidates")).ToList();foreach(var point in original.Object("schedule")?.Array("candidates")?.OfType<JsonObject>().Where(PoiService.IsImported)??[]){if(planningCatalog.All(p=>p.Str("id")!=point.Str("id")))planningCatalog.Add(PoiService.Import(point));}
         var day=days[index]!.AsObject();var profile=(JsonObject)original.Object("profile")!.DeepClone();
         if(request.Object("constraints") is {} changes){foreach(var key in new[]{"budget","maxSteps","endMinute","mustDo","avoid","interests","transportPreference"})if(changes[key] is not null)profile[key]=changes[key]!.DeepClone();profile=PlanValidator.Validate(profile,planningCatalog);}
@@ -28,7 +29,11 @@ public static class RemainingJourney
         var start=profile.Int("startMinute");
         if(request["currentMinute"] is not null) {
             var zone=TimeZoneInfo.FindSystemTimeZoneById("Australia/Sydney");var today=TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow,zone).ToString("yyyy-MM-dd");
-            if(day.Str("date")!=today)throw new ServiceException("途中调整只适用于今天；其他日期请修改当天安排。");
+            // Dated road fixtures may replay a past day only through the evaluator-only historical evidence opt-in.
+            if(day.Str("date")!=today) {
+                if(!allowHistoricalWalkingReplay)throw new ServiceException("途中调整只适用于今天；其他日期请修改当天安排。");
+                if(!DateOnly.TryParse(day.Str("date"),out var replayDate)||replayDate>DateOnly.Parse(today))throw new ServiceException("历史途中回放只能使用过去或当天的日期。");
+            }
             start=request.Int("currentMinute");if(start<0||start>=profile.Int("endMinute"))throw new ServiceException("今天的可用时间已结束，请延长结束时间或保留返程。");
         }
         if(consumed.Count>0 && request["currentMinute"] is null)throw new ServiceException("途中调整需要当前时间和位置。");
@@ -76,7 +81,7 @@ public static class RemainingJourney
         baseline.Object("profile")!["mustVisit"]=new JsonArray(must.Where(id=>!completed.Any(s=>s.Str("id")==id)).Select(id=>(JsonNode)JsonValue.Create(id)!).ToArray());
         JsonObject Evaluate(JsonArray list) {
             var ds=(JsonArray)state.Array("days")!.DeepClone();ds[index]!["activities"]=list.DeepClone();
-            return editor.Build(new JsonObject{["trip"]=baseline.DeepClone(),["settings"]=settings.DeepClone(),["days"]=ds,["walkingRoutes"]=evidence.DeepClone(),["candidates"]=state["candidates"]?.DeepClone()});
+            return editor.Build(new JsonObject{["trip"]=baseline.DeepClone(),["settings"]=settings.DeepClone(),["days"]=ds,["walkingRoutes"]=evidence.DeepClone(),["candidates"]=state["candidates"]?.DeepClone()},allowHistoricalWalkingReplay:allowHistoricalWalkingReplay);
         }
         bool Feasible(JsonObject result)=>!result.Object("schedule")!.Array("issues")!.OfType<JsonObject>().Any(i=>i.Bool("blocking")&&(!transportPreflight||!new[]{"steps","end-time","time-budget","appointment","hours"}.Contains(i.Str("code")))&&(i.Int("day")==index||i.Int("day")==-1));
         JsonObject? best=null;var bestMinutes=int.MaxValue;

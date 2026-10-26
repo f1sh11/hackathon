@@ -1,0 +1,131 @@
+{
+  "captureClient": "SydneyBuddy iOS Debug MapKitReplayCapture",
+  "capturedAt": "2026-10-26T05:44:12Z",
+  "endpointBinding": "Six fixed public Sydney landmark coordinates; no current device location is captured.",
+  "kind": "historical-road-replay",
+  "legs": [
+    {
+      "capturedAt": "2026-10-26T05:44:12Z",
+      "from": "start",
+      "fromCoordinate": {
+        "lat": -33.8611,
+        "lng": 151.2126,
+        "name": "环形码头"
+      },
+      "id": "start_to_garden",
+      "kind": "provider_recorded_leg",
+      "meters": 687,
+      "seconds": 565,
+      "to": "garden",
+      "toCoordinate": {
+        "lat": -33.8642,
+        "lng": 151.2166,
+        "name": "皇家植物园"
+      }
+    },
+    {
+      "capturedAt": "2026-10-26T05:44:12Z",
+      "from": "garden",
+      "fromCoordinate": {
+        "lat": -33.8642,
+        "lng": 151.2166,
+        "name": "皇家植物园"
+      },
+      "id": "garden_to_opera",
+      "kind": "provider_recorded_leg",
+      "meters": 905,
+      "seconds": 700,
+      "to": "opera",
+      "toCoordinate": {
+        "lat": -33.8568,
+        "lng": 151.2153,
+        "name": "悉尼歌剧院"
+      }
+    },
+    {
+      "capturedAt": "2026-10-26T05:44:12Z",
+      "from": "opera",
+      "fromCoordinate": {
+        "lat": -33.8568,
+        "lng": 151.2153,
+        "name": "悉尼歌剧院"
+      },
+      "id": "opera_to_rocks",
+      "kind": "provider_recorded_leg",
+      "meters": 1108,
+      "seconds": 863,
+      "to": "rocks",
+      "toCoordinate": {
+        "lat": -33.8599,
+        "lng": 151.209,
+        "name": "岩石区"
+      }
+    },
+    {
+      "capturedAt": "2026-10-26T05:44:12Z",
+      "from": "rocks",
+      "fromCoordinate": {
+        "lat": -33.8599,
+        "lng": 151.209,
+        "name": "岩石区"
+      },
+      "id": "rocks_to_mca",
+      "kind": "provider_recorded_leg",
+      "meters": 1,
+      "seconds": 28,
+      "to": "mca",
+      "toCoordinate": {
+        "lat": -33.8599,
+        "lng": 151.2091,
+        "name": "澳大利亚当代艺术博物馆"
+      }
+    },
+    {
+      "capturedAt": "2026-10-26T05:44:12Z",
+      "from": "mca",
+      "fromCoordinate": {
+        "lat": -33.8599,
+        "lng": 151.2091,
+        "name": "澳大利亚当代艺术博物馆"
+      },
+      "id": "mca_to_end",
+      "kind": "provider_recorded_leg",
+      "meters": 438,
+      "seconds": 333,
+      "to": "end",
+      "toCoordinate": {
+        "lat": -33.8611,
+        "lng": 151.2126,
+        "name": "环形码头"
+      }
+    },
+    {
+      "capturedAt": "2026-10-26T05:44:12Z",
+      "from": "garden",
+      "fromCoordinate": {
+        "lat": -33.8642,
+        "lng": 151.2166,
+        "name": "皇家植物园"
+      },
+      "id": "garden_to_rocks",
+      "kind": "provider_recorded_leg",
+      "meters": 1124,
+      "seconds": 900,
+      "to": "rocks",
+      "toCoordinate": {
+        "lat": -33.8599,
+        "lng": 151.209,
+        "name": "岩石区"
+      }
+    }
+  ],
+  "notLiveNavigation": true,
+  "note": "A fixed historical regression snapshot captured with MKDirections.Request.transportType = .walking. It is not live navigation and must remain labeled as a dated snapshot.",
+  "provider": "Apple Maps / MapKit",
+  "recordedDate": "2026-10-26",
+  "requestTransportType": "walking",
+  "rerouteEvidence": "direct_provider_recorded_leg",
+  "schemaVersion": 1,
+  "timeZone": "Australia/Sydney",
+  "usesDeviceLocation": false
+}

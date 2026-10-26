@@ -1,0 +1,18 @@
+{
+  "kind": "historical-road-replay",
+  "provider": "Valhalla / OpenStreetMap",
+  "recordedDate": "2026-10-23",
+  "sourceFixture": "tests/fixtures/walking-itinerary-plan.json",
+  "notLiveNavigation": true,
+  "rerouteEvidence": "composed_historical_path",
+  "endpointBinding": "The original public-landmark route is bound to the stable local catalog coordinates for deterministic lookup; it is not a device-location recording.",
+  "note": "Five directed pedestrian legs were recorded through the local /journey/plan flow. A sixth leg is a disclosed concatenation of two recorded legs so the fatigue case can remove an optional visit without inventing a new direct route. This is a fixed regression fixture, not Apple MapKit, not TfNSW, and not live navigation.",
+  "legs": [
+    { "id": "start_to_garden", "from": "start", "to": "garden", "meters": 905.896, "seconds": 798.958, "kind": "provider_recorded_leg" },
+    { "id": "garden_to_opera", "from": "garden", "to": "opera", "meters": 1012.444, "seconds": 808.547, "kind": "provider_recorded_leg" },
+    { "id": "opera_to_rocks", "from": "opera", "to": "rocks", "meters": 1150.795, "seconds": 990.578, "kind": "provider_recorded_leg" },
+    { "id": "rocks_to_mca", "from": "rocks", "to": "mca", "meters": 177.012, "seconds": 129.335, "kind": "provider_recorded_leg" },
+    { "id": "mca_to_end", "from": "mca", "to": "end", "meters": 446.534, "seconds": 387.795, "kind": "provider_recorded_leg" },
+    { "id": "garden_to_rocks_via_opera", "from": "garden", "to": "rocks", "meters": 2163.239, "seconds": 1799.125, "kind": "composed_historical_path", "derivedFrom": ["garden_to_opera", "opera_to_rocks"], "note": "Concatenated from two recorded Valhalla/OSM legs; it still passes the Opera House but does not schedule a visit there." }
+  ]
+}

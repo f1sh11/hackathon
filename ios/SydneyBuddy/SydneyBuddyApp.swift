@@ -14,7 +14,17 @@ import GoogleMaps
         return GMSServices.provideAPIKey(key)
     }()
     var body: some Scene {
-        WindowGroup { RootView().environmentObject(store).tint(Palette.green).preferredColorScheme(.light).task { await store.reload() } }
+        WindowGroup {
+            RootView().environmentObject(store).tint(Palette.green).preferredColorScheme(.light).task {
+                #if DEBUG
+                if ProcessInfo.processInfo.arguments.contains(MapKitReplayCapture.launchArgument) {
+                    await MapKitReplayCapture.exportIfRequested()
+                    return
+                }
+                #endif
+                await store.reload()
+            }
+        }
     }
 }
 
