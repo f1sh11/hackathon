@@ -75,7 +75,7 @@ import SwiftUI
                                 ForEach(Array(state.candidates.filter{p in !p.importedPoi || toolbox.places.contains(where:{$0.id==p.id})}.enumerated()),id:\.element.id){index,c in
                                     VStack(alignment:.leading,spacing:7) {
                                         Text(uiText(String(format:"%02d",index+1))).font(.caption2.bold()).foregroundStyle(Palette.green)
-                                        Text(c.name).font(.system(size:12,weight:.semibold)).fixedSize(horizontal:false,vertical:true)
+                                        Text(c.displayName).font(.system(size:12,weight:.semibold)).fixedSize(horizontal:false,vertical:true)
                                         Text(uiText(c.mappedRatingLabel)).font(.system(size:10,weight:.medium)).foregroundStyle(Palette.green)
                                         Text(uiText(c.importedPoi ? "\(c.visitMinutes) 分 · "+(c.mappedFoodPriceLabel ?? "費用未知"):"\(c.visitMinutes) 分 · A$\(Int(c.cost))")).font(.system(size:10)).foregroundStyle(Palette.muted)
                                         if let d=selected[c.id] {Text(uiText("第 \(d+1) 天已排")).font(.system(size:10)).foregroundStyle(Palette.green)}
@@ -110,7 +110,7 @@ import SwiftUI
                     }
                 }
                 if let dragging {
-                    VStack(alignment:.leading,spacing:4){Text(dragging.name).font(.caption.bold());Text(uiText(dropMinute().map{"放到 \(String(format:"%02d:%02d",$0/60,$0%60))"} ?? "拖至右側時間軸")).font(.caption2)}
+                    VStack(alignment:.leading,spacing:4){Text(dragging.displayName).font(.caption.bold());Text(uiText(dropMinute().map{"放到 \(String(format:"%02d:%02d",$0/60,$0%60))"} ?? "拖至右側時間軸")).font(.caption2)}
                         .padding(10).frame(width:140).background(Palette.mint,in:RoundedRectangle(cornerRadius:12)).overlay(RoundedRectangle(cornerRadius:12).stroke(Palette.green)).position(x:pointer.x,y:pointer.y-42).allowsHitTesting(false).zIndex(20)
                 }
                 }
@@ -136,7 +136,7 @@ struct SchedulePlaceDetail:View {
             ScrollView {
                 VStack(alignment:.leading,spacing:20) {
                     Image(systemName:candidate.indoor ? "building.2.crop.circle.fill":"leaf.circle.fill").font(.system(size:54)).foregroundStyle(Palette.green)
-                    Text(candidate.name).font(.title2.bold())
+                    Text(candidate.displayName).font(.title2.bold())
                     Text(uiText(candidate.category+" · "+(candidate.importedPoi ? (candidate.indoor ? "室內（來源標記）":"室內外未確認"):(candidate.indoor ? "室內":"戶外")))).font(.subheadline).foregroundStyle(Palette.muted)
                     VStack(alignment:.leading,spacing:8) {
                         HStack {
@@ -150,7 +150,7 @@ struct SchedulePlaceDetail:View {
                             Text(uiText("• "+item)).font(.caption).foregroundStyle(Palette.muted)
                         }
                     }.padding().frame(maxWidth:.infinity,alignment:.leading).background(Palette.mint.opacity(0.65),in:RoundedRectangle(cornerRadius:14))
-                    Text(uiText(candidate.description ?? "此草案尚未附上景點介紹，可重新試算以更新資料。")).lineSpacing(6)
+                    Text(uiText(candidate.displayDescription ?? "此草案尚未附上景點介紹，可重新試算以更新資料。")).lineSpacing(6)
                     if let data=candidate.restaurantData {RestaurantPriceView(placeId:candidate.id,initial:data)}
                     if let recommendations=candidate.socialRecommendations {ForEach(Array(recommendations.enumerated()),id:\.offset){_,recommendation in VStack(alignment:.leading,spacing:6){Text(uiText(recommendation.author ?? "來源未提供作者"));Text(verbatim:recommendation.claims.quote);Text(uiText(recommendation.postedAt ?? "發文日期未提供")).font(.caption);if let url=URL(string:recommendation.sourceUrl){Link(uiText("查看原始推薦"),destination:url)}}}}
                     if let guide=candidate.guide {

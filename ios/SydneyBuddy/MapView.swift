@@ -51,10 +51,10 @@ struct GoogleRouteMap: UIViewRepresentable {
         var nearbyKey=""
         var nearbyMarkers:[GMSMarker]=[]
         func refreshNearby(_ map:GMSMapView){
-            let key=parent.nearbyPlaces.map(\.id).joined()
+            let key=AppLanguage.current.rawValue+parent.nearbyPlaces.map{ $0.id+$0.displayName }.joined()
             guard nearbyKey != key else{return};nearbyKey=key
             nearbyMarkers.forEach{$0.map=nil};nearbyMarkers=[]
-            for point in parent.nearbyPlaces{let pin=GMSMarker(position:.init(latitude:point.lat,longitude:point.lng));pin.title=point.name;pin.userData=point;pin.icon=GMSMarker.markerImage(with:.systemTeal);pin.map=map;nearbyMarkers.append(pin)}
+            for point in parent.nearbyPlaces{let pin=GMSMarker(position:.init(latitude:point.lat,longitude:point.lng));pin.title=point.displayName;pin.userData=point;pin.icon=GMSMarker.markerImage(with:.systemTeal);pin.map=map;nearbyMarkers.append(pin)}
         }
         var markers:[GMSMarker]=[]
         var walkingLines:[GMSPolyline]=[]
@@ -69,7 +69,7 @@ struct GoogleRouteMap: UIViewRepresentable {
         func mapView(_ mapView:GMSMapView,didTap marker:GMSMarker)->Bool {
             if let point=marker.userData as? ScheduleCandidate{parent.onPoiSelect(point);return true}
             if let name=marker.title {
-                let matches=parent.day?.stops.filter{name.contains($0.name)} ?? []
+                let matches=parent.day?.stops.filter{name.contains(uiText($0.name))} ?? []
                 if let stop=matches.first(where:{$0.id==parent.selectedStopID}) ?? matches.first{parent.onSelect(stop.id)}
             }
             return false
@@ -102,7 +102,7 @@ struct GoogleRouteMap: UIViewRepresentable {
         context.coordinator.lastBottomInset=bottomInset
         if context.coordinator.lastSelection != selectedStopID {
             context.coordinator.lastSelection=selectedStopID
-            if let stop=day?.stops.first(where:{$0.id==selectedStopID}),let marker=context.coordinator.markers.first(where:{$0.title?.contains(stop.name)==true}){map.selectedMarker=marker;map.animate(toLocation:stop.coordinate)}
+            if let stop=day?.stops.first(where:{$0.id==selectedStopID}),let marker=context.coordinator.markers.first(where:{$0.title?.contains(uiText(stop.name))==true}){map.selectedMarker=marker;map.animate(toLocation:stop.coordinate)}
         }
         let key=mapSceneKey(day)+"|"+AppLanguage.current.rawValue+"|"+String(overview?.coordinates.count ?? 0)+"|"+String(Int(bottomInset))+insightMarkers.map{$0.id+$0.title}.joined()
         guard context.coordinator.sceneKey != key else {context.coordinator.refreshNearby(map);return}
@@ -313,7 +313,7 @@ struct NativeRouteMap:UIViewRepresentable {
         context.coordinator.lastBottomInset=bottomInset
         if context.coordinator.lastSelection != selectedStopID {
             context.coordinator.lastSelection=selectedStopID
-            if let stop=day?.stops.first(where:{$0.id==selectedStopID}),let pin=map.annotations.first(where:{($0.title ?? nil)?.contains(stop.name)==true}){
+            if let stop=day?.stops.first(where:{$0.id==selectedStopID}),let pin=map.annotations.first(where:{($0.title ?? nil)?.contains(uiText(stop.name))==true}){
                 map.selectAnnotation(pin,animated:true)
                 let rect=map.visibleMapRect,p=MKMapPoint(stop.coordinate)
                 let visibleCenter=(130+max(130,map.bounds.height-bottomInset))/2
@@ -377,7 +377,7 @@ struct NativeRouteMap:UIViewRepresentable {
         var lastBottomInset:CGFloat?
         var nearbyKey=""
         func refreshNearby(_ map:MKMapView){
-            let key=parent.nearbyPlaces.map(\.id).joined()
+            let key=AppLanguage.current.rawValue+parent.nearbyPlaces.map{ $0.id+$0.displayName }.joined()
             guard nearbyKey != key else{return};nearbyKey=key
             map.removeAnnotations(map.annotations.filter{$0 is PoiPin})
             map.addAnnotations(parent.nearbyPlaces.map(PoiPin.init))
@@ -385,7 +385,7 @@ struct NativeRouteMap:UIViewRepresentable {
         func mapView(_ mapView:MKMapView,didSelect view:MKAnnotationView){
             if let pin=view.annotation as? PoiPin{parent.onPoiSelect(pin.point);return}
             guard let pin=view.annotation as? ItineraryPin,!pin.direction,let title=pin.title else{return}
-            let matches=parent.day?.stops.filter{title.contains($0.name)} ?? []
+            let matches=parent.day?.stops.filter{title.contains(uiText($0.name))} ?? []
             guard let stop=matches.first(where:{$0.id==parent.selectedStopID}) ?? matches.first else{return}
             view.transform=CGAffineTransform(scaleX:1.15,y:1.15);parent.onSelect(stop.id)
         }
@@ -516,7 +516,7 @@ struct SchematicMap: View {
                 Image(systemName:"sailboat.fill").font(.system(size:36)).foregroundStyle(.white).position(x:geo.size.width*0.80,y:geo.size.height*0.30)
                 if let stops=day?.stops {
                     ForEach(Array(stops.enumerated()),id:\.element.id) { i,stop in
-                        VStack(spacing:4) { Text(uiText("\(i+1)")).font(.headline.bold()).foregroundStyle(.white).frame(width:34,height:34).background(Palette.green,in:Circle()).overlay(Circle().stroke(.white,lineWidth:3)); Text(stop.name).font(.system(size:10,weight:.bold)).padding(6).background(.white,in:Capsule()) }.position(point(stop,geo.size)).onTapGesture{store.selectedStopID=stop.id}.scaleEffect(store.selectedStopID==stop.id ? 1.1:1)
+                        VStack(spacing:4) { Text(uiText("\(i+1)")).font(.headline.bold()).foregroundStyle(.white).frame(width:34,height:34).background(Palette.green,in:Circle()).overlay(Circle().stroke(.white,lineWidth:3)); Text(uiText(stop.name)).font(.system(size:10,weight:.bold)).padding(6).background(.white,in:Capsule()) }.position(point(stop,geo.size)).onTapGesture{store.selectedStopID=stop.id}.scaleEffect(store.selectedStopID==stop.id ? 1.1:1)
                     }
                 } else { VStack(spacing:15) { Robot(size:110); Text(uiText("你的悉尼小冒险\n从这里开始")).font(.title2.bold()).multilineTextAlignment(.center).foregroundStyle(Palette.ink) }.offset(y:-40) }
             }
@@ -684,7 +684,7 @@ struct TravelInsightsSheet:View {
                 ForEach(report.traffic.items){item in VStack(alignment:.leading){Text(uiText("⚠️ "+item.title)).bold();Text(uiText(item.summary));Text(uiText(item.source)).font(.caption)}.padding().frame(maxWidth:.infinity,alignment:.leading).background(Color.orange.opacity(0.12),in:RoundedRectangle(cornerRadius:12))}
                 if let fees=report.pricePlaces,!fees.isEmpty {Text(uiText("附近參考收費")).font(.headline);ForEach(fees){place in VStack(alignment:.leading){Text(uiText(place.title)).bold();Text(uiText(place.summary));Text(uiText(place.source)).font(.caption)}.padding().frame(maxWidth:.infinity,alignment:.leading).background(Palette.mint,in:RoundedRectangle(cornerRadius:12))}}
                 ForEach(Array(report.places.enumerated()),id:\.offset){_,place in VStack(alignment:.leading,spacing:6){
-                    Text(place.name).font(.headline)
+                    Text(uiText(place.name)).font(.headline)
                     Text(uiText(place.crowd.summary)).foregroundStyle(.secondary)
                     Text(uiText(place.price.summary))
                     if let range=place.price.range {Text(uiText((range.startPrice?.label ?? "")+" – "+(range.endPrice?.label ?? "無上限")))}

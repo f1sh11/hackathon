@@ -441,12 +441,12 @@
   },
   "Apple Maps 地點搜尋": {
     "en": "Apple Maps place search",
-    "zh-Hans": "Apple Maps 地点搜索",
+    "zh-Hans": "Apple Maps 地點搜尋",
     "zh-Hant": "Apple Maps 地點搜尋"
   },
   "Apple Maps 地點；費用、排隊與營業時間未知。設施用途及開放情況請另行確認。": {
-    "en": "Apple Maps place; costs, queue and opening hours unknown. Please confirm facility usage and availability separately.",
-    "zh-Hans": "Apple Maps 地点；费用、排队与营业时间未知。设施用途及开放情况请另行确认。",
+    "en": "Apple Maps place. Costs, queues and opening hours are unknown. Check facility access and current availability separately.",
+    "zh-Hans": "Apple Maps 地點；費用、排隊與營業時間未知。設施用途及開放情況請另行確認。",
     "zh-Hant": "Apple Maps 地點；費用、排隊與營業時間未知。設施用途及開放情況請另行確認。"
   },
   "Apple Maps 未提供独立饮水点分类；请切换开源资料搜寻。": {
@@ -465,8 +465,8 @@
     "zh-Hant": "Apple Maps 未提供獨立飲水點分類；請切換開源資料搜尋。"
   },
   "Apple Maps 未提供詳細介紹。": {
-    "en": "Apple Maps no detailed info available.",
-    "zh-Hans": "Apple Maps 未提供详细介绍。",
+    "en": "Apple Maps does not provide a detailed description.",
+    "zh-Hans": "Apple Maps 未提供詳細介紹。",
     "zh-Hant": "Apple Maps 未提供詳細介紹。"
   },
   "Apple Maps 未提供详细介绍。": {
@@ -17783,5 +17783,970 @@
     "en": "Filter",
     "zh-Hans": "筛选",
     "zh-Hant": "篩選"
+  },
+  "悉尼歌剧院": {
+    "en": "Sydney Opera House",
+    "zh-Hans": "悉尼歌剧院",
+    "zh-Hant": "悉尼歌劇院"
+  },
+  "雪梨港邊的代表性建築，可以沿海濱步道欣賞歌劇院的帆形外觀與港灣景色。適合拍照、散步，亦可另外安排需預約的室內導覽或表演。": {
+    "en": "A harbour landmark with sail-shaped architecture and waterfront walks. Enjoy the exterior and harbour views, or book an indoor tour or performance separately.",
+    "zh-Hans": "雪梨港边的代表性建筑，可以沿海滨步道欣赏歌剧院的帆形外观与港湾景色。适合拍照、散步，亦可另外安排需预约的室内导览或表演。",
+    "zh-Hant": "雪梨港邊的代表性建築，可以沿海濱步道欣賞歌劇院的帆形外觀與港灣景色。適合拍照、散步，亦可另外安排需預約的室內導覽或表演。"
+  },
+  "岩石区": {
+    "en": "The Rocks",
+    "zh-Hans": "岩石区",
+    "zh-Hant": "岩石區"
+  },
+  "以歷史街道與砂岩建築為特色的港邊街區，可散步探索巷弄、商店與餐飲。適合把街區遊覽和用餐分開安排，保留自由探索的時間。": {
+    "en": "A historic harbour neighbourhood with sandstone buildings, lanes, shops and restaurants. Allow time to explore the streets and plan meals separately.",
+    "zh-Hans": "以历史街道与砂岩建筑为特色的港边街区，可散步探索巷弄、商店与餐饮。适合把街区游览和用餐分开安排，保留自由探索的时间。",
+    "zh-Hant": "以歷史街道與砂岩建築為特色的港邊街區，可散步探索巷弄、商店與餐飲。適合把街區遊覽和用餐分開安排，保留自由探索的時間。"
+  },
+  "皇家植物园": {
+    "en": "Royal Botanic Garden Sydney",
+    "zh-Hans": "皇家植物园",
+    "zh-Hant": "皇家植物園"
+  },
+  "鄰近雪梨港的綠地與植物園，適合沿步道觀察植物、散步和欣賞港灣景色。戶外步行較多，排程時可搭配休息並留意天氣。": {
+    "en": "Harbourside gardens with walking paths, plants and harbour views. Allow for outdoor walking, rest breaks and changing weather.",
+    "zh-Hans": "邻近雪梨港的绿地与植物园，适合沿步道观察植物、散步和欣赏港湾景色。户外步行较多，排程时可搭配休息并留意天气。",
+    "zh-Hant": "鄰近雪梨港的綠地與植物園，適合沿步道觀察植物、散步和欣賞港灣景色。戶外步行較多，排程時可搭配休息並留意天氣。"
+  },
+  "澳大利亚当代艺术博物馆": {
+    "en": "Museum of Contemporary Art Australia",
+    "zh-Hans": "澳大利亚当代艺术博物馆",
+    "zh-Hant": "澳大利亞當代藝術博物館"
+  },
+  "位於環形碼頭一帶的當代藝術博物館，適合喜歡視覺藝術與展覽的旅客。可依展覽內容調整停留時間，入館與特別展資訊需另行確認。": {
+    "en": "A contemporary art museum near Circular Quay. Adjust your visit to the exhibitions that interest you and check admission and special exhibition details.",
+    "zh-Hans": "位于环形码头一带的当代艺术博物馆，适合喜欢视觉艺术与展览的旅客。可依展览内容调整停留时间，入馆与特别展资讯需另行确认。",
+    "zh-Hant": "位於環形碼頭一帶的當代藝術博物館，適合喜歡視覺藝術與展覽的旅客。可依展覽內容調整停留時間，入館與特別展資訊需另行確認。"
+  },
+  "维多利亚女王大厦": {
+    "en": "Queen Victoria Building",
+    "zh-Hans": "维多利亚女王大厦",
+    "zh-Hant": "維多利亞女王大廈"
+  },
+  "以歷史建築與購物空間為特色的市中心地標，可欣賞建築細節、逛街或安排咖啡休息。室內活動較多，購物與餐飲費用需另外預留。": {
+    "en": "A historic city landmark with architectural details, shops and cafés. Shopping and dining costs are additional.",
+    "zh-Hans": "以历史建筑与购物空间为特色的市中心地标，可欣赏建筑细节、逛街或安排咖啡休息。室内活动较多，购物与餐饮费用需另外预留。",
+    "zh-Hant": "以歷史建築與購物空間為特色的市中心地標，可欣賞建築細節、逛街或安排咖啡休息。室內活動較多，購物與餐飲費用需另外預留。"
+  },
+  "新南威尔士州美术馆": {
+    "en": "Art Gallery of New South Wales",
+    "zh-Hans": "新南威尔士州美术馆",
+    "zh-Hant": "新南威爾士州美術館"
+  },
+  "可欣賞藝術收藏與展覽的文化景點，適合以室內參觀為主的行程。不同展區與特別展需要的時間不同，可依興趣調整停留長度。": {
+    "en": "Art collections and exhibitions suited to an indoor cultural visit. Allow time according to your interests and the exhibitions you choose.",
+    "zh-Hans": "可欣赏艺术收藏与展览的文化景点，适合以室内参观为主的行程。不同展区与特别展需要的时间不同，可依兴趣调整停留长度。",
+    "zh-Hant": "可欣賞藝術收藏與展覽的文化景點，適合以室內參觀為主的行程。不同展區與特別展需要的時間不同，可依興趣調整停留長度。"
+  },
+  "澳大利亚博物馆": {
+    "en": "Australian Museum",
+    "zh-Hans": "澳大利亚博物馆",
+    "zh-Hant": "澳大利亞博物館"
+  },
+  "以自然歷史與文化展示為特色的博物館，適合喜歡探索自然與知識的旅客。可選擇感興趣的展區參觀，特別展與當日開放資訊需確認。": {
+    "en": "A museum of natural history and culture. Explore the galleries that interest you and check special exhibitions and current opening information.",
+    "zh-Hans": "以自然历史与文化展示为特色的博物馆，适合喜欢探索自然与知识的旅客。可选择感兴趣的展区参观，特别展与当日开放资讯需确认。",
+    "zh-Hant": "以自然歷史與文化展示為特色的博物館，適合喜歡探索自然與知識的旅客。可選擇感興趣的展區參觀，特別展與當日開放資訊需確認。"
+  },
+  "达令港": {
+    "en": "Darling Harbour",
+    "zh-Hans": "达令港",
+    "zh-Hant": "達令港"
+  },
+  "結合水岸步道、公共空間與餐飲的港灣區域，適合散步、拍照或作為用餐前後的彈性安排。收費設施與活動需另外規劃時間與預算。": {
+    "en": "A waterfront area with promenades, public spaces and restaurants. Allow separate time and budget for paid attractions and activities.",
+    "zh-Hans": "结合水岸步道、公共空间与餐饮的港湾区域，适合散步、拍照或作为用餐前后的弹性安排。收费设施与活动需另外规划时间与预算。",
+    "zh-Hant": "結合水岸步道、公共空間與餐飲的港灣區域，適合散步、拍照或作為用餐前後的彈性安排。收費設施與活動需另外規劃時間與預算。"
+  },
+  "Pancakes on the Rocks · 岩石区": {
+    "en": "Pancakes on the Rocks · The Rocks",
+    "zh-Hans": "Pancakes on the Rocks · 岩石区",
+    "zh-Hant": "Pancakes on the Rocks · 岩石區"
+  },
+  "具体用餐地点，可与附近活动组合。美式餐点与松饼。": {
+    "en": "American-style meals and pancakes; a dining stop that can be combined with nearby activities.",
+    "zh-Hans": "具体用餐地点，可与附近活动组合。美式餐点与松饼。",
+    "zh-Hant": "具體用餐地點，可與附近活動組合。美式餐點與松餅。"
+  },
+  "具体用餐地点，可与附近活动组合。咖啡与午餐。": {
+    "en": "Coffee and lunch; a dining stop that can be combined with nearby activities.",
+    "zh-Hans": "具体用餐地点，可与附近活动组合。咖啡与午餐。",
+    "zh-Hant": "具體用餐地點，可與附近活動組合。咖啡與午餐。"
+  },
+  "具体用餐地点，可与附近活动组合。泰式午餐。": {
+    "en": "Thai lunch; a dining stop that can be combined with nearby activities.",
+    "zh-Hans": "具体用餐地点，可与附近活动组合。泰式午餐。",
+    "zh-Hant": "具體用餐地點，可與附近活動組合。泰式午餐。"
+  },
+  "具体用餐地点，可与附近活动组合。日式拉面。": {
+    "en": "Japanese ramen; a dining stop that can be combined with nearby activities.",
+    "zh-Hans": "具体用餐地点，可与附近活动组合。日式拉面。",
+    "zh-Hant": "具體用餐地點，可與附近活動組合。日式拉麵。"
+  },
+  "具体用餐地点，可与附近活动组合。咖啡馆餐点。": {
+    "en": "Café meals; a dining stop that can be combined with nearby activities.",
+    "zh-Hans": "具体用餐地点，可与附近活动组合。咖啡馆餐点。",
+    "zh-Hant": "具體用餐地點，可與附近活動組合。咖啡館餐點。"
+  },
+  "具体用餐地点，可与附近活动组合。泰式及老挝菜。": {
+    "en": "Thai and Lao dishes; a dining stop that can be combined with nearby activities.",
+    "zh-Hans": "具体用餐地点，可与附近活动组合。泰式及老挝菜。",
+    "zh-Hant": "具體用餐地點，可與附近活動組合。泰式及老撾菜。"
+  },
+  "三姐妹峰与回声谷": {
+    "en": "Three Sisters and Echo Point",
+    "zh-Hans": "三姐妹峰与回声谷",
+    "zh-Hant": "三姐妹峰與回聲谷"
+  },
+  "藍山國家公園最具代表性的砂岩地標，俯瞰壯闊的賈米森峽谷（Jamison Valley）。設有平緩的無障礙觀景步道與遊客服務中心。": {
+    "en": "A Blue Mountains sandstone landmark overlooking Jamison Valley, with accessible viewing paths and a visitor centre.",
+    "zh-Hans": "蓝山国家公园最具代表性的砂岩地标，俯瞰壮阔的贾米森峡谷（Jamison Valley）。设有平缓的无障碍观景步道与游客服务中心。",
+    "zh-Hant": "藍山國家公園最具代表性的砂岩地標，俯瞰壯闊的賈米森峽谷（Jamison Valley）。設有平緩的無障礙觀景步道與遊客服務中心。"
+  },
+  "蓝山景观世界": {
+    "en": "Scenic World",
+    "zh-Hans": "蓝山景观世界",
+    "zh-Hant": "藍山景觀世界"
+  },
+  "藍山經典體驗園區，擁有全球最陡的客運鐵路與跨越峽谷的透明底高空纜車，可深入古老溫帶雨林高架棧道。": {
+    "en": "A Blue Mountains attraction with a steep passenger railway, a glass-floor cable car above the valley and elevated rainforest boardwalks.",
+    "zh-Hans": "蓝山经典体验园区，拥有全球最陡的客运铁路与跨越峡谷的透明底高空缆车，可深入古老温带雨林高架栈道。",
+    "zh-Hant": "藍山經典體驗園區，擁有全球最陡的客運鐵路與跨越峽谷的透明底高空纜車，可深入古老溫帶雨林高架棧道。"
+  },
+  "温特沃斯瀑布": {
+    "en": "Wentworth Falls",
+    "zh-Hans": "温特沃斯瀑布",
+    "zh-Hant": "溫特沃斯瀑布"
+  },
+  "三階層疊式壯觀瀑布，步道沿懸崖鑿出，可遠眺無垠的尤加利樹海與賈米森峽谷。": {
+    "en": "A three-tiered waterfall with cliffside paths and views across eucalyptus forests and Jamison Valley.",
+    "zh-Hans": "三阶层叠式壮观瀑布，步道沿悬崖凿出，可远眺无垠的尤加利树海与贾米森峡谷。",
+    "zh-Hant": "三階層疊式壯觀瀑布，步道沿懸崖鑿出，可遠眺無垠的尤加利樹海與賈米森峽谷。"
+  },
+  "萝拉花园小镇": {
+    "en": "Leura Village",
+    "zh-Hans": "萝拉花园小镇",
+    "zh-Hant": "蘿拉花園小鎮"
+  },
+  "充滿英倫鄉村風情的藍山小鎮，主街林蔭兩旁匯聚特色咖啡館、手作烘焙與四季花園景致。": {
+    "en": "A Blue Mountains village with tree-lined streets, cafés, bakeries and seasonal gardens.",
+    "zh-Hans": "充满英伦乡村风情的蓝山小镇，主街林荫两旁汇聚特色咖啡馆、手作烘焙与四季花园景致。",
+    "zh-Hant": "充滿英倫鄉村風情的藍山小鎮，主街林蔭兩旁匯聚特色咖啡館、手作烘焙與四季花園景致。"
+  },
+  "珍罗兰钟乳石洞": {
+    "en": "Jenolan Caves",
+    "zh-Hans": "珍罗兰钟乳石洞",
+    "zh-Hant": "珍羅蘭鐘乳石洞"
+  },
+  "澳洲知名的喀斯特地下溶洞奇觀，石筍、石柱與地下清泉在幽美燈光下宛如仙境。": {
+    "en": "A limestone cave system with stalagmites, columns and underground pools illuminated along the visitor routes.",
+    "zh-Hans": "澳洲知名的喀斯特地下溶洞奇观，石笋、石柱与地下清泉在幽美灯光下宛如仙境。",
+    "zh-Hant": "澳洲知名的喀斯特地下溶洞奇觀，石筍、石柱與地下清泉在幽美燈光下宛如仙境。"
+  },
+  "具體用餐地點，可與藍山行程搭配。景觀與現代澳洲料理。": {
+    "en": "A dining stop for a Blue Mountains itinerary, featuring views and modern Australian cuisine.",
+    "zh-Hans": "具体用餐地点，可与蓝山行程搭配。景观与现代澳洲料理。",
+    "zh-Hant": "具體用餐地點，可與藍山行程搭配。景觀與現代澳洲料理。"
+  },
+  "猎人谷花园": {
+    "en": "Hunter Valley Gardens",
+    "zh-Hans": "猎人谷花园",
+    "zh-Hant": "獵人谷花園"
+  },
+  "南半球最具規模的景觀花園之一，步道平緩適合各年齡層散步拍照與四季賞花。": {
+    "en": "Landscaped gardens with gentle walking paths, seasonal flowers and opportunities for photography.",
+    "zh-Hans": "南半球最具规模的景观花园之一，步道平缓适合各年龄层散步拍照与四季赏花。",
+    "zh-Hant": "南半球最具規模的景觀花園之一，步道平緩適合各年齡層散步拍照與四季賞花。"
+  },
+  "泰瑞尔百年酒庄": {
+    "en": "Tyrrell’s Wines",
+    "zh-Hans": "泰瑞尔百年酒庄",
+    "zh-Hant": "泰瑞爾百年酒莊"
+  },
+  "歷史悠久的家族葡萄酒莊，提供導覽與酒窖品酩，可近距離感受獵人谷釀酒傳統。": {
+    "en": "A historic family winery offering tours and cellar-door tastings that introduce Hunter Valley winemaking traditions.",
+    "zh-Hans": "历史悠久的家族葡萄酒庄，提供导览与酒窖品酩，可近距离感受猎人谷酿酒传统。",
+    "zh-Hant": "歷史悠久的家族葡萄酒莊，提供導覽與酒窖品酩，可近距離感受獵人谷釀酒傳統。"
+  },
+  "具體用餐地點，獵人谷頂級酒莊美饌代表。精緻現代料理與美酒搭配。": {
+    "en": "A Hunter Valley dining stop featuring refined modern cuisine and wine pairings.",
+    "zh-Hans": "具体用餐地点，猎人谷顶级酒庄美馔代表。精致现代料理与美酒搭配。",
+    "zh-Hant": "具體用餐地點，獵人谷頂級酒莊美饌代表。精緻現代料理與美酒搭配。"
+  },
+  "诺比斯灯塔与海滩": {
+    "en": "Nobbys Lighthouse and Beach",
+    "zh-Hans": "诺比斯灯塔与海滩",
+    "zh-Hant": "諾比斯燈塔與海灘"
+  },
+  "建於1857年的歷史燈塔，是觀看海浪、衝浪者與往來貨輪的絕佳制高點，常有海豚出沒。": {
+    "en": "A historic lighthouse built in 1857, with views of the surf, passing ships and surrounding coast.",
+    "zh-Hans": "建于1857年的历史灯塔，是观看海浪、冲浪者与往来货轮的绝佳制高点，常有海豚出没。",
+    "zh-Hant": "建於1857年的歷史燈塔，是觀看海浪、衝浪者與往來貨輪的絕佳制高點，常有海豚出沒。"
+  },
+  "纽卡斯尔海洋浴场": {
+    "en": "Newcastle Ocean Baths",
+    "zh-Hans": "纽卡斯尔海洋浴场",
+    "zh-Hant": "紐卡斯爾海洋浴場"
+  },
+  "結合歷史裝飾藝術立面與天然海水的公共泳池，是享受海風與在地生活氣息的放鬆場所。": {
+    "en": "Public ocean pools with a historic Art Deco frontage, sea breezes and a relaxed local atmosphere.",
+    "zh-Hans": "结合历史装饰艺术立面与天然海水的公共泳池，是享受海风与在地生活气息的放松场所。",
+    "zh-Hant": "結合歷史裝飾藝術立面與天然海水的公共泳池，是享受海風與在地生活氣息的放鬆場所。"
+  },
+  "蓝色海洋路海崖大桥": {
+    "en": "Sea Cliff Bridge",
+    "zh-Hans": "蓝色海洋路海崖大桥",
+    "zh-Hant": "藍色海洋路海崖大橋"
+  },
+  "雪梨往南最震撼的自駕路線亮點，大橋如巨龍盤踞於太平洋波濤與陡峭海崖之間。": {
+    "en": "A coastal drive highlight south of Sydney, where the bridge curves between the Pacific Ocean and steep cliffs.",
+    "zh-Hans": "雪梨往南最震撼的自驾路线亮点，大桥如巨龙盘踞于太平洋波涛与陡峭海崖之间。",
+    "zh-Hant": "雪梨往南最震撼的自駕路線亮點，大橋如巨龍盤踞於太平洋波濤與陡峭海崖之間。"
+  },
+  "卧龙岗海港灯塔": {
+    "en": "Wollongong Harbour Lighthouse",
+    "zh-Hans": "卧龙岗海港灯塔",
+    "zh-Hant": "臥龍崗海港燈塔"
+  },
+  "臥龍崗核心海岸地標，俯瞰太平洋海灣與金色沙灘，傍晚日落與海風宜人。": {
+    "en": "A coastal landmark overlooking Wollongong’s harbour, ocean and sandy beaches.",
+    "zh-Hans": "卧龙岗核心海岸地标，俯瞰太平洋海湾与金色沙滩，傍晚日落与海风宜人。",
+    "zh-Hant": "臥龍崗核心海岸地標，俯瞰太平洋海灣與金色沙灘，傍晚日落與海風宜人。"
+  },
+  "凯阿玛天然喷水洞": {
+    "en": "Kiama Blowhole",
+    "zh-Hans": "凯阿玛天然喷水洞",
+    "zh-Hant": "凱阿瑪天然噴水洞"
+  },
+  "世界上最大天然噴水洞之一，海水被擠壓注入岩縫噴薄而出，是南海岸必訪自然奇觀。": {
+    "en": "A natural coastal blowhole where waves force seawater through openings in the rock.",
+    "zh-Hans": "世界上最大天然喷水洞之一，海水被挤压注入岩缝喷薄而出，是南海岸必访自然奇观。",
+    "zh-Hant": "世界上最大天然噴水洞之一，海水被擠壓注入岩縫噴薄而出，是南海岸必訪自然奇觀。"
+  },
+  "具體用餐地點，新鮮南海岸漁港直送水產與炸魚薯條。": {
+    "en": "A South Coast dining stop serving seafood and fish and chips.",
+    "zh-Hans": "具体用餐地点，新鲜南海岸渔港直送水产与炸鱼薯条。",
+    "zh-Hant": "具體用餐地點，新鮮南海岸漁港直送水產與炸魚薯條。"
+  },
+  "杰维斯湾海厄姆白沙滩": {
+    "en": "Hyams Beach · Jervis Bay",
+    "zh-Hans": "杰维斯湾海厄姆白沙滩",
+    "zh-Hant": "傑維斯灣海厄姆白沙灘"
+  },
+  "細白如糖的純白石英砂與綠松石色海面相映，是澳洲東岸最負盛名的度假天堂海灘。": {
+    "en": "A Jervis Bay beach known for fine white quartz sand and turquoise water.",
+    "zh-Hans": "细白如糖的纯白石英砂与绿松石色海面相映，是澳洲东岸最负盛名的度假天堂海滩。",
+    "zh-Hant": "細白如糖的純白石英砂與綠松石色海面相映，是澳洲東岸最負盛名的度假天堂海灘。"
+  },
+  "布德利国家公园与植物园": {
+    "en": "Booderee National Park and Botanic Gardens",
+    "zh-Hans": "布德利国家公园与植物园",
+    "zh-Hant": "布德利國家公園與植物園"
+  },
+  "保存完好的原始海灣、森林與野生袋鼠棲息地，兼具豐富原住民傳統文化與幽靜海岸。": {
+    "en": "Coastal bays, forests and wildlife habitats with Aboriginal cultural heritage.",
+    "zh-Hans": "保存完好的原始海湾、森林与野生袋鼠栖息地，兼具丰富原住民传统文化与幽静海岸。",
+    "zh-Hant": "保存完好的原始海灣、森林與野生袋鼠棲息地，兼具豐富原住民傳統文化與幽靜海岸。"
+  },
+  "拜伦角灯塔（澳洲大陆极东点）": {
+    "en": "Cape Byron Lighthouse",
+    "zh-Hans": "拜伦角灯塔（澳洲大陆极东点）",
+    "zh-Hant": "拜倫角燈塔（澳洲大陸極東點）"
+  },
+  "佇立於陡峭崖頂的白色經典燈塔，俯瞰360度浩瀚太平洋，常年可見海豚海龜在清透海面跳躍。": {
+    "en": "A white lighthouse on the cliffs of Cape Byron, overlooking the Pacific Ocean near the easternmost point of mainland Australia.",
+    "zh-Hans": "伫立于陡峭崖顶的白色经典灯塔，俯瞰360度浩瀚太平洋，常年可见海豚海龟在清透海面跳跃。",
+    "zh-Hant": "佇立於陡峭崖頂的白色經典燈塔，俯瞰360度浩瀚太平洋，常年可見海豚海龜在清透海面跳躍。"
+  },
+  "沃特戈斯海滩": {
+    "en": "Wategos Beach",
+    "zh-Hans": "沃特戈斯海滩",
+    "zh-Hant": "沃特戈斯海灘"
+  },
+  "依偎在拜倫岬腳下的靜謐海灘，沙質細軟，是拜倫灣最舒適悠閒的戲水放鬆之處。": {
+    "en": "A sheltered beach beneath Cape Byron, with soft sand and a relaxed seaside atmosphere.",
+    "zh-Hans": "依偎在拜伦岬脚下的静谧海滩，沙质细软，是拜伦湾最舒适悠闲的戏水放松之处。",
+    "zh-Hant": "依偎在拜倫岬腳下的靜謐海灘，沙質細軟，是拜倫灣最舒適悠閒的戲水放鬆之處。"
+  },
+  "具體用餐地點，結合在地農場放養食材與炭火燒烤風味，拜倫灣代表性美食體驗。": {
+    "en": "A Byron Bay dining stop featuring local farm produce and wood-fired cooking.",
+    "zh-Hans": "具体用餐地点，结合在地农场放养食材与炭火烧烤风味，拜伦湾代表性美食体验。",
+    "zh-Hant": "具體用餐地點，結合在地農場放養食材與炭火燒烤風味，拜倫灣代表性美食體驗。"
+  },
+  "科夫斯港大香蕉主题乐园": {
+    "en": "The Big Banana Fun Park · Coffs Harbour",
+    "zh-Hans": "科夫斯港大香蕉主题乐园",
+    "zh-Hant": "科夫斯港大香蕉主題樂園"
+  },
+  "澳洲‘大物’（Big Things）文化代表，老少咸宜的北海岸熱門歡樂休憩景點。": {
+    "en": "A North Coast family attraction associated with Australia’s Big Things landmarks.",
+    "zh-Hans": "澳洲‘大物’（Big Things）文化代表，老少咸宜的北海岸热门欢乐休憩景点。",
+    "zh-Hant": "澳洲‘大物’（Big Things）文化代表，老少咸宜的北海岸熱門歡樂休憩景點。"
+  },
+  "麦觉理港无尾熊医院": {
+    "en": "Port Macquarie Koala Hospital",
+    "zh-Hans": "麦觉理港无尾熊医院",
+    "zh-Hant": "麥覺理港無尾熊醫院"
+  },
+  "近距離觀察受傷與康復中野生考拉的溫馨院所，深入了解澳洲獨特有袋動物保護現況。": {
+    "en": "A wildlife care centre focused on injured and recovering koalas and the conservation of Australian marsupials.",
+    "zh-Hans": "近距离观察受伤与康复中野生考拉的温馨院所，深入了解澳洲独特有袋动物保护现况。",
+    "zh-Hant": "近距離觀察受傷與康復中野生考拉的溫馨院所，深入瞭解澳洲獨特有袋動物保護現況。"
+  },
+  "入口海滩与塘鹅生态水岸": {
+    "en": "The Entrance Waterfront",
+    "zh-Hans": "入口海滩与塘鹅生态水岸",
+    "zh-Hant": "入口海灘與塘鵝生態水岸"
+  },
+  "中央海岸家庭度假勝地，沿湖濱步道散步、欣賞自然水鳥生態與海口波光。": {
+    "en": "A Central Coast waterfront with lakeside walks, waterbirds and views across the lake entrance.",
+    "zh-Hans": "中央海岸家庭度假胜地，沿湖滨步道散步、欣赏自然水鸟生态与海口波光。",
+    "zh-Hant": "中央海岸家庭度假勝地，沿湖濱步道散步、欣賞自然水鳥生態與海口波光。"
+  },
+  "鲍迪国家公园海岸步道": {
+    "en": "Bouddi National Park Coastal Walk",
+    "zh-Hans": "鲍迪国家公园海岸步道",
+    "zh-Hant": "鮑迪國家公園海岸步道"
+  },
+  "雪梨北側最美海岸徒步路線之一，木質棧道穿梭於紅砂岩海崖、雨林與無人幽靜海灘。": {
+    "en": "A coastal walking route north of Sydney with boardwalks, sandstone cliffs, forest and secluded beaches.",
+    "zh-Hans": "雪梨北侧最美海岸徒步路线之一，木质栈道穿梭于红砂岩海崖、雨林与无人幽静海滩。",
+    "zh-Hant": "雪梨北側最美海岸徒步路線之一，木質棧道穿梭於紅砂岩海崖、雨林與無人幽靜海灘。"
+  },
+  "澳洲爬行动物公园": {
+    "en": "Australian Reptile Park",
+    "zh-Hans": "澳洲爬行动物公园",
+    "zh-Hant": "澳洲爬行動物公園"
+  },
+  "結合野生動物互動與抗蛇毒血清科研的頂級生態公園，深受家庭與自然愛好者喜愛。": {
+    "en": "A wildlife park with animal encounters and a role in snake antivenom research.",
+    "zh-Hans": "结合野生动物互动与抗蛇毒血清科研的顶级生态公园，深受家庭与自然爱好者喜爱。",
+    "zh-Hant": "結合野生動物互動與抗蛇毒血清科研的頂級生態公園，深受家庭與自然愛好者喜愛。"
+  },
+  "菲茨罗伊瀑布": {
+    "en": "Fitzroy Falls",
+    "zh-Hans": "菲茨罗伊瀑布",
+    "zh-Hant": "菲茨羅伊瀑布"
+  },
+  "南部高地最宏偉的瀑布景觀，周圍尤加利樹林常可聽見琴鳥與各類澳洲原生鳥鳴。": {
+    "en": "A Southern Highlands waterfall surrounded by eucalyptus forest and native birdlife.",
+    "zh-Hans": "南部高地最宏伟的瀑布景观，周围尤加利树林常可听见琴鸟与各类澳洲原生鸟鸣。",
+    "zh-Hant": "南部高地最宏偉的瀑佈景觀，周圍尤加利樹林常可聽見琴鳥與各類澳洲原生鳥鳴。"
+  },
+  "鲍罗尔科比特花园": {
+    "en": "Corbett Gardens · Bowral",
+    "zh-Hans": "鲍罗尔科比特花园",
+    "zh-Hant": "鮑羅爾科比特花園"
+  },
+  "南部高地優雅古典的城市花園，鬱金香與歐式造景相得益彰，散步其間怡然自得。": {
+    "en": "A Southern Highlands town garden known for tulips and landscaped flower beds.",
+    "zh-Hans": "南部高地优雅古典的城市花园，郁金香与欧式造景相得益彰，散步其间怡然自得。",
+    "zh-Hant": "南部高地優雅古典的城市花園，鬱金香與歐式造景相得益彰，散步其間怡然自得。"
+  },
+  "具體用餐地點，南部高地標誌性網紅咖啡館，餐點精緻且咖啡香濃郁。": {
+    "en": "A Southern Highlands café offering meals and coffee in Bowral.",
+    "zh-Hans": "具体用餐地点，南部高地标志性网红咖啡馆，餐点精致且咖啡香浓郁。",
+    "zh-Hant": "具體用餐地點，南部高地標誌性網紅咖啡館，餐點精緻且咖啡香濃郁。"
+  },
+  "科修斯科山峰（澳洲最高峰）": {
+    "en": "Mount Kosciuszko",
+    "zh-Hans": "科修斯科山峰（澳洲最高峰）",
+    "zh-Hant": "科修斯科山峰（澳洲最高峰）"
+  },
+  "站在澳洲大陸之巔，環視大分水嶺連綿群山與冰川地貌，成就感與自然視野無與倫比。": {
+    "en": "Mainland Australia’s highest peak, with views across the Great Dividing Range and alpine landscapes.",
+    "zh-Hans": "站在澳洲大陆之巅，环视大分水岭连绵群山与冰川地貌，成就感与自然视野无与伦比。",
+    "zh-Hant": "站在澳洲大陸之巔，環視大分水嶺連綿群山與冰川地貌，成就感與自然視野無與倫比。"
+  },
+  "斯雷德博高山度假村": {
+    "en": "Thredbo Alpine Village",
+    "zh-Hans": "斯雷德博高山度假村",
+    "zh-Hant": "斯雷德博高山度假村"
+  },
+  "雪山國家公園內充滿歐洲阿爾卑斯風情的高山村落，四季皆有豐富的戶外活動體驗。": {
+    "en": "An alpine village in Kosciuszko National Park with outdoor activities across the seasons.",
+    "zh-Hans": "雪山国家公园内充满欧洲阿尔卑斯风情的高山村落，四季皆有丰富的户外活动体验。",
+    "zh-Hant": "雪山國家公園內充滿歐洲阿爾卑斯風情的高山村落，四季皆有豐富的戶外活動體驗。"
+  },
+  "塔龙加西部平原动物园": {
+    "en": "Taronga Western Plains Zoo",
+    "zh-Hans": "塔龙加西部平原动物园",
+    "zh-Hant": "塔龍加西部平原動物園"
+  },
+  "澳洲頂級開放式野生動物園，無圍欄護城河設計讓動物在自然平原上自在奔跑棲息。": {
+    "en": "An open-range zoo with spacious habitats and moats separating some animal areas.",
+    "zh-Hans": "澳洲顶级开放式野生动物园，无围栏护城河设计让动物在自然平原上自在奔跑栖息。",
+    "zh-Hant": "澳洲頂級開放式野生動物園，無圍欄護城河設計讓動物在自然平原上自在奔跑棲息。"
+  },
+  "具體用餐地點，充滿新南威爾斯內陸牧區豪爽熱情氛圍的歷史餐館。": {
+    "en": "A historic dining stop in inland New South Wales with a pastoral-country atmosphere.",
+    "zh-Hans": "具体用餐地点，充满新南威尔斯内陆牧区豪爽热情氛围的历史餐馆。",
+    "zh-Hant": "具體用餐地點，充滿新南威爾斯內陸牧區豪爽熱情氛圍的歷史餐館。"
+  },
+  "奥兰治植物园与酒乡": {
+    "en": "Orange Botanic Gardens",
+    "zh-Hans": "奥兰治植物园与酒乡",
+    "zh-Hant": "奧蘭治植物園與酒鄉"
+  },
+  "展示當地原生植物與外來珍稀林木的花園，四季分明，是內陸酒鄉之旅的清新亮點。": {
+    "en": "Gardens featuring native and introduced plants, with seasonal changes in an inland wine region.",
+    "zh-Hans": "展示当地原生植物与外来珍稀林木的花园，四季分明，是内陆酒乡之旅的清新亮点。",
+    "zh-Hant": "展示當地原生植物與外來珍稀林木的花園，四季分明，是內陸酒鄉之旅的清新亮點。"
+  },
+  "玛姬历史酒乡街区": {
+    "en": "Mudgee Historic Town Centre",
+    "zh-Hans": "玛姬历史酒乡街区",
+    "zh-Hant": "瑪姬歷史酒鄉街區"
+  },
+  "優雅悠閒的內陸歷史古鎮，漫步其間品味百年建築、農夫市集與手作乾酪甜品。": {
+    "en": "A historic inland town centre with heritage buildings, farmers’ markets and local food.",
+    "zh-Hans": "优雅悠闲的内陆历史古镇，漫步其间品味百年建筑、农夫市集与手作干酪甜品。",
+    "zh-Hant": "優雅悠閒的內陸歷史古鎮，漫步其間品味百年建築、農夫市集與手作乾酪甜品。"
+  },
+  "布罗肯希尔沙漠雕塑公园": {
+    "en": "Living Desert Sculptures · Broken Hill",
+    "zh-Hans": "布罗肯希尔沙漠雕塑公园",
+    "zh-Hant": "布羅肯希爾沙漠雕塑公園"
+  },
+  "新州最遠西部的紅色內陸藝術奇蹟，砂岩雕塑在紅土荒原與金黃夕陽下極具視覺衝擊力。": {
+    "en": "Sandstone sculptures set in the red-earth landscape outside Broken Hill, with striking desert and sunset views.",
+    "zh-Hans": "新州最远西部的红色内陆艺术奇迹，砂岩雕塑在红土荒原与金黄夕阳下极具视觉冲击力。",
+    "zh-Hant": "新州最遠西部的紅色內陸藝術奇蹟，砂岩雕塑在紅土荒原與金黃夕陽下極具視覺衝擊力。"
+  },
+  "悉尼海港大桥": {
+    "en": "Sydney Harbour Bridge",
+    "zh-Hans": "悉尼海港大桥",
+    "zh-Hant": "悉尼海港大橋"
+  },
+  "雪梨最具辨識度的地標鋼桁拱橋，漫步橋上可將雪梨歌劇院與港灣海景盡收眼底。": {
+    "en": "A steel arch bridge and Sydney landmark. Walk across for views of the Opera House and harbour.",
+    "zh-Hans": "雪梨最具辨识度的地标钢桁拱桥，漫步桥上可将雪梨歌剧院与港湾海景尽收眼底。",
+    "zh-Hant": "雪梨最具辨識度的地標鋼桁拱橋，漫步橋上可將雪梨歌劇院與港灣海景盡收眼底。"
+  },
+  "邦迪海滩与海岸步道": {
+    "en": "Bondi Beach and Coastal Walk",
+    "zh-Hans": "邦迪海滩与海岸步道",
+    "zh-Hant": "邦迪海灘與海岸步道"
+  },
+  "雪梨東區世界級海灘，細緻金沙、湛藍海浪與邦迪冰山海泳池相輝映，充滿活力海洋風情。": {
+    "en": "A Sydney beach with golden sand, surf, an ocean pool and coastal walking routes.",
+    "zh-Hans": "雪梨东区世界级海滩，细致金沙、湛蓝海浪与邦迪冰山海泳池相辉映，充满活力海洋风情。",
+    "zh-Hant": "雪梨東區世界級海灘，細緻金沙、湛藍海浪與邦迪冰山海泳池相輝映，充滿活力海洋風情。"
+  },
+  "曼利海滩与海滨长廊": {
+    "en": "Manly Beach and Promenade",
+    "zh-Hans": "曼利海滩与海滨长廊",
+    "zh-Hant": "曼利海灘與海濱長廊"
+  },
+  "北岸衝浪發源地，結合悠閒海濱小鎮街區 Corso 與長達數里的開闊太平洋沙灘。": {
+    "en": "A northern Sydney surf beach with a broad Pacific shoreline and the nearby Corso shopping streets.",
+    "zh-Hans": "北岸冲浪发源地，结合悠闲海滨小镇街区 Corso 与长达数里的开阔太平洋沙滩。",
+    "zh-Hant": "北岸衝浪發源地，結合悠閒海濱小鎮街區 Corso 與長達數里的開闊太平洋沙灘。"
+  },
+  "悉尼塔龙加动物园": {
+    "en": "Taronga Zoo Sydney",
+    "zh-Hans": "悉尼塔龙加动物园",
+    "zh-Hant": "悉尼塔龍加動物園"
+  },
+  "世界知名面海野生動物園，擁有無敵雪梨港全景，可近距離觀察無尾熊、袋鼠、鴨嘴獸等原生動物。": {
+    "en": "A harbourside zoo with Sydney Harbour views and native animals including koalas, kangaroos and platypuses.",
+    "zh-Hans": "世界知名面海野生动物园，拥有无敌雪梨港全景，可近距离观察无尾熊、袋鼠、鸭嘴兽等原生动物。",
+    "zh-Hant": "世界知名面海野生動物園，擁有無敵雪梨港全景，可近距離觀察無尾熊、袋鼠、鴨嘴獸等原生動物。"
+  },
+  "库吉海滩与海洋浴场": {
+    "en": "Coogee Beach and Ocean Baths",
+    "zh-Hans": "库吉海滩与海洋浴场",
+    "zh-Hant": "庫吉海灘與海洋浴場"
+  },
+  "溫馨熱鬧的東區海灣，是海岸健行步道的南端起點，草坪與海濱咖啡館林立。": {
+    "en": "An eastern Sydney bay with coastal walking paths, lawns, ocean baths and seaside cafés.",
+    "zh-Hans": "温馨热闹的东区海湾，是海岸健行步道的南端起点，草坪与海滨咖啡馆林立。",
+    "zh-Hant": "溫馨熱鬧的東區海灣，是海岸健行步道的南端起點，草坪與海濱咖啡館林立。"
+  },
+  "巴兰加鲁海滨公园": {
+    "en": "Barangaroo Reserve",
+    "zh-Hans": "巴兰加鲁海滨公园",
+    "zh-Hant": "巴蘭加魯海濱公園"
+  },
+  "雪梨港西側獲獎綠色水岸地標，散步、騎行或野餐均可享受開闊的港灣大橋西側視野。": {
+    "en": "A harbourside park west of the city with walking and cycling paths, picnic areas and views towards the Harbour Bridge.",
+    "zh-Hans": "雪梨港西侧获奖绿色水岸地标，散步、骑行或野餐均可享受开阔的港湾大桥西侧视野。",
+    "zh-Hant": "雪梨港西側獲獎綠色水岸地標，散步、騎行或野餐均可享受開闊的港灣大橋西側視野。"
+  },
+  "由 OSM 公開地點加入；非熱門度評分": {
+    "en": "Imported from public OSM data; not a popularity rating",
+    "zh-Hans": "由 OSM 公开地点加入；非热门度评分",
+    "zh-Hant": "由 OSM 公開地點加入；非熱門度評分"
+  },
+  "營業狀態、票價、房價與排隊未知；住宿地點加入工具箱不代表已訂房。": {
+    "en": "Opening status, ticket prices, room rates and queues are unverified. Adding accommodation to your toolbox does not make a booking.",
+    "zh-Hans": "营业状态、票价、房价与排队未知；住宿地点加入工具箱不代表已订房。",
+    "zh-Hant": "營業狀態、票價、房價與排隊未知；住宿地點加入工具箱不代表已訂房。"
+  },
+  "麥格理夫人椅": {
+    "en": "Mrs Macquarie's Chair",
+    "zh-Hans": "麦格理夫人椅",
+    "zh-Hant": "麥格理夫人椅"
+  },
+  "卡希爾高速公路觀景台": {
+    "en": "Cahill Expressway Lookout",
+    "zh-Hans": "卡希尔高速公路观景台",
+    "zh-Hant": "卡希爾高速公路觀景台"
+  },
+  "日出茶太": {
+    "en": "Chatime",
+    "zh-Hans": "日出茶太",
+    "zh-Hant": "日出茶太"
+  },
+  "岩石區市集": {
+    "en": "The Rocks Market",
+    "zh-Hans": "岩石区市集",
+    "zh-Hant": "岩石區市集"
+  },
+  "麥當勞": {
+    "en": "McDonald's",
+    "zh-Hans": "麦当劳",
+    "zh-Hant": "麥當勞"
+  },
+  "纪伊国屋书店": {
+    "en": "Kinokuniya",
+    "zh-Hans": "纪伊国屋书店",
+    "zh-Hant": "紀伊國屋書店"
+  },
+  "饭馆实惠": {
+    "en": "Potts Point Laundry & Drycleaners",
+    "zh-Hans": "饭馆实惠",
+    "zh-Hant": "飯館實惠"
+  },
+  "郵政局": {
+    "en": "GPO Grand Restaurants & Bars",
+    "zh-Hans": "邮政局",
+    "zh-Hant": "郵政局"
+  },
+  "金唐海鮮餐廳": {
+    "en": "Goldern Century Seafood Restaurant",
+    "zh-Hans": "金唐海鲜餐厅",
+    "zh-Hant": "金唐海鮮餐廳"
+  },
+  "阿斯圖里亞斯餐廳": {
+    "en": "Casa Asturiana Restaurant",
+    "zh-Hans": "阿斯图里亚斯餐厅",
+    "zh-Hant": "阿斯圖里亞斯餐廳"
+  },
+  "喜茶": {
+    "en": "Heytea",
+    "zh-Hans": "喜茶",
+    "zh-Hant": "喜茶"
+  },
+  "杜莎夫人蠟像館": {
+    "en": "Madame Tussauds Sydney",
+    "zh-Hans": "杜莎夫人蜡像馆",
+    "zh-Hant": "杜莎夫人蠟像館"
+  },
+  "楊國福麻辣燙": {
+    "en": "No.1 Malatang",
+    "zh-Hans": "杨国福麻辣烫",
+    "zh-Hant": "楊國福麻辣燙"
+  },
+  "皇冠酒樓": {
+    "en": "Emperor’s Garden Cakes & Bakery",
+    "zh-Hans": "皇冠酒楼",
+    "zh-Hant": "皇冠酒樓"
+  },
+  "歇腳亭": {
+    "en": "Sharetea",
+    "zh-Hans": "歇脚亭",
+    "zh-Hant": "歇腳亭"
+  },
+  "新人人超市": {
+    "en": "New Yen Yen Supermarket",
+    "zh-Hans": "新人人超市",
+    "zh-Hant": "新人人超市"
+  },
+  "小龙坎火锅": {
+    "en": "XiaoLongKan",
+    "zh-Hans": "小龙坎火锅",
+    "zh-Hant": "小龍坎火鍋"
+  },
+  "美味寶粉麵飯": {
+    "en": "Doodles Noodles",
+    "zh-Hans": "美味宝粉面饭",
+    "zh-Hant": "美味寶粉麵飯"
+  },
+  "貢茶": {
+    "en": "Gong Cha",
+    "zh-Hans": "贡茶",
+    "zh-Hant": "貢茶"
+  },
+  "华为": {
+    "en": "Huawei",
+    "zh-Hans": "华为",
+    "zh-Hant": "華為"
+  },
+  "有米酸奶": {
+    "en": "Yomie's Rice X Yogurt",
+    "zh-Hans": "有米酸奶",
+    "zh-Hant": "有米酸奶"
+  },
+  "澳洲當代藝術博物館": {
+    "en": "Museum of Contemporary Art",
+    "zh-Hans": "澳洲当代艺术博物馆",
+    "zh-Hant": "澳洲當代藝術博物館"
+  },
+  "總督府": {
+    "en": "Government House",
+    "zh-Hans": "总督府",
+    "zh-Hant": "總督府"
+  },
+  "悉尼塔": {
+    "en": "Westfield Sydney",
+    "zh-Hans": "悉尼塔",
+    "zh-Hant": "悉尼塔"
+  },
+  "卡曼德小屋": {
+    "en": "Cadman's Cottage",
+    "zh-Hans": "卡曼德小屋",
+    "zh-Hant": "卡曼德小屋"
+  },
+  "安萨桥": {
+    "en": "Anzac Bridge",
+    "zh-Hans": "安萨桥",
+    "zh-Hant": "安薩橋"
+  },
+  "雪梨港湾大桥": {
+    "en": "Sydney Harbour Bridge",
+    "zh-Hans": "雪梨港湾大桥",
+    "zh-Hant": "雪梨港灣大橋"
+  },
+  "北海岸地區植物園": {
+    "en": "North Coast Regional Botanic Garden",
+    "zh-Hans": "北海岸地区植物园",
+    "zh-Hant": "北海岸地區植物園"
+  },
+  "凯安玛喷泉洞": {
+    "en": "Kiama Blowhole",
+    "zh-Hans": "凯安玛喷泉洞",
+    "zh-Hant": "凱安瑪噴泉洞"
+  },
+  "Kiama燈塔": {
+    "en": "Kiama Lighthouse",
+    "zh-Hans": "Kiama灯塔",
+    "zh-Hant": "Kiama燈塔"
+  },
+  "勝記超級市場": {
+    "en": "Sing Kee Asian Grocery Store",
+    "zh-Hans": "胜记超级市场",
+    "zh-Hant": "勝記超級市場"
+  },
+  "新明燒臘茶餐廳": {
+    "en": "Sun Ming BBQ Restaurant",
+    "zh-Hans": "新明烧腊茶餐厅",
+    "zh-Hant": "新明燒臘茶餐廳"
+  },
+  "品味閣": {
+    "en": "Taste Gallery",
+    "zh-Hans": "品味阁",
+    "zh-Hant": "品味閣"
+  },
+  "上海廚房": {
+    "en": "Shanghai Chef Kitchen",
+    "zh-Hans": "上海厨房",
+    "zh-Hant": "上海廚房"
+  },
+  "利記中越餐廳": {
+    "en": "Lee Chef Restaurant",
+    "zh-Hans": "利记中越餐厅",
+    "zh-Hant": "利記中越餐廳"
+  },
+  "典藝髮廊": {
+    "en": "Salon D'art",
+    "zh-Hans": "典艺发廊",
+    "zh-Hant": "典藝髮廊"
+  },
+  "粥王": {
+    "en": "Mr Ping's",
+    "zh-Hans": "粥王",
+    "zh-Hant": "粥王"
+  },
+  "鸿福东北风味菜馆": {
+    "en": "Gaga Noodle Chinese Restaurant",
+    "zh-Hans": "鸿福东北风味菜馆",
+    "zh-Hant": "鴻福東北風味菜館"
+  },
+  "髮意軒": {
+    "en": "Designer Cut",
+    "zh-Hans": "发意轩",
+    "zh-Hant": "髮意軒"
+  },
+  "美髮堡": {
+    "en": "AJ Hair + Beauty Salon",
+    "zh-Hans": "美发堡",
+    "zh-Hant": "美髮堡"
+  },
+  "觀景台": {
+    "en": "Gan Gan Hill lookout",
+    "zh-Hans": "观景台",
+    "zh-Hant": "觀景台"
+  },
+  "饭戒": {
+    "en": "Fan Jie",
+    "zh-Hans": "饭戒",
+    "zh-Hant": "飯戒"
+  },
+  "关东私房菜": {
+    "en": "Northeast Chinese Private Cuisine",
+    "zh-Hans": "关东私房菜",
+    "zh-Hant": "關東私房菜"
+  },
+  "百年紀念公園": {
+    "en": "Centennial Park",
+    "zh-Hans": "百年纪念公园",
+    "zh-Hant": "百年紀念公園"
+  },
+  "Din Tai Fung (鼎泰豐)": {
+    "en": "Din Tai Fung",
+    "zh-Hans": "Din Tai Fung (鼎泰丰)",
+    "zh-Hant": "Din Tai Fung (鼎泰豐)"
+  },
+  "WY Gaming Ultimo 网吧和麻将馆 Internet Cafe": {
+    "en": "WY Gaming Ultimo Internet Cafe",
+    "zh-Hans": "WY Gaming Ultimo 网吧和麻将馆 Internet Cafe",
+    "zh-Hant": "WY Gaming Ultimo 網吧和麻將館 Internet Cafe"
+  },
+  "港夠味茶餐廳/Hong Kong Kitchen Broadway": {
+    "en": "Hong Kong Kitchen Broadway",
+    "zh-Hans": "港够味茶餐厅/Hong Kong Kitchen Broadway",
+    "zh-Hant": "港夠味茶餐廳/Hong Kong Kitchen Broadway"
+  },
+  "Storm Village 風波莊": {
+    "en": "Storm Village",
+    "zh-Hans": "Storm Village 风波庄",
+    "zh-Hant": "Storm Village 風波莊"
+  },
+  "Ippudo Australia 一風堂 オーストラリア": {
+    "en": "Ippudo Australia",
+    "zh-Hans": "Ippudo Australia 一风堂 オーストラリア",
+    "zh-Hant": "Ippudo Australia 一風堂 オーストラリア"
+  },
+  "Griddle King 小零煎餅": {
+    "en": "Griddle King",
+    "zh-Hans": "Griddle King 小零煎饼",
+    "zh-Hant": "Griddle King 小零煎餅"
+  },
+  "Pappa's Stew Chilli Cuisine 廿伍味熙爸卤味": {
+    "en": "Pappa's Stew Chilli Cuisine",
+    "zh-Hans": "Pappa's Stew Chilli Cuisine 廿伍味熙爸卤味",
+    "zh-Hant": "Pappa's Stew Chilli Cuisine 廿伍味熙爸滷味"
+  },
+  "Northern Chinese Cuisine 东北人家": {
+    "en": "Northern Chinese Cuisine",
+    "zh-Hans": "Northern Chinese Cuisine 东北人家",
+    "zh-Hant": "Northern Chinese Cuisine 東北人家"
+  },
+  "Breadtop 包店": {
+    "en": "Breadtop",
+    "zh-Hans": "Breadtop 包店",
+    "zh-Hant": "Breadtop 包店"
+  },
+  "北方拉面馆QG13 Chinatown Noodle Restaurant": {
+    "en": "QG13 Chinatown Noodle Restaurant",
+    "zh-Hans": "北方拉面馆QG13 Chinatown Noodle Restaurant",
+    "zh-Hant": "北方拉麵館QG13 Chinatown Noodle Restaurant"
+  },
+  "茶颜悦色 Modern China Tea Shop": {
+    "en": "Modern China Tea Shop",
+    "zh-Hans": "茶颜悦色 Modern China Tea Shop",
+    "zh-Hant": "茶顏悅色 Modern China Tea Shop"
+  },
+  "Yuan ’s Hot Pot 袁记串串香": {
+    "en": "Yuan ’s Hot Pot",
+    "zh-Hans": "Yuan ’s Hot Pot 袁记串串香",
+    "zh-Hant": "Yuan ’s Hot Pot 袁記串串香"
+  },
+  "Steam King 燉品皇": {
+    "en": "Steam King",
+    "zh-Hans": "Steam King 炖品皇",
+    "zh-Hant": "Steam King 燉品皇"
+  },
+  "Hutaoli Music Restaurant & Bar 胡桃里音乐餐厅": {
+    "en": "Hutaoli Music Restaurant & Bar",
+    "zh-Hans": "Hutaoli Music Restaurant & Bar 胡桃里音乐餐厅",
+    "zh-Hant": "Hutaoli Music Restaurant & Bar 胡桃里音樂餐廳"
+  },
+  "The Dollar Shop 豆撈坊": {
+    "en": "The Dollar Shop",
+    "zh-Hans": "The Dollar Shop 豆捞坊",
+    "zh-Hant": "The Dollar Shop 豆撈坊"
+  },
+  "Xing Fu Tang 幸福堂": {
+    "en": "Xing Fu Tang",
+    "zh-Hans": "Xing Fu Tang 幸福堂",
+    "zh-Hant": "Xing Fu Tang 幸福堂"
+  },
+  "Royal Steam King 燉品皇 · 尚": {
+    "en": "Royal Steam King",
+    "zh-Hans": "Royal Steam King 炖品皇 · 尚",
+    "zh-Hant": "Royal Steam King 燉品皇 · 尚"
+  },
+  "Fuji Rice Roll 福记潮汕肠粉": {
+    "en": "Fuji Rice Roll",
+    "zh-Hans": "Fuji Rice Roll 福记潮汕肠粉",
+    "zh-Hant": "Fuji Rice Roll 福記潮汕腸粉"
+  },
+  "LoonFoon龙凤": {
+    "en": "LoonFoon",
+    "zh-Hans": "LoonFoon龙凤",
+    "zh-Hant": "LoonFoon龍鳳"
+  },
+  "Sizzling Plate 铁板香": {
+    "en": "Sizzling Plate",
+    "zh-Hans": "Sizzling Plate 铁板香",
+    "zh-Hant": "Sizzling Plate 鐵板香"
+  },
+  "The Alley LuJiaoXiang 鹿角巷": {
+    "en": "The Alley LuJiaoXiang",
+    "zh-Hans": "The Alley LuJiaoXiang 鹿角巷",
+    "zh-Hant": "The Alley LuJiaoXiang 鹿角巷"
+  },
+  "Xiao Long Kan Hotpot CBD Sydney 小龙坎老火锅": {
+    "en": "Xiao Long Kan Hotpot CBD Sydney",
+    "zh-Hans": "Xiao Long Kan Hotpot CBD Sydney 小龙坎老火锅",
+    "zh-Hant": "Xiao Long Kan Hotpot CBD Sydney 小龍坎老火鍋"
+  },
+  "Diamond Territory 御宴": {
+    "en": "Diamond Territory",
+    "zh-Hans": "Diamond Territory 御宴",
+    "zh-Hant": "Diamond Territory 御宴"
+  },
+  "ZhangLiang Malatang Sydney 悉尼张亮麻辣烫": {
+    "en": "ZhangLiang Malatang Sydney",
+    "zh-Hans": "ZhangLiang Malatang Sydney 悉尼张亮麻辣烫",
+    "zh-Hant": "ZhangLiang Malatang Sydney 悉尼張亮麻辣燙"
+  },
+  "Beef Life Hot Pot 潮牛海记": {
+    "en": "Beef Life Hot Pot",
+    "zh-Hans": "Beef Life Hot Pot 潮牛海记",
+    "zh-Hant": "Beef Life Hot Pot 潮牛海記"
+  },
+  "Lan Dining Restaurant 蘭餐厅": {
+    "en": "Lan Dining Restaurant",
+    "zh-Hans": "Lan Dining Restaurant 兰餐厅",
+    "zh-Hant": "Lan Dining Restaurant 蘭餐廳"
+  },
+  "Sea Emperor Seafood Restaurant 海龍皇": {
+    "en": "Sea Emperor Seafood Restaurant",
+    "zh-Hans": "Sea Emperor Seafood Restaurant 海龙皇",
+    "zh-Hant": "Sea Emperor Seafood Restaurant 海龍皇"
+  },
+  "Din Tai Fung 鼎泰豐": {
+    "en": "Din Tai Fung",
+    "zh-Hans": "Din Tai Fung 鼎泰丰",
+    "zh-Hant": "Din Tai Fung 鼎泰豐"
+  },
+  "Fortune Alley World Square | 小巷": {
+    "en": "Fortune Alley World Square",
+    "zh-Hans": "Fortune Alley World Square | 小巷",
+    "zh-Hant": "Fortune Alley World Square | 小巷"
+  },
+  "Mikirin 觅麒麟": {
+    "en": "Mikirin",
+    "zh-Hans": "Mikirin 觅麒麟",
+    "zh-Hant": "Mikirin 覓麒麟"
+  },
+  "Gotcha 鲜響茶": {
+    "en": "Gotcha",
+    "zh-Hans": "Gotcha 鲜响茶",
+    "zh-Hant": "Gotcha 鮮響茶"
+  },
+  "Hot-Star Large Fried Chicken 豪大大雞排": {
+    "en": "Hot-Star Large Fried Chicken",
+    "zh-Hans": "Hot-Star Large Fried Chicken 豪大大鸡排",
+    "zh-Hant": "Hot-Star Large Fried Chicken 豪大大雞排"
+  },
+  "Shancheng Hot Pot King (山城火锅王)": {
+    "en": "Shancheng Hot Pot King",
+    "zh-Hans": "Shancheng Hot Pot King (山城火锅王)",
+    "zh-Hant": "Shancheng Hot Pot King (山城火鍋王)"
+  },
+  "Imperial Kitchen & Bar 钓小宴私房菜": {
+    "en": "Imperial Kitchen & Bar",
+    "zh-Hans": "Imperial Kitchen & Bar 钓小宴私房菜",
+    "zh-Hant": "Imperial Kitchen & Bar 釣小宴私房菜"
+  },
+  "Happy Inn 家樂小廚": {
+    "en": "Happy Inn",
+    "zh-Hans": "Happy Inn 家乐小厨",
+    "zh-Hant": "Happy Inn 家樂小廚"
+  },
+  "ShareTea 歇腳亭": {
+    "en": "ShareTea",
+    "zh-Hans": "ShareTea 歇脚亭",
+    "zh-Hant": "ShareTea 歇腳亭"
+  },
+  "麥吉 machi machi australia": {
+    "en": "machi machi australia",
+    "zh-Hans": "麦吉 machi machi australia",
+    "zh-Hant": "麥吉 machi machi australia"
+  },
+  "Watermoon 水月": {
+    "en": "Watermoon",
+    "zh-Hans": "Watermoon 水月",
+    "zh-Hant": "Watermoon 水月"
+  },
+  "Yu Yee Clay Pot Rice 如意煲仔饭": {
+    "en": "Yu Yee Clay Pot Rice",
+    "zh-Hans": "Yu Yee Clay Pot Rice 如意煲仔饭",
+    "zh-Hant": "Yu Yee Clay Pot Rice 如意煲仔飯"
+  },
+  "雪梨海德公園": {
+    "en": "Hyde Park, Sydney",
+    "zh-Hans": "雪梨海德公园",
+    "zh-Hant": "雪梨海德公園"
+  },
+  "雪梨港灣大橋": {
+    "en": "Sydney Harbour Bridge",
+    "zh-Hans": "雪梨港湾大桥",
+    "zh-Hant": "雪梨港灣大橋"
+  },
+  "由開放商家搜尋加入工具箱": {
+    "en": "Added to your toolbox from open place data",
+    "zh-Hans": "由开放商家搜寻加入工具箱",
+    "zh-Hant": "由開放商家搜尋加入工具箱"
+  },
+  "Overture 區域資料快照；分類、室內外、費用、營業時間與排隊尚未確認，出發前請查核。": {
+    "en": "Regional Overture snapshot. Categories, indoor/outdoor status, costs, opening hours and queues are unverified; check before visiting.",
+    "zh-Hans": "Overture 区域资料快照；分类、室内外、费用、营业时间与排队尚未确认，出发前请查核。",
+    "zh-Hant": "Overture 區域資料快照；分類、室內外、費用、營業時間與排隊尚未確認，出發前請查核。"
+  },
+  "精選地點": {
+    "en": "Selected place",
+    "zh-Hans": "精选地点",
+    "zh-Hant": "精選地點"
+  },
+  "OSM 社群地點，詳細介紹尚未提供。": {
+    "en": "OSM community place; no detailed description is available.",
+    "zh-Hans": "OSM 社群地点，详细介绍尚未提供。",
+    "zh-Hant": "OSM 社群地點，詳細介紹尚未提供。"
+  },
+  "整合已匯入的新南威爾斯州 (NSW) 地點；底圖原生標記可能不同。探索候選不代表已確認冷門；房價、營業狀態與評論未即時核實；社群推薦為附原文證據的作者意見。": {
+    "en": "Imported places in New South Wales. Base-map labels may differ. Discovery results are not verified hidden gems; room rates, opening status and reviews are not checked live. Community recommendations reflect their authors’ opinions and retain source evidence.",
+    "zh-Hans": "整合已汇入的新南威尔斯州 (NSW) 地点；底图原生标记可能不同。探索候选不代表已确认冷门；房价、营业状态与评论未即时核实；社群推荐为附原文证据的作者意见。",
+    "zh-Hant": "整合已匯入的新南威爾斯州 (NSW) 地點；底圖原生標記可能不同。探索候選不代表已確認冷門；房價、營業狀態與評論未即時核實；社群推薦為附原文證據的作者意見。"
+  },
+  "由地圖搜尋加入工具箱": {
+    "en": "Added to your toolbox from map search",
+    "zh-Hans": "由地图搜寻加入工具箱",
+    "zh-Hant": "由地圖搜尋加入工具箱"
+  },
+  "費用、營業狀態與排隊未知；尚未預留費用，請自行確認。": {
+    "en": "Costs, opening status and queues are unknown. No budget has been reserved; please check before visiting.",
+    "zh-Hans": "费用、营业状态与排队未知；尚未预留费用，请自行确认。",
+    "zh-Hant": "費用、營業狀態與排隊未知；尚未預留費用，請自行確認。"
   }
 }

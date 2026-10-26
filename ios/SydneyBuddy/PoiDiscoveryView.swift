@@ -189,8 +189,7 @@ enum PoiDiscoveryCategory {
     private var orderedPlaces:[ScheduleCandidate] {visiblePlaces.sorted{a,b in a.id==model.selected && b.id != model.selected}}
     private var insightPoints:[[String:Any]] {[["id":"center","name":"搜尋中心","lat":model.center.latitude,"lng":model.center.longitude]]+visiblePlaces.prefix(20).map{["id":$0.id,"name":$0.name,"lat":$0.lat,"lng":$0.lng]}}
     private var insightMarkers:[InsightMarker] {(store.insights?.traffic.items ?? [])+(store.insights?.pricePlaces ?? [])}
-    var body: some View {
-        let _=interfaceLocale
+    private var discoveryContent:some View {
     NavigationStack {
         GeometryReader { geo in
             ZStack(alignment: .top) {
@@ -277,7 +276,9 @@ enum PoiDiscoveryCategory {
             }
         }
     }
-    .tint(Palette.green)
+    }
+    private var discoverySheets:some View {
+    discoveryContent.tint(Palette.green)
     .overlay {if featureLoading{ProgressView("正在載入地點…").padding(16).background(.regularMaterial,in:Capsule()).accessibilityIdentifier("map-feature-loading")}}
     .alert(uiText("地點資料暫時無法載入"),isPresented:Binding(get:{featureError != nil},set:{if !$0{featureError=nil}})){Button(uiText("完成")){featureError=nil}}message:{Text(uiText(featureError ?? ""))}
     .task(id:visiblePlaces.map(\.id).joined()+store.travelDataSource.rawValue+searchProvider.rawValue){await loadTicketSummaries()}
@@ -285,8 +286,11 @@ enum PoiDiscoveryCategory {
     .sheet(isPresented:$showInsights){TravelInsightsSheet(places:insightPoints)}
     .sheet(isPresented:$showDataInfo){dataInfo}
     .task(id:visiblePlaces.map(\.id).joined()+store.travelDataSource.rawValue+store.mapProvider.rawValue){if !visiblePlaces.isEmpty{await store.refreshInsights(places:insightPoints)}}
-    .onAppear {
-        model.language = store.language == .english ? "en" : store.language == .simplified ? "zh-CN" : "zh-TW"
+    }
+    var body:some View {
+    let _=interfaceLocale
+    discoverySheets.onAppear {
+        updateSearchLanguage(store.language)
         if let viewport = store.mapViewport {
             model.center = CLLocationCoordinate2D(latitude: viewport.lat, longitude: viewport.lng)
         }
@@ -294,6 +298,7 @@ enum PoiDiscoveryCategory {
         if addingToDay{model.category=replacingPlace ? "all":"food"}
         model.configure(searchProvider, googleMapConfigured: SydneyBuddyApp.mapConfigured,dataSource:store.travelDataSource)
     }
+    .onChange(of:store.language){_,language in updateSearchLanguage(language)}
     .onChange(of:localProvider){_,provider in if addingToDay{detail=nil;areaChanged=false;cameraAction=nil;model.configure(provider,googleMapConfigured:SydneyBuddyApp.mapConfigured,dataSource:store.travelDataSource)}}
     .onChange(of: store.mapProvider) { _, provider in
         guard !addingToDay else{return}
@@ -314,6 +319,9 @@ enum PoiDiscoveryCategory {
         }
     }
     .onDisappear { model.stop() }
+    }
+    private func updateSearchLanguage(_ language:AppLanguage) {
+        switch language {case .english:model.language="en";case .simplified:model.language="zh-CN";case .traditional:model.language="zh-TW"}
     }
     private func changeCamera(_ kind:RouteMapCameraAction.Kind) {
         searching=false;focus=nil;model.selected=nil
@@ -352,8 +360,8 @@ enum PoiDiscoveryCategory {
         let metaLine=[p.hasSourcedRating ? p.mappedRatingLabel:nil,priceText].compactMap{$0}.joined(separator:" · ")
         return HStack(alignment:.top,spacing:12){
             Image(systemName:p.discoverySymbol).font(.title3).foregroundStyle(Palette.green).frame(width:38,height:44).background(Palette.mint,in:RoundedRectangle(cornerRadius:12))
-            Button{focusPlace(p)}label:{VStack(alignment:.leading,spacing:5){Text(p.name).font(.subheadline.bold()).multilineTextAlignment(.leading);if !metaLine.isEmpty{Text(uiText(metaLine)).font(.caption2).foregroundStyle(Palette.muted)};Text(uiText(p.address?.isEmpty == false ? p.address! : (p.description ?? "点击查看地点详情"))).font(.caption).foregroundStyle(Palette.muted).lineLimit(1)}.frame(maxWidth:.infinity,alignment:.leading)}.buttonStyle(.plain).accessibilityLabel(uiText("查看地点："+p.name)).accessibilityIdentifier("poi-focus-"+p.id)
-            Button{focusPlace(p);detail=p}label:{Image(systemName:"info.circle").frame(width:36,height:44)}.accessibilityLabel(uiText("介紹："+p.name)).accessibilityIdentifier("poi-detail-"+p.id)
+            Button{focusPlace(p)}label:{VStack(alignment:.leading,spacing:5){Text(p.displayName).font(.subheadline.bold()).multilineTextAlignment(.leading);if !metaLine.isEmpty{Text(uiText(metaLine)).font(.caption2).foregroundStyle(Palette.muted)};Text(uiText(p.address?.isEmpty == false ? p.address! : (p.displayDescription ?? "点击查看地点详情"))).font(.caption).foregroundStyle(Palette.muted).lineLimit(1)}.frame(maxWidth:.infinity,alignment:.leading)}.buttonStyle(.plain).accessibilityLabel(uiText("查看地点："+p.displayName)).accessibilityIdentifier("poi-focus-"+p.id)
+            Button{focusPlace(p);detail=p}label:{Image(systemName:"info.circle").frame(width:36,height:44)}.accessibilityLabel(uiText("介紹："+p.displayName)).accessibilityIdentifier("poi-detail-"+p.id)
             if p.source == "Google Places" {
                 Text(uiText("Google 地點暫不匯入本機示例時間軸")).font(.caption2).foregroundStyle(Palette.muted)
             } else {
@@ -364,7 +372,7 @@ enum PoiDiscoveryCategory {
                 } label: {
                     Image(systemName:addingToDay ? "plus":isAdded(p) ? "checkmark":"plus").font(.headline).frame(width:44,height:44).background(.white,in:Circle())
                 }
-                .accessibilityLabel(uiText((replacingPlace ? "用这个替换":addingToDay ? "加入当天":store.language.text(isAdded(p) ? "移出工具箱":"＋工具箱")) + "：" + p.name))
+                .accessibilityLabel(uiText((replacingPlace ? "用这个替换":addingToDay ? "加入当天":store.language.text(isAdded(p) ? "移出工具箱":"＋工具箱")) + "：" + p.displayName))
                 .accessibilityIdentifier("poi-toggle-"+p.id)
             }
         }.padding(.horizontal,16).padding(.vertical,12).background(model.selected==p.id ? Palette.mint.opacity(0.5):.clear)
@@ -484,7 +492,7 @@ struct PoiMapFocus {let token=UUID();let point:ScheduleCandidate}
 final class PoiPin:NSObject,MKAnnotation {
     let point:ScheduleCandidate
     var coordinate:CLLocationCoordinate2D {CLLocationCoordinate2D(latitude:point.lat,longitude:point.lng)}
-    var title:String? {point.name}
+    var title:String? {point.displayName}
     init(_ p:ScheduleCandidate){point=p}
 }
 struct PoiNativeMap:UIViewRepresentable {
@@ -544,7 +552,7 @@ struct PoiNativeMap:UIViewRepresentable {
         let tiles=map.overlays.filter{$0 is OsmTiles}
         if osm && tiles.isEmpty{map.addOverlay(OsmTiles(),level:.aboveLabels)}
         if !osm{map.removeOverlays(tiles)}
-        let key=places.map(\.id).joined(separator:",")+insightMarkers.map{$0.id+$0.title}.joined()+(focus?.point.id ?? "")
+        let key=AppLanguage.current.rawValue+places.map{ $0.id+$0.displayName }.joined(separator:",")+insightMarkers.map{$0.id+$0.title}.joined()+(focus?.point.id ?? "")
         if context.coordinator.key != key {
             context.coordinator.key=key;map.removeAnnotations(map.annotations);map.addAnnotations(places.map(PoiPin.init))
             for item in insightMarkers{let pin=InsightMapPin();pin.kind=item.kind;pin.coordinate = .init(latitude:item.lat,longitude:item.lng);pin.title=item.title;pin.subtitle=item.summary;map.addAnnotation(pin)}
@@ -592,10 +600,10 @@ private struct PoiGoogleMap:UIViewRepresentable {
                 map.animate(with:GMSCameraUpdate.fit(bounds,with:UIEdgeInsets(top:min(220,map.bounds.height*0.4),left:30,bottom:70,right:76)))
             }
         }
-        let key=places.map(\.id).joined(separator:",")+insightMarkers.map{$0.id+$0.title}.joined()+(focus?.point.id ?? "")
+        let key=AppLanguage.current.rawValue+places.map{ $0.id+$0.displayName }.joined(separator:",")+insightMarkers.map{$0.id+$0.title}.joined()+(focus?.point.id ?? "")
         if key != context.coordinator.key {context.coordinator.key=key;map.clear();context.coordinator.markers=[:]
         for item in insightMarkers{let pin=GMSMarker(position:.init(latitude:item.lat,longitude:item.lng));pin.title=item.title;pin.snippet=item.summary;pin.icon=GMSMarker.markerImage(with:item.kind == "price" ? .systemGreen:.systemOrange);pin.map=map}
-        for point in places{let marker=GMSMarker(position:CLLocationCoordinate2D(latitude:point.lat,longitude:point.lng));marker.title=point.name;marker.userData=point.id;marker.icon=GMSMarker.markerImage(with:point.id==focus?.point.id ? .systemBlue:point.category=="美食" ? .systemOrange:.systemTeal);marker.zIndex=point.id==focus?.point.id ? 1000:0;marker.map=map;context.coordinator.markers[point.id]=marker}
+        for point in places{let marker=GMSMarker(position:CLLocationCoordinate2D(latitude:point.lat,longitude:point.lng));marker.title=point.displayName;marker.userData=point.id;marker.icon=GMSMarker.markerImage(with:point.id==focus?.point.id ? .systemBlue:point.category=="美食" ? .systemOrange:.systemTeal);marker.zIndex=point.id==focus?.point.id ? 1000:0;marker.map=map;context.coordinator.markers[point.id]=marker}
         }
         if let focus,context.coordinator.focusToken != focus.token {
             context.coordinator.focusToken=focus.token;context.coordinator.focusing=true

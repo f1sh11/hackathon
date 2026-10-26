@@ -108,7 +108,7 @@ struct ScheduleTimeCanvas:View {
         let color:Color=a.kind=="meal" ? .blue:Palette.green
         return HStack(spacing:4) {
             VStack(alignment:.leading,spacing:5) {
-                Text(a.name).font(.system(size:height<70 ? 12:14,weight:.bold)).lineLimit(height<70 ? 1:2)
+                Text(uiText(a.name)).font(.system(size:height<70 ? 12:14,weight:.bold)).lineLimit(height<70 ? 1:2)
                 if height>=70 {Text(uiText("\(clock(value.start+(a.queueMinutes ?? 0)))–\(clock(value.start+(a.queueMinutes ?? 0)+value.duration)) · \(value.duration) 分")).font(.caption.monospacedDigit())}
                 if height>=120 {Label(uiText(a.label),systemImage:a.kind=="meal" ? "fork.knife":"mappin.and.ellipse").font(.caption);if a.kind=="attraction" && a.queueMinutes==nil{Text(uiText("排隊時間未知，尚未計入")).font(.caption2)}}
             }.frame(maxWidth:.infinity,alignment:.leading).contentShape(Rectangle()).onTapGesture{onEdit(a)}

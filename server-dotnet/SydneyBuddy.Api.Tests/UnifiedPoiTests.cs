@@ -24,6 +24,13 @@ public sealed class UnifiedPoiTests {
         var hotel=Point("osm:node:201","Test Hotel","lodging");hotel["sourceUrl"]="https://www.openstreetmap.org/node/201";var cafe=Point("osm:node:202","Hotel Cafe","food");
         var result=UnifiedPoiService.Merge([hotel,cafe],-33.865,151.212,1500,"lodging","Hotel",default);var selected=Assert.Single(result.Array("places")!)!.AsObject();var imported=PoiService.Import(selected);Assert.Equal("住宿",imported.Str("category"));Assert.Equal(hotel.Str("sourceUrl"),imported.Str("sourceUrl"));Assert.Single(imported.Array("sources")!);
     }
+    [Fact] public void EnglishSearchAndImportPreserveBothLanguagesWithoutChangingIdentity(){
+        var point=Point("osm:node:301","博物館");point["nameEn"]="Museum";point["descriptionEn"]="Harbour collection";point["searchText"]="博物館";
+        var result=UnifiedPoiService.Merge([point],-33.865,151.212,500,"all","Museum",default);
+        var found=Assert.Single(result.Array("places")!)!.AsObject();var imported=PoiService.Import(found);
+        Assert.Equal("博物館",imported.Str("name"));Assert.Equal("Museum",imported.Str("nameEn"));
+        Assert.Equal("Harbour collection",imported.Str("descriptionEn"));Assert.Equal("osm:node:301",imported.Str("id"));
+    }
     [Fact] public void DenseSearchClonesOnlyReturnedPlacesAndLeavesSnapshotUntouched(){
         var points=Enumerable.Range(0,1000).Select(i=>{
             var p=Point("osm:node:"+i,"Restaurant "+i,"food");p["description"]=new string('x',8192);

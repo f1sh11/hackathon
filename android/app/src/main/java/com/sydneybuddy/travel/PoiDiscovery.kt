@@ -106,7 +106,10 @@ internal data class PoiFocus(val id:String,val lat:Double,val lng:Double,val nam
     var openSource by remember{mutableStateOf("Overture Maps / local snapshot")}
     var summary by remember{mutableStateOf<String?>(null)}
     var dataVersion by remember{mutableStateOf("")}
-    val visiblePlaces=if(resultProvider==store.mapProvider&&resultDataSource==store.travelDataSource)places else emptyList()
+    val locale=LocalAppLanguage.current
+    val localeContext=androidx.compose.ui.platform.LocalContext.current
+    val localeCatalog=remember(localeContext.applicationContext){JSONObject(localeContext.assets.open("ui-localizations.json").bufferedReader().use{it.readText()})}
+    val visiblePlaces=remember(places,resultProvider,store.mapProvider,resultDataSource,store.travelDataSource,locale){(if(resultProvider==store.mapProvider&&resultDataSource==store.travelDataSource)places else emptyList()).map{point->JSONObject(point.toString()).put("name",poiText(point,"name",locale,localeCatalog)).put("description",poiText(point,"description",locale,localeCatalog))}}
     LaunchedEffect(visiblePlaces.map{it.optString("id")},store.travelDataSource,store.mapProvider){
         ticketSummaries=JSONObject();val route=store.travelDataSource;val provider=store.mapProvider
         if(visiblePlaces.isNotEmpty())try{
@@ -180,7 +183,7 @@ internal data class PoiFocus(val id:String,val lat:Double,val lng:Double,val nam
                     Small((p.optString("ratingLabel").takeIf{it.isNotBlank()}?.plus(" · ") ?: "")+(ticketSummaries.optJSONObject(p.optString("id"))?.let{ticketSummaryLabel(it)} ?: p.optString("priceLabel").takeIf{it.isNotBlank()} ?: ui("費用未知")))
                     Small(ui(p.optString("category"))+" · "+(p.optJSONArray("sources")?.strings()?.joinToString(" / ") ?: p.optString("source")))
                     Text(p.optString("description"),fontSize=12.sp,maxLines=2)
-                    Row{TextButton(onClick={focusPlace(p);detail=p}){Text(ui("詳細介紹"))};Spacer(Modifier.weight(1f));val added=store.poiToolbox.any{it.optString("id")==p.optString("id")};if(p.optString("source")=="Google Places")Small("Google 地點暫不匯入本機示例時間軸")else TextButton(onClick={if(added)store.removePoi(p.optString("id"))else{store.addPoi(p);onAdd(p)}}){Text(ui(if(added)"移出工具箱"else "＋工具箱"))}}
+                    Row{TextButton(onClick={focusPlace(p);detail=places.firstOrNull{it.optString("id")==p.optString("id")} ?: p}){Text(ui("詳細介紹"))};Spacer(Modifier.weight(1f));val added=store.poiToolbox.any{it.optString("id")==p.optString("id")};if(p.optString("source")=="Google Places")Small("Google 地點暫不匯入本機示例時間軸")else TextButton(onClick={if(added)store.removePoi(p.optString("id"))else{store.addPoi(places.firstOrNull{it.optString("id")==p.optString("id")} ?: p);onAdd(places.firstOrNull{it.optString("id")==p.optString("id")} ?: p)}}){Text(ui(if(added)"移出工具箱"else "＋工具箱"))}}
                 }}
             }
             if(store.mapProvider==MapProvider.OSM)Column {
@@ -222,7 +225,7 @@ internal data class PoiFocus(val id:String,val lat:Double,val lng:Double,val nam
         insightMarkers.forEach{p->ready.addMarker(MarkerOptions().position(LatLng(p.getDouble("lat"),p.getDouble("lng"))).title(p.optString("title")).icon(IconFactory.getInstance(context).fromBitmap(itineraryBadge(if(p.optString("kind")=="price")"$"else "!"))))}
         var selectedMarker:org.maplibre.android.annotations.Marker?=null
         places.forEach{p->val selected=p.optString("id")==focus?.id
-            val marker=ready.addMarker(MarkerOptions().position(LatLng(p.getDouble("lat"),p.getDouble("lng"))).icon(IconFactory.getInstance(context).fromBitmap(if(selected)focusedPoiIcon()else itineraryBadge(when(p.optString("category")){"美食"->"餐";"設施"->"WC";"住宿"->"宿";"店家"->"店";else->"景"}))).title(p.optString("name")))
+            val marker=ready.addMarker(MarkerOptions().position(LatLng(p.getDouble("lat"),p.getDouble("lng"))).icon(IconFactory.getInstance(context).fromBitmap(if(selected)focusedPoiIcon()else itineraryBadge(when(p.optString("category")){"美食"->"F";"設施"->"WC";"住宿"->"H";"店家"->"S";else->"•"}))).title(p.optString("name")))
             markerIds[marker.id]=p.getString("id")
             if(selected)selectedMarker=marker
         }

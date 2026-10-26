@@ -26,8 +26,18 @@ struct ScheduleDay:Codable,Identifiable {
 }
 struct CommunityGuide:Codable {var directions:String;var directionsStatus:String?;var sourceUrl:String;var revision:String;var license:String;var licenseUrl:String;var attribution:String;var retrievedAt:String;var coordinateSource:String?}
 struct CommunityReview:Codable,Identifiable {var id:String;var author:String;var text:String;var sourceUrl:String;var publishedAt:String?}
-struct ScheduleCandidate:Codable,Identifiable {var id:String;var name:String;var category:String;var indoor:Bool;var visitMinutes:Int;var cost:Double;var lat:Double;var lng:Double;var reason:String;var description:String?;var note:String?;var openMinute:Int?;var closeMinute:Int?;var source:String?;var poiKind:String?;var openingHoursText:String?;var website:String?;var phone:String?;var address:String?;var sourceRelease:String?;var activityType:String? = nil;var guide:CommunityGuide?;var photos:[PlacePhoto]?;var reviews:[CommunityReview]?;var hiddenGem:Bool?;var accessStatus:String?;var sources:[String]?;var sourceIds:[String]?;var sourceUrl:String?;var sourceLicense:String?;var retrievedAt:String?;var wikidata:String?;var restaurantData:RestaurantData?;var socialRecommendations:[RestaurantSocialRecommendation]?;var priceRange:Int? = nil;var priceTier:String? = nil;var estimatedSpendAud:Double? = nil;var avgCostForTwoAud:Double? = nil;var nightlyRateAud:Double? = nil;var priceLabel:String? = nil;var ratingSource:String? = nil;var ratingSourceUrl:String? = nil;var aggregateRating:Double? = nil;var reviewCount:Int? = nil;var ratingLabel:String? = nil;var reviewSummary:String? = nil;var reviewHighlights:[String]? = nil}
+struct ScheduleCandidate:Codable,Identifiable {var id:String;var name:String;var category:String;var indoor:Bool;var visitMinutes:Int;var cost:Double;var lat:Double;var lng:Double;var reason:String;var description:String?;var note:String?;var openMinute:Int?;var closeMinute:Int?;var source:String?;var poiKind:String?;var openingHoursText:String?;var website:String?;var phone:String?;var address:String?;var sourceRelease:String?;var activityType:String? = nil;var guide:CommunityGuide?;var photos:[PlacePhoto]?;var reviews:[CommunityReview]?;var hiddenGem:Bool?;var accessStatus:String?;var sources:[String]?;var sourceIds:[String]?;var sourceUrl:String?;var sourceLicense:String?;var retrievedAt:String?;var wikidata:String?;var restaurantData:RestaurantData?;var socialRecommendations:[RestaurantSocialRecommendation]?;var priceRange:Int? = nil;var priceTier:String? = nil;var estimatedSpendAud:Double? = nil;var avgCostForTwoAud:Double? = nil;var nightlyRateAud:Double? = nil;var priceLabel:String? = nil;var ratingSource:String? = nil;var ratingSourceUrl:String? = nil;var aggregateRating:Double? = nil;var reviewCount:Int? = nil;var ratingLabel:String? = nil;var reviewSummary:String? = nil;var reviewHighlights:[String]? = nil;var nameEn:String? = nil;var descriptionEn:String? = nil}
 extension ScheduleCandidate {
+    // Presentation only: IDs, canonical names and source quotations remain unchanged.
+    func displayName(language:AppLanguage)->String {
+        language.display(language == .english && nameEn?.isEmpty == false ? nameEn! : name)
+    }
+    var displayName:String {displayName(language:.current)}
+    var displayDescription:String? {
+        let value=AppLanguage.current == .english && descriptionEn?.isEmpty == false ? descriptionEn : description
+        return value.map(uiText)
+    }
+
     var reviewSourceURL:URL? {
         guard let source=ratingSource,!source.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty,let value=ratingSourceUrl,let url=URL(string:value),url.scheme=="https",url.host != nil,url.user==nil else{return nil}
         return url
@@ -337,7 +347,7 @@ struct ScheduleRadarView:View {
                         ForEach(day.activities){activity in
                             Button{editing=activity}label:{HStack(spacing:12){
                                 Text(uiText(activity.arrival.isEmpty ? "待安排":activity.arrival)).font(.subheadline.monospacedDigit()).foregroundStyle(Palette.green)
-                                VStack(alignment:.leading,spacing:5){Text(activity.name).font(.headline);Text(uiText("\(activity.duration) 分钟 · 每人约 A$"+String(format:"%.0f",activity.cost))).font(.caption).foregroundStyle(Palette.muted)}
+                                VStack(alignment:.leading,spacing:5){Text(uiText(activity.name)).font(.headline);Text(uiText("\(activity.duration) 分钟 · 每人约 A$"+String(format:"%.0f",activity.cost))).font(.caption).foregroundStyle(Palette.muted)}
                                 Spacer();Image(systemName:"pencil").foregroundStyle(Palette.green)
                             }.padding(16).background(.white,in:RoundedRectangle(cornerRadius:16))}.buttonStyle(.plain).foregroundStyle(Palette.ink).accessibilityLabel(uiText("编辑活动："+activity.name))
                         }
@@ -378,7 +388,7 @@ struct ScheduleRadarView:View {
     func summary(_ day:ScheduleDay,_ state:ScheduleState)->some View {
         ScheduleAllowanceSummary(day:day,state:state,dayNumber:model.dayIndex+1)
     }
-    var candidates:some View {NavigationStack{List{Section(uiText("新增生活安排（地點待確認）")){ForEach(["meal","restroom","rest","bag-drop","bag-pickup"],id:\.self){kind in Button(uiText(["meal":"＋用餐","restroom":"＋廁所","rest":"＋休息","bag-drop":"＋寄放","bag-pickup":"＋取件"][kind] ?? kind)){model.addFacility(kind)}}};if let state=model.state {ForEach(state.candidates){c in let selected=state.days.flatMap(\.activities).contains{$0.placeId==c.id};Button{if selected {model.edit{$0.days=model.state!.days.map{day in var day=day;day.activities.removeAll{$0.placeId==c.id};return day}}}else{model.add(c)}}label:{HStack{Image(systemName:selected ? "checkmark.circle.fill":"circle");VStack(alignment:.leading){Text(c.name);Text(uiText(c.reason)).font(.caption);Text(uiText("A$\(Int(c.cost)) · 遊覽 \(c.visitMinutes) 分 · 排隊未知")).font(.caption2)}}};Button(uiText(model.trip?.profile.mustVisit.contains(c.id)==true ? "★ 必去":"☆ 設為必去")){model.toggleMust(c)}.font(.caption)}}}.navigationTitle(uiText("景點選擇")).toolbar{Button(uiText("完成")){candidateSheet=false}}}}
+    var candidates:some View {NavigationStack{List{Section(uiText("新增生活安排（地點待確認）")){ForEach(["meal","restroom","rest","bag-drop","bag-pickup"],id:\.self){kind in Button(uiText(["meal":"＋用餐","restroom":"＋廁所","rest":"＋休息","bag-drop":"＋寄放","bag-pickup":"＋取件"][kind] ?? kind)){model.addFacility(kind)}}};if let state=model.state {ForEach(state.candidates){c in let selected=state.days.flatMap(\.activities).contains{$0.placeId==c.id};Button{if selected {model.edit{$0.days=model.state!.days.map{day in var day=day;day.activities.removeAll{$0.placeId==c.id};return day}}}else{model.add(c)}}label:{HStack{Image(systemName:selected ? "checkmark.circle.fill":"circle");VStack(alignment:.leading){Text(c.displayName);Text(uiText(c.reason)).font(.caption);Text(uiText("A$\(Int(c.cost)) · 遊覽 \(c.visitMinutes) 分 · 排隊未知")).font(.caption2)}}};Button(uiText(model.trip?.profile.mustVisit.contains(c.id)==true ? "★ 必去":"☆ 設為必去")){model.toggleMust(c)}.font(.caption)}}}.navigationTitle(uiText("景點選擇")).toolbar{Button(uiText("完成")){candidateSheet=false}}}}
 }
 
 struct ScheduleSettingsView:View {
@@ -441,7 +451,7 @@ struct ScheduleActivityView:View {
     var body:some View {let _=interfaceLocale
         NavigationStack{Form {
         Section(uiText("活動")) {
-            Text(activity.name)
+            Text(uiText(activity.name))
             Button(uiText("移除此活動"),role:.destructive){onDelete();dismiss()}
             if activity.kind != "attraction" {TextField(uiText("名稱"),text:$activity.name);TextField(uiText("緯度"),value:$activity.lat,format:.number);TextField(uiText("經度"),value:$activity.lng,format:.number);TextField(uiText("費用 A$"),value:$activity.cost,format:.number)}
             Stepper("停留 \(activity.duration) 分",value:$activity.duration,in:5...240,step:5).disabled(activity.locked==true)
@@ -648,7 +658,7 @@ struct InlineTripSchedule:View {
                 Text(uiText(activity.arrival.isEmpty ? "试算中":activity.arrival)).font(.caption.monospacedDigit()).foregroundStyle(Palette.muted).frame(width:46,alignment:.leading).background(timeChanged(activity) ? Palette.blush:.clear,in:RoundedRectangle(cornerRadius:6)).padding(.top,13)
                 Image(systemName:symbol(activity.kind)).font(.subheadline).foregroundStyle(Palette.berry).frame(width:30,height:34).background(activity.kind=="attraction" ? Palette.lavender:Palette.peach,in:RoundedRectangle(cornerRadius:10)).padding(.top,4).accessibilityHidden(true)
                 VStack(alignment:.leading,spacing:4){
-                    Button{withAnimation(reduceMotion ? nil:.easeInOut(duration:0.2)){expanded=expanded==activity.id ? nil:activity.id}}label:{HStack(alignment:.top){Text(activity.name).font(.system(.headline,design:.rounded)).multilineTextAlignment(.leading);Spacer(minLength:4);Image(systemName:expanded==activity.id ? "chevron.up":"chevron.down").font(.caption).padding(.top,4)}.frame(minHeight:40)}.buttonStyle(.plain).accessibilityIdentifier("schedule-stop-"+activity.id)
+                    Button{withAnimation(reduceMotion ? nil:.easeInOut(duration:0.2)){expanded=expanded==activity.id ? nil:activity.id}}label:{HStack(alignment:.top){Text(uiText(activity.name)).font(.system(.headline,design:.rounded)).multilineTextAlignment(.leading);Spacer(minLength:4);Image(systemName:expanded==activity.id ? "chevron.up":"chevron.down").font(.caption).padding(.top,4)}.frame(minHeight:40)}.buttonStyle(.plain).accessibilityIdentifier("schedule-stop-"+activity.id)
                     Button{durationActivity=activity}label:{HStack(spacing:5){Text(uiText("停留 \(activity.duration) 分钟"));Image(systemName:activity.locked==true ? "lock.fill":"chevron.down").font(.caption2)}.font(.caption).foregroundStyle(Palette.berry).padding(.horizontal,12).frame(minHeight:44).background(Palette.blush.opacity(0.65),in:Capsule())}.buttonStyle(BuddyPressStyle()).disabled(!editable || blocked || activity.locked==true).accessibilityIdentifier("schedule-duration-"+activity.id)
                 }
                 if editable {
@@ -750,7 +760,7 @@ private struct InlineDurationSheet:View {
     var body:some View {
         let _=interfaceLocale
         NavigationStack{ScrollView{VStack(alignment:.leading,spacing:24){
-            Text(activity.name).font(.system(.title3,design:.rounded,weight:.bold))
+            Text(uiText(activity.name)).font(.system(.title3,design:.rounded,weight:.bold))
             Text(uiText("想在这里待多久？")).font(.subheadline).foregroundStyle(Palette.muted)
             Text(uiText("\(minutes) 分钟")).font(.system(size:38,weight:.bold,design:.rounded)).foregroundStyle(Palette.berry).frame(maxWidth:.infinity)
             Slider(value:Binding(get:{Double(minutes)},set:{minutes=Int($0)}),in:5...240,step:5).accessibilityLabel(uiText("停留分钟数"))
@@ -826,7 +836,7 @@ private struct InlineAnchorSheet:View {
                 TextField(uiText("搜索酒店、车站或地点"),text:$query).textFieldStyle(.roundedBorder).submitLabel(.search).onSubmit{Task{await search()}}.accessibilityIdentifier("anchor-place-query")
                 Button{Task{await search()}}label:{Label(uiText(searching ? "正在找地点…":"搜索地点"),systemImage:"magnifyingglass").frame(minHeight:44)}.buttonStyle(.bordered).disabled(searching || query.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty).accessibilityIdentifier("anchor-place-search")
                 if let issue{Text(uiText(issue)).font(.caption).foregroundStyle(.red)}
-                ForEach(places){place in Button{point=Coordinate(name:place.name,lat:place.lat,lng:place.lng);places=[];issue=nil}label:{VStack(alignment:.leading,spacing:5){Text(place.name).font(.subheadline.bold());if let price=place.mappedFoodPriceLabel{Text(uiText(price)).font(.caption2).foregroundStyle(Palette.green)};if let address=place.address{Text(uiText(address)).font(.caption).foregroundStyle(Palette.muted)}}.frame(maxWidth:.infinity,alignment:.leading).padding(12).background(Palette.mint.opacity(0.45),in:RoundedRectangle(cornerRadius:12))}.buttonStyle(BuddyPressStyle()).accessibilityIdentifier("anchor-result-"+place.id)}
+                ForEach(places){place in Button{point=Coordinate(name:place.name,lat:place.lat,lng:place.lng);places=[];issue=nil}label:{VStack(alignment:.leading,spacing:5){Text(uiText(place.name)).font(.subheadline.bold());if let price=place.mappedFoodPriceLabel{Text(uiText(price)).font(.caption2).foregroundStyle(Palette.green)};if let address=place.address{Text(uiText(address)).font(.caption).foregroundStyle(Palette.muted)}}.frame(maxWidth:.infinity,alignment:.leading).padding(12).background(Palette.mint.opacity(0.45),in:RoundedRectangle(cornerRadius:12))}.buttonStyle(BuddyPressStyle()).accessibilityIdentifier("anchor-result-"+place.id)}
             }.padding(16).background(.white,in:RoundedRectangle(cornerRadius:18))
             Text(uiText("只调整这一天的路线起终点与时间，不会修改其他日期的住宿或房费。会先预览变化，点‘保存调整’才更新正式行程。")).font(.caption).foregroundStyle(Palette.muted)
         }.padding(20)}.background(Palette.cream).navigationTitle(uiText(request.kind == .start ? "当天出发":"当天返回")).navigationBarTitleDisplayMode(.inline).toolbar{Button(uiText("取消")){dismiss()}}

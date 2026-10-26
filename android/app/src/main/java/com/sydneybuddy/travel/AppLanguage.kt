@@ -15,6 +15,11 @@ internal fun translated(catalog:JSONObject,language:AppLanguage,key:String,varar
     args.forEachIndexed{i,value->result=result.replace("{$i}",value)}
     return result
 }
+internal fun poiText(point:JSONObject,field:String,language:AppLanguage?,catalog:JSONObject):String {
+    val preferred=if(language==AppLanguage.ENGLISH)point.optString(field+"En").takeIf{it.isNotBlank()} else null
+    val original=preferred ?: point.optString(field)
+    return if(language==null)original else translated(catalog,language,original)
+}
 @Composable fun ui(key:String,vararg args:String):String {
     val context=LocalContext.current
     val catalog=remember(context.applicationContext){JSONObject(context.assets.open("ui-localizations.json").bufferedReader().use{it.readText()})}

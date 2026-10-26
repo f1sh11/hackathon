@@ -103,9 +103,12 @@ internal fun toolboxMinute(y:Float,scale:Float,first:Int,start:Int,end:Int):Int?
 }
 @Composable internal fun SchedulePlaceDetail(p:JSONObject,store:BuddyStore,onDismiss:()->Unit) {
     fun time(n:Int)="%02d:%02d".format(n/60,n%60)
+    val language=LocalAppLanguage.current
+    val context=androidx.compose.ui.platform.LocalContext.current
+    val catalog=remember(context.applicationContext){JSONObject(context.assets.open("ui-localizations.json").bufferedReader().use{it.readText()})}
     AlertDialog(onDismissRequest=onDismiss,title={Text(ui("景點介紹"))},text={Column(Modifier.heightIn(max=480.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(14.dp)) {
-        Text(p.optString("name"),fontSize=21.sp,fontWeight=FontWeight.Bold)
-        Text(p.optString("category")+" · "+if(p.optBoolean("indoor"))"室內"else "戶外",color=Color.Gray)
+        Text(poiText(p,"name",language,catalog),fontSize=21.sp,fontWeight=FontWeight.Bold)
+        Text(ui(p.optString("category"))+" · "+ui(if(p.optBoolean("indoor"))"室內"else "戶外"),color=Color.Gray)
         if(p.optString("ratingLabel").isNotBlank()||p.optString("reviewSummary").isNotBlank()){
             Column(Modifier.fillMaxWidth().background(Mint,RoundedCornerShape(12.dp)).padding(12.dp),verticalArrangement=Arrangement.spacedBy(4.dp)) {
                 Text("旅客綜合評價 · "+p.optString("ratingLabel","★ 4.4"),fontWeight=FontWeight.Bold,color=Green)
@@ -113,7 +116,7 @@ internal fun toolboxMinute(y:Float,scale:Float,first:Int,start:Int,end:Int):Int?
                 p.optJSONArray("reviewHighlights")?.strings()?.forEach{h->Small("• $h")}
             }
         }
-        Text(p.optString("description").takeIf{it.isNotBlank()} ?: "此草案尚未附上景點介紹，可重新試算以更新資料。")
+        Text(poiText(p,"description",language,catalog).takeIf{it.isNotBlank()} ?: ui("此草案尚未附上景點介紹，可重新試算以更新資料。"))
         ActivityReferencesPanel(p,store)
         p.optJSONObject("restaurantData")?.let{RestaurantPricePanel(p,store)}
         p.array("socialRecommendations").objects().forEach{recommendation->Text(recommendation.optString("author").ifBlank{ui("來源未提供作者")});Text(recommendation.optJSONObject("claims")?.optString("quote") ?: "");Small(recommendation.optString("postedAt").ifBlank{ui("發文日期未提供")})}
@@ -132,11 +135,11 @@ internal fun toolboxMinute(y:Float,scale:Float,first:Int,start:Int,end:Int):Int?
         if(p.optString("sourceUrl").startsWith("https://")){val uri=androidx.compose.ui.platform.LocalUriHandler.current;TextButton(onClick={uri.openUri(p.getString("sourceUrl"))}){Text(ui("地點資料來源"))}}
         PlaceMedia(p,store)
         PlaceContact(p)
-        Text("為你推薦",fontWeight=FontWeight.Bold);Text(p.optString("reason"))
+        Text(ui("為你推薦"),fontWeight=FontWeight.Bold);Text(ui(p.optString("reason")))
         Text("建議停留 ${p.optInt("visitMinutes")} 分鐘\n"+if(p.optJSONObject("restaurantData")!=null)ui("餐費見上方估算；營業與排隊仍待確認。")else if(p.optString("priceLabel").isNotBlank())"價格等級映射：${p.optString("priceLabel")} · 排隊時間未知"else if(p.optString("source") in listOf("OpenStreetMap","Apple Maps","Overture Maps","Wikivoyage","Restaurant evidence","Community social recommendation"))"費用與排隊時間未知"else "規劃預留 A$${p.optInt("cost")} · 排隊時間未知")
         if(p.optString("openingHoursText").isNotBlank())Small("OSM 營業時間標記："+p.optString("openingHoursText"))
         if(!p.isNull("openMinute")&&!p.isNull("closeMinute"))Text("示範開放時段 ${time(p.optInt("openMinute"))}–${time(p.optInt("closeMinute"))}")
-        if(p.optString("note").isNotBlank())Small(p.optString("note"))
+        if(p.optString("note").isNotBlank())Small(ui(p.optString("note")))
         Small(if(p.optString("source") in listOf("OpenStreetMap","Apple Maps","Overture Maps","Wikivoyage","Restaurant evidence","Community social recommendation"))"資料來源："+p.optString("source")+"；費用及營業資訊未確認。"else "本機景點資料；費用與開放時間是規劃示例，出發前請確認當日資訊。")
     }},confirmButton={TextButton(onClick=onDismiss){Text(ui("完成"))}})
 }

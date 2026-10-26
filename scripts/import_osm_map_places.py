@@ -47,6 +47,8 @@ def normalize(raw,bbox,now):
         source_url=f'https://www.openstreetmap.org/{kind}/{identifier}'
         text=tags.get('description:zh',tags.get('description','')) or f'OSM {poi_kind.replace("_"," ")}'
         record={'id':f'osm:{kind}:{identifier}','name':name,'lat':lat,'lng':lng,'source':'OpenStreetMap','sourceUrl':source_url,
+                'nameEn':tags.get('name:en',tags.get('name','')).strip(),
+                'descriptionEn':tags.get('description:en',tags.get('description','')).strip(),
                 'sourceLicense':'ODbL 1.0','retrievedAt':now,'searchCategory':category,'searchText':' '.join([name,tags.get('name',''),address,poi_kind]),
                 'category':{'food':'美食','lodging':'住宿','shops':'店家','facilities':'設施','gems':'風景','sights':'風景'}[category],
                 'poiKind':poi_kind,'description':text,'address':address,'website':tags.get('website',tags.get('contact:website','')),

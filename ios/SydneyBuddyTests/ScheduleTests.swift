@@ -547,6 +547,19 @@ import MapKit
         XCTAssertEqual(AppLanguage.english.text("Custom place"),"Custom place")
         XCTAssertEqual(store.trip!.days.flatMap(\.stops).map(\.id),ids)
     }
+    func testPoiEnglishDisplayUsesSourceLanguageFieldsAndPreservesSavedIdentity() throws {
+        let defaults=UserDefaults.standard;let previous=defaults.string(forKey:"appLanguage")
+        defer{if let previous{defaults.set(previous,forKey:"appLanguage")}else{defaults.removeObject(forKey:"appLanguage")}}
+        defaults.set("en",forKey:"appLanguage")
+        let data=Data(#"{"id":"osm:node:301","name":"博物館","nameEn":"Museum","category":"風景","indoor":true,"visitMinutes":60,"cost":0,"lat":-33.86,"lng":151.21,"reason":"test","description":"中文介紹","descriptionEn":"Harbour collection"}"#.utf8)
+        let point=try JSONDecoder().decode(ScheduleCandidate.self,from:data)
+        XCTAssertEqual(point.displayName,"Museum");XCTAssertEqual(point.displayDescription,"Harbour collection")
+        XCTAssertEqual(point.displayName(language:.traditional),"博物館")
+        XCTAssertEqual(point.name,"博物館");XCTAssertEqual(point.id,"osm:node:301")
+        XCTAssertEqual(AppLanguage.english.display("悉尼歌剧院"),"Sydney Opera House")
+        let roundTrip=try JSONDecoder().decode(ScheduleCandidate.self,from:JSONEncoder().encode(point))
+        XCTAssertEqual(roundTrip.nameEn,"Museum")
+    }
     func testVisibleCopyUsesSelectedScriptAndKeepsPlaceholdersLiteral() {
         XCTAssertEqual(AppLanguage.simplified.display("儲存行程後，開啟地圖。"),"储存行程后，开启地图。")
         XCTAssertEqual(AppLanguage.traditional.display("保存行程后，打开地图。"),"保存行程後，打開地圖。")

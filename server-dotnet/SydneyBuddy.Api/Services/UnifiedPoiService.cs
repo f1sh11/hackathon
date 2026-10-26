@@ -63,7 +63,7 @@ public sealed class UnifiedPoiService(TravelDataContext travel,OverturePoiProvid
             if(point["cost"] is null)point["cost"]=0;
             var kind=Kind(point);
             if(!PoiCategories.Matches(point,category))continue;
-            if(!tokens.All(q=>CultureInfo.InvariantCulture.CompareInfo.IndexOf(point.Str("searchText",point.Str("name")+" "+point.Str("description")+" "+point.Str("address")),q,CompareOptions.IgnoreCase|CompareOptions.IgnoreNonSpace)>=0))continue;
+            if(!tokens.All(q=>CultureInfo.InvariantCulture.CompareInfo.IndexOf(point.Str("searchText")+" "+point.Str("name")+" "+point.Str("nameEn")+" "+point.Str("description")+" "+point.Str("descriptionEn")+" "+point.Str("address"),q,CompareOptions.IgnoreCase|CompareOptions.IgnoreNonSpace)>=0))continue;
             if(!identifiers.Add(point.Str("id")))continue;
             var meters=RouteService.Distance(origin,point);if(meters>radius)continue;
             var name=NameKey(point.Str("name"))+":"+point.Str("category");if(!groups.TryGetValue(name,out var group))groups[name]=group=[];
@@ -82,7 +82,7 @@ public sealed class UnifiedPoiService(TravelDataContext travel,OverturePoiProvid
             value["sources"]=new JsonArray(match.Point.Str("source"));value["sourceIds"]=new JsonArray(match.Point.Str("id"));
             foreach(var point in match.Duplicates){
                 var sources=value.Array("sources")!;if(!sources.Any(s=>s?.ToString()==point.Str("source")))sources.Add(point.Str("source"));value.Array("sourceIds")!.Add(point.Str("id"));
-                foreach(var field in new[]{"website","phone","address","openingHoursText","wikidata"})if(value.Str(field).Length==0&&point.Str(field).Length>0)value[field]=point[field]!.DeepClone();
+                foreach(var field in new[]{"nameEn","descriptionEn","website","phone","address","openingHoursText","wikidata"})if(value.Str(field).Length==0&&point.Str(field).Length>0)value[field]=point[field]!.DeepClone();
                 if((value.Array("photos") is null||value.Array("photos")!.Count==0)&&point.Array("photos")?.Count>0)value["photos"]=point.Array("photos")!.DeepClone();
                 if(value.Object("restaurantData") is JsonObject restaurant && point.Str("source")!="Restaurant evidence" && point.Object("restaurantData") is JsonObject communityRestaurant){
                     foreach(var field in new[]{"reportedSpends","recommendations","reviews"})foreach(var claim in communityRestaurant.Array(field)??new JsonArray()){

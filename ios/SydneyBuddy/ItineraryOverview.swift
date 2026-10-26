@@ -170,15 +170,15 @@ func overviewBadge(_ text: String, direction: Bool = false) -> UIImage {
 }
 func overviewPins(_ day: DayPlan) -> [ItineraryPin] {
     let loop = CLLocation(latitude: day.start.lat, longitude: day.start.lng).distance(from: CLLocation(latitude: day.end.lat, longitude: day.end.lng)) < 3
-    var pins = [ItineraryPin(day.start.location, badge: loop ? "起/终" : "起", title: day.start.name + uiText(loop ? " · 起点 / 返回点" : " · 起点"))]
+    var pins = [ItineraryPin(day.start.location, badge: loop ? "起/终" : "起", title: uiText(day.start.name) + uiText(loop ? " · 起点 / 返回点" : " · 起点"))]
     var consumed=Set<Int>()
     for (i,stop) in day.stops.enumerated() where !consumed.contains(i) {
         let origin=CLLocation(latitude:stop.lat,longitude:stop.lng)
         let group=day.stops.indices.filter {j in !consumed.contains(j) && origin.distance(from:CLLocation(latitude:day.stops[j].lat,longitude:day.stops[j].lng)) < 20}
         consumed.formUnion(group)
-        pins.append(ItineraryPin(stop.coordinate,badge:group.map{String($0+1)}.joined(separator:"/"),title:group.map{"\($0+1). \(day.stops[$0].name)"}.joined(separator:" → "),detail:group.map{"\(day.stops[$0].arrival)–\(day.stops[$0].departure)"}.joined(separator:" · ")))
+        pins.append(ItineraryPin(stop.coordinate,badge:group.map{String($0+1)}.joined(separator:"/"),title:group.map{"\($0+1). \(uiText(day.stops[$0].name))"}.joined(separator:" → "),detail:group.map{"\(day.stops[$0].arrival)–\(day.stops[$0].departure)"}.joined(separator:" · ")))
     }
-    if !loop { pins.append(ItineraryPin(day.end.location, badge: "终", title: day.end.name + uiText(" · 返回点"))) }
+    if !loop { pins.append(ItineraryPin(day.end.location, badge: "终", title: uiText(day.end.name) + uiText(" · 返回点"))) }
     return pins
 }
 func overviewDirections(_ coordinates: [CLLocationCoordinate2D]) -> [ItineraryPin] {

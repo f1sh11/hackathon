@@ -12,6 +12,13 @@ class OsmMapTests(unittest.TestCase):
         self.assertEqual([p['searchCategory'] for p in points],['lodging','lodging','sights','food','food','food'])
         self.assertEqual([p['poiKind'] for p in points],['hostel','caravan_site','nature_reserve','pub','bar','biergarten'])
         sql=osm.query(osm.REGIONS['katoomba-leura']);self.assertIn('pub|bar|nightclub|biergarten',sql)
+    def test_chinese_name_does_not_discard_english_source_fields(self):
+        point=self.point(9,tourism='museum',**{'name:zh':'博物館','name:en':'Museum in English','description:zh':'中文介紹','description':'Original description'})
+        record=osm.normalize({'elements':[point]},osm.BBOX,'now')['places'][0]
+        self.assertEqual(record['name'],'博物館')
+        self.assertEqual(record['nameEn'],'Museum in English')
+        self.assertEqual(record['descriptionEn'],'Original description')
+        self.assertEqual(record['description'],'中文介紹')
     def test_incomplete_or_out_of_area_data_cannot_replace_import(self):
         with self.assertRaises(ValueError):osm.normalize({'remark':'timeout'},osm.BBOX,'now')
         point=self.point(1,tourism='hotel');point['lat']=0

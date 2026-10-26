@@ -16,7 +16,9 @@
     "tags": [
       "文化",
       "风景"
-    ]
+    ],
+    "nameEn": "Sydney Opera House",
+    "descriptionEn": "A harbour landmark with sail-shaped architecture and waterfront walks. Enjoy the exterior and harbour views, or book an indoor tour or performance separately."
   },
   {
     "id": "rocks",
@@ -35,7 +37,9 @@
     "tags": [
       "文化",
       "城市"
-    ]
+    ],
+    "nameEn": "The Rocks",
+    "descriptionEn": "A historic harbour neighbourhood with sandstone buildings, lanes, shops and restaurants. Allow time to explore the streets and plan meals separately."
   },
   {
     "id": "garden",
@@ -54,7 +58,9 @@
     "tags": [
       "自然",
       "风景"
-    ]
+    ],
+    "nameEn": "Royal Botanic Garden Sydney",
+    "descriptionEn": "Harbourside gardens with walking paths, plants and harbour views. Allow for outdoor walking, rest breaks and changing weather."
   },
   {
     "id": "mca",
@@ -73,7 +79,9 @@
     "tags": [
       "文化",
       "艺术"
-    ]
+    ],
+    "nameEn": "Museum of Contemporary Art Australia",
+    "descriptionEn": "A contemporary art museum near Circular Quay. Adjust your visit to the exhibitions that interest you and check admission and special exhibition details."
   },
   {
     "id": "qvb",
@@ -93,7 +101,9 @@
       "购物",
       "城市",
       "文化"
-    ]
+    ],
+    "nameEn": "Queen Victoria Building",
+    "descriptionEn": "A historic city landmark with architectural details, shops and cafés. Shopping and dining costs are additional."
   },
   {
     "id": "gallery",
@@ -112,7 +122,9 @@
     "tags": [
       "文化",
       "艺术"
-    ]
+    ],
+    "nameEn": "Art Gallery of New South Wales",
+    "descriptionEn": "Art collections and exhibitions suited to an indoor cultural visit. Allow time according to your interests and the exhibitions you choose."
   },
   {
     "id": "museum",
@@ -131,7 +143,9 @@
     "tags": [
       "文化",
       "自然"
-    ]
+    ],
+    "nameEn": "Australian Museum",
+    "descriptionEn": "A museum of natural history and culture. Explore the galleries that interest you and check special exhibitions and current opening information."
   },
   {
     "id": "darling",
@@ -150,7 +164,9 @@
     "tags": [
       "风景",
       "城市"
-    ]
+    ],
+    "nameEn": "Darling Harbour",
+    "descriptionEn": "A waterfront area with promenades, public spaces and restaurants. Allow separate time and budget for paid attractions and activities."
   },
   {
     "id": "pancakes-rocks",
@@ -173,7 +189,9 @@
     "sourceURL": "https://pancakesontherocks.au/locations/",
     "locationSource": "Apple MapKit 地点搜索，名称与分店地址已人工核对",
     "address": "22 Playfair St, The Rocks NSW 2000, Australia",
-    "sourceCheckedAt": "2026-10-25"
+    "sourceCheckedAt": "2026-10-25",
+    "nameEn": "Pancakes on the Rocks · The Rocks",
+    "descriptionEn": "American-style meals and pancakes; a dining stop that can be combined with nearby activities."
   },
   {
     "id": "fine-food-rocks",
@@ -196,7 +214,9 @@
     "sourceURL": "https://www.finefoodstore.com/contact-us",
     "locationSource": "Apple MapKit 地点搜索，名称与分店地址已人工核对",
     "address": "9/Cnr Mill and Kendall Lane, The Rocks NSW 2000, Australia",
-    "sourceCheckedAt": "2026-10-25"
+    "sourceCheckedAt": "2026-10-25",
+    "nameEn": "The Fine Food Store",
+    "descriptionEn": "Coffee and lunch; a dining stop that can be combined with nearby activities."
   },
   {
     "id": "chat-thai-quay",
@@ -219,7 +239,9 @@
     "sourceURL": "https://chatthai.com/locations/",
     "locationSource": "Apple MapKit 地点搜索，名称与分店地址已人工核对",
     "address": "L05/1 Macquarie Pl, Sydney NSW 2000, Australia",
-    "sourceCheckedAt": "2026-10-25"
+    "sourceCheckedAt": "2026-10-25",
+    "nameEn": "Chat Thai · Circular Quay",
+    "descriptionEn": "Thai lunch; a dining stop that can be combined with nearby activities."
   },
   {
     "id": "ichiban-galeries",
@@ -242,7 +264,9 @@
     "sourceURL": "https://www.thegaleries.com/stores/ichi-ban-boshi-restaurant",
     "locationSource": "Apple MapKit 地点搜索，名称与分店地址已人工核对",
     "address": "Level 2 The Galeries, 500 George Street, Sydney NSW 2000, Australia",
-    "sourceCheckedAt": "2026-10-25"
+    "sourceCheckedAt": "2026-10-25",
+    "nameEn": "Ichi-ban Boshi · The Galeries",
+    "descriptionEn": "Japanese ramen; a dining stop that can be combined with nearby activities."
   },
   {
     "id": "grounds-city",
@@ -265,7 +289,9 @@
     "sourceURL": "https://thegrounds.com.au/dine-in/the-city/",
     "locationSource": "Apple MapKit 地点搜索，名称与分店地址已人工核对",
     "address": "RG12/500 George St\nSydney NSW 2000\nAustralia",
-    "sourceCheckedAt": "2026-10-25"
+    "sourceCheckedAt": "2026-10-25",
+    "nameEn": "The Grounds of the City",
+    "descriptionEn": "Café meals; a dining stop that can be combined with nearby activities."
   },
   {
     "id": "holy-basil-square",
@@ -288,7 +314,9 @@
     "sourceURL": "https://www.darlingsq.com/discover/steam-mill-lane/",
     "locationSource": "Apple MapKit 地点搜索，名称与分店地址已人工核对",
     "address": "SW.08/51 Tumbalong Bvd, Haymarket NSW 2000, Australia",
-    "sourceCheckedAt": "2026-10-25"
+    "sourceCheckedAt": "2026-10-25",
+    "nameEn": "Holy Basil · Darling Square",
+    "descriptionEn": "Thai and Lao dishes; a dining stop that can be combined with nearby activities."
   },
   {
     "id": "three-sisters",
@@ -308,7 +336,9 @@
       "自然",
       "风景",
       "世界遗产"
-    ]
+    ],
+    "nameEn": "Three Sisters and Echo Point",
+    "descriptionEn": "A Blue Mountains sandstone landmark overlooking Jamison Valley, with accessible viewing paths and a visitor centre."
   },
   {
     "id": "scenic-world",
@@ -328,7 +358,9 @@
       "自然",
       "亲子",
       "缆车"
-    ]
+    ],
+    "nameEn": "Scenic World",
+    "descriptionEn": "A Blue Mountains attraction with a steep passenger railway, a glass-floor cable car above the valley and elevated rainforest boardwalks."
   },
   {
     "id": "wentworth-falls",
@@ -348,7 +380,9 @@
       "自然",
       "徒步",
       "瀑布"
-    ]
+    ],
+    "nameEn": "Wentworth Falls",
+    "descriptionEn": "A three-tiered waterfall with cliffside paths and views across eucalyptus forests and Jamison Valley."
   },
   {
     "id": "leura-village",
@@ -368,7 +402,9 @@
       "休闲",
       "小镇",
       "花园"
-    ]
+    ],
+    "nameEn": "Leura Village",
+    "descriptionEn": "A Blue Mountains village with tree-lined streets, cafés, bakeries and seasonal gardens."
   },
   {
     "id": "jenolan-caves",
@@ -388,7 +424,9 @@
       "自然",
       "地质",
       "洞穴"
-    ]
+    ],
+    "nameEn": "Jenolan Caves",
+    "descriptionEn": "A limestone cave system with stalagmites, columns and underground pools illuminated along the visitor routes."
   },
   {
     "id": "katoomba-boiler-house",
@@ -411,7 +449,9 @@
     "sourceURL": "https://hydromajestic.com.au/dining/boiler-house",
     "locationSource": "Apple MapKit 地点搜索，名称与地址已核对",
     "address": "52-88 Great Western Hwy, Medlow Bath NSW 2780",
-    "sourceCheckedAt": "2026-10-26"
+    "sourceCheckedAt": "2026-10-26",
+    "nameEn": "The Boiler House · Katoomba",
+    "descriptionEn": "A dining stop for a Blue Mountains itinerary, featuring views and modern Australian cuisine."
   },
   {
     "id": "hunter-gardens",
@@ -431,7 +471,9 @@
       "自然",
       "花园",
       "亲子"
-    ]
+    ],
+    "nameEn": "Hunter Valley Gardens",
+    "descriptionEn": "Landscaped gardens with gentle walking paths, seasonal flowers and opportunities for photography."
   },
   {
     "id": "tyrrells-wines",
@@ -456,7 +498,9 @@
     "sourceURL": "https://tyrrells.com.au/",
     "locationSource": "Apple MapKit 地点搜索，名称与地址已核对",
     "address": "1838 Broke Rd, Pokolbin NSW 2320",
-    "sourceCheckedAt": "2026-10-26"
+    "sourceCheckedAt": "2026-10-26",
+    "nameEn": "Tyrrell’s Wines",
+    "descriptionEn": "A historic family winery offering tours and cellar-door tastings that introduce Hunter Valley winemaking traditions."
   },
   {
     "id": "muse-restaurant-hunter",
@@ -479,7 +523,9 @@
     "sourceURL": "https://musedining.com.au/",
     "locationSource": "Apple MapKit 地点搜索，名称与地址已核对",
     "address": "2450 Broke Rd, Pokolbin NSW 2320",
-    "sourceCheckedAt": "2026-10-26"
+    "sourceCheckedAt": "2026-10-26",
+    "nameEn": "Muse Restaurant · Hunter Valley",
+    "descriptionEn": "A Hunter Valley dining stop featuring refined modern cuisine and wine pairings."
   },
   {
     "id": "nobbys-lighthouse",
@@ -499,7 +545,9 @@
       "风景",
       "海滩",
       "灯塔"
-    ]
+    ],
+    "nameEn": "Nobbys Lighthouse and Beach",
+    "descriptionEn": "A historic lighthouse built in 1857, with views of the surf, passing ships and surrounding coast."
   },
   {
     "id": "newcastle-baths",
@@ -519,7 +567,9 @@
       "休闲",
       "海滨",
       "历史"
-    ]
+    ],
+    "nameEn": "Newcastle Ocean Baths",
+    "descriptionEn": "Public ocean pools with a historic Art Deco frontage, sea breezes and a relaxed local atmosphere."
   },
   {
     "id": "sea-cliff-bridge",
@@ -539,7 +589,9 @@
       "风景",
       "自驾",
       "海滨公路"
-    ]
+    ],
+    "nameEn": "Sea Cliff Bridge",
+    "descriptionEn": "A coastal drive highlight south of Sydney, where the bridge curves between the Pacific Ocean and steep cliffs."
   },
   {
     "id": "wollongong-lighthouse",
@@ -559,7 +611,9 @@
       "风景",
       "海滨",
       "灯塔"
-    ]
+    ],
+    "nameEn": "Wollongong Harbour Lighthouse",
+    "descriptionEn": "A coastal landmark overlooking Wollongong’s harbour, ocean and sandy beaches."
   },
   {
     "id": "kiama-blowhole",
@@ -579,7 +633,9 @@
       "自然",
       "地貌奇观",
       "海滨"
-    ]
+    ],
+    "nameEn": "Kiama Blowhole",
+    "descriptionEn": "A natural coastal blowhole where waves force seawater through openings in the rock."
   },
   {
     "id": "kiama-fish-market",
@@ -602,7 +658,9 @@
     "sourceURL": "https://kiamaharbourseafoods.com.au/",
     "locationSource": "Apple MapKit 地点搜索，名称与地址已核对",
     "address": "Blowhole Point Rd, Kiama NSW 2533",
-    "sourceCheckedAt": "2026-10-26"
+    "sourceCheckedAt": "2026-10-26",
+    "nameEn": "Kiama Harbour Seafoods",
+    "descriptionEn": "A South Coast dining stop serving seafood and fish and chips."
   },
   {
     "id": "hyams-beach",
@@ -622,7 +680,9 @@
       "风景",
       "白沙滩",
       "海滨"
-    ]
+    ],
+    "nameEn": "Hyams Beach · Jervis Bay",
+    "descriptionEn": "A Jervis Bay beach known for fine white quartz sand and turquoise water."
   },
   {
     "id": "booderee-np",
@@ -642,7 +702,9 @@
       "自然",
       "国家公园",
       "原住民文化"
-    ]
+    ],
+    "nameEn": "Booderee National Park and Botanic Gardens",
+    "descriptionEn": "Coastal bays, forests and wildlife habitats with Aboriginal cultural heritage."
   },
   {
     "id": "byron-lighthouse",
@@ -662,7 +724,9 @@
       "风景",
       "极东地标",
       "观鲸"
-    ]
+    ],
+    "nameEn": "Cape Byron Lighthouse",
+    "descriptionEn": "A white lighthouse on the cliffs of Cape Byron, overlooking the Pacific Ocean near the easternmost point of mainland Australia."
   },
   {
     "id": "wategos-beach",
@@ -682,7 +746,9 @@
       "海滩",
       "冲浪",
       "休闲"
-    ]
+    ],
+    "nameEn": "Wategos Beach",
+    "descriptionEn": "A sheltered beach beneath Cape Byron, with soft sand and a relaxed seaside atmosphere."
   },
   {
     "id": "three-blue-ducks-byron",
@@ -705,7 +771,9 @@
     "sourceURL": "https://www.threeblueducks.com/byron-bay/",
     "locationSource": "Apple MapKit 地点搜索，名称与地址已核对",
     "address": "11 Ewingsdale Rd, Ewingsdale NSW 2481",
-    "sourceCheckedAt": "2026-10-26"
+    "sourceCheckedAt": "2026-10-26",
+    "nameEn": "Three Blue Ducks · The Farm Byron Bay",
+    "descriptionEn": "A Byron Bay dining stop featuring local farm produce and wood-fired cooking."
   },
   {
     "id": "coffs-big-banana",
@@ -725,7 +793,9 @@
       "亲子",
       "地标",
       "乐园"
-    ]
+    ],
+    "nameEn": "The Big Banana Fun Park · Coffs Harbour",
+    "descriptionEn": "A North Coast family attraction associated with Australia’s Big Things landmarks."
   },
   {
     "id": "port-macquarie-koala",
@@ -745,7 +815,9 @@
       "自然",
       "考拉生态",
       "野生动物保育"
-    ]
+    ],
+    "nameEn": "Port Macquarie Koala Hospital",
+    "descriptionEn": "A wildlife care centre focused on injured and recovering koalas and the conservation of Australian marsupials."
   },
   {
     "id": "the-entrance",
@@ -765,7 +837,9 @@
       "休闲",
       "海滨",
       "生态"
-    ]
+    ],
+    "nameEn": "The Entrance Waterfront",
+    "descriptionEn": "A Central Coast waterfront with lakeside walks, waterbirds and views across the lake entrance."
   },
   {
     "id": "bouddi-coastal-walk",
@@ -785,7 +859,9 @@
       "自然",
       "徒步",
       "国家公园"
-    ]
+    ],
+    "nameEn": "Bouddi National Park Coastal Walk",
+    "descriptionEn": "A coastal walking route north of Sydney with boardwalks, sandstone cliffs, forest and secluded beaches."
   },
   {
     "id": "australian-reptile-park",
@@ -805,7 +881,9 @@
       "亲子",
       "野生动物",
       "袋鼠"
-    ]
+    ],
+    "nameEn": "Australian Reptile Park",
+    "descriptionEn": "A wildlife park with animal encounters and a role in snake antivenom research."
   },
   {
     "id": "fitzroy-falls",
@@ -825,7 +903,9 @@
       "自然",
       "瀑布",
       "峡谷"
-    ]
+    ],
+    "nameEn": "Fitzroy Falls",
+    "descriptionEn": "A Southern Highlands waterfall surrounded by eucalyptus forest and native birdlife."
   },
   {
     "id": "bowral-corbett-gardens",
@@ -845,7 +925,9 @@
       "自然",
       "花园",
       "郁金香"
-    ]
+    ],
+    "nameEn": "Corbett Gardens · Bowral",
+    "descriptionEn": "A Southern Highlands town garden known for tulips and landscaped flower beds."
   },
   {
     "id": "press-shop-bowral",
@@ -868,7 +950,9 @@
     "sourceURL": "https://www.thepressshop.com.au/",
     "locationSource": "Apple MapKit 地点搜索，名称与地址已核对",
     "address": "5/391-397 Bong Bong St, Bowral NSW 2576",
-    "sourceCheckedAt": "2026-10-26"
+    "sourceCheckedAt": "2026-10-26",
+    "nameEn": "The Press Shop · Bowral",
+    "descriptionEn": "A Southern Highlands café offering meals and coffee in Bowral."
   },
   {
     "id": "mount-kosciuszko",
@@ -888,7 +972,9 @@
       "自然",
       "最高峰",
       "雪山徒步"
-    ]
+    ],
+    "nameEn": "Mount Kosciuszko",
+    "descriptionEn": "Mainland Australia’s highest peak, with views across the Great Dividing Range and alpine landscapes."
   },
   {
     "id": "thredbo-village",
@@ -908,7 +994,9 @@
       "休闲",
       "高山度假",
       "滑雪"
-    ]
+    ],
+    "nameEn": "Thredbo Alpine Village",
+    "descriptionEn": "An alpine village in Kosciuszko National Park with outdoor activities across the seasons."
   },
   {
     "id": "taronga-western-plains",
@@ -928,7 +1016,9 @@
       "自然",
       "开放式动物园",
       "野生动物"
-    ]
+    ],
+    "nameEn": "Taronga Western Plains Zoo",
+    "descriptionEn": "An open-range zoo with spacious habitats and moats separating some animal areas."
   },
   {
     "id": "pastoral-hotel-dubbo",
@@ -951,7 +1041,9 @@
     "sourceURL": "https://pastoralhotel.com.au/",
     "locationSource": "Apple MapKit 地点搜索，名称与地址已核对",
     "address": "110 Talbragar St, Dubbo NSW 2830",
-    "sourceCheckedAt": "2026-10-26"
+    "sourceCheckedAt": "2026-10-26",
+    "nameEn": "The Pastoral Hotel Steakhouse · Dubbo",
+    "descriptionEn": "A historic dining stop in inland New South Wales with a pastoral-country atmosphere."
   },
   {
     "id": "orange-botanic-gardens",
@@ -971,7 +1063,9 @@
       "自然",
       "葡萄庄园",
       "四季果园"
-    ]
+    ],
+    "nameEn": "Orange Botanic Gardens",
+    "descriptionEn": "Gardens featuring native and introduced plants, with seasonal changes in an inland wine region."
   },
   {
     "id": "mudgee-clock-tower",
@@ -991,7 +1085,9 @@
       "文化",
       "历史小镇",
       "酒庄"
-    ]
+    ],
+    "nameEn": "Mudgee Historic Town Centre",
+    "descriptionEn": "A historic inland town centre with heritage buildings, farmers’ markets and local food."
   },
   {
     "id": "broken-hill-living-desert",
@@ -1012,7 +1108,9 @@
       "内陆",
       "沙漠雕塑",
       "日落"
-    ]
+    ],
+    "nameEn": "Living Desert Sculptures · Broken Hill",
+    "descriptionEn": "Sandstone sculptures set in the red-earth landscape outside Broken Hill, with striking desert and sunset views."
   },
   {
     "id": "harbour-bridge",
@@ -1032,7 +1130,9 @@
       "文化",
       "风景",
       "地标"
-    ]
+    ],
+    "nameEn": "Sydney Harbour Bridge",
+    "descriptionEn": "A steel arch bridge and Sydney landmark. Walk across for views of the Opera House and harbour."
   },
   {
     "id": "bondi-beach",
@@ -1052,7 +1152,9 @@
       "风景",
       "海滩",
       "休闲"
-    ]
+    ],
+    "nameEn": "Bondi Beach and Coastal Walk",
+    "descriptionEn": "A Sydney beach with golden sand, surf, an ocean pool and coastal walking routes."
   },
   {
     "id": "manly-beach",
@@ -1072,7 +1174,9 @@
       "风景",
       "海滩",
       "休闲"
-    ]
+    ],
+    "nameEn": "Manly Beach and Promenade",
+    "descriptionEn": "A northern Sydney surf beach with a broad Pacific shoreline and the nearby Corso shopping streets."
   },
   {
     "id": "taronga-zoo-sydney",
@@ -1092,7 +1196,9 @@
       "自然",
       "野生动物",
       "亲子"
-    ]
+    ],
+    "nameEn": "Taronga Zoo Sydney",
+    "descriptionEn": "A harbourside zoo with Sydney Harbour views and native animals including koalas, kangaroos and platypuses."
   },
   {
     "id": "coogee-beach",
@@ -1112,7 +1218,9 @@
       "风景",
       "海滩",
       "休闲"
-    ]
+    ],
+    "nameEn": "Coogee Beach and Ocean Baths",
+    "descriptionEn": "An eastern Sydney bay with coastal walking paths, lawns, ocean baths and seaside cafés."
   },
   {
     "id": "barangaroo-reserve",
@@ -1132,6 +1240,8 @@
       "自然",
       "风景",
       "城市"
-    ]
+    ],
+    "nameEn": "Barangaroo Reserve",
+    "descriptionEn": "A harbourside park west of the city with walking and cycling paths, picnic areas and views towards the Harbour Bridge."
   }
 ]

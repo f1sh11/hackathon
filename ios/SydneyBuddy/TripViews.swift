@@ -79,7 +79,7 @@ struct DaySummary:View {
                 HStack(alignment:.top,spacing:13) {
                     Text(uiText("\(i+1)")).font(.caption.bold()).frame(width:27,height:27).foregroundStyle(.white).background(Palette.green,in:Circle())
                     VStack(alignment:.leading,spacing:7) {
-                        HStack {Text(s.name).font(.subheadline.bold());Spacer();Image(systemName:s.symbol).foregroundStyle(Palette.green)}
+                        HStack {Text(uiText(s.name)).font(.subheadline.bold());Spacer();Image(systemName:s.symbol).foregroundStyle(Palette.green)}
                         Text(uiText("\(s.arrival)–\(s.departure) · \(s.indoorLabel) · \(s.costLabel)")).font(.caption).foregroundStyle(Palette.muted)
                         Text(uiText(store.language.display(s.note))).font(.caption2).foregroundStyle(Palette.muted)
                         if !s.hoursVerified {Label(uiText("营业时间待核实"),systemImage:"exclamationmark.circle").font(.caption2).foregroundStyle(.orange)}
@@ -758,7 +758,7 @@ struct TripAdjustmentView:View {
                     }
                     if target != nil {
                         Button(uiText("搜索替代地点"),systemImage:"magnifyingglass"){discoveringReplacement=true}.buttonStyle(.borderedProminent).disabled(model.busy).accessibilityIdentifier("replace-search-place")
-                        if !focusReplacement{Text(uiText("已有候选")).font(.subheadline.bold());ForEach(choices){candidate in Button(candidate.name){replace(with:candidate)}.buttonStyle(.bordered)}}
+                        if !focusReplacement{Text(uiText("已有候选")).font(.subheadline.bold());ForEach(choices){candidate in Button(candidate.displayName){replace(with:candidate)}.buttonStyle(.bordered)}}
                     }
                 }
                 if model.busy{ProgressView("正在校验交通、步数和预算…")}
