@@ -54,7 +54,7 @@ func journeyTime(_ raw:String)->String {
     private var task:Task<Void,Never>?
     let session:URLSession
     let endpoint:URL
-    init(session:URLSession = .shared,endpoint:URL = BackendConnection.url("journey/plan")){self.session=session;self.endpoint=endpoint}
+    init(session:URLSession = BackendConnection.session,endpoint:URL = BackendConnection.url("journey/plan")){self.session=session;self.endpoint=endpoint}
     func invalidate(){generation=UUID();task?.cancel();task=nil;busy=false;plan=nil;error=nil}
     func load(day:DayPlan,modes:[String],departure:Date,routingProvider:String = "open",mapProvider:String = "osm",contentSource:String = "open"){
         invalidate();busy=true;let token=generation
@@ -69,7 +69,7 @@ func journeyTime(_ raw:String)->String {
                 var request=URLRequest(url:endpoint);request.httpMethod="POST";request.timeoutInterval=95
                 request.setValue("application/json",forHTTPHeaderField:"Content-Type")
                 request.httpBody=try JSONSerialization.data(withJSONObject:["points":points,"modes":modes,"departureTime":ISO8601DateFormatter().string(from:departure),"contentSource":contentSource,"routingProvider":routingProvider,"mapProvider":mapProvider])
-                let (data,response)=try await session.data(for:request)
+                let (data,response)=try await session.data(for:BackendConnection.authorized(request))
                 guard (response as? HTTPURLResponse)?.statusCode==200 else {
                     let object=try? JSONSerialization.jsonObject(with:data) as? [String:Any]
                     throw NSError(domain:"Journey",code:1,userInfo:[NSLocalizedDescriptionKey:object?["error"] as? String ?? "交通规划服务暂不可用。"])
@@ -198,7 +198,7 @@ struct JourneyPlannerView:View {
     static func transitSteps(from:Coordinate,to:Coordinate,departure:Date) async throws -> [JourneyStep] {
         var request=URLRequest(url:BackendConnection.url("journey/plan"));request.httpMethod="POST";request.timeoutInterval=95;request.setValue("application/json",forHTTPHeaderField:"Content-Type")
         request.httpBody=try JSONSerialization.data(withJSONObject:["points":[["name":from.name,"lat":from.lat,"lng":from.lng,"stayMinutes":0],["name":to.name,"lat":to.lat,"lng":to.lng,"stayMinutes":0]],"modes":["transit"],"departureTime":ISO8601DateFormatter().string(from:departure),"routingProvider":"nsw","mapProvider":"apple","contentSource":"open"])
-        let (data,response)=try await URLSession.shared.data(for:request)
+        let (data,response)=try await BackendConnection.data(for:request)
         guard (response as? HTTPURLResponse)?.statusCode==200 else{let raw=(try? JSONSerialization.jsonObject(with:data)) as? [String:Any];throw NSError(domain:"Journey",code:5,userInfo:[NSLocalizedDescriptionKey:raw?["error"] as? String ?? "NSW 班次暂时无法核实，已保留原安排。"])}
         let result=try JSONDecoder().decode(JourneyPlan.self,from:data)
         guard result.legs.count==1,!result.legs[0].steps.isEmpty else{throw URLError(.cannotParseResponse)}

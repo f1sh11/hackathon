@@ -96,7 +96,7 @@ enum PoiDiscoveryCategory {
     var language="zh-TW"
     var googleMapConfigured=true
     var center=CLLocationCoordinate2D(latitude:-33.865,longitude:151.212)
-    var loader:(URLRequest) async throws -> (Data,URLResponse) = {try await URLSession.shared.data(for:$0)}
+    var loader:(URLRequest) async throws -> (Data,URLResponse) = {try await BackendConnection.data(for:$0)}
     var appleSearch:(CLLocationCoordinate2D,String,String,Double?) async throws -> [ScheduleCandidate] = ApplePoiProvider.search
     private var cameraJob:Task<Void,Never>?
     private var lastCamera:(CLLocationCoordinate2D,Double)?
@@ -502,7 +502,7 @@ struct PlacePhoto:Codable,Identifiable {
     @Published private(set) var photos:[PlacePhoto]=[]
     @Published private(set) var loading=false
     @Published private(set) var message:String?
-    var loader:(URLRequest) async throws -> (Data,URLResponse) = {try await URLSession.shared.data(for:$0)}
+    var loader:(URLRequest) async throws -> (Data,URLResponse) = {try await BackendConnection.data(for:$0)}
     private var generation=UUID()
     func prepare(_ candidate:ScheduleCandidate,dataSource:TravelDataSource) async {
         generation=UUID();photos=candidate.photos ?? [];message=nil;loading=false

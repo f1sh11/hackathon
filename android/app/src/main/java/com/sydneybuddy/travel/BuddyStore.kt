@@ -60,25 +60,27 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
     var backendMode by mutableStateOf(prefs.getString("backendMode","local") ?: "local");private set
     var base by mutableStateOf(backendAddress(backendMode));private set
     fun backendAddress(mode:String):String=prefs.getString(if(mode=="cloud")"cloudBackendURL" else "localBackendURL",if(mode=="cloud")"http://127.0.0.1:8790" else BuildConfig.BACKEND_URL)!!
-    fun chooseBackend(mode:String,address:String) {
+    fun chooseBackend(mode:String,address:String,accessCode:String="") {
         if(busy)return
         val uri=BackendEndpoint.validated(address)
         if(mode !in listOf("local","cloud") || uri==null){error="請填入 HTTPS 網址，或本機 127.0.0.1 的 HTTP 網址。";return}
+        if(mode=="cloud" && accessCode.isNotBlank()){try{BackendAccess.save(uri.toString().trimEnd('/'),accessCode)}catch(_:Exception){error="無法安全保存連線碼，設定未變更。";return}}
         base=uri.toString().trimEnd('/');backendMode=mode
         prefs.edit().putString("backendMode",mode).putString(if(mode=="cloud")"cloudBackendURL" else "localBackendURL",base).apply()
-        backendRevision++
+        backendRevision++;travelDataSource="direct";prefs.edit().putString("travelDataSource","direct").apply()
         health=null;saved=emptyList();memories=emptyList();trip=null;proposal=null;weather=null;insights=null;dataConnection=null;mapLayerIds=null;mapViewport=null;dayIndex=0;error=null;online=false
-        reload();reloadTravelData()
+        reload()
     }
     val day: JSONObject? get() = trip?.array("days")?.objects()?.getOrNull(dayIndex)
 
-    init { reload() }
+    init { BackendAccess.initialize(app);reload() }
 
     private suspend fun request(path: String, method: String = "GET", body: JSONObject? = null): String = withContext(Dispatchers.IO) {
         val selectedSource=travelDataSource
         val requestBase=base;val requestRevision=backendRevision
         val conn = URL("$requestBase/$path").openConnection() as HttpURLConnection
         try {
+            BackendAccess.token(conn.url.toString())?.let{conn.setRequestProperty("Authorization","Bearer "+it)}
             conn.requestMethod = method; conn.connectTimeout = 10000; conn.readTimeout = 240000
             conn.instanceFollowRedirects = false;conn.useCaches=false
             conn.setRequestProperty("X-Travel-Data-Source",selectedSource)
@@ -112,6 +114,7 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
     }
     private suspend fun load() {
         health = JSONObject(request("health"))
+        health?.optString("managedTravelDataSource")?.takeIf{it in listOf("direct","zetaris","zetaris-cloud")}?.let{selected->travelDataSource=selected;prefs.edit().putString("travelDataSource",selected).apply()}
         val trips = JSONArray(request("trips")).objects().sortedByDescending { it.optString("createdAt") }
         memories = JSONArray(request("memories")).objects()
         saved = trips
@@ -119,6 +122,7 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
         val current = trips.find { it.optString("id") == selected } ?: trips.firstOrNull()
         if (current != null) select(current)
         else { trip = null; weather = null }
+        reloadTravelData()
     }
     fun reload() = operation { load() }
     fun select(value: JSONObject) {

@@ -197,7 +197,7 @@ enum ScheduleInlineDraft {
 @MainActor final class ScheduleEditorModel:ObservableObject {
     @Published var trip:Trip?;@Published var state:ScheduleState?;@Published var busy=false;@Published var error:String?
     @Published var notice:String?;@Published var dayIndex=0;@Published var dirty=false
-    var loader:(URLRequest) async throws -> (Data,URLResponse) = {try await URLSession.shared.data(for:$0)}
+    var loader:(URLRequest) async throws -> (Data,URLResponse) = {try await BackendConnection.data(for:$0)}
     private var pendingSnapshot:Trip?
     private var lastNotice:String?
     private var history:[Trip]=[];private var job:Task<Void,Never>?;private var generation=0

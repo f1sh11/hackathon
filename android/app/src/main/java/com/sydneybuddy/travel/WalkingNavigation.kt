@@ -66,7 +66,7 @@ fun walkingKey(tripIdentity:String,day:JSONObject)="walking:"+MessageDigest.getI
 private class LocationFixException(message:String):Exception(message)
 
 /** Itinerary stop progress is independent of SDK state and map renderer. */
-class WalkingNavigator(private val context:Context,day:JSONObject,tripIdentity:String,private val endpoint:String, private val httpClient:HttpClientProvider = OkHttpClient.Builder().callTimeout(25,TimeUnit.SECONDS).followRedirects(false).build().toOkHttpClientProvider()) {
+class WalkingNavigator(private val context:Context,day:JSONObject,tripIdentity:String,private val endpoint:String, private val httpClient:HttpClientProvider = OkHttpClient.Builder().addInterceptor(BackendAccess.interceptor).callTimeout(25,TimeUnit.SECONDS).followRedirects(false).build().toOkHttpClientProvider()) {
     val points=walkingPoints(day)
     val key=walkingKey(tripIdentity,day)
     private val prefs=context.getSharedPreferences("walking",0)

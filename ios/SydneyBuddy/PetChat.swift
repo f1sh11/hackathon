@@ -26,8 +26,8 @@ let travelExtraFields:[(String,String)]=[("budgetCoverage","预算包含范围")
     @Published var koalaCue:KoalaCue?
     private var scope = "draft"
     private var profiling = false
-    var loader:(URLRequest) async throws -> (Data,URLResponse) = {try await URLSession.shared.data(for:$0)}
-    private let base = BackendConnection.base
+    var loader:(URLRequest) async throws -> (Data,URLResponse) = {try await BackendConnection.data(for:$0)}
+    private var base:URL {BackendConnection.base}
     private var pendingRequest: (String,String)?
     private var storageKey: String { "petSession." + scope }
     private func request<T:Decodable>(_ path:String, method:String="GET", body:[String:Any]?=nil) async throws -> T {
@@ -86,7 +86,7 @@ let travelExtraFields:[(String,String)]=[("budgetCoverage","预算包含范围")
             if let reply,let questionId{body["optionId"]=reply.id;body["questionId"]=questionId}
             var req=URLRequest(url:base.appendingPathComponent("pet/sessions/\(id)/turn"));req.httpMethod="POST";TravelDataSource.current.apply(to:&req);req.timeoutInterval=120
             req.setValue("application/json",forHTTPHeaderField:"Content-Type");req.httpBody=try JSONSerialization.data(withJSONObject:body)
-            let(bytes,response)=try await URLSession.shared.bytes(for:req)
+            let(bytes,response)=try await BackendConnection.bytes(for:req)
             guard let http=response as? HTTPURLResponse,(200..<300).contains(http.statusCode) else{throw NSError(domain:"Pet",code:2,userInfo:[NSLocalizedDescriptionKey:"这次没有发送成功，请重试。"])}
             var completed=false
             for try await line in bytes.lines {

@@ -1,4 +1,5 @@
 import Foundation
+import Security
 import CoreLocation
 import FerrostarCore
 
@@ -127,7 +128,7 @@ struct Memory: Codable, Identifiable {
     struct Provenance:Codable {var createdAt:String}
     struct MemoryProfile: Codable { var interests: [String]; var maxSteps: Int; var habits:UserTravelProfile? = nil;var travelDna:TravelPreference? = nil }
 }
-struct Health: Codable { var navigationConfigured: Bool?; var paidServicesAllowed: Bool?; var status: String; var nvidiaConfigured: Bool; var googleConfigured: Bool; var iosMapConfigured: Bool; var model: String }
+struct Health: Codable { var managedTravelDataSource:String?; var navigationConfigured: Bool?; var paidServicesAllowed: Bool?; var status: String; var nvidiaConfigured: Bool; var googleConfigured: Bool; var iosMapConfigured: Bool; var model: String }
 struct Expense: Codable, Identifiable {
     var id = UUID(); var title: String; var cents: Int; var participants: Int
     var tripID: String? = nil
@@ -252,7 +253,7 @@ struct TravelPlanningTask:Codable {
     @Published var koalaWelcomePending = !UserDefaults.standard.bool(forKey:"koala.welcome.seen") && !UserDefaults.standard.bool(forKey:"personalPreferences.v2.completed")
     @Published var canCancelOperation=false
     private var planningTask:Task<Void,Never>?
-    var loader:(URLRequest) async throws -> (Data,URLResponse) = {try await URLSession.shared.data(for:$0)}
+    var loader:(URLRequest) async throws -> (Data,URLResponse) = {try await BackendConnection.data(for:$0)}
     @Published var operationTitle="正在准备行程…"
     @Published var operationDetail="请稍等，完成后会自动显示结果。"
     @Published var errorMessage: String?
@@ -288,11 +289,14 @@ struct TravelPlanningTask:Codable {
     @Published var backendMode=UserDefaults.standard.string(forKey:"backendMode") ?? "local"
     private var backendRevision=UUID()
     var base:URL { BackendConnection.base }
-    func chooseBackend(_ mode:String,address:String) async {
+    func chooseBackend(_ mode:String,address:String,accessCode:String?=nil) async {
         guard !busy && !isGeneratingTrip, ["local","cloud"].contains(mode),let url=BackendConnection.validated(address) else {errorMessage="請填入 HTTPS 網址，或本機 127.0.0.1 的 HTTP 網址。";return}
+        if mode == "cloud",let code=accessCode,!code.isEmpty {
+            do{try BackendConnection.saveAccessCode(code,for:url)}catch{errorMessage="無法安全保存連線碼，設定未變更。";return}
+        }
         UserDefaults.standard.set(url.absoluteString,forKey:mode == "cloud" ? "cloudBackendURL":"localBackendURL")
         UserDefaults.standard.set(mode,forKey:"backendMode");backendMode=mode
-        backendRevision=UUID()
+        backendRevision=UUID();travelDataSource = .direct
         health=nil;saved=[];memories=[];trip=nil;proposal=nil;tripToOpen=nil;lastAdjustment=nil
         insights=nil;refreshedWeather=nil;dataConnection=nil;mapLayerIDs=nil;mapViewport=nil;dayIndex=0;errorMessage=nil;live=false
         await reload();await reloadTravelData()
@@ -309,7 +313,10 @@ struct TravelPlanningTask:Codable {
         var req = URLRequest(url: requestBase.appendingPathComponent(path)); req.httpMethod = method; req.httpBody = body
         let selected=source ?? travelDataSource;selected.apply(to:&req);if path=="weather"{req.cachePolicy = .reloadIgnoringLocalCacheData}
         req.setValue("application/json", forHTTPHeaderField: "Content-Type"); req.timeoutInterval = 240
-        let (data,response) = try await loader(req)
+        let loaded:(Data,URLResponse)
+        do {loaded=try await loader(req)}
+        catch {guard requestBase==base,requestRevision==backendRevision else{throw CancellationError()};throw error}
+        let (data,response)=loaded
         guard requestBase==base,requestRevision==backendRevision else {throw CancellationError()}
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
             let e = (try? JSONSerialization.jsonObject(with:data)) as? [String:Any]
@@ -319,9 +326,9 @@ struct TravelPlanningTask:Codable {
         return try JSONDecoder().decode(T.self, from: data)
     }
     func reload() async {
-        do { health = try await api("health"); saved = try await api("trips"); saved.sort { $0.createdAt > $1.createdAt }; if trip == nil && !showOnboarding && pendingTripFields.isEmpty { trip = saved.first }; memories = try await api("memories") }
+        do { health = try await api("health"); if let managed=health?.managedTravelDataSource,let selected=TravelDataSource(rawValue:managed){travelDataSource=selected}; saved = try await api("trips"); saved.sort { $0.createdAt > $1.createdAt }; if trip == nil && !showOnboarding && pendingTripFields.isEmpty { trip = saved.first }; memories = try await api("memories") }
         catch is CancellationError {}
-        catch { errorMessage = "無法連接所選後端，請檢查網址與 SSH 通道。" }
+        catch { errorMessage = "無法連接所選後端，請檢查網址、連線碼與網路。" }
     }
     func prepared(_ name: String) -> Bool { preparations.contains((trip?.id ?? "draft")+":"+name) }
     func markPrepared(_ name: String, undo: Bool = false) {
@@ -706,6 +713,29 @@ extension DayPlan {
 }
 
  enum BackendConnection {
+    static func saveAccessCode(_ code:String,for url:URL) throws {
+        guard url.scheme=="https",code.count>=24,code.count<=256,!code.contains(where:{$0.isWhitespace}) else{throw URLError(.badURL)}
+        let query:[String:Any]=[kSecClass as String:kSecClassGenericPassword,kSecAttrService as String:"SydneyBuddy.backend",kSecAttrAccount as String:url.absoluteString]
+        let attributes:[String:Any]=[kSecValueData as String:Data(code.utf8),kSecAttrAccessible as String:kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly]
+        let status=SecItemUpdate(query as CFDictionary,attributes as CFDictionary)
+        if status==errSecItemNotFound {var item=query;attributes.forEach{item[$0.key]=$0.value};guard SecItemAdd(item as CFDictionary,nil)==errSecSuccess else{throw URLError(.cannotWriteToFile)}}
+        else if status != errSecSuccess {throw URLError(.cannotWriteToFile)}
+    }
+    static func accessCode(for url:URL)->String? {
+        let query:[String:Any]=[kSecClass as String:kSecClassGenericPassword,kSecAttrService as String:"SydneyBuddy.backend",kSecAttrAccount as String:url.absoluteString,kSecReturnData as String:true,kSecMatchLimit as String:kSecMatchLimitOne]
+        var item:CFTypeRef?;guard SecItemCopyMatching(query as CFDictionary,&item)==errSecSuccess,let data=item as? Data else{return nil};return String(data:data,encoding:.utf8)
+    }
+    static func authorized(_ request:URLRequest)->URLRequest {
+        var result=request;let target=base
+        if let url=request.url,url.scheme=="https",url.host==target.host,url.port==target.port,let token=accessCode(for:target){result.setValue("Bearer "+token,forHTTPHeaderField:"Authorization")}
+        return result
+    }
+    private final class NoRedirect:NSObject,URLSessionTaskDelegate,@unchecked Sendable {
+        func urlSession(_ session:URLSession,task:URLSessionTask,willPerformHTTPRedirection response:HTTPURLResponse,newRequest request:URLRequest,completionHandler:@escaping (URLRequest?)->Void){completionHandler(nil)}
+    }
+    static let session=URLSession(configuration:.ephemeral,delegate:NoRedirect(),delegateQueue:nil)
+    static func data(for request:URLRequest) async throws -> (Data,URLResponse){try await session.data(for:authorized(request))}
+    static func bytes(for request:URLRequest) async throws -> (URLSession.AsyncBytes,URLResponse){try await session.bytes(for:authorized(request))}
     static func validated(_ value:String)->URL? {
         guard let parts=URLComponents(string:value.trimmingCharacters(in:.whitespacesAndNewlines)),let host=parts.host,!host.isEmpty,parts.user==nil,parts.password==nil,parts.query==nil,parts.fragment==nil,
               parts.scheme=="https" || (parts.scheme=="http" && ["localhost","127.0.0.1"].contains(host)),let url=parts.url else{return nil}

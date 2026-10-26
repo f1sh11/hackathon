@@ -7,6 +7,10 @@ import FerrostarCoreFFI
 import GoogleMaps
 import AVFoundation
 
+private struct BackendRouteSession:URLRequestLoading {
+    func loadData(with request:URLRequest) async throws -> (Data,URLResponse){try await BackendConnection.data(for:request)}
+}
+
 struct WalkingPoint: Codable, Equatable {
     var name: String
     var lat: Double
@@ -131,7 +135,7 @@ struct WalkingProgress: Codable, Equatable {
         task = Task {
             do {
                 let source = SimulatedLocationProvider(location: CLLocation(coordinate: points[0].coordinate, altitude: 0, horizontalAccuracy: 5, verticalAccuracy: 5, timestamp: Date()))
-                let engine = try FerrostarCore(wellKnownRouteProvider: .valhalla(endpointUrl: endpoint, profile: "pedestrian"), locationProvider: source, navigationControllerConfig: Self.config())
+                let engine = try FerrostarCore(wellKnownRouteProvider: .valhalla(endpointUrl: endpoint, profile: "pedestrian"), locationProvider: source, navigationControllerConfig: Self.config(),networkSession:BackendRouteSession())
                 let routes = try await engine.getRoutes(initialLocation: source.lastLocation!, waypoints: points.dropFirst().map { Waypoint(coordinate: GeographicCoordinate(lat: $0.lat, lng: $0.lng), kind: .break) })
                 try Task.checkCancellation()
                 guard token == generation, let route = routes.first else { return }

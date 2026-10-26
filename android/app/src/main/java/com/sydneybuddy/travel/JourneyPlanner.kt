@@ -64,7 +64,7 @@ data class JourneyPlan(val departureTime:String,val arrivalTime:String,val trave
         }
     }
 }
-class JourneyModel(private val client:OkHttpClient=OkHttpClient.Builder().callTimeout(95,TimeUnit.SECONDS).followRedirects(false).build()) {
+class JourneyModel(private val client:OkHttpClient=OkHttpClient.Builder().addInterceptor(BackendAccess.interceptor).callTimeout(95,TimeUnit.SECONDS).followRedirects(false).build()) {
     var plan by mutableStateOf<JourneyPlan?>(null);private set
     var busy by mutableStateOf(false);private set
     var error by mutableStateOf<String?>(null);private set

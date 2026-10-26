@@ -102,23 +102,26 @@ struct SettingsView:View {
     }
     @State private var selectedBackend="local"
     @State private var backendAddress=""
+    @State private var backendAccessCode=""
     private var backendSection:some View {
         Section("後端連線") {
             Picker("執行位置",selection:$selectedBackend){Text("本機後端").tag("local");Text("雲端後端").tag("cloud")}
                 .accessibilityIdentifier("backend-mode-picker")
                 .onChange(of:selectedBackend){_,mode in backendAddress=BackendConnection.address(mode)}
             TextField("後端網址",text:$backendAddress).textInputAutocapitalization(.never).autocorrectionDisabled().keyboardType(.URL).accessibilityIdentifier("backend-address")
-            Button("套用並測試連線"){Task{await store.chooseBackend(selectedBackend,address:backendAddress)}}.disabled(store.busy || store.isGeneratingTrip).accessibilityIdentifier("backend-apply")
+            if selectedBackend=="cloud" {SecureField("雲端連線碼（留空保留已儲存值）",text:$backendAccessCode).textInputAutocapitalization(.never).autocorrectionDisabled().accessibilityIdentifier("backend-access-code")}
+            Button("套用並測試連線"){Task{await store.chooseBackend(selectedBackend,address:backendAddress,accessCode:backendAccessCode);backendAccessCode=""}}.disabled(store.busy || store.isGeneratingTrip).accessibilityIdentifier("backend-apply")
             Text("目前：\(store.backendMode == "cloud" ? "雲端":"本機") · \(store.base.absoluteString)").font(.caption)
             Text(store.health?.status == "ok" ? "所選後端已連線":"所選後端尚未連線").font(.caption).accessibilityIdentifier("backend-status")
-            Text("雲端測試使用 127.0.0.1:8790 的 SSH 通道；本機預設 8787。兩端行程分開保存，切換不會搬移資料。").font(.caption).foregroundStyle(Palette.muted)
+            Text("雲端請填 HTTPS 網址與連線碼；本機預設 8787。兩端行程分開保存，切換不會搬移資料。").font(.caption).foregroundStyle(Palette.muted)
         }.onAppear{selectedBackend=store.backendMode;backendAddress=BackendConnection.address(selectedBackend)}
     }
     private var travelDataSection:some View {
         Section("旅遊資料來源") {
-            Picker("資料取得方式",selection:$store.travelDataSource){ForEach(TravelDataSource.allCases){route in Text(LocalizedStringKey(route.label)).tag(route)}}.accessibilityIdentifier("travel-data-source")
+            Picker("資料取得方式",selection:$store.travelDataSource){ForEach(TravelDataSource.allCases){route in Text(LocalizedStringKey(route.label)).tag(route)}}.disabled(store.health?.managedTravelDataSource != nil).accessibilityIdentifier("travel-data-source")
+            if store.health?.managedTravelDataSource != nil {Text("資料來源由後端統一管理；手機不需設定 Zetaris 網址或帳密。").font(.caption)}
             Text("店家、景點、天氣與地圖設定可切換來源；底圖與導航仍由地圖服務提供。").font(.caption).foregroundStyle(Palette.muted)
-            Text("Zetaris 連線失敗時可手動切回直接來源。").font(.caption)
+            Text("可重新檢查連線；由後端管理來源時，請切換後端以使用其他來源。").font(.caption)
             if let status=store.dataConnection{Text(status).font(.caption).accessibilityIdentifier("travel-data-status")}
             Button("檢查資料連線"){Task{await store.reloadTravelData()}}
         }.task(id:store.travelDataSource){await store.reloadTravelData()}

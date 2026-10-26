@@ -1,0 +1,17 @@
+{
+    admin off
+    servers {
+        protocols h1 h2
+    }
+}
+{$PUBLIC_HOST} {
+    route {
+        @localSetup path_regexp setup (?i)^/setup(?:/|$)
+        respond @localSetup 404
+        @authorized header Authorization "Bearer {$APP_ACCESS_TOKEN}"
+        reverse_proxy @authorized {$BACKEND_UPSTREAM:127.0.0.1:8787} {
+            header_up Host 127.0.0.1:8787
+        }
+        respond `{"error":"Unauthorized: check the cloud access code"}` 401
+    }
+}

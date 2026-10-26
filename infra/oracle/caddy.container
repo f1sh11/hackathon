@@ -1,0 +1,17 @@
+[Unit]
+Description=Sydney Buddy authenticated public HTTPS entry
+After=sydneybuddy-api.service
+[Container]
+Image=docker.io/library/caddy:2
+ContainerName=sydneybuddy-https
+Network=host
+Volume=/opt/sydneybuddy/Caddyfile:/etc/caddy/Caddyfile:ro,Z
+Volume=sydneybuddy-caddy-data:/data
+Volume=sydneybuddy-caddy-config:/config
+EnvironmentFile=/opt/sydneybuddy/https.env
+PodmanArgs=--memory=96m --log-opt=max-size=10mb
+[Service]
+Restart=always
+TimeoutStartSec=300
+[Install]
+WantedBy=multi-user.target

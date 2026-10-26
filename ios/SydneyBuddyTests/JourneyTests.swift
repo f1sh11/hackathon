@@ -1,5 +1,6 @@
 import XCTest
 import SwiftUI
+import Security
 @testable import SydneyBuddy
 
 private final class JourneyStub:URLProtocol {
@@ -16,6 +17,15 @@ private final class JourneyStub:URLProtocol {
     override func stopLoading(){}
 }
 @MainActor final class JourneyTests:XCTestCase {
+    func testCloudAccessCodeOnlyGoesToConfiguredHTTPSOrigin() throws {
+        let prefs=UserDefaults.standard;let previous=prefs.object(forKey:"cloudBackendURL");let previousMode=prefs.object(forKey:"backendMode")
+        let base=URL(string:"https://backend-test.example.invalid")!;let code="synthetic-test-access-code-123456789"
+        defer{if let previous{prefs.set(previous,forKey:"cloudBackendURL")}else{prefs.removeObject(forKey:"cloudBackendURL")};if let previousMode{prefs.set(previousMode,forKey:"backendMode")}else{prefs.removeObject(forKey:"backendMode")};SecItemDelete([kSecClass as String:kSecClassGenericPassword,kSecAttrService as String:"SydneyBuddy.backend",kSecAttrAccount as String:base.absoluteString] as CFDictionary)}
+        try BackendConnection.saveAccessCode(code,for:base);prefs.set(base.absoluteString,forKey:"cloudBackendURL");prefs.set("cloud",forKey:"backendMode")
+        XCTAssertEqual(BackendConnection.authorized(URLRequest(url:base.appendingPathComponent("health"))).value(forHTTPHeaderField:"Authorization"),"Bearer "+code)
+        XCTAssertNil(BackendConnection.authorized(URLRequest(url:URL(string:"https://third-party.example.invalid")!)).value(forHTTPHeaderField:"Authorization"))
+        XCTAssertNil(BackendConnection.authorized(URLRequest(url:URL(string:"http://backend-test.example.invalid")!)).value(forHTTPHeaderField:"Authorization"))
+    }
     func testBackendURLRejectsCredentialsAndPublicHTTP() {
         XCTAssertNil(BackendConnection.validated("http://203.0.113.1:8787"))
         XCTAssertNil(BackendConnection.validated("https://user:password@example.com"))
@@ -37,6 +47,15 @@ private final class JourneyStub:URLProtocol {
         do{let _: [Trip]=try await store.api("trips");XCTFail("An old backend response must not be accepted")}
         catch is CancellationError {}
         XCTAssertEqual(store.base.port,8790)
+    }
+    func testBackendSwitchDiscardsAnEarlierNetworkFailure() async throws {
+        let prefs=UserDefaults.standard;let keys=["backendMode","localBackendURL","cloudBackendURL"];let previous=keys.map{prefs.object(forKey:$0)}
+        defer {for (key,value) in zip(keys,previous){if let value{prefs.set(value,forKey:key)}else{prefs.removeObject(forKey:key)}}}
+        prefs.set("local",forKey:"backendMode");prefs.set("http://127.0.0.1:8787",forKey:"localBackendURL")
+        let store=AppStore()
+        store.loader={_ in prefs.set("cloud",forKey:"backendMode");prefs.set("http://127.0.0.1:8790",forKey:"cloudBackendURL");throw URLError(.timedOut)}
+        do{let _: [Trip]=try await store.api("trips");XCTFail("An old backend error must not replace the new connection state")}
+        catch is CancellationError {}
     }
     func testEmptyKeywordSearchStillUsesRealNearbyMuseum() async throws {
         let data=Data(#"{"id":"apple:museum","name":"Real Nearby Museum","category":"文化","indoor":false,"visitMinutes":60,"cost":0,"lat":-33.86,"lng":151.21,"reason":"test","source":"Apple Maps","poiKind":"attraction"}"#.utf8)

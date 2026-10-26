@@ -309,23 +309,26 @@ internal fun savedTripNavigationDay(trip:JSONObject,today:String=java.time.Local
             Small("景點名稱與已儲存的行程內容保留原始語言。")
         }
         Panel {
+            var backendAccessCode by remember{mutableStateOf("")}
             var backendMode by remember{mutableStateOf(store.backendMode)}
             var backendAddress by remember{mutableStateOf(store.backendAddress(backendMode))}
             Text("後端連線",fontWeight=FontWeight.Bold)
             listOf("local" to "本機後端","cloud" to "雲端後端").forEach{(mode,label)->TextButton(onClick={backendMode=mode;backendAddress=store.backendAddress(mode)},modifier=Modifier.testTag("backend-$mode")){Text((if(backendMode==mode)"✓ "else "")+label)}}
             OutlinedTextField(value=backendAddress,onValueChange={backendAddress=it},label={Text("後端網址")},singleLine=true,modifier=Modifier.fillMaxWidth().testTag("backend-address"))
-            TextButton(onClick={store.chooseBackend(backendMode,backendAddress)},enabled=!store.busy,modifier=Modifier.testTag("backend-apply")){Text("套用並測試連線")}
+            if(backendMode=="cloud")OutlinedTextField(value=backendAccessCode,onValueChange={backendAccessCode=it},label={Text("雲端連線碼（留空保留已儲存值）")},visualTransformation=androidx.compose.ui.text.input.PasswordVisualTransformation(),singleLine=true,modifier=Modifier.fillMaxWidth().testTag("backend-access-code"))
+            TextButton(onClick={store.chooseBackend(backendMode,backendAddress,backendAccessCode);backendAccessCode=""},enabled=!store.busy,modifier=Modifier.testTag("backend-apply")){Text("套用並測試連線")}
             Small("目前：${store.backendMode} · ${store.base}")
             Text(if(store.health?.optString("status")=="ok")"所選後端已連線" else "所選後端尚未連線",modifier=Modifier.testTag("backend-status"))
-            Small("雲端使用 127.0.0.1:8790 的 SSH 通道；本機預設 8787。兩端行程分開保存，切換不會搬移資料。")
+            Small("雲端請填 HTTPS 網址與連線碼；本機預設 8787。兩端行程分開保存，切換不會搬移資料。")
         }
         TextButton(onClick={restaurantImport=true}){Text(ui("匯入菜單與餐廳資料"))}
         TextButton(onClick={socialImport=true},modifier=Modifier.testTag("social-import-open")){Icon(Icons.Outlined.FileDownload,null);Text(ui("匯入社群靈感"))}
         Panel {
             Text(ui("旅遊資料來源"),fontWeight=FontWeight.Bold)
-            listOf("direct" to "直接來源","zetaris" to "本機 Zetaris","zetaris-cloud" to "雲端 Zetaris（雪梨）").forEach{(route,label)->TextButton(onClick={store.chooseTravelDataSource(route)},modifier=Modifier.testTag("travel-data-$route")){Text((if(store.travelDataSource==route)"✓ "else "")+ui(label))}}
+            listOf("direct" to "直接來源","zetaris" to "本機 Zetaris","zetaris-cloud" to "雲端 Zetaris（雪梨）").forEach{(route,label)->TextButton(onClick={store.chooseTravelDataSource(route)},enabled=store.health?.optString("managedTravelDataSource").isNullOrBlank(),modifier=Modifier.testTag("travel-data-$route")){Text((if(store.travelDataSource==route)"✓ "else "")+ui(label))}}
+            if(!store.health?.optString("managedTravelDataSource").isNullOrBlank())Small("資料來源由後端統一管理；手機不需設定 Zetaris 網址或帳密。")
             Small(ui("店家、景點、天氣與地圖設定可切換來源；底圖與導航仍由地圖服務提供。"))
-            Small(ui("Zetaris 連線失敗時可手動切回直接來源。"))
+            Small(ui("可重新檢查連線；由後端管理來源時，請切換後端以使用其他來源。"))
             store.dataConnection?.let{Small(it)}
             TextButton(onClick={store.reloadTravelData()}){Text(ui("檢查資料連線"))}
         }

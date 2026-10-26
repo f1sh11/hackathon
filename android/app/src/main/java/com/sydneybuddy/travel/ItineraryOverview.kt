@@ -32,7 +32,7 @@ data class OverviewRoute(val points:List<Pair<Double,Double>>,val meters:Double,
     }
 }
 /** Preview has no location, speech, trip mutation or navigation-progress side effects. */
-class ItineraryOverview(private val client:OkHttpClient=OkHttpClient.Builder().callTimeout(25,TimeUnit.SECONDS).followRedirects(false).build()) {
+class ItineraryOverview(private val client:OkHttpClient=OkHttpClient.Builder().addInterceptor(BackendAccess.interceptor).callTimeout(25,TimeUnit.SECONDS).followRedirects(false).build()) {
     var route by mutableStateOf<OverviewRoute?>(null);private set
     var plan by mutableStateOf<JourneyPlan?>(null);private set
     var busy by mutableStateOf(false);private set

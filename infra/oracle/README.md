@@ -85,9 +85,9 @@ curl --fail http://127.0.0.1:8787/health
 
 API 以非 root 帳號執行。PostgreSQL 資料、H-MEM、寵物會話與私有設定分別保存在持久化 volume；重新建立容器不會清除它們。首次為新的應用資料庫，不會自動搬走本機個人資料。服務隨 Docker 自動重啟。
 
-## 從本機／App 測試
+## 初版 SSH 通道測試（後續 HTTPS 方式見下方）
 
-現有後端是本機存取架構；本次先透過 SSH 加密通道測試，保留這個限制。另一個終端執行：
+初版先透過 SSH 加密通道測試。此方式仍可作為管理與故障診斷備援；實體手機使用下方的 HTTPS 入口。另一個終端執行：
 
 ```sh
 ssh -i /secure/path/id_ed25519 -NT -o ExitOnForwardFailure=yes \
@@ -95,7 +95,7 @@ ssh -i /secure/path/id_ed25519 -NT -o ExitOnForwardFailure=yes \
 curl --fail http://127.0.0.1:8790/health
 ```
 
-iOS 模擬器的 `SydneyBuddyBackendURL` 設 `http://127.0.0.1:8790`；Android 設 `BACKEND_URL=http://127.0.0.1:8790` 後重建，並用 `adb reverse tcp:8790 tcp:8790` 連接。每位夥伴使用自己的授權 SSH 金鑰；不可散發部署私鑰。實體手機透過網際網路直連的公開入口，另需 HTTPS 與應用程式登入／資料隔離，不能直接將目前匿名 API 公開。
+iOS 模擬器的 `SydneyBuddyBackendURL` 設 `http://127.0.0.1:8790`；Android 設 `BACKEND_URL=http://127.0.0.1:8790` 後重建，並用 `adb reverse tcp:8790 tcp:8790` 連接。每位夥伴使用自己的授權 SSH 金鑰；不可散發部署私鑰。實體手機使用下方的 HTTPS 與 App 連線碼入口；不要直接將匿名 API 8787 公開。
 
 ## Zetaris 切換與自行設定
 
@@ -116,7 +116,7 @@ Oracle 免費 VM 不會消除其他供應商費用；先前 AWS Zetaris 仍依�
 2026-10-26 本機驗證：部署包已實際建置為 `aarch64` 映像，API／PostgreSQL 容器皆健康，公開景點搜尋成功；重建 API 容器後合成 H-MEM 資料仍存在。後端 388 項測試通過。此紀錄不代表 Oracle 遠端部署已完成。
 
 
-## 2026-10-26 實際驗證結果
+## 2026-10-26 初版 SSH 部署驗證結果
 
 - E2 Micro 的 API／PostgreSQL 已在 Sydney 啟動，健康檢查 `status=ok`、資料庫 `postgresql`，付費外部 API 預設禁止。
 - `ss` 確認 API 只監聽 VM `127.0.0.1:8787`，沒有主機 5432 listener；公網只開 SSH，來源限制為測試電腦的 IPv4 `/32`。
@@ -128,3 +128,51 @@ Oracle 免費 VM 不會消除其他供應商費用；先前 AWS Zetaris 仍依�
 - 兩端 App 重開後仍保留雲端模式。雲端模式的網址 `127.0.0.1:8790` 透過 SSH 指向 Oracle，並不是另一個本機後端。
 
 此驗證不包含實體手機公開 HTTPS 存取，也未搬移或重新配置 AWS Zetaris。當前 SSH 通道需持續執行；電腦重開或來源 IP 改變時，須重新連線／更新 SSH `/32` 規則。先前 A1 容量不足的紀錄只描述那次嘗試，不代表此 E2 Micro 未部署。
+
+
+## Oracle 管理雲端 Zetaris 與實體手機 HTTPS
+
+後端可設定 `TravelData__ManagedSource=zetaris-cloud`。此時 Oracle 統一使用雲端 Zetaris，不接受手機覆寫來源，也不在失敗時偷偷改讀直接來源。`/health` 只回報 `managedTravelDataSource`，不回傳 Zetaris 主機、帳號、密碼或權杖；iOS／Android 讀到此設定後自動選用並鎖定資料來源。切回未受管理的本機後端時仍可使用直接來源。
+
+Zetaris 連線只放在 Oracle 的 `/opt/sydneybuddy/zetaris-cloud.env`（root:root、0600），由 Podman 的 `EnvironmentFile` 載入。欄位使用 `Zetaris__Cloud__BaseUrl`、`LoginUrl`、`Transport=ui-proxy`、`Username`、`Password`；不進 Git、不放 App。正式使用宜改為專用只讀帳號。目前實際雲端資料為 POI 5968、OSM 5318、秘境 12、活動票價 16、規劃目錄 8 與圖層 4。天氣由 Zetaris 原生 REST 表即時呼叫 Open-Meteo，不使用天氣快照／快取。
+
+沒有自有網域時，可使用 [sslip.io／nip.io](https://sslip.io/) 提供的免費 IP 對應測試名稱。本次準備 `api.161-33-225-15.sslip.io`；它不是購買或獨占的自有網域，IP 改變時名稱也要更新，服務及憑證額度仍取決於供應方。
+
+`Caddyfile` 與 `caddy.container` 提供 HTTPS 入口：只有正確的 `Authorization: Bearer ...` 才會轉送至私有 API，`/setup` 管理頁始終不公開。Caddy 的 `PUBLIC_HOST`／`APP_ACCESS_TOKEN` 放在 `/opt/sydneybuddy/https.env`（0600）；使用持久化憑證 volume。需要對外 TCP 80（憑證驗證／轉 HTTPS）及 443，8787／5432 繼續保持私有。正式開放前須明確確認公開入口及既有管理登入資訊保存到 Oracle 的授權。
+
+App 的雲端連線碼使用 iOS Keychain／Android Keystore 加密保存，只傳給指定 HTTPS 後端，不傳給地圖、照片或其他第三方主機。iOS 模擬器需正常簽章（可使用 `CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=-` 的本機臨時簽章）；未簽章測試沒有 Keychain 權限時會拒絕保存，不會退回明文。手機只設定 Oracle 網址與 App 連線碼，不需填 Zetaris。
+
+這版公開入口用於持有連線碼的團隊共用測試：使用同一份後端行程資料，並非每位使用者獨立登入與資料隔離。對外入口與 Oracle 私有 Zetaris 設定尚待本次明確確認後啟用；已完成本機的受管理來源、即時天氣、存取驗證及手機安全儲存測試。
+
+
+### 受管理後端部署順序（Oracle Linux E2 Micro）
+
+```mermaid
+flowchart LR
+    Mobile[iOS／Android<br/>本機或雲端切換] -->|HTTPS + App 連線碼| Gate[Oracle Caddy<br/>TCP 443]
+    Gate -->|VM loopback 8787| API[ASP.NET Core]
+    API -->|私有容器網路| DB[(PostgreSQL<br/>行程與應用資料)]
+    API -->|HTTPS，帳密只留 Oracle| Zetaris[AWS Sydney Zetaris]
+    Zetaris --> Places[景點／票價整合表]
+    Zetaris -->|即時、不快取| Weather[Open-Meteo API]
+    Mobile -->|本機模式| Local[本機 ASP.NET Core]
+```
+
+兩個私有設定檔都設為 `0600`，放在專案外。Zetaris 設定格式是 `{"Zetaris":{"Cloud":{...}}}`，沿用本機驗證過的欄位。HTTPS 設定格式是 `{"host":"api.YOUR_VM_IP.sslip.io","url":"https://api.YOUR_VM_IP.sslip.io","accessCode":"YOUR_RANDOM_ACCESS_CODE"}`；連線碼至少 24 字元，只用英數、底線或減號。不要將實際值複製到本文或 Git。
+
+```sh
+# 先依 SSH 首次連線流程核對並保存主機金鑰，再設定私有資料。
+python3 scripts/oracle_cloud.py configure --host YOUR_VM_IP --key /secure/id_ed25519 \
+  --zetaris-config /secure/zetaris.private.json --https-config /secure/https.private.json
+# 使用本機建好的 linux/amd64 映像更新，保留既有資料 volume。
+python3 scripts/oracle_micro.py --host YOUR_VM_IP --key /secure/id_ed25519 \
+  --image /secure/backend-image.tar.gz --image-tag oracle-managed
+# 在 Oracle Security List 分別開 TCP 80 及 443；SSH 僅自己的來源 IP/32。
+python3 scripts/oracle_cloud.py enable-https --host YOUR_VM_IP --key /secure/id_ed25519
+```
+
+`configure` 經 SSH 標準輸入傳送設定，不把帳密放在命令列；`enable-https` 使用 Caddy 官方映像並開啟主機 HTTP／HTTPS 防火牆服務。請等正式憑證簽發完成後再使用；不要停用憑證驗證。若 Let's Encrypt 因共享 DNS 額度拒發，可改用對應的 `nip.io` 名稱並重新套用同一流程。
+
+手機進入「我的／設定 → 後端連線」，選雲端、填 HTTPS 網址與 App 連線碼，再按「套用並測試連線」。應顯示後端已連線、資料來源由後端管理及 8 個行程景點；不需輸入任何 Zetaris 設定。日常切換可將連線碼留空，沿用安全儲存的值。選本機即可回到個人電腦的服務，兩端資料不會自動互相搬移。
+
+Android 公網驗證測試 `PublicBackendLiveTest` 預設跳過；需 `publicBackendSmoke=true` 及 App 私有目錄的 `backend-public-smoke.json`，內容為上述 HTTPS 設定。測試讀入後移除暫存檔，透過設定畫面保存連線碼，確認匿名請求被拒、雲端來源自動切換及即時天氣。不可將實際連線碼作為測試參數或寫入測試程式碼。

@@ -4,11 +4,14 @@ using System.Text.Json.Nodes;
 using Microsoft.Extensions.Caching.Memory;
 namespace SydneyBuddy.Api;
 
-public sealed class TravelDataContext(IHttpContextAccessor accessor) {
+public sealed class TravelDataContext(IHttpContextAccessor accessor,IConfiguration? config=null) {
     public const string Header="X-Travel-Data-Source";
-    public bool Explicit=>accessor.HttpContext?.Request.Headers.ContainsKey(Header)==true;
+    public string? ManagedMode {
+        get {var value=config?["TravelData:ManagedSource"];return string.IsNullOrWhiteSpace(value)?null:value is "direct" or "zetaris" or "zetaris-cloud"?value:throw new ServiceException("後端旅遊資料來源設定無效。");}
+    }
+    public bool Explicit=>ManagedMode is not null||accessor.HttpContext?.Request.Headers.ContainsKey(Header)==true;
     public string Mode {
-        get {var mode=accessor.HttpContext?.Request.Headers[Header].ToString()??"";return mode is "" or "direct"?"direct":mode is "zetaris" or "zetaris-cloud"?mode:throw new ServiceException("不支援的旅遊資料來源。");}
+        get {var mode=ManagedMode??accessor.HttpContext?.Request.Headers[Header].ToString()??"";return mode is "" or "direct"?"direct":mode is "zetaris" or "zetaris-cloud"?mode:throw new ServiceException("不支援的旅遊資料來源。");}
     }
     public bool Warehouse=>Mode is "zetaris" or "zetaris-cloud";
     public TravelSnapshot? Snapshot=>accessor.HttpContext?.Items[typeof(TravelSnapshot)] as TravelSnapshot;

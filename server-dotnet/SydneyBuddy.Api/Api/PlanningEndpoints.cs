@@ -7,11 +7,12 @@ public static class PlanningEndpoints
 {
     public static void MapPlanningEndpoints(this RouteGroupBuilder routes)
     {
-        routes.MapGet("/health", (SecretStore secrets, PaidServicePolicy paidServices, NavigationService navigation, JourneyService journeys) =>
+        routes.MapGet("/health", (SecretStore secrets, PaidServicePolicy paidServices, NavigationService navigation, JourneyService journeys, TravelDataContext travel) =>
         {
             var config = secrets.Read();
             return Results.Json(new
             {
+                managedTravelDataSource = travel.ManagedMode,
                 navigationConfigured = navigation.Configured, transitConfigured = journeys.TransitConfigured, status = "ok", database = "postgresql", paidServicesAllowed = paidServices.Allowed,
                 nvidiaConfigured = config["NVIDIA_API_KEY"].Length > 0,
                 nswTransitConfigured = config["TFNSW_API_KEY"].Length > 0,
@@ -56,10 +57,10 @@ public static class PlanningEndpoints
             input.Remove("mode");
             return Results.Json(await planner.PlanAsync(input, mode, context.RequestAborted));
         });
-        routes.MapPost("/weather", async (HttpContext context, Planner planner, PaidServicePolicy paidServices) =>
+        routes.MapPost("/weather", async (HttpContext context, Planner planner, PaidServicePolicy paidServices,TravelDataContext travel) =>
         {
             context.Response.Headers.CacheControl="no-store";
-            if(!context.Request.Headers.ContainsKey(TravelDataContext.Header))paidServices.RequireAllowed();
+            if(!travel.Explicit)paidServices.RequireAllowed();
             return Results.Json(await planner.WeatherAsync(await RequestJson.ReadAsync(context), context.RequestAborted));
         });
     }

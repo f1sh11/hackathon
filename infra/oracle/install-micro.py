@@ -3,7 +3,9 @@
 import os,secrets,subprocess,time
 from pathlib import Path
 os.umask(0o077)
-subprocess.run(['podman','tag','docker.io/library/sydneybuddy-api:oracle-amd64','localhost/sydneybuddy-api:oracle-amd64'],check=True)
+tag=os.environ.get('SYDNEYBUDDY_IMAGE_TAG','oracle-amd64')
+if tag not in ('oracle-amd64','oracle-managed'):raise ValueError('Unsupported image tag')
+subprocess.run(['podman','tag','docker.io/library/sydneybuddy-api:'+tag,'localhost/sydneybuddy-api:'+tag],check=True)
 root=Path('/opt/sydneybuddy');root.mkdir(mode=0o711,exist_ok=True)
 os.chmod(root,0o711)
 env=root/'database.env'
@@ -57,6 +59,9 @@ TimeoutStartSec=180
 [Install]
 WantedBy=multi-user.target
 '''}
+files['sydneybuddy-api.container']=files['sydneybuddy-api.container'].replace('localhost/sydneybuddy-api:oracle-amd64','localhost/sydneybuddy-api:'+tag)
+if (root/'zetaris-cloud.env').exists():
+    files['sydneybuddy-api.container']=files['sydneybuddy-api.container'].replace('EnvironmentFile=/opt/sydneybuddy/api.env','EnvironmentFile=/opt/sydneybuddy/api.env\nEnvironmentFile=/opt/sydneybuddy/zetaris-cloud.env')
 for name,content in files.items():(units/name).write_text(content)
 subprocess.run(['systemctl','daemon-reload'],check=True)
 subprocess.run(['systemctl','start','sydneybuddy-db.service'],check=True)

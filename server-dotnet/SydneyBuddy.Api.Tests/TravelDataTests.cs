@@ -11,6 +11,22 @@ public sealed class TravelDataTests {
         public int Calls;
         public Task<TravelSnapshot> ReadAsync(CancellationToken token){Calls++;if(fail)throw new ServiceException("warehouse unavailable");return Task.FromResult(Snapshot());}
     }
+    [Fact] public async Task ManagedCloudIgnoresClientSourceAndLoadsWarehouse() {
+        var context=new DefaultHttpContext();context.Request.Path="/catalog";context.Request.Headers[TravelDataContext.Header]="direct";
+        var config=new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?>{{"TravelData:ManagedSource","zetaris-cloud"}}).Build();
+        var selection=new TravelDataContext(new HttpContextAccessor{HttpContext=context},config);var warehouse=new Warehouse();
+        await new TravelDataMiddleware(_=>Task.CompletedTask).InvokeAsync(context,selection,warehouse);
+        Assert.Equal("zetaris-cloud",selection.Mode);Assert.True(selection.Explicit);Assert.Equal(1,warehouse.Calls);Assert.Equal("zetaris-cloud",context.Response.Headers[TravelDataContext.Header]);
+    }
+    [Fact] public void ManagedCloudAlsoWorksWithoutAnyAppSourceSetting() {
+        var config=new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?>{{"TravelData:ManagedSource","zetaris-cloud"}}).Build();
+        var selection=new TravelDataContext(new HttpContextAccessor{HttpContext=new DefaultHttpContext()},config);
+        Assert.Equal("zetaris-cloud",selection.ManagedMode);Assert.True(selection.Warehouse);Assert.True(selection.Explicit);
+    }
+    [Fact] public void InvalidManagedSourceFailsRatherThanFallingBack() {
+        var config=new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?>{{"TravelData:ManagedSource","invalid"}}).Build();
+        Assert.Throws<ServiceException>(()=>new TravelDataContext(new HttpContextAccessor(),config).Mode);
+    }
     [Fact] public async Task DirectRequestsNeverContactWarehouseAndSelectionIsPerRequest(){
         var accessor=new HttpContextAccessor();var selection=new TravelDataContext(accessor);var warehouse=new Warehouse();var next=0;
         var middleware=new TravelDataMiddleware(_=>{next++;return Task.CompletedTask;});

@@ -62,7 +62,7 @@ struct OverviewRoute {
         day.date+"|"+day.legs.map{"\($0.mode ?? "walk"):\($0.departureTime ?? ""):\($0.minutes)"}.joined(separator:"|")+"|"+(["\(day.start.name):\(day.start.lat),\(day.start.lng)"]+day.stops.map{"\($0.id):\($0.name):\($0.lat),\($0.lng):\($0.visitMinutes)"}+["\(day.end.name):\(day.end.lat),\(day.end.lng)"]).joined(separator:"|")
     }
     private var routeProvider:MapProvider?
-    var loader:(URLRequest) async throws -> (Data,URLResponse) = {try await URLSession.shared.data(for:$0)}
+    var loader:(URLRequest) async throws -> (Data,URLResponse) = {try await BackendConnection.data(for:$0)}
     private let applePlan:(DayPlan,Date) async throws -> JourneyPlan
     init(applePlan:@escaping (DayPlan,Date) async throws -> JourneyPlan = {day,departure in
         try await AppleJourneyProvider.plan(day:day,modes:day.transportModes,departure:departure)
