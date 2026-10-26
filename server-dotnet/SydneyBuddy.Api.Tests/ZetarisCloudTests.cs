@@ -83,6 +83,16 @@ public sealed class ZetarisCloudTests {
         });
         Assert.DoesNotContain("150.31",h.Statements[1]);
     }
+    [Fact]public async Task DraggingKeepsOnlyOneSnapshotAndNeverReusesAnotherViewport(){
+        var h=new Transport();using var cache=new MemoryCache(new MemoryCacheOptions());
+        var warehouse=new ZetarisTravelWarehouse(new(h),Config(),cache,Select("zetaris-cloud"));
+        var first=await warehouse.ReadForSearchAsync(-33.72,150.31,1500,default);
+        Assert.Same(first,await warehouse.ReadForSearchAsync(-33.72,150.31,1500,default));
+        for(var i=1;i<=30;i++)await warehouse.ReadForSearchAsync(-33.72+i*.001,150.31,1500,default);
+        Assert.Equal(1,cache.Count);
+        var again=await warehouse.ReadForSearchAsync(-33.72,150.31,1500,default);
+        Assert.NotSame(first,again);Assert.Equal(32,h.Statements.Count);
+    }
     [Fact]public async Task SearchRejectsInvalidBoundsBeforeContactingZetaris(){
         var h=new Transport();using var cache=new MemoryCache(new MemoryCacheOptions());
         var warehouse=new ZetarisTravelWarehouse(new(h),Config(),cache,Select("zetaris-cloud"));

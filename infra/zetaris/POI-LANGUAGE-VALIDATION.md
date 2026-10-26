@@ -12,7 +12,7 @@ English presentation now uses optional `nameEn` and `descriptionEn` source field
 
 ## Verified
 
-- ASP.NET Core complete suite: 406 passed.
+- ASP.NET Core complete suite: 407 passed after adding the bounded-cache regression test.
 - Android unit suite: 37 passed, including two POI language tests.
 - iOS build and three simulator language regression tests passed.
 - OSM importer suite: five passed, including bilingual source retention.
@@ -21,8 +21,16 @@ English presentation now uses optional `nameEn` and `descriptionEn` source field
 - Generated iOS localization resources validated against the 3,750-entry shared catalog. Added entries retain Traditional and Simplified Chinese scripts.
 - Added source-English display fallbacks for bilingual Overture business names; proper names without an English source remain unchanged.
 
-## Remaining deployment check
+## Oracle recovery and deployment
 
-Oracle HTTPS and SSH were unavailable during verification. The Mac was locked, so Oracle console recovery and visual UI inspection could not proceed. These checks do not establish that the Oracle deployment is healthy or updated. Updated public backend packaging is prepared separately; no secrets are included.
+- The existing Sydney Always Free VM was recovered with the previously authorized normal reboot. No instance or network resources were added.
+- Existing memory reservation remains disabled (`crashkernel=0`); 945 MiB RAM and 2,545 MiB swap were available after reboot. The root filesystem had about 20 GiB free.
+- Pre-reboot monitoring showed memory rising from about 20% to about 90%, then missing samples. No persistent previous-boot journal was available, so the exact cause of the outage is unconfirmed.
+- Discovered and fixed a separate memory risk: every dragged viewport could retain a distinct snapshot for 15 seconds. The cache now keeps only the latest snapshot per source/configuration and checks the viewport before reuse. A regression test covers 30 successive viewports and returning to an earlier viewport.
+- Saved rollback image `localhost/sydneybuddy-api:before-regional-poi` and deployed the updated amd64 image. Verified the running Oracle DLL contains the new `travel-public-v8` cache key and excludes the old key.
+- Oracle API, PostgreSQL and HTTPS services are active. Health reports managed source `zetaris-cloud`, TfNSW configured and paid services disabled.
+- Public HTTPS rejects unauthenticated requests. Authenticated searches returned 25 Opera matches, 43 Katoomba hotels and 41 cafés, all marked `zetaris-cloud` (about 3–6 seconds in this run).
+- iOS simulator connected to the Oracle HTTPS URL with its existing saved access code. The App automatically selected Cloud Zetaris (Sydney), with no Zetaris credentials entered into the App, and discovery results rendered successfully.
+- After queries, the API used about 231 MiB within its 320 MiB container limit; the VM reported about 335 MiB available. This is a short functional check, not a sustained multi-user load test.
 
 Apple base-map labels follow MapKit/system map behavior. Author-provided reviews and quotations keep their original language; unknown proper names are never fabricated as translations.

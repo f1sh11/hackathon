@@ -132,11 +132,11 @@ public sealed class ZetarisTravelWarehouse(HttpClient http,IConfiguration config
         return ReadSnapshotAsync(filter,token);
     }
     async Task<TravelSnapshot> ReadSnapshotAsync(string filter,CancellationToken token){
-        var key=filter+"travel-public-v7:"+(Cloud?"cloud":"local")+":"+Setting("RestaurantsEnabled")+":"+Setting("SocialEnabled")+":"+Setting("BaseUrl")+":"+Setting("LoginUrl")+":"+Setting("Transport")+":"+Setting("Username")+":"+Setting("OrgId")+":"+Setting("EnvironmentFile");
-        if(cache.TryGetValue<TravelSnapshot>(key,out var hit))return hit!;
+        var key="travel-public-v8:"+(Cloud?"cloud":"local")+":"+Setting("RestaurantsEnabled")+":"+Setting("SocialEnabled")+":"+Setting("BaseUrl")+":"+Setting("LoginUrl")+":"+Setting("Transport")+":"+Setting("Username")+":"+Setting("OrgId")+":"+Setting("EnvironmentFile");
+        if(cache.TryGetValue<(string Filter,TravelSnapshot Value)>(key,out var hit)&&hit.Filter==filter)return hit.Value;
         await Gate.WaitAsync(token);
         try {
-            if(cache.TryGetValue<TravelSnapshot>(key,out hit))return hit!;
+            if(cache.TryGetValue<(string Filter,TravelSnapshot Value)>(key,out hit)&&hit.Filter==filter)return hit.Value;
             var sql="SELECT 'poi' AS dataset,payload FROM sydneybuddy_travel.travel_poi"+filter+" UNION ALL SELECT 'catalog',payload FROM sydneybuddy_travel.travel_catalog UNION ALL SELECT 'maps',payload FROM sydneybuddy_travel.travel_map_layers UNION ALL SELECT 'metadata',payload FROM sydneybuddy_travel.travel_metadata UNION ALL SELECT 'gems',payload FROM sydneybuddy_travel.travel_hidden_gems UNION ALL SELECT 'osm',payload FROM sydneybuddy_travel.travel_osm_places"+filter;
             if(bool.TryParse(Setting("SocialEnabled"),out var socialEnabled)&&socialEnabled)sql+=" UNION ALL SELECT 'social',payload FROM sydneybuddy_travel.travel_social_places"+filter;
             if(bool.TryParse(Setting("RestaurantsEnabled"),out var restaurantsEnabled)&&restaurantsEnabled)sql+=" UNION ALL SELECT 'restaurants',payload FROM sydneybuddy_travel.travel_restaurant_places"+filter;
@@ -150,7 +150,9 @@ public sealed class ZetarisTravelWarehouse(HttpClient http,IConfiguration config
             var poi=groups["metadata"][0]!.DeepClone().AsObject();poi["places"]=groups["poi"];
             if(poi.Str("source")!="Overture Maps"||poi.Array("bbox")?.Count!=4)throw new ServiceException("Zetaris 地點來源或涵蓋範圍無效。");
             var value=new TravelSnapshot(poi,groups["catalog"],groups["maps"],DateTimeOffset.UtcNow.ToString("O"),groups["gems"],groups["osm"],groups["social"],groups["restaurants"]);
-            cache.Set(key,value,TimeSpan.FromSeconds(15));return value;
+            // Keep only the latest viewport per source/configuration. Retaining every
+            // dragged viewport for 15 seconds can exhaust the free VM's heap.
+            cache.Set(key,(filter,value),TimeSpan.FromSeconds(15));return value;
         }finally{Gate.Release();}
     }
 }
