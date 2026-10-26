@@ -66,8 +66,16 @@ import org.json.JSONObject
         GoogleMap(modifier=if(fullBleed)modifier else modifier.fillMaxWidth().height(310.dp).clip(RoundedCornerShape(22.dp)),cameraPositionState=camera,
             contentPadding=if(fullBleed)PaddingValues(top=if(expanded)100.dp else 280.dp,bottom=if(expanded)180.dp else 400.dp,start=12.dp,end=12.dp) else PaddingValues(0.dp),
             onMapLoaded={loaded=true},uiSettings=MapUiSettings(rotationGesturesEnabled=false,zoomControlsEnabled=false,myLocationButtonEnabled=false,mapToolbarEnabled=false)) {
-            nearbyPlaces.forEach{point->key(point.optString("id")){Marker(state=remember(point.optString("id")){MarkerState(position=LatLng(point.getDouble("lat"),point.getDouble("lng")))},title=point.optString("name"),icon=BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_CYAN),onClick={onPoiSelect(point);true})}}
-            insightMarkers.forEach{item->key(item.optString("id")){Marker(state=MarkerState(position=LatLng(item.getDouble("lat"),item.getDouble("lng"))),title=(if(item.optString("kind")=="price")"💰 "else "⚠️ ")+item.optString("title"),snippet=item.optString("summary"),icon=BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE))}}
+            nearbyPlaces.forEach{point->key(point.optString("id")){
+                val position=coordinate(point)
+                val marker=remember(position){MarkerState(position=position)}
+                Marker(state=marker,title=point.optString("name"),icon=BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_CYAN),onClick={onPoiSelect(point);true})
+            }}
+            insightMarkers.forEach{item->key(item.optString("id")){
+                val position=coordinate(item)
+                val marker=remember(position){MarkerState(position=position)}
+                Marker(state=marker,title=(if(item.optString("kind")=="price")"💰 "else "⚠️ ")+item.optString("title"),snippet=item.optString("summary"),icon=BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE))
+            }}
             if(day!=null)key(day.toString(),overview) {
                 val entries=listOf(start)+stops+listOf(end)
                 val badges=itineraryBadges(points.map{it.latitude to it.longitude})

@@ -35,9 +35,17 @@ import uniffi.ferrostar.GeographicCoordinate
             LaunchedEffect(points,position){if(position!=null)camera.move(GoogleCameraUpdate.newLatLngZoom(GoogleLatLng(position.lat,position.lng),16f))
                 else camera.move(GoogleCameraUpdate.newLatLngBounds(GoogleBounds.builder().apply{points.forEach{include(GoogleLatLng(it.lat,it.lng))}}.build(),50))}
             GoogleMap(Modifier.fillMaxWidth().height(300.dp),cameraPositionState=camera) {
-                points.forEachIndexed {i,p->Marker(state=MarkerState(position=GoogleLatLng(p.lat,p.lng)),title="$i. ${p.name}")}
+                points.forEachIndexed {i,p->key(i){
+                    val coordinate=GoogleLatLng(p.lat,p.lng)
+                    val marker=remember(coordinate){MarkerState(position=coordinate)}
+                    Marker(state=marker,title="$i. ${p.name}")
+                }}
                 if(geometry.size>1) Polyline(points=geometry.map{GoogleLatLng(it.lat,it.lng)},color=Green,width=8f)
-                position?.let{Marker(state=MarkerState(position=GoogleLatLng(it.lat,it.lng)),title="Current location")}
+                position?.let{
+                    val coordinate=GoogleLatLng(it.lat,it.lng)
+                    val marker=remember(coordinate){MarkerState(position=coordinate)}
+                    Marker(state=marker,title="Current location")
+                }
             }
         }
         MapProvider.OSM -> WalkingOsmMap(points,geometry,position)

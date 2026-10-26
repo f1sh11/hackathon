@@ -243,9 +243,15 @@ internal data class PoiFocus(val id:String,val lat:Double,val lng:Double,val nam
     LaunchedEffect(focus?.token,loaded){if(loaded&&focus!=null)camera.move(GoogleCameraUpdate.newLatLngZoom(GoogleLatLng(focus.lat,focus.lng),17f))}
     LaunchedEffect(camera,loaded){if(loaded)snapshotFlow{camera.isMoving}.collect{moving->if(!moving&&camera.cameraMoveStartedReason==CameraMoveStartedReason.GESTURE)currentCamera(camera.position.target.latitude to camera.position.target.longitude,camera.position.zoom.toDouble())}}
     GoogleMap(Modifier.fillMaxWidth().height(230.dp),cameraPositionState=camera,onMapLoaded={loaded=true}) {
-        insightMarkers.forEach{p->Marker(state=MarkerState(position=GoogleLatLng(p.getDouble("lat"),p.getDouble("lng"))),title=p.optString("title"),snippet=p.optString("summary"))}
+        insightMarkers.forEach{p->key(p.optString("id")){
+            val position=GoogleLatLng(p.getDouble("lat"),p.getDouble("lng"))
+            val marker=remember(position){MarkerState(position=position)}
+            Marker(state=marker,title=p.optString("title"),snippet=p.optString("summary"))
+        }}
         places.forEach{p->key(p.getString("id")){
-            val state=rememberMarkerState(position=GoogleLatLng(p.getDouble("lat"),p.getDouble("lng")))
+            val position=GoogleLatLng(p.getDouble("lat"),p.getDouble("lng"))
+            val state=rememberMarkerState(position=position)
+            LaunchedEffect(position){state.position=position}
             val selected=p.getString("id")==focus?.id
             LaunchedEffect(selected,focus?.token){if(selected)state.showInfoWindow()else state.hideInfoWindow()}
             Marker(state=state,title=p.getString("name"),zIndex=if(selected)1000f else 0f,icon=BitmapDescriptorFactory.defaultMarker(if(selected)BitmapDescriptorFactory.HUE_AZURE else BitmapDescriptorFactory.HUE_ORANGE),onClick={onSelect(p.getString("id"));true})
