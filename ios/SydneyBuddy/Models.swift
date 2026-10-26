@@ -285,7 +285,18 @@ struct TravelPlanningTask:Codable {
     @Published var showPersonalPreferences = !UserDefaults.standard.bool(forKey:"personalPreferences.v2.completed") && !UserDefaults.standard.bool(forKey:"onboarded") && !UserDefaults.standard.bool(forKey:"koko.personalChat.finished")
     @Published var showOnboarding = !UserDefaults.standard.bool(forKey: "onboarded")
     @Published var agentText = "你好！我是你的旅行小伙伴。告诉我你的想法，一起把悉尼安排得刚刚好。"
-    let base = BackendConnection.base
+    @Published var backendMode=UserDefaults.standard.string(forKey:"backendMode") ?? "local"
+    private var backendRevision=UUID()
+    var base:URL { BackendConnection.base }
+    func chooseBackend(_ mode:String,address:String) async {
+        guard !busy && !isGeneratingTrip, ["local","cloud"].contains(mode),let url=BackendConnection.validated(address) else {errorMessage="請填入 HTTPS 網址，或本機 127.0.0.1 的 HTTP 網址。";return}
+        UserDefaults.standard.set(url.absoluteString,forKey:mode == "cloud" ? "cloudBackendURL":"localBackendURL")
+        UserDefaults.standard.set(mode,forKey:"backendMode");backendMode=mode
+        backendRevision=UUID()
+        health=nil;saved=[];memories=[];trip=nil;proposal=nil;tripToOpen=nil;lastAdjustment=nil
+        insights=nil;refreshedWeather=nil;dataConnection=nil;mapLayerIDs=nil;mapViewport=nil;dayIndex=0;errorMessage=nil;live=false
+        await reload();await reloadTravelData()
+    }
     init() {
         if let data=UserDefaults.standard.data(forKey:"travelPlanningTask"),var task=try? JSONDecoder().decode(TravelPlanningTask.self,from:data){if task.status=="generating"{task.status="draft";task.message="上次生成已中断，需求已保留，点开可重试。"};travelTask=task}
         if let data = UserDefaults.standard.data(forKey: "expenses"), let v = try? JSONDecoder().decode([Expense].self, from: data) { expenses = v }
@@ -294,10 +305,12 @@ struct TravelPlanningTask:Codable {
     func saveExpenses() { if let data = try? JSONEncoder().encode(expenses) { UserDefaults.standard.set(data,forKey:"expenses") } }
     func api<T: Decodable>(_ path: String, method: String = "GET", body: Data? = nil,source:TravelDataSource?=nil) async throws -> T {
         guard base.host != "backend-not-configured.invalid" else{throw NSError(domain:"Configuration",code:1,userInfo:[NSLocalizedDescriptionKey:"请先配置实机可访问的后端地址（SydneyBuddyBackendURL），再重试。"])}
-        var req = URLRequest(url: base.appendingPathComponent(path)); req.httpMethod = method; req.httpBody = body
+        let requestBase=base;let requestRevision=backendRevision
+        var req = URLRequest(url: requestBase.appendingPathComponent(path)); req.httpMethod = method; req.httpBody = body
         let selected=source ?? travelDataSource;selected.apply(to:&req);if path=="weather"{req.cachePolicy = .reloadIgnoringLocalCacheData}
         req.setValue("application/json", forHTTPHeaderField: "Content-Type"); req.timeoutInterval = 240
         let (data,response) = try await loader(req)
+        guard requestBase==base,requestRevision==backendRevision else {throw CancellationError()}
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
             let e = (try? JSONSerialization.jsonObject(with:data)) as? [String:Any]
             throw NSError(domain:"SydneyBuddy",code:1,userInfo:[NSLocalizedDescriptionKey:e?["error"] as? String ?? "服务暂不可用，请检查本机服务。"])
@@ -307,7 +320,8 @@ struct TravelPlanningTask:Codable {
     }
     func reload() async {
         do { health = try await api("health"); saved = try await api("trips"); saved.sort { $0.createdAt > $1.createdAt }; if trip == nil && !showOnboarding && pendingTripFields.isEmpty { trip = saved.first }; memories = try await api("memories") }
-        catch { errorMessage = "无法连接本机服务。请在电脑启动 Sydney Buddy 服务后重试。" }
+        catch is CancellationError {}
+        catch { errorMessage = "無法連接所選後端，請檢查網址與 SSH 通道。" }
     }
     func prepared(_ name: String) -> Bool { preparations.contains((trip?.id ?? "draft")+":"+name) }
     func markPrepared(_ name: String, undo: Bool = false) {
@@ -692,16 +706,24 @@ extension DayPlan {
 }
 
  enum BackendConnection {
-    static var base:URL {
-        let configured=UserDefaults.standard.string(forKey:"backendURL") ?? Bundle.main.object(forInfoDictionaryKey:"SydneyBuddyBackendURL") as? String
-        if let configured,let url=URL(string:configured),["http","https"].contains(url.scheme ?? ""),url.host != nil{return url}
+    static func validated(_ value:String)->URL? {
+        guard let parts=URLComponents(string:value.trimmingCharacters(in:.whitespacesAndNewlines)),let host=parts.host,!host.isEmpty,parts.user==nil,parts.password==nil,parts.query==nil,parts.fragment==nil,
+              parts.scheme=="https" || (parts.scheme=="http" && ["localhost","127.0.0.1"].contains(host)),let url=parts.url else{return nil}
+        return url
+    }
+    static func address(_ mode:String)->String {
+        let prefs=UserDefaults.standard
+        if let saved=prefs.string(forKey:mode == "cloud" ? "cloudBackendURL":"localBackendURL"){return saved}
+        if mode == "cloud" {return "http://127.0.0.1:8790"}
+        if let legacy=prefs.string(forKey:"backendURL"),validated(legacy) != nil{return legacy}
+        if let bundled=Bundle.main.object(forInfoDictionaryKey:"SydneyBuddyBackendURL") as? String,validated(bundled) != nil{return bundled}
         #if targetEnvironment(simulator)
-        return URL(string:"http://127.0.0.1:8787")!
+        return "http://127.0.0.1:8787"
         #else
-        // A physical device must use a configured reachable server, never its own loopback.
-        return URL(string:"https://backend-not-configured.invalid")!
+        return "https://backend-not-configured.invalid"
         #endif
     }
+    static var base:URL {validated(address(UserDefaults.standard.string(forKey:"backendMode") ?? "local")) ?? URL(string:"https://backend-not-configured.invalid")!}
     static func url(_ path:String)->URL {base.appendingPathComponent(path)}
 }
 

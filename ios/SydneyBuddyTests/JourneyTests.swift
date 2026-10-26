@@ -16,6 +16,28 @@ private final class JourneyStub:URLProtocol {
     override func stopLoading(){}
 }
 @MainActor final class JourneyTests:XCTestCase {
+    func testBackendURLRejectsCredentialsAndPublicHTTP() {
+        XCTAssertNil(BackendConnection.validated("http://203.0.113.1:8787"))
+        XCTAssertNil(BackendConnection.validated("https://user:password@example.com"))
+        XCTAssertNil(BackendConnection.validated("https://example.com?token=secret"))
+        XCTAssertEqual(BackendConnection.validated("http://127.0.0.1:8790")?.port,8790)
+        XCTAssertNotNil(BackendConnection.validated("https://api.example.com"))
+    }
+    func testBackendSwitchDiscardsAnEarlierResponse() async throws {
+        let prefs=UserDefaults.standard
+        let keys=["backendMode","localBackendURL","cloudBackendURL"]
+        let previous=keys.map{prefs.object(forKey:$0)}
+        defer {for (key,value) in zip(keys,previous){if let value{prefs.set(value,forKey:key)}else{prefs.removeObject(forKey:key)}}}
+        prefs.set("local",forKey:"backendMode");prefs.set("http://127.0.0.1:8787",forKey:"localBackendURL")
+        let store=AppStore()
+        store.loader={req in
+            prefs.set("cloud",forKey:"backendMode");prefs.set("http://127.0.0.1:8790",forKey:"cloudBackendURL")
+            return (Data("[]".utf8),HTTPURLResponse(url:req.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)
+        }
+        do{let _: [Trip]=try await store.api("trips");XCTFail("An old backend response must not be accepted")}
+        catch is CancellationError {}
+        XCTAssertEqual(store.base.port,8790)
+    }
     func testEmptyKeywordSearchStillUsesRealNearbyMuseum() async throws {
         let data=Data(#"{"id":"apple:museum","name":"Real Nearby Museum","category":"文化","indoor":false,"visitMinutes":60,"cost":0,"lat":-33.86,"lng":151.21,"reason":"test","source":"Apple Maps","poiKind":"attraction"}"#.utf8)
         let museum=try JSONDecoder().decode(ScheduleCandidate.self,from:data)

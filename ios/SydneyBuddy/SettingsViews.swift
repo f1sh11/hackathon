@@ -59,6 +59,7 @@ struct SettingsView:View {
                         ForEach(store.memories){memory in HStack(alignment:.top){Text(memory.summary).font(.subheadline);Spacer();Button("删除",role:.destructive){deletingMemory=memory}.font(.subheadline).frame(minHeight:44)}}
                     }
                 }
+                backendSection
                 travelDataSection
                 Section("设置") {
                     Picker("界面语言",selection:$store.language){ForEach(AppLanguage.allCases){language in Text(verbatim:language.label).tag(language)}}.accessibilityIdentifier("app-language-picker")
@@ -98,6 +99,20 @@ struct SettingsView:View {
             .sheet(isPresented:$showingLedger){JournalView()}
             .confirmationDialog("删除这条长期偏好？以后的旅行将不再参考它。",isPresented:Binding(get:{deletingMemory != nil},set:{if !$0{deletingMemory=nil}}),titleVisibility:.visible){Button("删除偏好",role:.destructive){if let memory=deletingMemory{Task{await store.deleteMemory(memory);deletingMemory=nil}}}}
         }
+    }
+    @State private var selectedBackend="local"
+    @State private var backendAddress=""
+    private var backendSection:some View {
+        Section("後端連線") {
+            Picker("執行位置",selection:$selectedBackend){Text("本機後端").tag("local");Text("雲端後端").tag("cloud")}
+                .accessibilityIdentifier("backend-mode-picker")
+                .onChange(of:selectedBackend){_,mode in backendAddress=BackendConnection.address(mode)}
+            TextField("後端網址",text:$backendAddress).textInputAutocapitalization(.never).autocorrectionDisabled().keyboardType(.URL).accessibilityIdentifier("backend-address")
+            Button("套用並測試連線"){Task{await store.chooseBackend(selectedBackend,address:backendAddress)}}.disabled(store.busy || store.isGeneratingTrip).accessibilityIdentifier("backend-apply")
+            Text("目前：\(store.backendMode == "cloud" ? "雲端":"本機") · \(store.base.absoluteString)").font(.caption)
+            Text(store.health?.status == "ok" ? "所選後端已連線":"所選後端尚未連線").font(.caption).accessibilityIdentifier("backend-status")
+            Text("雲端測試使用 127.0.0.1:8790 的 SSH 通道；本機預設 8787。兩端行程分開保存，切換不會搬移資料。").font(.caption).foregroundStyle(Palette.muted)
+        }.onAppear{selectedBackend=store.backendMode;backendAddress=BackendConnection.address(selectedBackend)}
     }
     private var travelDataSection:some View {
         Section("旅遊資料來源") {

@@ -308,6 +308,17 @@ internal fun savedTripNavigationDay(trip:JSONObject,today:String=java.time.Local
             Small("語言切換後立即生效，並保存在這台裝置。")
             Small("景點名稱與已儲存的行程內容保留原始語言。")
         }
+        Panel {
+            var backendMode by remember{mutableStateOf(store.backendMode)}
+            var backendAddress by remember{mutableStateOf(store.backendAddress(backendMode))}
+            Text("後端連線",fontWeight=FontWeight.Bold)
+            listOf("local" to "本機後端","cloud" to "雲端後端").forEach{(mode,label)->TextButton(onClick={backendMode=mode;backendAddress=store.backendAddress(mode)},modifier=Modifier.testTag("backend-$mode")){Text((if(backendMode==mode)"✓ "else "")+label)}}
+            OutlinedTextField(value=backendAddress,onValueChange={backendAddress=it},label={Text("後端網址")},singleLine=true,modifier=Modifier.fillMaxWidth().testTag("backend-address"))
+            TextButton(onClick={store.chooseBackend(backendMode,backendAddress)},enabled=!store.busy,modifier=Modifier.testTag("backend-apply")){Text("套用並測試連線")}
+            Small("目前：${store.backendMode} · ${store.base}")
+            Text(if(store.health?.optString("status")=="ok")"所選後端已連線" else "所選後端尚未連線",modifier=Modifier.testTag("backend-status"))
+            Small("雲端使用 127.0.0.1:8790 的 SSH 通道；本機預設 8787。兩端行程分開保存，切換不會搬移資料。")
+        }
         TextButton(onClick={restaurantImport=true}){Text(ui("匯入菜單與餐廳資料"))}
         TextButton(onClick={socialImport=true},modifier=Modifier.testTag("social-import-open")){Icon(Icons.Outlined.FileDownload,null);Text(ui("匯入社群靈感"))}
         Panel {

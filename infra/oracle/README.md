@@ -2,6 +2,36 @@
 
 本分支將 ASP.NET Core、Node.js 24（H-MEM）及 PostgreSQL 放到同一台免費 VM。Zetaris 引擎不放在這台小型 VM；已有的雲端 Zetaris 可由後端另行連線。
 
+## 這次使用的 E2 Micro
+
+2026-10-26 使用者另建成功的主機為 `instance-20261026-1101`，區域 Sydney，規格 `VM.Standard.E2.1.Micro`，Oracle Linux 9，SSH 使用者 `opc`。初次開機系統回報約 498 MiB，重新開機後約 945 MiB 實體記憶體；這是小型連線測試主機，不能套用下面 Ubuntu A1 的安裝命令。
+
+在本機依下方步驟打包、解開來源包後建置 x86 映像，再部署；建置目錄必須是打包解開的公開來源目錄，避免把個人資料帶進映像：
+
+```sh
+docker build --platform linux/amd64 -t sydneybuddy-api:oracle-amd64 -f infra/oracle/Dockerfile .
+docker save sydneybuddy-api:oracle-amd64 | gzip > /secure/path/backend-amd64.tar.gz
+python3 scripts/oracle_micro.py --host YOUR_VM_IP --key /secure/path/id_ed25519 --image /secure/path/backend-amd64.tar.gz
+```
+
+Micro 工具只安裝 Oracle 官方 BaseOS／AppStream 的 Podman，避免解析大型 OCI 附加套件庫耗盡記憶體。在既有磁碟內加入 2 GiB 交換檔，不新增雲端磁碟。映像經 SHA-256 校驗後載入；PostgreSQL 與 API 由 Quadlet/systemd 管理、自動重啟，資料使用命名 volume。API 記憶體上限 320 MiB、資料庫 120 MiB，較重的 AI／多使用者工作仍可能超出這台主機能力。
+
+SSH 只允許測試者 IP；API 只綁 `127.0.0.1:8787`，資料庫沒有公開連接埠。開啟測試通道：
+
+```sh
+python3 scripts/oracle_backend.py tunnel --host YOUR_VM_IP --user opc --key /secure/path/id_ed25519 --local-port 8790
+```
+
+VM 診斷：`sudo systemctl status sydneybuddy-api sydneybuddy-db`；記錄：`sudo journalctl -u sydneybuddy-api`。私有設定在 `/opt/sydneybuddy/api.env` 與 `database.env`，權限 0600，不覆寫既有設定，不進 Git。Podman 安裝依據：[Oracle Linux 官方文件](https://docs.oracle.com/en/operating-systems/oracle-linux/podman/install.html)。
+
+## App 內切換後端
+
+iOS／Android：**我的 → 後端連線 → 本機後端／雲端後端 → 套用並測試連線**。本機預設 `http://127.0.0.1:8787`；雲端短期測試使用 SSH 通道 `http://127.0.0.1:8790`。Android 另執行 `adb reverse tcp:8787 tcp:8787` 與 `adb reverse tcp:8790 tcp:8790`。網址分別保存在裝置上，重開 App 仍保留所選模式。
+
+切換會重新載入所選後端的行程、偏好記憶及連線狀態；舊後端未完成的回應會被丟棄。不會把既有行程複製到另一端；本機帳本與裝置偏好仍留在裝置。切換控制項在規劃／寫入期間停用。對外伺服器網址只接受 HTTPS；HTTP 僅允許本機 loopback，不能填入公網 IP 的 HTTP。
+
+這是**後端執行位置**的切換；「旅遊資料來源」的直接來源／Zetaris 是另一個設定。Oracle 尚未設定雲端 Zetaris 帳密時，先選直接來源。手機實體裝置的公開存取另需 HTTPS、登入及資料隔離，本次以兩個模擬器透過私人通道驗證。
+
 ## 免費資源範圍
 
 2026-10-25 官方 Always Free 文件列出 A1 每月 1500 OCPU 小時、9000 GB 小時，約為全月 2 OCPU／12 GB；boot／block volume 合計 200 GB。僅適用 tenancy 的 home region，仍受剩餘額度與機房容量限制。
@@ -79,8 +109,22 @@ App 仍可選直接來源、本機 Zetaris、雲端 Zetaris。這裡的「本機
 
 Oracle 免費 VM 不會消除其他供應商費用；先前 AWS Zetaris 仍依使用者要求保留。是否移除 VM、開機磁碟、備份、網路與 AWS 資源，待團隊測試完成後另行確認。
 
-目前狀態：部署檔已準備；2026-10-26 已嘗試在 Sydney `ap-sydney-1` 的 AD-1 建立 `sydneybuddy-free-api`（Always Free `VM.Standard.A1.Flex`，1 OCPU／6 GB，Ubuntu 24.04 Minimal aarch64，預設 46.6 GB 開機磁碟），但 Oracle 回覆 `Out of capacity for shape VM.Standard.A1.Flex in availability domain AD-1`。依照「只用免費資源、容量不足即停止」的授權，未改用付費規格，亦未啟用付費監控附加項目。
+先前 A1 嘗試紀錄：2026-10-26 已嘗試在 Sydney `ap-sydney-1` 的 AD-1 建立 `sydneybuddy-free-api`（Always Free `VM.Standard.A1.Flex`，1 OCPU／6 GB，Ubuntu 24.04 Minimal aarch64，預設 46.6 GB 開機磁碟），但 Oracle 回覆 `Out of capacity for shape VM.Standard.A1.Flex in availability domain AD-1`。依照「只用免費資源、容量不足即停止」的授權，未改用付費規格，亦未啟用付費監控附加項目。
 
 失敗後檢查 Sydney／`tlin0965 (root)`：Instances 與 Virtual Cloud Networks 清單皆為空。未取得 VM、公網 IP 或 SSH 連線，因此遠端啟動及 App 連線仍未完成。之後免費容量恢復時可使用相同部署檔重新建立；沒有排程自動重試。先前 AWS Zetaris 資源依照團隊測試需求保留，Oracle 建立失敗不會停止 AWS 費用。
 
 2026-10-26 本機驗證：部署包已實際建置為 `aarch64` 映像，API／PostgreSQL 容器皆健康，公開景點搜尋成功；重建 API 容器後合成 H-MEM 資料仍存在。後端 388 項測試通過。此紀錄不代表 Oracle 遠端部署已完成。
+
+
+## 2026-10-26 實際驗證結果
+
+- E2 Micro 的 API／PostgreSQL 已在 Sydney 啟動，健康檢查 `status=ok`、資料庫 `postgresql`，付費外部 API 預設禁止。
+- `ss` 確認 API 只監聽 VM `127.0.0.1:8787`，沒有主機 5432 listener；公網只開 SSH，來源限制為測試電腦的 IPv4 `/32`。
+- PostgreSQL 完成 5 個 migration；Node.js 24.22.1 可執行。API 約 135 MiB、資料庫約 64 MiB（一次觀測值，非保證上限）。
+- 本機 SSH 通道 8790 可呼叫健康檢查、資料狀態；雪梨附近餐飲搜尋回傳 80 個公開地點。
+- 以合成檔案驗證 systemd 重啟／重建 API 容器後 app-state volume 仍保留；沒有搬移本機個人行程、對話或 Zetaris 管理帳密。
+- iOS 編譯與 2 個連線設定／過期回應測試通過；模擬器實際完成雲端與本機切換。
+- Android 編譯、網址驗證單元測試，以及設定頁「雲端→本機→雲端」真實連線測試通過。
+- 兩端 App 重開後仍保留雲端模式。雲端模式的網址 `127.0.0.1:8790` 透過 SSH 指向 Oracle，並不是另一個本機後端。
+
+此驗證不包含實體手機公開 HTTPS 存取，也未搬移或重新配置 AWS Zetaris。當前 SSH 通道需持續執行；電腦重開或來源 IP 改變時，須重新連線／更新 SSH `/32` 規則。先前 A1 容量不足的紀錄只描述那次嘗試，不代表此 E2 Micro 未部署。

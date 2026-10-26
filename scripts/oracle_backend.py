@@ -44,14 +44,15 @@ ln -sfn '{release}' /opt/sydneybuddy/current
 def main():
     cli=argparse.ArgumentParser(description=__doc__);cli.add_argument('action',choices=['deploy','status','tunnel'])
     cli.add_argument('--host',required=True);cli.add_argument('--key',type=Path,required=True)
-    cli.add_argument('--bundle',type=Path);cli.add_argument('--local-port',type=int,default=8790);cli.add_argument('--dry-run',action='store_true')
+    cli.add_argument('--user',choices=['ubuntu','opc'],default='ubuntu');cli.add_argument('--bundle',type=Path);cli.add_argument('--local-port',type=int,default=8790);cli.add_argument('--dry-run',action='store_true')
     args=cli.parse_args();host=ipaddress.IPv4Address(args.host)
     if not host.is_global:raise ValueError('Use the public IPv4 address shown for your Oracle VM')
     key=args.key.resolve()
     if not key.is_file():raise ValueError('SSH private key is missing')
     if key.stat().st_mode & 0o077:raise ValueError('SSH private key must have private permissions (chmod 600)')
     options=['-i',str(key),'-o','IdentitiesOnly=yes','-o','StrictHostKeyChecking=accept-new','-o','UserKnownHostsFile='+str(key.with_suffix('.known_hosts')),'-o','ConnectTimeout=15']
-    destination='ubuntu@'+str(host)
+    destination=args.user+'@'+str(host)
+    if args.user=='opc' and args.action!='tunnel':raise ValueError('Oracle Linux uses oracle_micro.py for deployment; inspect Podman services for status')
     if args.action=='deploy':
         if args.bundle is None:raise ValueError('--bundle is required')
         digest=verify_bundle(args.bundle)

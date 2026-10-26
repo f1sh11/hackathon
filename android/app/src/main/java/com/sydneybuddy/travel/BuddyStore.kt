@@ -56,14 +56,28 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
     suspend fun socialRequest(path:String,body:JSONObject?=null)=JSONObject(request(path,if(body==null)"GET"else "POST",body))
     suspend fun poiMedia(body:JSONObject)=JSONObject(request("poi/media","POST",body))
     suspend fun searchPoi(body:JSONObject)=JSONObject(request("poi/search","POST",body))
-    val base = BuildConfig.BACKEND_URL
+    private var backendRevision=0L
+    var backendMode by mutableStateOf(prefs.getString("backendMode","local") ?: "local");private set
+    var base by mutableStateOf(backendAddress(backendMode));private set
+    fun backendAddress(mode:String):String=prefs.getString(if(mode=="cloud")"cloudBackendURL" else "localBackendURL",if(mode=="cloud")"http://127.0.0.1:8790" else BuildConfig.BACKEND_URL)!!
+    fun chooseBackend(mode:String,address:String) {
+        if(busy)return
+        val uri=BackendEndpoint.validated(address)
+        if(mode !in listOf("local","cloud") || uri==null){error="請填入 HTTPS 網址，或本機 127.0.0.1 的 HTTP 網址。";return}
+        base=uri.toString().trimEnd('/');backendMode=mode
+        prefs.edit().putString("backendMode",mode).putString(if(mode=="cloud")"cloudBackendURL" else "localBackendURL",base).apply()
+        backendRevision++
+        health=null;saved=emptyList();memories=emptyList();trip=null;proposal=null;weather=null;insights=null;dataConnection=null;mapLayerIds=null;mapViewport=null;dayIndex=0;error=null;online=false
+        reload();reloadTravelData()
+    }
     val day: JSONObject? get() = trip?.array("days")?.objects()?.getOrNull(dayIndex)
 
     init { reload() }
 
     private suspend fun request(path: String, method: String = "GET", body: JSONObject? = null): String = withContext(Dispatchers.IO) {
         val selectedSource=travelDataSource
-        val conn = URL("$base/$path").openConnection() as HttpURLConnection
+        val requestBase=base;val requestRevision=backendRevision
+        val conn = URL("$requestBase/$path").openConnection() as HttpURLConnection
         try {
             conn.requestMethod = method; conn.connectTimeout = 10000; conn.readTimeout = 240000
             conn.instanceFollowRedirects = false;conn.useCaches=false
@@ -71,7 +85,9 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
             conn.setRequestProperty("Content-Type", "application/json")
             if (body != null) { conn.doOutput = true; conn.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) } }
             val status = conn.responseCode
+            if(requestBase!=base || requestRevision!=backendRevision)throw kotlinx.coroutines.CancellationException("後端已切換")
             val result = (if (status in 200..299) conn.inputStream else conn.errorStream)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() } ?: ""
+            if(requestBase!=base || requestRevision!=backendRevision)throw kotlinx.coroutines.CancellationException("後端已切換")
             if (status !in 200..299) {
                 val message = runCatching { JSONObject(result).optString("error") }.getOrDefault("")
                 error(if (status == 409) "行程版本已变化。请取消草案，刷新行程后重新调整。" else message.ifBlank { "服务返回 HTTP $status" })
