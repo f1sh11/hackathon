@@ -1,0 +1,2201 @@
+{
+  "version": 1,
+  "description": "Koko App 实际 HTTP/NDJSON 协议固定案例。fixture 是明确标记的脚本模型；live 不可用、故障注入不适用时报告未运行。自然度只人工评阅。",
+  "baseMainCommit": "7b726a1b84af5fd3e2c8bb7eca83b85f9cae4a79",
+  "cases": [
+    {
+      "id": "01-information-reuse",
+      "title": "一次输入复用目的地与天数",
+      "category": "01 信息复用",
+      "create": {
+        "profilingVersion": 2,
+        "companionVersion": 1,
+        "hasMetKoko": true,
+        "nickname": "",
+        "fields": {}
+      },
+      "requiresModel": true,
+      "fixtures": [
+        {
+          "message": "去悉尼玩三天",
+          "kind": "json",
+          "payload": {
+            "reply": "悉尼三天先收好。咱们可以留一天看海港，其余慢慢选。",
+            "fields": {
+              "destination": "悉尼",
+              "days": "3"
+            },
+            "preferences": [],
+            "needsClarification": [],
+            "mood": "curious",
+            "quickReplies": [
+              {
+                "text": "先按这个方向看看",
+                "intent": "respond"
+              },
+              {
+                "text": "换个想法吧",
+                "intent": "skip"
+              },
+              {
+                "text": "先看已有草案",
+                "intent": "draft"
+              }
+            ],
+            "ideas": []
+          }
+        }
+      ],
+      "steps": [
+        {
+          "op": "get",
+          "saveAs": "baseline"
+        },
+        {
+          "op": "turn",
+          "text": "去悉尼玩三天",
+          "assertions": [
+            {
+              "path": "session.fields.destination",
+              "equals": "悉尼"
+            },
+            {
+              "path": "session.fields.days",
+              "equals": "3"
+            },
+            {
+              "path": "session.missingImportantFields",
+              "contains": "date"
+            },
+            {
+              "path": "session.nextField",
+              "equals": "date"
+            },
+            {
+              "path": "memoryDelta",
+              "equals": 0
+            }
+          ]
+        },
+        {
+          "op": "get",
+          "assertions": [
+            {
+              "path": "session.fields.destination",
+              "equals": "悉尼"
+            },
+            {
+              "path": "session.fields.days",
+              "equals": "3"
+            },
+            {
+              "path": "session.tripContext.days",
+              "equals": "3"
+            }
+          ]
+        }
+      ],
+      "humanReview": [
+        "人工查看是否复用已明确的目的地和天数，后续只追问真正缺失的条件；不以回复关键词自动判定自然度。"
+      ]
+    },
+    {
+      "id": "02-budget-ambiguity",
+      "title": "金额不等于已澄清预算口径",
+      "category": "02 预算歧义",
+      "create": {
+        "profilingVersion": 2,
+        "companionVersion": 1,
+        "hasMetKoko": true,
+        "nickname": "",
+        "fields": {
+          "destination": "悉尼",
+          "date": "${futureDate}",
+          "days": "3",
+          "travelers": "2"
+        }
+      },
+      "requiresModel": true,
+      "fixtures": [
+        {
+          "message": "预算300",
+          "kind": "json",
+          "payload": {
+            "reply": "300 是澳元还是其他币种，是每人还是大家一起、每天还是全程？",
+            "fields": {
+              "budget": "300"
+            },
+            "preferences": [],
+            "needsClarification": [],
+            "mood": "curious",
+            "quickReplies": [
+              {
+                "text": "先按这个方向看看",
+                "intent": "respond"
+              },
+              {
+                "text": "换个想法吧",
+                "intent": "skip"
+              },
+              {
+                "text": "先看已有草案",
+                "intent": "draft"
+              }
+            ],
+            "ideas": []
+          }
+        }
+      ],
+      "steps": [
+        {
+          "op": "get",
+          "saveAs": "baseline"
+        },
+        {
+          "op": "turn",
+          "text": "预算300",
+          "assertions": [
+            {
+              "path": "session.fields.budget",
+              "equals": "300"
+            },
+            {
+              "path": "session.fields.budgetCurrency",
+              "absent": true
+            },
+            {
+              "path": "session.fields.budgetBasis",
+              "absent": true
+            },
+            {
+              "path": "session.missingImportantFields",
+              "contains": "budgetCurrency"
+            },
+            {
+              "path": "session.missingImportantFields",
+              "contains": "budgetBasis"
+            },
+            {
+              "path": "derivedReady",
+              "equals": false
+            },
+            {
+              "path": "memoryDelta",
+              "equals": 0
+            }
+          ]
+        }
+      ],
+      "humanReview": [
+        "人工核对币种与每人/全体、每天/全程口径是否清楚，不能因语气流畅就认为预算已经可用。"
+      ]
+    },
+    {
+      "id": "03-date-and-sydney-clock",
+      "title": "含糊日期与悉尼今天明天",
+      "category": "03 日期歧义",
+      "create": {
+        "profilingVersion": 2,
+        "companionVersion": 1,
+        "hasMetKoko": true,
+        "nickname": "",
+        "fields": {
+          "destination": "悉尼",
+          "date": "${futureDate}",
+          "days": "3",
+          "budget": "120",
+          "budgetCurrency": "AUD",
+          "budgetBasis": "perPersonPerDay",
+          "travelers": "2",
+          "budgetCoverage": "activities"
+        }
+      },
+      "requiresModel": true,
+      "fixtures": [
+        {
+          "message": "出发日期改成下周找一天",
+          "kind": "json",
+          "payload": {
+            "reply": "下周哪一天还没定，我先留空，其他要求保留。",
+            "fields": {},
+            "preferences": [],
+            "needsClarification": [
+              "date"
+            ],
+            "mood": "curious",
+            "quickReplies": [
+              {
+                "text": "先按这个方向看看",
+                "intent": "respond"
+              },
+              {
+                "text": "换个想法吧",
+                "intent": "skip"
+              },
+              {
+                "text": "先看已有草案",
+                "intent": "draft"
+              }
+            ],
+            "ideas": []
+          }
+        },
+        {
+          "message": "今天出发",
+          "kind": "json",
+          "payload": {
+            "reply": "按悉尼这边的今天记录。",
+            "fields": {},
+            "preferences": [],
+            "needsClarification": [],
+            "mood": "curious",
+            "quickReplies": [
+              {
+                "text": "先按这个方向看看",
+                "intent": "respond"
+              },
+              {
+                "text": "换个想法吧",
+                "intent": "skip"
+              },
+              {
+                "text": "先看已有草案",
+                "intent": "draft"
+              }
+            ],
+            "ideas": []
+          }
+        },
+        {
+          "message": "改成明天出发",
+          "kind": "json",
+          "payload": {
+            "reply": "这次改成悉尼时间的明天。",
+            "fields": {},
+            "preferences": [],
+            "needsClarification": [],
+            "mood": "curious",
+            "quickReplies": [
+              {
+                "text": "先按这个方向看看",
+                "intent": "respond"
+              },
+              {
+                "text": "换个想法吧",
+                "intent": "skip"
+              },
+              {
+                "text": "先看已有草案",
+                "intent": "draft"
+              }
+            ],
+            "ideas": []
+          }
+        }
+      ],
+      "steps": [
+        {
+          "op": "get",
+          "saveAs": "baseline"
+        },
+        {
+          "op": "turn",
+          "text": "出发日期改成下周找一天",
+          "assertions": [
+            {
+              "path": "session.fields.date",
+              "absent": true
+            },
+            {
+              "path": "session.missingImportantFields",
+              "contains": "date"
+            },
+            {
+              "path": "derivedReady",
+              "equals": false
+            },
+            {
+              "path": "session.fields",
+              "unchangedExcept": [
+                "date"
+              ],
+              "from": "baseline.session.fields"
+            }
+          ]
+        },
+        {
+          "op": "turn",
+          "text": "今天出发",
+          "assertions": [
+            {
+              "path": "session.fields.date",
+              "equals": "${sydneyToday}"
+            },
+            {
+              "path": "derivedReady",
+              "equals": true
+            }
+          ]
+        },
+        {
+          "op": "turn",
+          "text": "改成明天出发",
+          "assertions": [
+            {
+              "path": "session.fields.date",
+              "equals": "${sydneyTomorrow}"
+            },
+            {
+              "path": "session.fields.days",
+              "equals": "3"
+            },
+            {
+              "path": "session.fields.budget",
+              "equals": "120"
+            },
+            {
+              "path": "derivedReady",
+              "equals": true
+            }
+          ]
+        }
+      ],
+      "humanReview": [
+        "报告必须带 UTC 与 Australia/Sydney 时钟。人工核对含糊日期没有被系统替用户选定。"
+      ]
+    },
+    {
+      "id": "04-single-field-edit",
+      "title": "只改天数并同步资料",
+      "category": "04 单项修改",
+      "create": {
+        "profilingVersion": 2,
+        "companionVersion": 1,
+        "hasMetKoko": true,
+        "nickname": "",
+        "fields": {
+          "destination": "悉尼",
+          "date": "${futureDate}",
+          "days": "3",
+          "budget": "120",
+          "budgetCurrency": "AUD",
+          "budgetBasis": "perPersonPerDay",
+          "travelers": "2",
+          "budgetCoverage": "activities",
+          "interests": "自然、风景",
+          "notes": "留出午休时间"
+        }
+      },
+      "requiresModel": true,
+      "fixtures": [
+        {
+          "message": "改成两天",
+          "kind": "json",
+          "payload": {
+            "reply": "好，这次改成两天，其余已确认的要求保留。",
+            "fields": {
+              "days": "2"
+            },
+            "preferences": [],
+            "needsClarification": [],
+            "mood": "curious",
+            "quickReplies": [
+              {
+                "text": "先按这个方向看看",
+                "intent": "respond"
+              },
+              {
+                "text": "换个想法吧",
+                "intent": "skip"
+              },
+              {
+                "text": "先看已有草案",
+                "intent": "draft"
+              }
+            ],
+            "ideas": []
+          }
+        }
+      ],
+      "steps": [
+        {
+          "op": "get",
+          "saveAs": "baseline"
+        },
+        {
+          "op": "turn",
+          "text": "改成两天",
+          "assertions": [
+            {
+              "path": "session.fields.days",
+              "equals": "2"
+            },
+            {
+              "path": "session.planningFields.days",
+              "equals": "2"
+            },
+            {
+              "path": "session.tripContext.days",
+              "equals": "2"
+            },
+            {
+              "path": "session.fields",
+              "unchangedExcept": [
+                "days"
+              ],
+              "from": "baseline.session.fields"
+            },
+            {
+              "path": "derivedReady",
+              "equals": true
+            }
+          ]
+        }
+      ],
+      "humanReview": [
+        "人工确认摘要与下一步建议已反映两天，且没有声称正式行程已经保存或优化成功。"
+      ]
+    },
+    {
+      "id": "05-destination-required",
+      "title": "未知目的地不能误判可规划",
+      "category": "05 缺少目的地",
+      "create": {
+        "profilingVersion": 2,
+        "companionVersion": 1,
+        "hasMetKoko": true,
+        "nickname": "",
+        "fields": {
+          "date": "${futureDate}",
+          "days": "3",
+          "budget": "120",
+          "budgetCurrency": "AUD",
+          "budgetBasis": "perPersonPerDay",
+          "travelers": "2",
+          "budgetCoverage": "activities"
+        }
+      },
+      "requiresModel": false,
+      "fixtures": [],
+      "steps": [
+        {
+          "op": "get",
+          "saveAs": "baseline"
+        },
+        {
+          "op": "turn",
+          "text": "直接安排",
+          "assertions": [
+            {
+              "path": "derivedReady",
+              "equals": false
+            },
+            {
+              "path": "session.missingImportantFields",
+              "contains": "destination"
+            },
+            {
+              "path": "session.fields.days",
+              "equals": "3"
+            },
+            {
+              "path": "session.fields.budget",
+              "equals": "120"
+            }
+          ]
+        },
+        {
+          "op": "turn",
+          "text": "还不确定目的地",
+          "field": "destination",
+          "value": "未确定",
+          "assertions": [
+            {
+              "path": "derivedReady",
+              "equals": false
+            },
+            {
+              "path": "session.missingImportantFields",
+              "contains": "destination"
+            },
+            {
+              "path": "session.fields.destination",
+              "equals": "未确定"
+            },
+            {
+              "path": "session.fields.days",
+              "equals": "3"
+            },
+            {
+              "path": "session.fields.travelers",
+              "equals": "2"
+            }
+          ]
+        }
+      ],
+      "humanReview": [
+        "人工查看明确缺少目的地且保留其余答案；接口完整度不代表手机生成按钮是否显示或可点。"
+      ]
+    },
+    {
+      "id": "06-essential-ready",
+      "title": "必要信息齐全即可规划",
+      "category": "06 必要信息齐全",
+      "create": {
+        "profilingVersion": 2,
+        "companionVersion": 1,
+        "hasMetKoko": true,
+        "nickname": "",
+        "fields": {
+          "destination": "悉尼",
+          "date": "${futureDate}",
+          "days": "3",
+          "budget": "120",
+          "budgetCurrency": "AUD",
+          "budgetBasis": "perPersonPerDay",
+          "travelers": "2",
+          "budgetCoverage": "activities"
+        }
+      },
+      "requiresModel": false,
+      "fixtures": [],
+      "steps": [
+        {
+          "op": "get",
+          "saveAs": "baseline"
+        },
+        {
+          "op": "get",
+          "assertions": [
+            {
+              "path": "derivedReady",
+              "equals": true
+            },
+            {
+              "path": "session.missingImportantFields",
+              "length": 0
+            },
+            {
+              "path": "session.nextField",
+              "equals": ""
+            },
+            {
+              "path": "session.completed",
+              "equals": 7
+            },
+            {
+              "path": "session.total",
+              "equals": 7
+            },
+            {
+              "path": "session.fields.origin",
+              "absent": true
+            },
+            {
+              "path": "session.fields.pace",
+              "absent": true
+            },
+            {
+              "path": "session.fields.rhythm",
+              "absent": true
+            }
+          ]
+        },
+        {
+          "op": "turn",
+          "text": "直接安排",
+          "assertions": [
+            {
+              "path": "derivedReady",
+              "equals": true
+            },
+            {
+              "path": "session.missingImportantFields",
+              "length": 0
+            },
+            {
+              "path": "session.fields.origin",
+              "absent": true
+            },
+            {
+              "path": "session.fields.pace",
+              "absent": true
+            }
+          ]
+        }
+      ],
+      "humanReview": [
+        "人工查看必要信息齐全后是否允许进入摘要/规划；未知非必要项应说明假设，而非无限追问。"
+      ]
+    },
+    {
+      "id": "07-mixed-choice-and-text",
+      "title": "点选与自由输入交替、修改币种",
+      "category": "07 混合输入",
+      "create": {
+        "profilingVersion": 2,
+        "companionVersion": 1,
+        "hasMetKoko": true,
+        "nickname": "",
+        "fields": {}
+      },
+      "requiresModel": true,
+      "fixtures": [
+        {
+          "message": "明天出发，玩3天",
+          "kind": "json",
+          "payload": {
+            "reply": "明天开始的三天，时间先收好。",
+            "fields": {
+              "days": "3"
+            },
+            "preferences": [],
+            "needsClarification": [],
+            "mood": "curious",
+            "quickReplies": [
+              {
+                "text": "先按这个方向看看",
+                "intent": "respond"
+              },
+              {
+                "text": "换个想法吧",
+                "intent": "skip"
+              },
+              {
+                "text": "先看已有草案",
+                "intent": "draft"
+              }
+            ],
+            "ideas": []
+          }
+        },
+        {
+          "message": "活动预算每人每天100澳元",
+          "kind": "json",
+          "payload": {
+            "reply": "活动预算按你给的口径记录。",
+            "fields": {},
+            "preferences": [],
+            "needsClarification": [],
+            "mood": "curious",
+            "quickReplies": [
+              {
+                "text": "先按这个方向看看",
+                "intent": "respond"
+              },
+              {
+                "text": "换个想法吧",
+                "intent": "skip"
+              },
+              {
+                "text": "先看已有草案",
+                "intent": "draft"
+              }
+            ],
+            "ideas": []
+          }
+        }
+      ],
+      "steps": [
+        {
+          "op": "get",
+          "saveAs": "baseline"
+        },
+        {
+          "op": "choice",
+          "intent": "mood_skip"
+        },
+        {
+          "op": "choice",
+          "intent": "choose_sydney",
+          "assertions": [
+            {
+              "path": "session.fields.destination",
+              "equals": "悉尼"
+            }
+          ]
+        },
+        {
+          "op": "turn",
+          "text": "明天出发，玩3天",
+          "assertions": [
+            {
+              "path": "session.fields.date",
+              "equals": "${sydneyTomorrow}"
+            },
+            {
+              "path": "session.fields.days",
+              "equals": "3"
+            }
+          ]
+        },
+        {
+          "op": "choice",
+          "intent": "people_2",
+          "assertions": [
+            {
+              "path": "session.fields.travelers",
+              "equals": "2"
+            }
+          ]
+        },
+        {
+          "op": "turn",
+          "text": "活动预算每人每天100澳元",
+          "saveAs": "beforeCurrency",
+          "assertions": [
+            {
+              "path": "session.fields.budget",
+              "equals": "100"
+            },
+            {
+              "path": "session.fields.budgetCurrency",
+              "equals": "AUD"
+            },
+            {
+              "path": "session.fields.budgetBasis",
+              "equals": "perPersonPerDay"
+            },
+            {
+              "path": "derivedReady",
+              "equals": true
+            }
+          ]
+        },
+        {
+          "op": "turn",
+          "text": "币种改为美元",
+          "field": "budgetCurrency",
+          "value": "USD",
+          "assertions": [
+            {
+              "path": "session.fields.budgetCurrency",
+              "equals": "USD"
+            },
+            {
+              "path": "session.fields.budget",
+              "absent": true
+            },
+            {
+              "path": "derivedReady",
+              "equals": false
+            },
+            {
+              "path": "session.fields.date",
+              "equalsRef": "beforeCurrency.session.fields.date"
+            },
+            {
+              "path": "session.fields.days",
+              "equalsRef": "beforeCurrency.session.fields.days"
+            },
+            {
+              "path": "session.fields.travelers",
+              "equalsRef": "beforeCurrency.session.fields.travelers"
+            }
+          ]
+        }
+      ],
+      "humanReview": [
+        "人工核对选项与输入框联动、当前问题选项是否更新。接口测试只校验提交的当前 questionId/optionId 与保存结果。"
+      ]
+    },
+    {
+      "id": "08-trip-only-preference",
+      "title": "临时少走要求不改长期习惯",
+      "category": "08 临时偏好",
+      "create": {
+        "profilingVersion": 2,
+        "companionVersion": 1,
+        "hasMetKoko": true,
+        "nickname": "",
+        "fields": {}
+      },
+      "requiresModel": true,
+      "fixtures": [
+        {
+          "message": "这次不想走太多，想轻松一点",
+          "kind": "json",
+          "payload": {
+            "reply": "这次就留出休息，不把它当成你每次旅行的习惯。",
+            "fields": {
+              "rhythm": "轻松随意"
+            },
+            "preferences": [
+              {
+                "key": "rhythm",
+                "value": "轻松随意",
+                "evidence": "这次不想走太多，想轻松一点",
+                "scope": "trip",
+                "condition": "",
+                "confidence": 0.95
+              }
+            ],
+            "needsClarification": [],
+            "mood": "curious",
+            "quickReplies": [
+              {
+                "text": "先按这个方向看看",
+                "intent": "respond"
+              },
+              {
+                "text": "换个想法吧",
+                "intent": "skip"
+              },
+              {
+                "text": "先看已有草案",
+                "intent": "draft"
+              }
+            ],
+            "ideas": []
+          }
+        }
+      ],
+      "steps": [
+        {
+          "op": "get",
+          "saveAs": "baseline"
+        },
+        {
+          "op": "turn",
+          "text": "这次不想走太多，想轻松一点",
+          "assertions": [
+            {
+              "path": "session.tripPreferences",
+              "any": {
+                "key": "rhythm",
+                "value": "轻松随意",
+                "scope": "trip",
+                "status": "trip_only"
+              }
+            },
+            {
+              "path": "session.pendingPreferences",
+              "length": 0
+            },
+            {
+              "path": "session.travelDna",
+              "equalsRef": "baseline.session.travelDna"
+            },
+            {
+              "path": "session.planningFields.rhythm",
+              "equals": "轻松随意"
+            },
+            {
+              "path": "memoryDelta",
+              "equals": 0
+            }
+          ]
+        },
+        {
+          "op": "new_session",
+          "body": {
+            "profilingVersion": 2,
+            "companionVersion": 1,
+            "hasMetKoko": true,
+            "nickname": "",
+            "fields": {}
+          },
+          "assertions": [
+            {
+              "path": "session.fields.rhythm",
+              "absent": true
+            },
+            {
+              "path": "session.fields.pace",
+              "absent": true
+            },
+            {
+              "path": "session.travelDna",
+              "equalsRef": "baseline.session.travelDna"
+            },
+            {
+              "path": "memoryDelta",
+              "equals": 0
+            }
+          ]
+        }
+      ],
+      "humanReview": [
+        "人工查看模型是否把这次少走误写为长期体力低、医疗结论或固定步数。"
+      ]
+    },
+    {
+      "id": "09-explicit-memory-consent",
+      "title": "同意后保存并在新会话复用",
+      "category": "09 明确同意",
+      "create": {
+        "profilingVersion": 2,
+        "companionVersion": 0,
+        "hasMetKoko": true,
+        "nickname": "",
+        "fields": {}
+      },
+      "requiresModel": true,
+      "fixtures": [
+        {
+          "message": "我平时讨厌早起，习惯晚一点出门",
+          "kind": "json",
+          "payload": {
+            "reply": "那平时把早晨留给睡觉，想以后也参考的话再由你确认。",
+            "fields": {},
+            "preferences": [
+              {
+                "key": "normal_start_time",
+                "value": "late",
+                "evidence": "我平时讨厌早起，习惯晚一点出门",
+                "scope": "long_term",
+                "condition": "",
+                "confidence": 0.95
+              }
+            ],
+            "needsClarification": [],
+            "mood": "curious",
+            "quickReplies": [
+              {
+                "text": "先按这个方向看看",
+                "intent": "respond"
+              },
+              {
+                "text": "换个想法吧",
+                "intent": "skip"
+              },
+              {
+                "text": "先看已有草案",
+                "intent": "draft"
+              }
+            ],
+            "ideas": []
+          }
+        }
+      ],
+      "steps": [
+        {
+          "op": "get",
+          "saveAs": "baseline"
+        },
+        {
+          "op": "turn",
+          "text": "我平时讨厌早起，习惯晚一点出门",
+          "assertions": [
+            {
+              "path": "session.pendingPreferences",
+              "any": {
+                "key": "normal_start_time",
+                "value": "late",
+                "scope": "long_term",
+                "status": "awaiting_confirmation"
+              }
+            },
+            {
+              "path": "memoryDelta",
+              "equals": 0
+            }
+          ]
+        },
+        {
+          "op": "complete",
+          "expectedHttp": 422,
+          "assertions": [
+            {
+              "path": "session.dnaCompleted",
+              "equals": false
+            },
+            {
+              "path": "memoryDelta",
+              "equals": 0
+            }
+          ]
+        },
+        {
+          "op": "memory",
+          "key": "normal_start_time",
+          "value": "late",
+          "consent": true,
+          "assertions": [
+            {
+              "path": "memoryDelta",
+              "equals": 1
+            },
+            {
+              "path": "session.pendingPreferences",
+              "length": 0
+            },
+            {
+              "path": "session.travelDna",
+              "any": {
+                "key": "normal_start_time",
+                "value": "late",
+                "status": "confirmed"
+              }
+            }
+          ]
+        },
+        {
+          "op": "complete",
+          "assertions": [
+            {
+              "path": "session.dnaCompleted",
+              "equals": true
+            },
+            {
+              "path": "memoryDelta",
+              "equals": 1
+            }
+          ]
+        },
+        {
+          "op": "memories",
+          "saveAs": "afterConsent",
+          "assertions": [
+            {
+              "path": "memoryDelta",
+              "equals": 1
+            }
+          ]
+        },
+        {
+          "op": "new_session",
+          "body": {
+            "profilingVersion": 2,
+            "companionVersion": 0,
+            "hasMetKoko": true,
+            "nickname": "",
+            "fields": {}
+          },
+          "assertions": [
+            {
+              "path": "memoryDelta",
+              "equals": 1
+            },
+            {
+              "path": "session.travelDna",
+              "any": {
+                "key": "normal_start_time",
+                "value": "late",
+                "status": "confirmed"
+              }
+            },
+            {
+              "path": "session.planningFields.notes",
+              "contains": "平时出发时间：late"
+            }
+          ]
+        }
+      ],
+      "humanReview": [
+        "先看实际 /memories 写入，再看新会话可见的相关已确认偏好；不能仅凭 Koko 说“记住啦”判通过。"
+      ]
+    },
+    {
+      "id": "10a-refuse-and-dismiss",
+      "title": "仅限这次与忽略都不新增长期记忆",
+      "category": "10 拒绝与纠正",
+      "create": {
+        "profilingVersion": 2,
+        "companionVersion": 0,
+        "hasMetKoko": true,
+        "nickname": "",
+        "fields": {}
+      },
+      "requiresModel": true,
+      "fixtures": [
+        {
+          "message": "我平时每天想走8000步",
+          "kind": "json",
+          "payload": {
+            "reply": "先作为待确认的步数线索，你可以只用于这趟。",
+            "fields": {},
+            "preferences": [
+              {
+                "key": "daily_steps",
+                "value": "8000",
+                "evidence": "我平时每天想走8000步",
+                "scope": "long_term",
+                "condition": "",
+                "confidence": 0.95
+              }
+            ],
+            "needsClarification": [],
+            "mood": "curious",
+            "quickReplies": [
+              {
+                "text": "先按这个方向看看",
+                "intent": "respond"
+              },
+              {
+                "text": "换个想法吧",
+                "intent": "skip"
+              },
+              {
+                "text": "先看已有草案",
+                "intent": "draft"
+              }
+            ],
+            "ideas": []
+          }
+        },
+        {
+          "message": "我一直喜欢安静的人少地方",
+          "kind": "json",
+          "payload": {
+            "reply": "喜欢安静这条先等你决定是否留作长期偏好。",
+            "fields": {},
+            "preferences": [
+              {
+                "key": "crowd_preference",
+                "value": "quiet",
+                "evidence": "我一直喜欢安静的人少地方",
+                "scope": "long_term",
+                "condition": "",
+                "confidence": 0.95
+              }
+            ],
+            "needsClarification": [],
+            "mood": "curious",
+            "quickReplies": [
+              {
+                "text": "先按这个方向看看",
+                "intent": "respond"
+              },
+              {
+                "text": "换个想法吧",
+                "intent": "skip"
+              },
+              {
+                "text": "先看已有草案",
+                "intent": "draft"
+              }
+            ],
+            "ideas": []
+          }
+        }
+      ],
+      "steps": [
+        {
+          "op": "get",
+          "saveAs": "baseline"
+        },
+        {
+          "op": "turn",
+          "text": "我平时每天想走8000步",
+          "assertions": [
+            {
+              "path": "session.pendingPreferences",
+              "any": {
+                "key": "daily_steps",
+                "value": "8000",
+                "status": "awaiting_confirmation"
+              }
+            },
+            {
+              "path": "memoryDelta",
+              "equals": 0
+            }
+          ]
+        },
+        {
+          "op": "memory",
+          "key": "daily_steps",
+          "value": "8000",
+          "consent": false,
+          "assertions": [
+            {
+              "path": "memoryDelta",
+              "equals": 0
+            },
+            {
+              "path": "session.tripPreferences",
+              "any": {
+                "key": "daily_steps",
+                "value": "8000",
+                "scope": "trip",
+                "status": "trip_only"
+              }
+            }
+          ]
+        },
+        {
+          "op": "turn",
+          "text": "我一直喜欢安静的人少地方",
+          "assertions": [
+            {
+              "path": "session.pendingPreferences",
+              "any": {
+                "key": "crowd_preference",
+                "value": "quiet",
+                "status": "awaiting_confirmation"
+              }
+            }
+          ]
+        },
+        {
+          "op": "memory",
+          "key": "crowd_preference",
+          "value": "quiet",
+          "consent": false,
+          "dismiss": true,
+          "assertions": [
+            {
+              "path": "memoryDelta",
+              "equals": 0
+            },
+            {
+              "path": "session.pendingPreferences",
+              "length": 0
+            },
+            {
+              "path": "session.travelDna",
+              "equalsRef": "baseline.session.travelDna"
+            }
+          ]
+        }
+      ],
+      "humanReview": [
+        "人工核对“仅限这次”和“忽略”入口语义，不将已拒绝候选当成长期记忆。"
+      ]
+    },
+    {
+      "id": "10b-correct-existing-memory",
+      "title": "纠正旧偏好、确认冲突并撤销",
+      "category": "10 拒绝与纠正",
+      "create": {
+        "profilingVersion": 2,
+        "companionVersion": 0,
+        "hasMetKoko": true,
+        "nickname": "",
+        "fields": {}
+      },
+      "requiresModel": true,
+      "fixtures": [
+        {
+          "message": "我平时的节奏喜欢轻松随意，以后也想这样",
+          "kind": "json",
+          "payload": {
+            "reply": "这条长期节奏先等你确认。",
+            "fields": {},
+            "preferences": [
+              {
+                "key": "rhythm",
+                "value": "轻松随意",
+                "evidence": "我平时的节奏喜欢轻松随意，以后也想这样",
+                "scope": "long_term",
+                "condition": "",
+                "confidence": 0.95
+              }
+            ],
+            "needsClarification": [],
+            "mood": "curious",
+            "quickReplies": [
+              {
+                "text": "先按这个方向看看",
+                "intent": "respond"
+              },
+              {
+                "text": "换个想法吧",
+                "intent": "skip"
+              },
+              {
+                "text": "先看已有草案",
+                "intent": "draft"
+              }
+            ],
+            "ideas": []
+          }
+        },
+        {
+          "message": "我纠正一下，长期旅行节奏改成紧凑充实，以后记这个",
+          "kind": "json",
+          "payload": {
+            "reply": "这和旧节奏不同，确认替换前先一起看旧值。",
+            "fields": {},
+            "preferences": [
+              {
+                "key": "rhythm",
+                "value": "紧凑充实",
+                "evidence": "我纠正一下，长期旅行节奏改成紧凑充实，以后记这个",
+                "scope": "long_term",
+                "condition": "",
+                "confidence": 0.95
+              }
+            ],
+            "needsClarification": [],
+            "mood": "curious",
+            "quickReplies": [
+              {
+                "text": "先按这个方向看看",
+                "intent": "respond"
+              },
+              {
+                "text": "换个想法吧",
+                "intent": "skip"
+              },
+              {
+                "text": "先看已有草案",
+                "intent": "draft"
+              }
+            ],
+            "ideas": []
+          }
+        }
+      ],
+      "steps": [
+        {
+          "op": "get",
+          "saveAs": "baseline"
+        },
+        {
+          "op": "turn",
+          "text": "我平时的节奏喜欢轻松随意，以后也想这样",
+          "assertions": [
+            {
+              "path": "session.pendingPreferences",
+              "any": {
+                "key": "rhythm",
+                "value": "轻松随意",
+                "status": "awaiting_confirmation"
+              }
+            }
+          ]
+        },
+        {
+          "op": "memory",
+          "key": "rhythm",
+          "value": "轻松随意",
+          "consent": true,
+          "assertions": [
+            {
+              "path": "memoryDelta",
+              "equals": 1
+            },
+            {
+              "path": "session.travelDna",
+              "any": {
+                "key": "rhythm",
+                "value": "轻松随意",
+                "status": "confirmed"
+              }
+            }
+          ]
+        },
+        {
+          "op": "turn",
+          "text": "我纠正一下，长期旅行节奏改成紧凑充实，以后记这个",
+          "assertions": [
+            {
+              "path": "session.pendingPreferences",
+              "any": {
+                "key": "rhythm",
+                "value": "紧凑充实",
+                "status": "awaiting_confirmation"
+              }
+            },
+            {
+              "path": "session.pendingPreferences.0.conflictingMemoryIds",
+              "length": 1
+            },
+            {
+              "path": "session.pendingPreferences.0.previousValues",
+              "contains": "轻松随意"
+            },
+            {
+              "path": "memoryDelta",
+              "equals": 1
+            }
+          ]
+        },
+        {
+          "op": "memory",
+          "key": "rhythm",
+          "value": "紧凑充实",
+          "consent": true,
+          "assertions": [
+            {
+              "path": "memoryDelta",
+              "equals": 1
+            },
+            {
+              "path": "session.pendingPreferences",
+              "length": 0
+            },
+            {
+              "path": "session.travelDna",
+              "any": {
+                "key": "rhythm",
+                "value": "紧凑充实",
+                "status": "confirmed"
+              }
+            }
+          ]
+        },
+        {
+          "op": "new_session",
+          "body": {
+            "profilingVersion": 2,
+            "companionVersion": 0,
+            "hasMetKoko": true,
+            "nickname": "",
+            "fields": {}
+          },
+          "assertions": [
+            {
+              "path": "memoryDelta",
+              "equals": 1
+            },
+            {
+              "path": "session.travelDna",
+              "any": {
+                "key": "rhythm",
+                "value": "紧凑充实",
+                "status": "confirmed"
+              }
+            }
+          ]
+        },
+        {
+          "op": "delete_memory",
+          "key": "rhythm",
+          "assertions": [
+            {
+              "path": "memoryDelta",
+              "equals": 0
+            }
+          ]
+        },
+        {
+          "op": "get",
+          "assertions": [
+            {
+              "path": "session.travelDna",
+              "equalsRef": "baseline.session.travelDna"
+            }
+          ]
+        }
+      ],
+      "humanReview": [
+        "人工核对冲突卡显示旧值与新值，修改只覆盖对应偏好；撤销后不再作为有效记忆。"
+      ]
+    },
+    {
+      "id": "11-session-and-request-recovery",
+      "title": "重读与同 requestId 重试保持幂等",
+      "category": "11 会话与请求恢复",
+      "create": {
+        "profilingVersion": 2,
+        "companionVersion": 0,
+        "hasMetKoko": true,
+        "nickname": "",
+        "fields": {
+          "destination": "悉尼",
+          "date": "${futureDate}",
+          "days": "3",
+          "budget": "120",
+          "budgetCurrency": "AUD",
+          "budgetBasis": "perPersonPerDay",
+          "travelers": "2",
+          "budgetCoverage": "activities"
+        }
+      },
+      "requiresModel": true,
+      "fixtures": [
+        {
+          "message": "我平时偏好每天走9000步",
+          "kind": "json",
+          "payload": {
+            "reply": "把平时九千步留作待确认线索，保存仍由你决定。",
+            "fields": {},
+            "preferences": [
+              {
+                "key": "daily_steps",
+                "value": "9000",
+                "evidence": "我平时偏好每天走9000步",
+                "scope": "long_term",
+                "condition": "",
+                "confidence": 0.95
+              }
+            ],
+            "needsClarification": [],
+            "mood": "curious",
+            "quickReplies": [
+              {
+                "text": "先按这个方向看看",
+                "intent": "respond"
+              },
+              {
+                "text": "换个想法吧",
+                "intent": "skip"
+              },
+              {
+                "text": "先看已有草案",
+                "intent": "draft"
+              }
+            ],
+            "ideas": []
+          }
+        }
+      ],
+      "steps": [
+        {
+          "op": "get",
+          "saveAs": "baseline"
+        },
+        {
+          "op": "turn",
+          "text": "我平时偏好每天走9000步",
+          "saveAs": "firstTurn",
+          "assertions": [
+            {
+              "path": "session.pendingPreferences",
+              "any": {
+                "key": "daily_steps",
+                "value": "9000",
+                "status": "awaiting_confirmation"
+              }
+            },
+            {
+              "path": "memoryDelta",
+              "equals": 0
+            }
+          ]
+        },
+        {
+          "op": "retry",
+          "assertions": [
+            {
+              "path": "messageIds",
+              "equalsRef": "firstTurn.messageIds"
+            },
+            {
+              "path": "userMessageCount",
+              "equalsRef": "firstTurn.userMessageCount"
+            },
+            {
+              "path": "assistantMessageCount",
+              "equalsRef": "firstTurn.assistantMessageCount"
+            },
+            {
+              "path": "memoryDelta",
+              "equals": 0
+            }
+          ]
+        },
+        {
+          "op": "get",
+          "assertions": [
+            {
+              "path": "session.fields",
+              "equalsRef": "firstTurn.session.fields"
+            },
+            {
+              "path": "messageIds",
+              "equalsRef": "firstTurn.messageIds"
+            }
+          ]
+        },
+        {
+          "op": "memory",
+          "key": "daily_steps",
+          "value": "9000",
+          "consent": true,
+          "saveAs": "afterMemory",
+          "assertions": [
+            {
+              "path": "memoryDelta",
+              "equals": 1
+            }
+          ]
+        },
+        {
+          "op": "memory",
+          "repeat": true,
+          "assertions": [
+            {
+              "path": "memoryDelta",
+              "equals": 1
+            },
+            {
+              "path": "messageIds",
+              "equalsRef": "afterMemory.messageIds"
+            }
+          ]
+        },
+        {
+          "op": "retry",
+          "assertions": [
+            {
+              "path": "memoryDelta",
+              "equals": 1
+            },
+            {
+              "path": "messageIds",
+              "equalsRef": "afterMemory.messageIds"
+            },
+            {
+              "path": "session.fields",
+              "equalsRef": "afterMemory.session.fields"
+            }
+          ]
+        }
+      ],
+      "humanReview": [
+        "恢复已有测试会话后查看已确认需求；同一 requestId 重放不能重新推进对话或产生第二条记忆。"
+      ]
+    },
+    {
+      "id": "12a-model-failure",
+      "title": "无效模型 JSON 保留已有资料",
+      "category": "12 异常与隔离",
+      "create": {
+        "profilingVersion": 2,
+        "companionVersion": 1,
+        "hasMetKoko": true,
+        "nickname": "",
+        "fields": {
+          "destination": "悉尼",
+          "date": "${futureDate}",
+          "days": "3",
+          "budget": "120",
+          "budgetCurrency": "AUD",
+          "budgetBasis": "perPersonPerDay",
+          "travelers": "2",
+          "budgetCoverage": "activities"
+        }
+      },
+      "requiresModel": true,
+      "fixtures": [
+        {
+          "message": "这是用于验证无效模型输出的测试请求",
+          "kind": "invalid_json"
+        }
+      ],
+      "steps": [
+        {
+          "op": "get",
+          "saveAs": "baseline"
+        },
+        {
+          "op": "turn",
+          "text": "这是用于验证无效模型输出的测试请求",
+          "expectedError": true,
+          "assertions": [
+            {
+              "path": "lastEvent",
+              "equals": "error"
+            }
+          ]
+        },
+        {
+          "op": "get",
+          "assertions": [
+            {
+              "path": "session.fields",
+              "equalsRef": "baseline.session.fields"
+            },
+            {
+              "path": "messageIds",
+              "equalsRef": "baseline.messageIds"
+            },
+            {
+              "path": "memoryDelta",
+              "equals": 0
+            },
+            {
+              "path": "derivedReady",
+              "equals": true
+            }
+          ]
+        }
+      ],
+      "humanReview": [
+        "这是固定桩注入的异常路径，不代表真实 NVIDIA 服务已发生超时或故障。人工检查错误提示与重试入口。"
+      ],
+      "fixtureOnly": true
+    },
+    {
+      "id": "12b-model-failure",
+      "title": "模型超时保留已有资料",
+      "category": "12 异常与隔离",
+      "create": {
+        "profilingVersion": 2,
+        "companionVersion": 1,
+        "hasMetKoko": true,
+        "nickname": "",
+        "fields": {
+          "destination": "悉尼",
+          "date": "${futureDate}",
+          "days": "3",
+          "budget": "120",
+          "budgetCurrency": "AUD",
+          "budgetBasis": "perPersonPerDay",
+          "travelers": "2",
+          "budgetCoverage": "activities"
+        }
+      },
+      "requiresModel": true,
+      "fixtures": [
+        {
+          "message": "这是用于验证模型超时的测试请求",
+          "kind": "timeout"
+        }
+      ],
+      "steps": [
+        {
+          "op": "get",
+          "saveAs": "baseline"
+        },
+        {
+          "op": "turn",
+          "text": "这是用于验证模型超时的测试请求",
+          "expectedError": true,
+          "assertions": [
+            {
+              "path": "lastEvent",
+              "equals": "error"
+            }
+          ]
+        },
+        {
+          "op": "get",
+          "assertions": [
+            {
+              "path": "session.fields",
+              "equalsRef": "baseline.session.fields"
+            },
+            {
+              "path": "messageIds",
+              "equalsRef": "baseline.messageIds"
+            },
+            {
+              "path": "memoryDelta",
+              "equals": 0
+            },
+            {
+              "path": "derivedReady",
+              "equals": true
+            }
+          ]
+        }
+      ],
+      "humanReview": [
+        "这是固定桩注入的异常路径，不代表真实 NVIDIA 服务已发生超时或故障。人工检查错误提示与重试入口。"
+      ],
+      "fixtureOnly": true
+    },
+    {
+      "id": "12c-model-failure",
+      "title": "上游接口失败保留已有资料",
+      "category": "12 异常与隔离",
+      "create": {
+        "profilingVersion": 2,
+        "companionVersion": 1,
+        "hasMetKoko": true,
+        "nickname": "",
+        "fields": {
+          "destination": "悉尼",
+          "date": "${futureDate}",
+          "days": "3",
+          "budget": "120",
+          "budgetCurrency": "AUD",
+          "budgetBasis": "perPersonPerDay",
+          "travelers": "2",
+          "budgetCoverage": "activities"
+        }
+      },
+      "requiresModel": true,
+      "fixtures": [
+        {
+          "message": "这是用于验证上游接口失败的测试请求",
+          "kind": "http_error",
+          "status": 503
+        }
+      ],
+      "steps": [
+        {
+          "op": "get",
+          "saveAs": "baseline"
+        },
+        {
+          "op": "turn",
+          "text": "这是用于验证上游接口失败的测试请求",
+          "expectedError": true,
+          "assertions": [
+            {
+              "path": "lastEvent",
+              "equals": "error"
+            }
+          ]
+        },
+        {
+          "op": "get",
+          "assertions": [
+            {
+              "path": "session.fields",
+              "equalsRef": "baseline.session.fields"
+            },
+            {
+              "path": "messageIds",
+              "equalsRef": "baseline.messageIds"
+            },
+            {
+              "path": "memoryDelta",
+              "equals": 0
+            },
+            {
+              "path": "derivedReady",
+              "equals": true
+            }
+          ]
+        }
+      ],
+      "humanReview": [
+        "这是固定桩注入的异常路径，不代表真实 NVIDIA 服务已发生超时或故障。人工检查错误提示与重试入口。"
+      ],
+      "fixtureOnly": true
+    },
+    {
+      "id": "12d-session-isolation",
+      "title": "两段测试会话不串本次需求",
+      "category": "12 异常与隔离",
+      "create": {
+        "profilingVersion": 2,
+        "companionVersion": 1,
+        "hasMetKoko": true,
+        "nickname": "",
+        "fields": {
+          "destination": "悉尼",
+          "date": "${futureDate}",
+          "days": "3",
+          "budget": "120",
+          "budgetCurrency": "AUD",
+          "budgetBasis": "perPersonPerDay",
+          "travelers": "2",
+          "budgetCoverage": "activities"
+        }
+      },
+      "requiresModel": false,
+      "fixtures": [],
+      "steps": [
+        {
+          "op": "get",
+          "saveAs": "baseline"
+        },
+        {
+          "op": "get",
+          "saveAs": "sessionA"
+        },
+        {
+          "op": "new_session",
+          "body": {
+            "profilingVersion": 2,
+            "companionVersion": 1,
+            "hasMetKoko": true,
+            "nickname": "",
+            "fields": {}
+          },
+          "saveAs": "sessionB",
+          "assertions": [
+            {
+              "path": "session.fields.destination",
+              "absent": true
+            },
+            {
+              "path": "session.fields.days",
+              "absent": true
+            },
+            {
+              "path": "session.fields.budget",
+              "absent": true
+            },
+            {
+              "path": "derivedReady",
+              "equals": false
+            }
+          ]
+        },
+        {
+          "op": "patch",
+          "fields": {
+            "destination": "悉尼",
+            "days": "2"
+          },
+          "saveAs": "updatedB",
+          "assertions": [
+            {
+              "path": "session.fields.days",
+              "equals": "2"
+            }
+          ]
+        },
+        {
+          "op": "get",
+          "sessionRef": "sessionA.session.id",
+          "assertions": [
+            {
+              "path": "session.id",
+              "equalsRef": "sessionA.session.id"
+            },
+            {
+              "path": "session.fields.days",
+              "equals": "3"
+            },
+            {
+              "path": "session.fields.budget",
+              "equals": "120"
+            },
+            {
+              "path": "session.fields",
+              "equalsRef": "sessionA.session.fields"
+            }
+          ]
+        },
+        {
+          "op": "get",
+          "sessionRef": "sessionB.session.id",
+          "assertions": [
+            {
+              "path": "session.id",
+              "equalsRef": "sessionB.session.id"
+            },
+            {
+              "path": "session.fields.days",
+              "equals": "2"
+            },
+            {
+              "path": "session.fields.budget",
+              "absent": true
+            },
+            {
+              "path": "session.fields",
+              "equalsRef": "updatedB.session.fields"
+            }
+          ]
+        }
+      ],
+      "humanReview": [
+        "接口隔离通过不能证明手机切换会话、返回入口或按钮绑定正确；把两段会话 ID 和手机复现步骤交给 iOS。"
+      ]
+    },
+    {
+      "id": "13-probe-patch-currency",
+      "title": "回归探针：PATCH 改币种不能复用旧金额",
+      "category": "07 混合输入",
+      "create": {
+        "profilingVersion": 2,
+        "companionVersion": 1,
+        "hasMetKoko": true,
+        "nickname": "",
+        "fields": {
+          "destination": "悉尼",
+          "date": "${futureDate}",
+          "days": "3",
+          "budget": "100",
+          "budgetCurrency": "CNY",
+          "budgetBasis": "groupTrip",
+          "travelers": "2",
+          "budgetCoverage": "activities"
+        }
+      },
+      "requiresModel": false,
+      "fixtures": [],
+      "steps": [
+        {
+          "op": "get",
+          "saveAs": "baseline"
+        },
+        {
+          "op": "get",
+          "assertions": [
+            {
+              "path": "derivedReady",
+              "equals": false
+            },
+            {
+              "path": "session.fields.budget",
+              "equals": "100"
+            },
+            {
+              "path": "session.fields.budgetCurrency",
+              "equals": "CNY"
+            }
+          ]
+        },
+        {
+          "op": "patch",
+          "fields": {
+            "budgetCurrency": "AUD"
+          },
+          "assertions": [
+            {
+              "path": "session.fields.budgetCurrency",
+              "equals": "AUD"
+            },
+            {
+              "path": "session.fields.budget",
+              "absent": true
+            },
+            {
+              "path": "derivedReady",
+              "equals": false
+            }
+          ]
+        }
+      ],
+      "humanReview": [
+        "预期清掉旧币种金额；若实际保留 CNY 的100并变为可规划，应报告为业务缺陷，不调整断言迎合当前实现。"
+      ]
+    },
+    {
+      "id": "14-probe-negated-transport",
+      "title": "回归探针：否定公交不能识别成公交偏好",
+      "category": "08 临时偏好",
+      "create": {
+        "profilingVersion": 2,
+        "companionVersion": 1,
+        "hasMetKoko": true,
+        "nickname": "",
+        "fields": {
+          "destination": "悉尼",
+          "date": "${futureDate}",
+          "days": "3",
+          "budget": "120",
+          "budgetCurrency": "AUD",
+          "budgetBasis": "perPersonPerDay",
+          "travelers": "2",
+          "budgetCoverage": "activities"
+        }
+      },
+      "requiresModel": true,
+      "fixtures": [
+        {
+          "message": "这次不要坐公交，想步行",
+          "kind": "json",
+          "payload": {
+            "reply": "这次先按你想步行的方式准备。",
+            "fields": {},
+            "preferences": [],
+            "needsClarification": [],
+            "mood": "curious",
+            "quickReplies": [
+              {
+                "text": "先按这个方向看看",
+                "intent": "respond"
+              },
+              {
+                "text": "换个想法吧",
+                "intent": "skip"
+              },
+              {
+                "text": "先看已有草案",
+                "intent": "draft"
+              }
+            ],
+            "ideas": []
+          }
+        }
+      ],
+      "steps": [
+        {
+          "op": "get",
+          "saveAs": "baseline"
+        },
+        {
+          "op": "turn",
+          "text": "这次不要坐公交，想步行",
+          "assertions": [
+            {
+              "path": "session.fields.transportPreference",
+              "equals": "walk"
+            },
+            {
+              "path": "memoryDelta",
+              "equals": 0
+            }
+          ]
+        }
+      ],
+      "humanReview": [
+        "固定桩 fields 为空，专门验证生产显式短语解析器。若保存为 balanced，应附原请求/响应报告，不能宣称真实模型必然如此。"
+      ]
+    },
+    {
+      "id": "15-probe-negated-budget-basis",
+      "title": "回归探针：不是全程不能覆盖每天口径",
+      "category": "02 预算歧义",
+      "create": {
+        "profilingVersion": 2,
+        "companionVersion": 1,
+        "hasMetKoko": true,
+        "nickname": "",
+        "fields": {
+          "destination": "悉尼",
+          "date": "${futureDate}",
+          "days": "3",
+          "budget": "120",
+          "budgetCurrency": "AUD",
+          "budgetBasis": "perPersonPerDay",
+          "travelers": "2",
+          "budgetCoverage": "activities"
+        }
+      },
+      "requiresModel": true,
+      "fixtures": [
+        {
+          "message": "每人每天100澳元活动预算，不是全程",
+          "kind": "json",
+          "payload": {
+            "reply": "预算按你明确的每人每天口径记录。",
+            "fields": {},
+            "preferences": [],
+            "needsClarification": [],
+            "mood": "curious",
+            "quickReplies": [
+              {
+                "text": "先按这个方向看看",
+                "intent": "respond"
+              },
+              {
+                "text": "换个想法吧",
+                "intent": "skip"
+              },
+              {
+                "text": "先看已有草案",
+                "intent": "draft"
+              }
+            ],
+            "ideas": []
+          }
+        }
+      ],
+      "steps": [
+        {
+          "op": "get",
+          "saveAs": "baseline"
+        },
+        {
+          "op": "turn",
+          "text": "每人每天100澳元活动预算，不是全程",
+          "assertions": [
+            {
+              "path": "session.fields.budget",
+              "equals": "100"
+            },
+            {
+              "path": "session.fields.budgetCurrency",
+              "equals": "AUD"
+            },
+            {
+              "path": "session.fields.budgetBasis",
+              "equals": "perPersonPerDay"
+            },
+            {
+              "path": "session.fields.budgetCoverage",
+              "equals": "activities"
+            }
+          ]
+        }
+      ],
+      "humanReview": [
+        "固定桩 fields 为空，专门验证生产显式预算解析器。若不是全程仍覆盖为 perPersonTrip，应如实列为缺陷。"
+      ]
+    }
+  ]
+}

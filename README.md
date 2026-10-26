@@ -524,3 +524,7 @@ OpenStreetMap 底圖的商家／景點搜尋預設改讀取本機 Overture Place
 公開資料的一鍵打包、校驗及 AWS 匯入步驟，請看 [Zetaris 搬移工具](infra/zetaris/migration/README.md)。
 
 Zetaris 平台的本機安裝／快速啟動、AWS managed cluster 建立及停止方式，請看 [服務啟動教學](infra/zetaris/migration/SERVICE-STARTUP.md)。
+
+### Koko 对话与记忆接口测试
+
+无需 iOS 的隔离多轮 CLI、19 个固定案例、CSV/HTML 报告和问题清单见 [Koko API 测试说明](tools/koko_api/README.md)。测试宿主复用真实后端接口及 H-MEM；固定桩与真实模型结果分别标记。当前 main `7b726a1` 的三个失败案例保留在证据中，未通过调整生产逻辑或 UI 掩盖。

@@ -1,0 +1,66 @@
+{
+  "sourceCommit": "7b726a1b84af5fd3e2c8bb7eca83b85f9cae4a79",
+  "caseBaselineCommit": "7b726a1b84af5fd3e2c8bb7eca83b85f9cae4a79",
+  "runs": {
+    "fixture": {
+      "runId": "910746d3-8683-4b38-9403-4c27f7baa689",
+      "startedAt": "2026-10-26T03:57:18.461838+00:00",
+      "finishedAt": "2026-10-26T03:57:34.552017+00:00",
+      "totals": {
+        "FAIL": 3,
+        "NOT_RUN": 0,
+        "PASS": 16
+      },
+      "model": "koko/scripted-sse-fixture",
+      "modelConfigured": true,
+      "modelCallsObserved": 20
+    },
+    "live-unconfigured": {
+      "runId": "dd6ce5a2-4c17-45ad-9b18-38382842937e",
+      "startedAt": "2026-10-26T03:57:36.479533+00:00",
+      "finishedAt": "2026-10-26T03:57:38.622367+00:00",
+      "totals": {
+        "FAIL": 1,
+        "NOT_RUN": 15,
+        "PASS": 3
+      },
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "modelConfigured": false,
+      "modelCallsObserved": 0
+    }
+  },
+  "files": {
+    "fixture/run.json": {
+      "sha256": "2027670734940f4063a1cd765c1ca71d8e70a800bcd18e68016541a404dadea1",
+      "bytes": 1742483
+    },
+    "fixture/report.html": {
+      "sha256": "642679c207f524040777cfe37b0c167338428af1a33b2a893bc15f14407f8ab4",
+      "bytes": 2961553
+    },
+    "fixture/summary.csv": {
+      "sha256": "9a2d11dac3c7a6fc7e113c6d82320c9a3d57c5ab7f21bfbfc09612926a443aa6",
+      "bytes": 9928
+    },
+    "fixture/turns.csv": {
+      "sha256": "9ba7410de3fd921fe2c1ca6c7a5ed48adf75924366cf704f6587a7024ba0bf7d",
+      "bytes": 576379
+    },
+    "live-unconfigured/run.json": {
+      "sha256": "5b7119213a81bd211ea5f9d9efdc42009c5988da9f286a9e96b930d82d68987f",
+      "bytes": 301307
+    },
+    "live-unconfigured/report.html": {
+      "sha256": "9225f0e2f220538708c7354dea88ba7020fa75a6c1e6e27107f15c6caf777a29",
+      "bytes": 512920
+    },
+    "live-unconfigured/summary.csv": {
+      "sha256": "447b3022603dad08fe80ed1833e8c249646d27f75e6d9681a3dc39863d5f16f2",
+      "bytes": 11169
+    },
+    "live-unconfigured/turns.csv": {
+      "sha256": "21177f288098aa90d70ebb4c23b824c30055e5670d8c91d4b785c47358873d05",
+      "bytes": 95891
+    }
+  }
+}
