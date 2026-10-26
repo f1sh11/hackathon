@@ -290,9 +290,7 @@ struct NativeRouteMap:UIViewRepresentable {
         let coordinates=[start.location]+(day?.stops.map(\.coordinate) ?? [])+[end.location]
         if let day {
             map.addAnnotations(sections.flatMap(\.stopPins)+overviewPins(day))
-            if overview == nil && sections.isEmpty && !day.stops.isEmpty {
-                let sketch=MKPolyline(coordinates:coordinates,count:coordinates.count);sketch.title="schematic";map.addOverlay(sketch,level:.aboveLabels)
-            }
+            // Keep numbered stops while loading; never draw a straight line as a walking route.
             let geometry = overview?.coordinates ?? []
             let line=MKPolyline(coordinates:geometry,count:geometry.count);line.title="walk"
             if sections.isEmpty && geometry.count>1 {
@@ -400,6 +398,7 @@ struct ProviderRouteMap:View {
     var sections:[JourneyMapSection] = []
     var overviewIsGoogle=false
     var showsInsights=false
+    var showsNearby=false
     var expanded = false
     var bottomInset:CGFloat=240
     @EnvironmentObject var store:AppStore
@@ -407,7 +406,7 @@ struct ProviderRouteMap:View {
     @State private var placeDetail:ScheduleCandidate?
     private func moved(_ viewport:MapViewport){
         if !expanded{store.mapViewport=viewport}
-        nearby.cameraChanged(.init(latitude:viewport.lat,longitude:viewport.lng),zoom:viewport.zoom)
+        if showsNearby{nearby.cameraChanged(.init(latitude:viewport.lat,longitude:viewport.lng),zoom:viewport.zoom)}
     }
     var body:some View {
         // A live trip contains Google Places coordinates as well as Google route paths.
@@ -418,19 +417,20 @@ struct ProviderRouteMap:View {
         let safeSections = canShowOverview ? sections : []
         Group {switch store.mapProvider {
         case .osm,.apple:
-            NativeRouteMap(day:visibleDay,overview:safeOverview,expanded:expanded,bottomInset:bottomInset,provider:store.mapProvider,viewport:expanded ? nil : store.mapViewport,onViewport:moved,sections:safeSections,selectedStopID:store.selectedStopID,onSelect:{if store.selectedStopID != $0{store.selectedStopID=$0}},nearbyPlaces:nearby.places,onPoiSelect:{placeDetail=$0},insightMarkers:showsInsights ? (store.insights?.traffic.items ?? [])+(store.insights?.pricePlaces ?? []) : []).id(store.mapProvider)
+            NativeRouteMap(day:visibleDay,overview:safeOverview,expanded:expanded,bottomInset:bottomInset,provider:store.mapProvider,viewport:expanded ? nil : store.mapViewport,onViewport:moved,sections:safeSections,selectedStopID:store.selectedStopID,onSelect:{if store.selectedStopID != $0{store.selectedStopID=$0}},nearbyPlaces:showsNearby ? nearby.places:[],onPoiSelect:{placeDetail=$0},insightMarkers:showsInsights ? (store.insights?.traffic.items ?? [])+(store.insights?.pricePlaces ?? []) : []).id(store.mapProvider)
         case .google:
-            if SydneyBuddyApp.mapReady {GoogleRouteMap(day:visibleDay,overview:safeOverview,expanded:expanded,bottomInset:bottomInset,viewport:expanded ? nil : store.mapViewport,onViewport:moved,sections:safeSections,selectedStopID:store.selectedStopID,onSelect:{if store.selectedStopID != $0{store.selectedStopID=$0}},nearbyPlaces:nearby.places,onPoiSelect:{placeDetail=$0},insightMarkers:showsInsights ? (store.insights?.traffic.items ?? [])+(store.insights?.pricePlaces ?? []) : [])}
+            if SydneyBuddyApp.mapReady {GoogleRouteMap(day:visibleDay,overview:safeOverview,expanded:expanded,bottomInset:bottomInset,viewport:expanded ? nil : store.mapViewport,onViewport:moved,sections:safeSections,selectedStopID:store.selectedStopID,onSelect:{if store.selectedStopID != $0{store.selectedStopID=$0}},nearbyPlaces:showsNearby ? nearby.places:[],onPoiSelect:{placeDetail=$0},insightMarkers:showsInsights ? (store.insights?.traffic.items ?? [])+(store.insights?.pricePlaces ?? []) : [])}
             else {Palette.mint.overlay(Text("Google 地图未配置密钥\n请在“我的”选择其他底图").multilineTextAlignment(.center))}
         case .schematic:SchematicMap(day:visibleDay)
         }}
-        .task(id:store.mapProvider.rawValue+store.travelDataSource.rawValue){
+        .task(id:store.mapProvider.rawValue+store.travelDataSource.rawValue+String(showsNearby)){
+            guard showsNearby else{nearby.stop();return}
             if let viewport=store.mapViewport{nearby.center = .init(latitude:viewport.lat,longitude:viewport.lng)}
             nearby.configure(store.mapProvider,googleMapConfigured:SydneyBuddyApp.mapConfigured,dataSource:store.travelDataSource)
         }
         .overlay(alignment:.topLeading){
-            if nearby.busy{ProgressView("搜尋附近地點…").font(.caption).padding(8).background(.regularMaterial,in:Capsule()).padding(.top,expanded ? 100:130).padding(.leading,16)}
-            else if let error=nearby.error,store.mapProvider != .schematic{Button{nearby.search()}label:{Label("附近地點未載入・點此重試",systemImage:"arrow.clockwise").font(.caption).padding(8).background(.regularMaterial,in:Capsule())}.accessibilityHint(error).padding(.top,expanded ? 100:130).padding(.leading,16)}
+            if showsNearby && nearby.busy{ProgressView("搜尋附近地點…").font(.caption).padding(8).background(.regularMaterial,in:Capsule()).padding(.top,expanded ? 100:130).padding(.leading,16)}
+            else if showsNearby,let error=nearby.error,store.mapProvider != .schematic{Button{nearby.search()}label:{Label("附近地點未載入・點此重試",systemImage:"arrow.clockwise").font(.caption).padding(8).background(.regularMaterial,in:Capsule())}.accessibilityHint(error).padding(.top,expanded ? 100:130).padding(.leading,16)}
         }
         .onDisappear{nearby.stop()}
         .sheet(item:$placeDetail){SchedulePlaceDetail(candidate:$0)}
@@ -525,6 +525,7 @@ struct HomeView: View {
     @State var details=false
     @State private var adjusting=false
     @State var expandedMap=false
+    @State private var showsNearby=false
     @State var journey=false
     @State var navigation=false
     @StateObject private var overview=ItineraryOverview()
@@ -536,13 +537,13 @@ struct HomeView: View {
     }
     private var routeTitle:String {
         if let selected=store.currentDay?.stops.first(where:{$0.id==store.selectedStopID}){return selected.name}
-        return nextStop.map{"接下来："+$0.name} ?? "这一天留给自由安排"
+        return nextStop.map{"接下来："+$0.name} ?? (store.currentDay?.stops.isEmpty == false ? "返回："+(store.currentDay?.end.name ?? "终点"):"这一天留给自由安排")
     }
     var body:some View {
         VStack(spacing:0){
             if showsDayPicker,let trip=store.trip{TripDayPicker(trip:trip).padding(.horizontal,20).padding(.bottom,10)}
             ZStack(alignment:.bottom){
-                ProviderRouteMap(overview:overview.key == mapSceneKey(store.currentDay) ? overview.route : nil,sections:overview.key == mapSceneKey(store.currentDay) ? (overview.plan?.sections ?? []) : [],overviewIsGoogle:overview.plan?.source == "Google Routes",expanded:expandedMap,bottomInset:140).id(expandedMap)
+                ProviderRouteMap(overview:overview.key == mapSceneKey(store.currentDay) ? overview.route : nil,sections:overview.key == mapSceneKey(store.currentDay) ? (overview.plan?.sections ?? []) : [],overviewIsGoogle:overview.plan?.source == "Google Routes",showsNearby:showsNearby,expanded:expandedMap,bottomInset:140).id(expandedMap)
                 VStack(alignment:.trailing,spacing:12){
                     Spacer()
                     Button{store.mapViewport=nil;expandedMap.toggle()}label:{Image(systemName:"location.viewfinder").font(.title3).frame(width:46,height:46).background(.white,in:Circle()).shadow(color:.black.opacity(0.08),radius:5,y:2)}.accessibilityLabel("重新居中地图")
@@ -552,7 +553,10 @@ struct HomeView: View {
                                 Text("第 \(store.dayIndex+1) 天 · \(store.currentDay?.stops.count ?? 0) 个地点").font(.caption).foregroundStyle(Palette.muted)
                                 Text(routeTitle).font(.headline).lineLimit(1)
                                 if let route=overview.route {
-                                    Text(store.currentDay?.hasTransit == true ? "步行＋公共交通 · 约 \(Int(ceil(route.seconds/60))) 分钟":"步行约 \(Int(route.meters.rounded())) 米 · \(Int(ceil(route.seconds/60))) 分钟").font(.caption).foregroundStyle(Palette.muted).accessibilityIdentifier("home-walking-summary")
+                                    if let day=store.currentDay {
+                                        Text(ItineraryLegSummary.text(day:day,targetID:store.currentDay?.stops.first(where:{$0.id==store.selectedStopID})?.id ?? nextStop?.id)).font(.caption).foregroundStyle(Palette.ink).lineLimit(2).accessibilityIdentifier("next-stop-route-summary")
+                                    }
+                                    Text(store.currentDay?.hasTransit == true ? "全天步行＋公交约 \(Int(ceil(route.seconds/60))) 分钟":"全天步行约 \(Int(route.meters.rounded())) 米 · \(Int(ceil(route.seconds/60))) 分钟").font(.caption2).foregroundStyle(Palette.muted).accessibilityIdentifier("home-walking-summary")
                                 }else if overview.busy{Label("正在查询真实步行路线…",systemImage:"figure.walk").font(.caption).foregroundStyle(Palette.muted)}
                                 else {Text(overview.message ?? "站点顺序示意 · 尚未取得步行路线").font(.caption).foregroundStyle(Palette.muted).lineLimit(2)}
                             }.frame(maxWidth:.infinity,alignment:.leading)
@@ -562,7 +566,8 @@ struct HomeView: View {
                             Menu{
                                 if !sharedCompanion{Button("找 Koko",systemImage:"bubble.left.and.bubble.right"){chat=true};Button("调整当天",systemImage:"slider.horizontal.3"){adjusting=true}}
                                 if store.mapProvider != .apple{Button("交通路线规划",systemImage:"tram"){journey=true}}
-                                Button("附近地点",systemImage:"magnifyingglass"){poiSearch=true}
+                                Toggle("在地图显示附近地点",isOn:$showsNearby)
+                                Button("搜索附近地点",systemImage:"magnifyingglass"){poiSearch=true}
                                 Button("天气与出发准备",systemImage:"backpack"){details=true}
                                 Button("交通、人潮与费用",systemImage:"info.circle"){showInsights=true}
                                 if let day=store.currentDay{Button("刷新路线显示"){overview.load(day,provider:store.mapProvider)}}
@@ -627,3 +632,14 @@ struct TravelInsightsSheet:View {
     }
 }
 private struct TripPanelHeight:PreferenceKey {static let defaultValue:CGFloat=320;static func reduce(value:inout CGFloat,nextValue:()->CGFloat){value=nextValue()}}
+
+/// Saved directed leg to the selected/next stop, never the whole-day total or a claim about live GPS.
+enum ItineraryLegSummary {
+    static func text(day:DayPlan,targetID:String?)->String {
+        let index=targetID.flatMap{id in day.stops.firstIndex{$0.id==id}} ?? day.stops.count
+        guard day.legs.indices.contains(index) else{return "到下一站的路段待核实"}
+        let from=index==0 ? day.start.name:day.stops[index-1].name
+        let leg=day.legs[index]
+        return "从"+from+" · "+(leg.mode=="transit" ? "公交含接驳约 \(leg.minutes) 分钟":"步行约 \(leg.meters) 米 · \(leg.minutes) 分钟")
+    }
+}

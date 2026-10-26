@@ -63,8 +63,9 @@ struct DaySummary:View {
     @EnvironmentObject private var store:AppStore
     var body:some View {
         VStack(alignment:.leading,spacing:16) {
-            HStack {Text(day.date).font(.headline);Spacer();Text("每人约 A$\(Int(day.estimatedCost))").font(.subheadline.bold()).foregroundStyle(Palette.green)}
+            HStack {Text(day.date).font(.headline);Spacer();Text("安排估算 A$\(Int(day.estimatedCost))/人").font(.subheadline.bold()).foregroundStyle(Palette.green)}
             Label("约 \(day.estimatedSteps) 步 · \(day.finishTime) 返回",systemImage:"figure.walk").font(.caption).foregroundStyle(Palette.muted)
+            if day.stops.contains(where:{$0.costKnown == false}){Text("未确认费用另计，估算不代表完整总价。").font(.caption2).foregroundStyle(Palette.muted)}
             Text("\(day.start.name) 出发 → \(day.end.name) 返回").font(.caption2).foregroundStyle(Palette.muted)
             if day.freeTime == true {Label("自由安排 · 景点待补充",systemImage:"leaf").font(.subheadline).foregroundStyle(Palette.green)}
             Text(day.buddySummary).font(.caption).foregroundStyle(Palette.green)

@@ -300,7 +300,7 @@ struct PetChatView:View {
                                     HStack(alignment:.top,spacing:10){PetAvatar(mood:companionMood,cue:companionCue,size:52);Text(currentSpeech).font(.caption).fixedSize(horizontal:false,vertical:true).padding(12).frame(maxWidth:.infinity,alignment:.leading).background(.white,in:RoundedRectangle(cornerRadius:16))}
                                 }else {
                                     PetSpeechBubble(text:currentSpeech,companionStyle:true,animateText:false,avatarBelow:true)
-                                    KokoCompanionStage(cue:companionCue,size:personalSetup ? 218:204,mood:companionMood).frame(height:personalSetup ? 220:204)
+                                    KokoCompanionStage(cue:companionCue,size:personalSetup ? 188:176,mood:companionMood).frame(height:personalSetup ? 188:176)
                                 }
                             }else {
                                 KokoCompanionScene(mood:companionMood,cue:companionCue,ready:canPlanDirectly && !chat.busy,height:composing ? 100:canPlanDirectly ? 132:168)
@@ -308,7 +308,7 @@ struct PetChatView:View {
                             }
                             if chat.busy{Label("在认真整理你的想法…",systemImage:"ellipsis").font(.caption).foregroundStyle(Palette.green)}
                         }.id("companion-turn").accessibilityIdentifier("chat-companion-turn")
-                        if !faceToFace {replyChoices}
+                        replyChoices
                         if !personalSetup,!canPlanDirectly,let session=chat.session,let inspiration=session.dialogue?.inspiration{KokoInspirationCard(session:session,inspiration:inspiration)}
                         ForEach(chat.session?.pendingPreferences ?? []){preference in
                             TravelPreferenceCard(preference:preference,busy:chat.busy,decide:{consent,ignored in Task{await chat.decidePreference(preference,consent:consent,dismiss:ignored)}},correct:{message="关于"+preference.label+"，其实我";composing=true})
@@ -330,7 +330,6 @@ struct PetChatView:View {
                 .onChange(of:chat.busy){_,value in if value && !historyExpanded{proxy.scrollTo("companion-turn",anchor:.top)}}
                 .onChange(of:composing){_,value in if value{proxy.scrollTo("companion-turn",anchor:.top)}}
             }
-            if faceToFace {replyChoices.padding(.horizontal,20)}
             if personalSetup {
                 if chat.session?.dialogue?.inspiration != nil {
                     PrimaryButton(title:"开始准备旅行",symbol:"arrow.right"){store.finishPersonalConversation(chat.session,useClues:true)}.padding(.horizontal,20).disabled(chat.busy || !message.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty).accessibilityIdentifier("personal-start-planning")

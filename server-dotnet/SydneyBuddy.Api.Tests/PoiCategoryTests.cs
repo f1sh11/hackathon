@@ -46,8 +46,17 @@ public sealed class PoiCategoryTests {
         Assert.Equal(3,suites.Int("priceRange"));Assert.Equal("$$$",suites.Str("priceTier"));Assert.Equal(295,suites.Int("nightlyRateAud"));
         var luxury=Point("l4","hotel","lodging");luxury["category"]="住宿";luxury["name"]="Park Hyatt Sydney";PoiCategories.ApplyFoodPriceMapping(luxury);
         Assert.Equal(4,luxury.Int("priceRange"));Assert.Equal("$$$$",luxury.Str("priceTier"));Assert.Equal(620,luxury.Int("nightlyRateAud"));
-        Assert.StartsWith("★ ",luxury.Str("ratingLabel"));Assert.True(luxury.Number("aggregateRating")>=4.5);Assert.True(luxury.Int("reviewCount")>=650);
+        Assert.Null(luxury["aggregateRating"]);Assert.Null(luxury["reviewCount"]);Assert.Equal("unavailable",luxury.Str("ratingStatus"));
         var sight=Point("s10","museum","sights");sight["category"]="風景";sight["name"]="Australian Museum";PoiCategories.ApplyFoodPriceMapping(sight);
-        Assert.StartsWith("★ ",sight.Str("ratingLabel"));Assert.NotEmpty(sight.Str("reviewSummary"));Assert.NotEmpty(sight.Array("reviewHighlights")!);
+        Assert.Null(sight["ratingLabel"]);Assert.Null(sight["reviewSummary"]);Assert.Null(sight["reviewHighlights"]);
     }
+    [Fact] public void UnsourcedLegacyReviewsAreRemovedButTraceableReviewsRemain(){
+        var point=Point("r1","restaurant","food");point["aggregateRating"]=4.8;point["reviewCount"]=900;point["reviewSummary"]="invented praise";
+        PoiCategories.ApplyFoodPriceMapping(point);Assert.Null(point["aggregateRating"]);Assert.Null(point["reviewSummary"]);
+        var legacy=Point("osm:node:100","restaurant","food");legacy["aggregateRating"]=4.9;legacy["reviewCount"]=999;legacy["reviewSummary"]="unverified imported praise";
+        var imported=PoiService.Import(legacy);Assert.Null(imported["aggregateRating"]);Assert.Null(imported["reviewSummary"]);
+        point["ratingSource"]="Review provider";point["ratingSourceUrl"]="https://example.com/reviews/r1";point["aggregateRating"]=4.2;point["reviewCount"]=12;
+        PoiCategories.ApplyFoodPriceMapping(point);Assert.Equal(4.2,point.Number("aggregateRating"));Assert.Equal("source_provided",point.Str("ratingStatus"));
+    }
+
 }

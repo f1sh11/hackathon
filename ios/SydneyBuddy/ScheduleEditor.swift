@@ -26,66 +26,19 @@ struct ScheduleDay:Codable,Identifiable {
 }
 struct CommunityGuide:Codable {var directions:String;var directionsStatus:String?;var sourceUrl:String;var revision:String;var license:String;var licenseUrl:String;var attribution:String;var retrievedAt:String;var coordinateSource:String?}
 struct CommunityReview:Codable,Identifiable {var id:String;var author:String;var text:String;var sourceUrl:String;var publishedAt:String?}
-struct ScheduleCandidate:Codable,Identifiable {var id:String;var name:String;var category:String;var indoor:Bool;var visitMinutes:Int;var cost:Double;var lat:Double;var lng:Double;var reason:String;var description:String?;var note:String?;var openMinute:Int?;var closeMinute:Int?;var source:String?;var poiKind:String?;var openingHoursText:String?;var website:String?;var phone:String?;var address:String?;var sourceRelease:String?;var activityType:String? = nil;var guide:CommunityGuide?;var photos:[PlacePhoto]?;var reviews:[CommunityReview]?;var hiddenGem:Bool?;var accessStatus:String?;var sources:[String]?;var sourceIds:[String]?;var sourceUrl:String?;var sourceLicense:String?;var retrievedAt:String?;var wikidata:String?;var restaurantData:RestaurantData?;var socialRecommendations:[RestaurantSocialRecommendation]?;var priceRange:Int? = nil;var priceTier:String? = nil;var estimatedSpendAud:Double? = nil;var avgCostForTwoAud:Double? = nil;var nightlyRateAud:Double? = nil;var priceLabel:String? = nil;var aggregateRating:Double? = nil;var reviewCount:Int? = nil;var ratingLabel:String? = nil;var reviewSummary:String? = nil;var reviewHighlights:[String]? = nil}
+struct ScheduleCandidate:Codable,Identifiable {var id:String;var name:String;var category:String;var indoor:Bool;var visitMinutes:Int;var cost:Double;var lat:Double;var lng:Double;var reason:String;var description:String?;var note:String?;var openMinute:Int?;var closeMinute:Int?;var source:String?;var poiKind:String?;var openingHoursText:String?;var website:String?;var phone:String?;var address:String?;var sourceRelease:String?;var activityType:String? = nil;var guide:CommunityGuide?;var photos:[PlacePhoto]?;var reviews:[CommunityReview]?;var hiddenGem:Bool?;var accessStatus:String?;var sources:[String]?;var sourceIds:[String]?;var sourceUrl:String?;var sourceLicense:String?;var retrievedAt:String?;var wikidata:String?;var restaurantData:RestaurantData?;var socialRecommendations:[RestaurantSocialRecommendation]?;var priceRange:Int? = nil;var priceTier:String? = nil;var estimatedSpendAud:Double? = nil;var avgCostForTwoAud:Double? = nil;var nightlyRateAud:Double? = nil;var priceLabel:String? = nil;var ratingSource:String? = nil;var ratingSourceUrl:String? = nil;var aggregateRating:Double? = nil;var reviewCount:Int? = nil;var ratingLabel:String? = nil;var reviewSummary:String? = nil;var reviewHighlights:[String]? = nil}
 extension ScheduleCandidate {
-    private var ratingSeed:Int {
-        var h=5381
-        for b in (id+":"+name).utf8 {h=((h<<5)&+h)&+Int(b)}
-        return abs(h)
+    var reviewSourceURL:URL? {
+        guard let source=ratingSource,!source.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty,let value=ratingSourceUrl,let url=URL(string:value),url.scheme=="https",url.host != nil,url.user==nil else{return nil}
+        return url
     }
+    var hasSourcedRating:Bool {reviewSourceURL != nil && aggregateRating.map{$0.isFinite && (0...5).contains($0)} == true && (reviewCount ?? 0)>0}
     var mappedRatingLabel:String {
-        if let label=ratingLabel,!label.isEmpty {return label}
-        if let r=aggregateRating,let c=reviewCount {return String(format:"★ %.1f (%d 則評價)",r,c)}
-        let lower=name.lowercased()
-        let seed=ratingSeed
-        let top=["opera house","harbour bridge","taronga","botanic garden","darling harbour","the rocks","bondi","manly","qvb","queen victoria","art gallery","australian museum","hyde park","barangaroo","circular quay","park hyatt","crown sydney","four seasons","capella","shangri-la","the langham","quay","bennelong","sixpenny","messina"].contains(where:{lower.contains($0)})
-        let r=top ? 4.5+Double(seed%5)*0.1:(category=="住宿" ? 4.0+Double(seed%9)*0.1:4.1+Double(seed%8)*0.1)
-        let c=top ? 650+(seed%2400):90+(seed%1200)
-        return String(format:"★ %.1f (%d 則評價)",r,c)
+        guard hasSourcedRating,let rating=aggregateRating,let count=reviewCount else{return "暂无可核验评价"}
+        return String(format:"★ %.1f (%d 条评价)",rating,count)
     }
-    var mappedReviewSummary:String {
-        if let s=reviewSummary,!s.isEmpty {return s}
-        let kind=(poiKind ?? "").lowercased()
-        let lower=name.lowercased()
-        if category=="美食" {
-            if ["cafe","coffee_shop","bakery","pastry","dessert_shop","ice_cream_shop"].contains(kind) || ["cafe","café","coffee","espresso","bakery","gelato","messina"].contains(where:{lower.contains($0)}) {
-                return "雪梨人氣咖啡與烘焙據點，旅客普遍讚賞濃縮咖啡品質與輕鬆早午餐氛圍。"
-            }
-            return "餐點水準穩定且具在地口碑，是行程中順路用餐的熱門選擇。"
-        }
-        if category=="住宿" {
-            if kind=="hostel" || lower.contains("hostel") || lower.contains("backpacker") {
-                return "高性價比背包客棧，位置便利且交誼空間活躍。"
-            }
-            return "地理位置優越且客房舒適度佳，旅客對交通便利性與服務普遍給予好評。"
-        }
-        if category=="店家" {return "商品選擇豐富且動線便利，適合採買伴手禮或日常補給。"}
-        if ["beach","park","national_park","botanical_garden","garden","viewpoint"].contains(kind) || ["beach","park","garden","lookout","reserve","bay","wharf"].contains(where:{lower.contains($0)}) {
-            return "雪梨代表性自然與海港景觀，視野開闊、拍照出片率極高。"
-        }
-        if ["museum","art_gallery","gallery","historic_site","monument","library","theater"].contains(kind) {
-            return "文化底蘊深厚且策展用心，是認識雪梨歷史與藝術的首選地標。"
-        }
-        return "雪梨高人氣必訪地標，交通便利且周邊生活機能完善。"
-    }
-    var mappedReviewHighlights:[String] {
-        if let list=reviewHighlights,!list.isEmpty {return list}
-        let kind=(poiKind ?? "").lowercased()
-        let lower=name.lowercased()
-        if category=="美食" {
-            if ["cafe","coffee_shop","bakery","pastry","dessert_shop","ice_cream_shop"].contains(kind) || ["cafe","café","coffee","espresso","bakery","gelato","messina"].contains(where:{lower.contains($0)}) {
-                return ["Flat White 與手沖咖啡風味穩定，甜點與可頌新鮮出爐","適合散步途中停靠休息，尖峰時段建議避開上班早高峰"]
-            }
-            return ["招牌料理調味出色、食材新鮮，份量適合分享","午晚餐尖峰時段人氣高，熱門餐廳建議提前確認候位情況"]
-        }
-        if category=="住宿" {
-            if kind=="hostel" || lower.contains("hostel") || lower.contains("backpacker") {
-                return ["步行可達車站與主要商圈，適合預算型與獨旅旅客","公共廚房與交誼廳機能齊全，入住與寄放行李請先洽櫃檯"]
-            }
-            return ["鄰近雪梨市區核心地標與大眾運輸，早出晚歸動線順暢","房況整潔安靜，多數房型支援入住前或退房後洽詢行李寄放"]
-        }
-        return ["地標辨識度高、拍照打卡角度多元，初訪雪梨必排","周邊步行即可銜接餐飲與大眾運輸，行程安排彈性高"]
-    }
+    var mappedReviewSummary:String {hasSourcedRating ? (reviewSummary ?? ""):"尚未接入有来源的旅客评价，可查看商家官网了解详情。"}
+    var mappedReviewHighlights:[String] {hasSourcedRating ? (reviewHighlights ?? []):[]}
     var mappedLodgingPriceLabel:String? {
         if let label=priceLabel,!label.isEmpty,category=="住宿" {return label}
         guard category=="住宿" else{return nil}
@@ -642,7 +595,8 @@ struct InlineTripSchedule:View {
     private func heading(_ day:ScheduleDay)->some View {
         VStack(alignment:.leading,spacing:8){
             HStack{Text("第 \(index+1) 天").font(.system(.title2,design:.rounded,weight:.bold));Text(day.date).font(.subheadline).foregroundStyle(Palette.muted);Spacer();if editable{Menu{Button("添加安排",systemImage:"plus"){openAdd(day.activities.count)};Button("完整时间与住宿设置",systemImage:"slider.horizontal.3"){onAdvanced()}.disabled(changed)}label:{Image(systemName:"slider.horizontal.3").frame(width:44,height:44)}.accessibilityLabel("当天调整")}}
-            HStack(spacing:14){Button{ledger=true}label:{Label("预算／花费 · A$\(Int(day.estimatedCost))",systemImage:"creditcard").frame(minHeight:44)}.buttonStyle(BuddyPressStyle()).accessibilityLabel("预算与花费，每人当天估算 A$\(Int(day.estimatedCost))，点击查看账本").accessibilityIdentifier("trip-budget");Label("约 \(day.estimatedSteps.formatted()) 步",systemImage:"figure.walk")}.font(.caption).foregroundStyle(Palette.muted)
+            HStack(spacing:14){Button{ledger=true}label:{Label("安排估算 · A$\(Int(day.estimatedCost))/人",systemImage:"creditcard").frame(minHeight:44)}.buttonStyle(BuddyPressStyle()).accessibilityLabel("安排费用为每人当天估算 A$\(Int(day.estimatedCost))，点击查看账本").accessibilityIdentifier("trip-budget");Label("约 \(day.estimatedSteps.formatted()) 步",systemImage:"figure.walk")}.font(.caption).foregroundStyle(Palette.muted)
+            Text("估算不是已消费，未核实费用另计；点金额查看预算与账本。").font(.caption2).foregroundStyle(Palette.muted)
             if changed{Label("修改预览 · 原行程仍保留",systemImage:"pencil.line").font(.caption.bold()).foregroundStyle(Palette.berry)}
             if savedMessage{Label("收好啦，新的安排已经保存",systemImage:"checkmark.circle.fill").font(.caption).foregroundStyle(Palette.berry)}
         }.padding(.bottom,24)

@@ -57,6 +57,18 @@ private final class JourneyStub:URLProtocol {
         do{let _: [Trip]=try await store.api("trips");XCTFail("An old backend error must not replace the new connection state")}
         catch is CancellationError {}
     }
+    func testUnsourcedReviewsNeverBecomeInventedStarsOrPraise() throws {
+        var p=try JSONDecoder().decode(ScheduleCandidate.self,from:Data(#"{"id":"osm:review","name":"Famous Restaurant","category":"美食","indoor":false,"visitMinutes":45,"cost":30,"lat":-33.86,"lng":151.21,"reason":"test","aggregateRating":4.9,"reviewCount":2000,"ratingLabel":"★ 4.9","reviewSummary":"Popular and delicious"}"#.utf8))
+        XCTAssertFalse(p.hasSourcedRating);XCTAssertFalse(p.mappedRatingLabel.contains("★"));XCTAssertFalse(p.mappedReviewSummary.contains("delicious"));XCTAssertTrue(p.mappedReviewHighlights.isEmpty)
+        p.ratingSource="Review provider";p.ratingSourceUrl="https://example.com/reviews"
+        XCTAssertTrue(p.hasSourcedRating);XCTAssertTrue(p.mappedRatingLabel.contains("2000"))
+    }
+    func testNextStopSummaryUsesDirectedLegInsteadOfDayTotal() throws {
+        let trip=try JSONDecoder().decode(Trip.self,from:Data(contentsOf:Bundle(for:Self.self).url(forResource:"schedule-trip-test",withExtension:"json")!))
+        var day=trip.days[0];day.legs[0].meters=190;day.legs[0].minutes=4
+        let text=ItineraryLegSummary.text(day:day,targetID:day.stops.first?.id)
+        XCTAssertTrue(text.contains("190 米"));XCTAssertTrue(text.contains("4 分钟"));XCTAssertTrue(text.contains(day.start.name))
+    }
     func testCloudPlanningUsesWarehouseAndKeepsPriceEvidence() async throws {
         let store=AppStore();var profile=TripProfile();profile.interests=["美食"]
         store.planningDiscovery={_ in XCTFail("Cloud planning must not use Apple place discovery");return []}

@@ -14,7 +14,7 @@ struct JournalView:View {
         NavigationStack {
             Form {
                 Section { VStack(alignment:.leading,spacing:10){Text("把花费也安排明白").font(.title2.bold());Text(tripID == nil ? "全部旅行与历史记录 · AUD":"本次旅行 · AUD · 记录与均分").font(.caption).foregroundStyle(Palette.muted)
-                    if let trip{Text(trip.profile.activityBudgetSummary).font(.subheadline);Text("已记录消费 "+String(format:"A$%.2f",Double(entries.reduce(0){$0+$1.cents})/100)).font(.subheadline.bold()).foregroundStyle(Palette.green);Text("消费记录包含你填写的全部项目，可能超出活动预算范围。").font(.caption).foregroundStyle(Palette.muted)}}.padding(.vertical,10) }
+                    if let trip{Text(trip.profile.activityBudgetSummary).font(.subheadline);Text("全程安排估算 A$\(Int(trip.days.reduce(0){$0+$1.estimatedCost}))/人，非已消费；未知费用未全部计入。").font(.caption).foregroundStyle(Palette.muted);Text("已记录总支出 "+String(format:"A$%.2f",Double(entries.reduce(0){$0+$1.cents})/100)).font(.subheadline.bold()).foregroundStyle(Palette.green);Text("消费记录包含你填写的全部项目，可能超出活动预算范围。").font(.caption).foregroundStyle(Palette.muted)}}.padding(.vertical,10) }
                 Section("记一笔") {
                     TextField("项目",text:$title)
                     TextField("金额（AUD）",text:$amount).keyboardType(.decimalPad)

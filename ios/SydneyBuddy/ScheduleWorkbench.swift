@@ -134,11 +134,12 @@ struct SchedulePlaceDetail:View {
                     Text(candidate.category+" · "+(candidate.importedPoi ? (candidate.indoor ? "室內（來源標記）":"室內外未確認"):(candidate.indoor ? "室內":"戶外"))).font(.subheadline).foregroundStyle(Palette.muted)
                     VStack(alignment:.leading,spacing:8) {
                         HStack {
-                            Text("旅客綜合評價").font(.headline)
+                            Text("旅客评价").font(.headline)
                             Spacer()
                             Text(candidate.mappedRatingLabel).font(.subheadline.bold()).foregroundStyle(Palette.green)
                         }
                         Text(candidate.mappedReviewSummary).font(.subheadline)
+                        if candidate.hasSourcedRating,let url=candidate.reviewSourceURL {Link("评价来源："+(candidate.ratingSource ?? "原始页面"),destination:url).font(.caption)}
                         ForEach(candidate.mappedReviewHighlights,id:\.self) { item in
                             Text("• "+item).font(.caption).foregroundStyle(Palette.muted)
                         }
