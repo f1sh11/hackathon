@@ -23,6 +23,8 @@ enum TripAdjustmentComparison {
     }
 }
 struct ProposalView:View {
+    @Environment(\.locale) private var interfaceLocale
+
     @EnvironmentObject var store:AppStore
     var unchanged:Bool {
         guard !store.proposalFromNewTrip,let old=store.trip,let plan=store.proposal else{return false}
@@ -33,6 +35,7 @@ struct ProposalView:View {
         return !TripAdjustmentComparison.hasVisibleChanges(old,plan)
     }
     var body:some View {
+        let _=interfaceLocale
         if store.proposal?.mode == "demo" && !store.proposalIsSuggestion {ScheduleEditorView()} else { legacy }
     }
     var legacy:some View {
@@ -40,42 +43,46 @@ struct ProposalView:View {
             ScrollView {
                 if let plan=store.proposal {
                     VStack(alignment:.leading,spacing:20) {
-                        HStack { Robot(size:65);VStack(alignment:.leading,spacing:6) {Text(unchanged ? "这次试算没有改变安排":plan.recommendationStatus == "partial" ? "这份草案还需要你看看":store.trip==nil || store.proposalFromNewTrip ? "你的路线准备好了" : "看看这次怎么调整").font(.title2.bold());Text(unchanged ? (unchangedRequest ? "原行程保持不变，不需要再次保存":"路线未变；可以确认保存这次的需求更新"):"确认之后，才会保存到你的行程").font(.caption).foregroundStyle(Palette.muted)} }
-                        Text(unchanged ? "这次试算没有改变地点、时间或预计步数，也没有减少步行。可以先保留原行程，或返回日程缩短停留、移除可选活动，再重新核对路线。":plan.explanation).font(.subheadline).padding(18).background(Palette.mint,in:RoundedRectangle(cornerRadius:20))
+                        HStack { Robot(size:65);VStack(alignment:.leading,spacing:6) {Text(uiText(unchanged ? "这次试算没有改变安排":plan.recommendationStatus == "partial" ? "这份草案还需要你看看":store.trip==nil || store.proposalFromNewTrip ? "你的路线准备好了" : "看看这次怎么调整")).font(.title2.bold());Text(uiText(unchanged ? (unchangedRequest ? "原行程保持不变，不需要再次保存":"路线未变；可以确认保存这次的需求更新"):"确认之后，才会保存到你的行程")).font(.caption).foregroundStyle(Palette.muted)} }
+                        Text(uiText(unchanged ? "这次试算没有改变地点、时间或预计步数，也没有减少步行。可以先保留原行程，或返回日程缩短停留、移除可选活动，再重新核对路线。":plan.explanation)).font(.subheadline).padding(18).background(Palette.mint,in:RoundedRectangle(cornerRadius:20))
                         if let old=store.trip,!store.proposalFromNewTrip {
                             let before=Set(old.days.flatMap(\.stops).map(\.name)),after=Set(plan.days.flatMap{ $0.stops+($0.completedStops ?? []) }.map(\.name))
-                            VStack(alignment:.leading,spacing:8) { Text("调整对比").font(.headline);Text("新增："+(after.subtracting(before).sorted().joined(separator:"、").isEmpty ? "无" : after.subtracting(before).sorted().joined(separator:"、")));Text("移除："+(before.subtracting(after).sorted().joined(separator:"、").isEmpty ? "无" : before.subtracting(after).sorted().joined(separator:"、")));Text("预计步数：\(old.days.reduce(0){$0+$1.estimatedSteps}) → \(plan.days.reduce(0){$0+$1.estimatedSteps})") }.font(.caption).padding(18).frame(maxWidth:.infinity,alignment:.leading).background(.white,in:RoundedRectangle(cornerRadius:20))
+                            VStack(alignment:.leading,spacing:8) { Text(uiText("调整对比")).font(.headline);Text(uiText("新增："+(after.subtracting(before).sorted().joined(separator:"、").isEmpty ? "无" : after.subtracting(before).sorted().joined(separator:"、"))));Text(uiText("移除："+(before.subtracting(after).sorted().joined(separator:"、").isEmpty ? "无" : before.subtracting(after).sorted().joined(separator:"、"))));Text(uiText("预计步数：\(old.days.reduce(0){$0+$1.estimatedSteps}) → \(plan.days.reduce(0){$0+$1.estimatedSteps})")) }.font(.caption).padding(18).frame(maxWidth:.infinity,alignment:.leading).background(.white,in:RoundedRectangle(cornerRadius:20))
                         }
                         WeatherCard(weather:plan.weather,profile:plan.profile)
                         ForEach(plan.days) { day in DaySummary(day:day) }
-                        VStack(alignment:.leading,spacing:8) {Text("数据与限制").font(.headline);ForEach(plan.warnings,id:\.self){Text("· "+$0).font(.caption).foregroundStyle(Palette.muted)}}
-                        DisclosureGroup("查看规划依据与验证记录") {ForEach(plan.trace){trace in VStack(alignment:.leading,spacing:5){Text(trace.title).font(.subheadline.bold());Text(trace.detail).font(.caption);Text(trace.source).font(.caption2).foregroundStyle(Palette.green)}.padding(.vertical,8)}}
+                        VStack(alignment:.leading,spacing:8) {Text(uiText("数据与限制")).font(.headline);ForEach(plan.warnings,id:\.self){Text(uiText("· "+$0)).font(.caption).foregroundStyle(Palette.muted)}}
+                        DisclosureGroup(uiText("查看规划依据与验证记录")) {ForEach(plan.trace){trace in VStack(alignment:.leading,spacing:5){Text(uiText(trace.title)).font(.subheadline.bold());Text(uiText(trace.detail)).font(.caption);Text(uiText(trace.source)).font(.caption2).foregroundStyle(Palette.green)}.padding(.vertical,8)}}
                     }.padding(24)
                 }
-            }.background(Palette.cream).navigationTitle("行程草案").navigationBarTitleDisplayMode(.inline)
-            .toolbar {ToolbarItem(placement:.topBarLeading){Button("取消"){store.proposal=nil}.tint(Palette.muted)}}
+            }.background(Palette.cream).navigationTitle(uiText("行程草案")).navigationBarTitleDisplayMode(.inline)
+            .toolbar {ToolbarItem(placement:.topBarLeading){Button(uiText("取消")){store.proposal=nil}.tint(Palette.muted)}}
             .safeAreaInset(edge:.bottom){PrimaryButton(title:unchangedRequest ? "保留原行程":unchanged ? "保存需求，保留路线":"确认并保存",symbol:"checkmark"){if unchangedRequest{store.proposal=nil}else{Task{await store.acceptProposal()}}}.padding(20).background(Palette.cream)}
         }
     }
 }
 struct DaySummary:View {
+    @Environment(\.locale) private var interfaceLocale
+
     var day:DayPlan
     @EnvironmentObject private var store:AppStore
     var body:some View {
+        let _=interfaceLocale
         VStack(alignment:.leading,spacing:16) {
-            HStack {Text(day.date).font(.headline);Spacer();Text("每人约 A$\(Int(day.estimatedCost))").font(.subheadline.bold()).foregroundStyle(Palette.green)}
-            Label("约 \(day.estimatedSteps) 步 · \(day.finishTime) 返回",systemImage:"figure.walk").font(.caption).foregroundStyle(Palette.muted)
-            Text("\(day.start.name) 出发 → \(day.end.name) 返回").font(.caption2).foregroundStyle(Palette.muted)
-            if day.freeTime == true {Label("自由安排 · 景点待补充",systemImage:"leaf").font(.subheadline).foregroundStyle(Palette.green)}
-            Text(day.buddySummary).font(.caption).foregroundStyle(Palette.green)
+            HStack {Text(uiText(day.date)).font(.headline);Spacer();Text(uiText("安排估算 A$\(Int(day.estimatedCost))/人")).font(.subheadline.bold()).foregroundStyle(Palette.green)}
+            Label(uiText("约 \(day.estimatedSteps) 步 · \(day.finishTime) 返回"),systemImage:"figure.walk").font(.caption).foregroundStyle(Palette.muted)
+            if day.stops.contains(where:{$0.costKnown == false}){Text(uiText("未确认费用另计，估算不代表完整总价。")).font(.caption2).foregroundStyle(Palette.muted)}
+            Text(uiText("\(day.start.name) 出发 → \(day.end.name) 返回")).font(.caption2).foregroundStyle(Palette.muted)
+            if day.freeTime == true {Label(uiText("自由安排 · 景点待补充"),systemImage:"leaf").font(.subheadline).foregroundStyle(Palette.green)}
+            Text(uiText(day.buddySummary)).font(.caption).foregroundStyle(Palette.green)
             ForEach(Array(day.stops.enumerated()),id:\.element.id){i,s in
                 HStack(alignment:.top,spacing:13) {
-                    Text("\(i+1)").font(.caption.bold()).frame(width:27,height:27).foregroundStyle(.white).background(Palette.green,in:Circle())
+                    Text(uiText("\(i+1)")).font(.caption.bold()).frame(width:27,height:27).foregroundStyle(.white).background(Palette.green,in:Circle())
                     VStack(alignment:.leading,spacing:7) {
                         HStack {Text(s.name).font(.subheadline.bold());Spacer();Image(systemName:s.symbol).foregroundStyle(Palette.green)}
-                        Text("\(s.arrival)–\(s.departure) · \(s.indoorLabel) · \(s.costLabel)").font(.caption).foregroundStyle(Palette.muted)
-                        Text(store.language.display(s.note)).font(.caption2).foregroundStyle(Palette.muted)
-                        if !s.hoursVerified {Label("营业时间待核实",systemImage:"exclamationmark.circle").font(.caption2).foregroundStyle(.orange)}
+                        Text(uiText("\(s.arrival)–\(s.departure) · \(s.indoorLabel) · \(s.costLabel)")).font(.caption).foregroundStyle(Palette.muted)
+                        Text(uiText(store.language.display(s.note))).font(.caption2).foregroundStyle(Palette.muted)
+                        if !s.hoursVerified {Label(uiText("营业时间待核实"),systemImage:"exclamationmark.circle").font(.caption2).foregroundStyle(.orange)}
                     }
                 }
             }
@@ -89,6 +96,8 @@ struct AgentView:View {
 }
 /// Koko checks live inside the existing trip workspace. The original itinerary stays untouched.
 struct WorldModelView:View {
+    @Environment(\.locale) private var interfaceLocale
+
     let trip:Trip
     var onAdjust:(WorldSuggestion)->Void
     @EnvironmentObject private var store:AppStore
@@ -100,33 +109,34 @@ struct WorldModelView:View {
     @State private var requestID=UUID().uuidString
     private var current:Bool {run?.matches(trip)==true}
     var body:some View {
+        let _=interfaceLocale
         NavigationStack {ScrollView {VStack(alignment:.leading,spacing:18) {
             HStack(spacing:12){PetAvatar(mood:loading ? .thinking:.curious).frame(width:78,height:90)
-                VStack(alignment:.leading,spacing:6){Text("出发前，我帮你看看～").font(.headline);Text("检查每天的体力、交通、预算和已保存的天气。原行程会好好留着。").font(.caption).foregroundStyle(Palette.muted)}}
+                VStack(alignment:.leading,spacing:6){Text(uiText("出发前，我帮你看看～")).font(.headline);Text(uiText("检查每天的体力、交通、预算和已保存的天气。原行程会好好留着。")).font(.caption).foregroundStyle(Palette.muted)}}
             if loading {ProgressView("正在检查已保存的安排…").frame(maxWidth:.infinity).padding()}
-            if let error {Text(error).font(.subheadline).foregroundStyle(.red).accessibilityIdentifier("world-error")}
+            if let error {Text(uiText(error)).font(.subheadline).foregroundStyle(.red).accessibilityIdentifier("world-error")}
             if let run {
-                if !current {Label("行程已经修改，这份检查需要更新。",systemImage:"arrow.clockwise").font(.subheadline).accessibilityIdentifier("world-stale")}
+                if !current {Label(uiText("行程已经修改，这份检查需要更新。"),systemImage:"arrow.clockwise").font(.subheadline).accessibilityIdentifier("world-stale")}
                 else {
-                    Text("全程约 \(run.summary.walkingSteps) 步 · 每人活动估算 A$\(Int(run.summary.cost))").font(.subheadline.bold())
-                    Text("每日风险：体力 \(risk(run.summary.energyRisk)) · 预算 \(risk(run.summary.budgetRisk)) · 天气 \(risk(run.summary.weatherRisk))").font(.caption).foregroundStyle(Palette.muted)
-                    if run.suggestions.isEmpty {Text("按当前资料，没有发现超限问题。按自己的节奏出发，想调整随时叫我～").font(.subheadline)}
+                    Text(uiText("全程约 \(run.summary.walkingSteps) 步 · 每人活动估算 A$\(Int(run.summary.cost))")).font(.subheadline.bold())
+                    Text(uiText("每日风险：体力 \(risk(run.summary.energyRisk)) · 预算 \(risk(run.summary.budgetRisk)) · 天气 \(risk(run.summary.weatherRisk))")).font(.caption).foregroundStyle(Palette.muted)
+                    if run.suggestions.isEmpty {Text(uiText("按当前资料，没有发现超限问题。按自己的节奏出发，想调整随时叫我～")).font(.subheadline)}
                     ForEach(run.suggestions){suggestion in
-                        VStack(alignment:.leading,spacing:10){Text("第 \(suggestion.dayIndex+1) 天 · \(suggestion.title)").font(.subheadline.bold());Text(suggestion.detail).font(.caption).foregroundStyle(Palette.muted)
-                            if run.decision(for:suggestion)=="rejected" {Label("这次按你的想法保留，不改这一项。",systemImage:"heart").font(.caption).foregroundStyle(Palette.green)}
+                        VStack(alignment:.leading,spacing:10){Text(uiText("第 \(suggestion.dayIndex+1) 天 · \(suggestion.title)")).font(.subheadline.bold());Text(uiText(suggestion.detail)).font(.caption).foregroundStyle(Palette.muted)
+                            if run.decision(for:suggestion)=="rejected" {Label(uiText("这次按你的想法保留，不改这一项。"),systemImage:"heart").font(.caption).foregroundStyle(Palette.green)}
                             else {HStack {
-                                Button(suggestion.action=="review" ? "问 Koko 怎么确认":"看看怎么调整") {Task{await decide(suggestion,"accepted")}}.buttonStyle(.borderedProminent).accessibilityIdentifier("world-adjust-"+suggestion.id)
-                                if run.decision(for:suggestion)==nil {Button("先保留"){Task{await decide(suggestion,"rejected")}}.buttonStyle(.bordered).accessibilityIdentifier("world-keep-"+suggestion.id)}
+                                Button(uiText(suggestion.action=="review" ? "问 Koko 怎么确认":"看看怎么调整")) {Task{await decide(suggestion,"accepted")}}.buttonStyle(.borderedProminent).accessibilityIdentifier("world-adjust-"+suggestion.id)
+                                if run.decision(for:suggestion)==nil {Button(uiText("先保留")){Task{await decide(suggestion,"rejected")}}.buttonStyle(.bordered).accessibilityIdentifier("world-keep-"+suggestion.id)}
                             }.disabled(loading)}
                         }.padding(16).frame(maxWidth:.infinity,alignment:.leading).background(.white,in:RoundedRectangle(cornerRadius:20))
                     }
-                    Text(run.summary.source).font(.caption2).foregroundStyle(Palette.muted)
+                    Text(uiText(run.summary.source)).font(.caption2).foregroundStyle(Palette.muted)
                 }
             }
-            if !loading {Button(current ? "重新检查":"让 Koko 检查一下"){Task{await check()}}.buttonStyle(.bordered).accessibilityIdentifier("world-check")}
-            Text("只使用这份行程中的资料，不会自动修改长期偏好。调整仍需预览并保存。").font(.caption2).foregroundStyle(Palette.muted)
-        }.padding(20)}.background(Palette.cream).navigationTitle("Koko 行程检查").navigationBarTitleDisplayMode(.inline)
-            .toolbar{ToolbarItem(placement:.topBarTrailing){Button("完成"){dismiss()}}}
+            if !loading {Button(uiText(current ? "重新检查":"让 Koko 检查一下")){Task{await check()}}.buttonStyle(.bordered).accessibilityIdentifier("world-check")}
+            Text(uiText("只使用这份行程中的资料，不会自动修改长期偏好。调整仍需预览并保存。")).font(.caption2).foregroundStyle(Palette.muted)
+        }.padding(20)}.background(Palette.cream).navigationTitle(uiText("Koko 行程检查")).navigationBarTitleDisplayMode(.inline)
+            .toolbar{ToolbarItem(placement:.topBarTrailing){Button(uiText("完成")){dismiss()}}}
             .task {active=true;await load()}.onDisappear{active=false}
         }.tint(Palette.green)
     }
@@ -151,10 +161,15 @@ struct WorldModelView:View {
     }
 }
 struct TripDetailView:View {
+    @Environment(\.locale) private var interfaceLocale
+
     @EnvironmentObject var store:AppStore
-    var body:some View { NavigationStack { ScrollView {VStack(alignment:.leading,spacing:20){if let t=store.trip {Text(t.explanation).font(.subheadline);WeatherCard(weather:store.currentWeather);ForEach(t.days){DaySummary(day:$0)};ForEach(t.warnings,id:\.self){Text($0).font(.caption).foregroundStyle(Palette.muted)};DisclosureGroup("规划与验证记录"){ForEach(t.trace){r in VStack(alignment:.leading,spacing:6){Text(r.title).font(.headline);Text(r.detail).font(.caption);Text(r.source).font(.caption2).foregroundStyle(Palette.green)}.padding(.vertical,8)}}}}.padding(24)}.background(Palette.cream).navigationTitle("这次的小冒险").onAppear {store.markPrepared("route")}.task(id:store.travelDataSource){await store.refreshWeather()} } }
+    var body:some View {let _=interfaceLocale
+         NavigationStack { ScrollView {VStack(alignment:.leading,spacing:20){if let t=store.trip {Text(uiText(t.explanation)).font(.subheadline);WeatherCard(weather:store.currentWeather);ForEach(t.days){DaySummary(day:$0)};ForEach(t.warnings,id:\.self){Text(uiText($0)).font(.caption).foregroundStyle(Palette.muted)};DisclosureGroup(uiText("规划与验证记录")){ForEach(t.trace){r in VStack(alignment:.leading,spacing:6){Text(uiText(r.title)).font(.headline);Text(uiText(r.detail)).font(.caption);Text(uiText(r.source)).font(.caption2).foregroundStyle(Palette.green)}.padding(.vertical,8)}}}}.padding(24)}.background(Palette.cream).navigationTitle(uiText("这次的小冒险")).onAppear {store.markPrepared("route")}.task(id:store.travelDataSource){await store.refreshWeather()} } }
 }
 struct TripsView:View {
+    @Environment(\.locale) private var interfaceLocale
+
     @EnvironmentObject var store:AppStore
     @State private var searchText=""
     @State private var calendarExpanded=false
@@ -170,15 +185,16 @@ struct TripsView:View {
     private var deletionPresented:Binding<Bool> {Binding(get:{deleting != nil},set:{if !$0{deleting=nil}})}
     private var selectionPresented:Binding<Bool> {Binding(get:{selectedTrip != nil},set:{if !$0{selectedTrip=nil}})}
     var body:some View {
+        let _=interfaceLocale
         NavigationStack { tripList }
             .fullScreenCover(item:$navigationTrip){trip in SavedTripNavigationView(trip:trip)}
             .sheet(item:$namingTrip){TripNameEditor(trip:$0)}
-            .alert("删除「\(deleting?.title ?? "这份行程")」？",isPresented:deletionPresented){
-                Button("确认删除",role:.destructive){
+            .alert(uiText("删除「\(deleting?.title ?? "这份行程")」？"),isPresented:deletionPresented){
+                Button(uiText("确认删除"),role:.destructive){
                     if let trip=deleting{deletingInProgress=true;Task{let success=await store.deleteTrip(trip);if success,selectedTrip?.id==trip.id{selectedTrip=nil};deletingInProgress=false;deleting=nil}}
                 }
-                Button("保留行程",role:.cancel){}
-            }message:{Text("删除后无法恢复，需要重新生成行程。")}
+                Button(uiText("保留行程"),role:.cancel){}
+            }message:{Text(uiText("删除后无法恢复，需要重新生成行程。"))}
 
     }
     private var filteredTrips:[Trip] {store.saved.filter {TripLibrary.matches($0,query:searchText,date:filterDate)}}
@@ -187,19 +203,19 @@ struct TripsView:View {
             VStack(alignment:.leading,spacing:20){
                 homeHeader
                 if store.travelTask != nil || !upcoming.isEmpty {
-                    Text("我们的小旅行").font(.system(.headline,design:.rounded)).foregroundStyle(Palette.ink)
+                    Text(uiText("我们的小旅行")).font(.system(.headline,design:.rounded)).foregroundStyle(Palette.ink)
                     if let task=store.travelTask {
                         if task.status=="completed",let trip=taskSavedTrip {if trip.id != homeTrip?.id && !filteringLibrary{savedRow(trip)}}
                         else {planningCard(task)}
                     }
                 }
                 libraryFilters
-                if filteringLibrary{Text("符合条件：\(filteredTrips.count) 段旅行").font(.caption).foregroundStyle(Palette.muted)}
+                if filteringLibrary{Text(uiText("符合条件：\(filteredTrips.count) 段旅行")).font(.caption).foregroundStyle(Palette.muted)}
                 savedRows
             }.padding(20)
-        }.background(Palette.cream).navigationTitle("Koko").navigationBarTitleDisplayMode(.inline)
-            .toolbar{ToolbarItem(placement:.topBarTrailing){Button{store.tab=3}label:{Image(systemName:"person.crop.circle")}.accessibilityLabel("我的偏好与设置")}}
-            .confirmationDialog("开启新的旅行？当前未生成的草稿会被替换，已保存的旅行会保留。",isPresented:$replacingDraft,titleVisibility:.visible){Button("开启新旅行"){store.newTrip()}}
+        }.background(Palette.cream).navigationTitle(uiText("Koko")).navigationBarTitleDisplayMode(.inline)
+            .toolbar{ToolbarItem(placement:.topBarTrailing){Button{store.tab=3}label:{Image(systemName:"person.crop.circle")}.accessibilityLabel(uiText("我的偏好与设置"))}}
+            .confirmationDialog(uiText("开启新的旅行？当前未生成的草稿会被替换，已保存的旅行会保留。"),isPresented:$replacingDraft,titleVisibility:.visible){Button(uiText("开启新旅行")){store.newTrip()}}
             .refreshable{await store.reload()}
             .onAppear{openRequestedTrip()}
             .onChange(of:store.tripToOpen?.id){_,_ in openRequestedTrip()}
@@ -221,39 +237,39 @@ struct TripsView:View {
             HStack(spacing:16){
                 KokoCompanionScene(cue:homeCue,height:homeTrip == nil ? 144:104).frame(width:homeTrip == nil ? 144:108)
                 VStack(alignment:.leading,spacing:7){
-                    Text(homeTrip == nil ? "今天想怎么过？":"小背包在，Koko 也在").font(.system(.title2,design:.rounded,weight:.bold)).foregroundStyle(Palette.ink)
-                    Text(store.isGeneratingTrip ? "我去核对路线，你可以先看看之前的小旅行。":hasDraft ? "上次的小想法还在，我们接着聊。":homeTrip.map{TripCompanionContext.speech($0)} ?? "想吃点好的，还是慢慢逛？告诉我一个念头就好。")
+                    Text(uiText(homeTrip == nil ? "今天想怎么过？":"小背包在，Koko 也在")).font(.system(.title2,design:.rounded,weight:.bold)).foregroundStyle(Palette.ink)
+                    Text(uiText(store.isGeneratingTrip ? "我去核对路线，你可以先看看之前的小旅行。":hasDraft ? "上次的小想法还在，我们接着聊。":homeTrip.map{TripCompanionContext.speech($0)} ?? "想吃点好的，还是慢慢逛？告诉我一个念头就好。"))
                         .font(.subheadline).foregroundStyle(Palette.muted).lineSpacing(3)
                 }
             }
             if let trip=homeTrip {
-                Text("\(trip.profile.date) · \(trip.days.count) 天 · \(trip.profile.travelers ?? 1) 人").font(.caption).foregroundStyle(Palette.muted)
-                PrimaryButton(title:"继续 · "+trip.title,symbol:"map"){store.trip=trip;selectedTrip=trip}.accessibilityIdentifier("home-continue-trip")
+                Text(uiText("\(trip.profile.date) · \(trip.days.count) 天 · \(trip.profile.travelers ?? 1) 人")).font(.caption).foregroundStyle(Palette.muted)
+                PrimaryButton(title:"继续 · \(trip.title)",symbol:"map"){store.trip=trip;selectedTrip=trip}.accessibilityIdentifier("home-continue-trip")
             }
             if store.travelTask == nil || store.travelTask?.status=="completed" {
                 if homeTrip != nil {
-                    Button{if hasDraft{store.resumePendingTrip()}else{store.newTrip()}}label:{Label(hasDraft ? "继续和 Koko 准备新旅行":"和 Koko 规划新旅行",systemImage:"plus.bubble").font(.subheadline.bold()).frame(maxWidth:.infinity,minHeight:44)}.buttonStyle(BuddyPressStyle()).disabled(store.busy).accessibilityIdentifier("koko-home-plan")
+                    Button{if hasDraft{store.resumePendingTrip()}else{store.newTrip()}}label:{Label(uiText(hasDraft ? "继续和 Koko 准备新旅行":"和 Koko 规划新旅行"),systemImage:"plus.bubble").font(.subheadline.bold()).frame(maxWidth:.infinity,minHeight:44)}.buttonStyle(BuddyPressStyle()).disabled(store.busy).accessibilityIdentifier("koko-home-plan")
                 }else{PrimaryButton(title:hasDraft ? "继续和 Koko 聊聊":"帮我安排一段旅行"){if hasDraft{store.resumePendingTrip()}else{store.newTrip()}}.disabled(store.busy).accessibilityIdentifier("koko-home-plan")}
             }
-            if hasDraft && !store.isGeneratingTrip{Button("另开一段旅行"){replacingDraft=true}.font(.caption).frame(minHeight:44).foregroundStyle(Palette.muted)}
+            if hasDraft && !store.isGeneratingTrip{Button(uiText("另开一段旅行")){replacingDraft=true}.font(.caption).frame(minHeight:44).foregroundStyle(Palette.muted)}
         }
     }
     private var libraryFilters:some View {
         VStack(spacing:12) {
             HStack {
                 Image(systemName:"magnifyingglass").foregroundStyle(Palette.muted)
-                TextField("搜尋名稱、景點或日期",text:$searchText).accessibilityIdentifier("trip-library-search")
-                if !searchText.isEmpty {Button{searchText=""}label:{Image(systemName:"xmark.circle.fill")}.accessibilityLabel("清除搜尋")}
+                TextField(uiText("搜尋名稱、景點或日期"),text:$searchText).accessibilityIdentifier("trip-library-search")
+                if !searchText.isEmpty {Button{searchText=""}label:{Image(systemName:"xmark.circle.fill")}.accessibilityLabel(uiText("清除搜尋"))}
             }.padding(14).background(.white,in:RoundedRectangle(cornerRadius:16))
             HStack {
-                Button{withAnimation{calendarExpanded.toggle()}}label:{Label("旅遊月曆",systemImage:"calendar");Image(systemName:calendarExpanded ? "chevron.up":"chevron.down")}.accessibilityIdentifier("trip-library-calendar")
+                Button{withAnimation{calendarExpanded.toggle()}}label:{Label(uiText("旅遊月曆"),systemImage:"calendar");Image(systemName:calendarExpanded ? "chevron.up":"chevron.down")}.accessibilityIdentifier("trip-library-calendar")
                 Spacer()
-                if let filterDate {Text(filterDate).font(.caption.monospacedDigit())}
-                if filterDate != nil || !searchText.isEmpty {Button("顯示全部"){filterDate=nil;searchText=""}.font(.caption.bold()).accessibilityIdentifier("trip-library-reset")}
+                if let filterDate {Text(uiText(filterDate)).font(.caption.monospacedDigit())}
+                if filterDate != nil || !searchText.isEmpty {Button(uiText("顯示全部")){filterDate=nil;searchText=""}.font(.caption.bold()).accessibilityIdentifier("trip-library-reset")}
             }
             if calendarExpanded {
                 TripLibraryCalendar(month:$calendarMonth,selection:$filterDate,marked:Set(store.saved.flatMap{TripLibrary.dates($0)}),language:store.language)
-                Text("圓點表示當天有行程；點選日期篩選").font(.caption).foregroundStyle(Palette.muted)
+                Text(uiText("圓點表示當天有行程；點選日期篩選")).font(.caption).foregroundStyle(Palette.muted)
             }
         }
     }
@@ -263,16 +279,16 @@ struct TripsView:View {
             HStack(alignment:.top,spacing:14){
                 PetAvatar(mood:task.status=="generating" ? .thinking:task.status=="failed" ? .confused:.ready,cue:task.status=="generating" ? KoalaCue(event:.planningStarted,id:task.id):nil,size:64).frame(width:64,height:72).accessibilityHidden(true)
                 VStack(alignment:.leading,spacing:9){
-                    Text(TripDraftSummary(fields:task.fields).title).font(.system(.headline,design:.rounded)).foregroundStyle(Palette.ink)
-                    Text(task.status=="generating" ? (task.progress?.detail ?? "正在整理旅行需求…"):task.status=="review" ? "草案收好啦，有些安排需要你确认":task.status=="failed" ? "这段路线还没查好，需求已保留":"已暂停，需求还在这里").font(.subheadline).foregroundStyle(Palette.muted).fixedSize(horizontal:false,vertical:true)
+                    Text(uiText(TripDraftSummary(fields:task.fields).title)).font(.system(.headline,design:.rounded)).foregroundStyle(Palette.ink)
+                    Text(uiText(task.status=="generating" ? (task.progress?.detail ?? "正在整理旅行需求…"):task.status=="review" ? "草案收好啦，有些安排需要你确认":task.status=="failed" ? "这段路线还没查好，需求已保留":"已暂停，需求还在这里")).font(.subheadline).foregroundStyle(Palette.muted).fixedSize(horizontal:false,vertical:true)
                     if task.status=="generating"{PlanningSteps(progress:task.progress ?? PlanningProgress())}
-                    else{Label(task.status=="review" ? "查看草案":task.status=="failed" ? "查看原因并重试":"继续准备",systemImage:"arrow.right").font(.caption.bold()).foregroundStyle(Palette.green)}
+                    else{Label(uiText(task.status=="review" ? "查看草案":task.status=="failed" ? "查看原因并重试":"继续准备"),systemImage:"arrow.right").font(.caption.bold()).foregroundStyle(Palette.green)}
                 }
                 Spacer(minLength:0)
                 Image(systemName:"chevron.right").font(.caption.bold()).foregroundStyle(Palette.muted).padding(.top,5)
             }.padding(18).frame(maxWidth:.infinity,alignment:.leading).background(.white,in:RoundedRectangle(cornerRadius:22)).overlay(RoundedRectangle(cornerRadius:22).stroke(Palette.green.opacity(0.16)))
         }.buttonStyle(BuddyPressStyle())
-            .accessibilityLabel(TripDraftSummary(fields:task.fields).title+"，"+(task.status=="generating" ? task.progress?.detail ?? "正在准备":task.status=="review" ? "草案需要确认":task.status=="failed" ? "查询失败，需求已保留":"已暂停，需求已保留")+"，点开查看")
+            .accessibilityLabel(AppLanguage.current.text("{0}，{1}，点开查看",uiText(TripDraftSummary(fields:task.fields).title),uiText(task.status=="generating" ? task.progress?.detail ?? "正在准备":task.status=="review" ? "草案需要确认":task.status=="failed" ? "查询失败，需求已保留":"已暂停，需求已保留")))
             .accessibilityIdentifier("planning-trip-card")
     }
     @State private var replacingDraft=false
@@ -289,8 +305,8 @@ struct TripsView:View {
             ForEach(filteredTrips,id:\.id){trip in savedRow(trip)}
         }else{
             VStack(spacing:16){
-                if !otherUpcoming.isEmpty{DisclosureGroup("其他小旅行（\(otherUpcoming.count)）",isExpanded:$otherTripsExpanded){VStack(spacing:12){ForEach(otherUpcoming,id:\.id){trip in savedRow(trip)}}.padding(.top,12)}.font(.subheadline)}
-                if !past.isEmpty{DisclosureGroup("过去的旅行（\(past.count)）",isExpanded:$pastExpanded){VStack(spacing:12){ForEach(past,id:\.id){trip in savedRow(trip)}}.padding(.top,12)}.font(.subheadline).foregroundStyle(Palette.ink)}
+                if !otherUpcoming.isEmpty{DisclosureGroup(uiText("其他小旅行（\(otherUpcoming.count)）"),isExpanded:$otherTripsExpanded){VStack(spacing:12){ForEach(otherUpcoming,id:\.id){trip in savedRow(trip)}}.padding(.top,12)}.font(.subheadline)}
+                if !past.isEmpty{DisclosureGroup(uiText("过去的旅行（\(past.count)）"),isExpanded:$pastExpanded){VStack(spacing:12){ForEach(past,id:\.id){trip in savedRow(trip)}}.padding(.top,12)}.font(.subheadline).foregroundStyle(Palette.ink)}
             }
         }
     }
@@ -299,15 +315,15 @@ struct TripsView:View {
         let identifier:String = "view-trip-" + (trip.id ?? "draft")
         return VStack(spacing:0){
             if let task=store.travelTask,task.status=="completed",task.tripID==trip.id {
-                HStack(spacing:10){PetAvatar(cue:KoalaCue(event:.tripSaved,id:"saved:"+task.id),size:52);Text("路线收好啦，一起看看吧～").font(.subheadline.bold());Spacer()}.padding(.horizontal,16).accessibilityIdentifier("trip-saved-celebration")
+                HStack(spacing:10){PetAvatar(cue:KoalaCue(event:.tripSaved,id:"saved:"+task.id),size:52);Text(uiText("路线收好啦，一起看看吧～")).font(.subheadline.bold());Spacer()}.padding(.horizontal,16).accessibilityIdentifier("trip-saved-celebration")
             }
             Button(action:{store.trip=trip;selectedTrip=trip}) {TripListRow(trip:trip,featured:featured)}
                 .buttonStyle(PlainButtonStyle())
-                .accessibilityLabel(Text(title)).accessibilityIdentifier(identifier)
+                .accessibilityLabel(Text(uiText(title))).accessibilityIdentifier(identifier)
             Divider().padding(.horizontal,16)
             HStack{
-                Button{namingTrip=trip}label:{Label("改名",systemImage:"pencil").font(.subheadline).frame(minHeight:44)}.accessibilityIdentifier("rename-trip-"+(trip.id ?? "draft"))
-                Spacer();Button(role:.destructive){deleting=trip}label:{Label("删除",systemImage:"trash").font(.subheadline).frame(minWidth:70,minHeight:44)}.accessibilityLabel(Text("删除行程："+trip.title)).accessibilityIdentifier("delete-trip-"+(trip.id ?? "draft"))}.padding(.horizontal,16)
+                Button{namingTrip=trip}label:{Label(uiText("改名"),systemImage:"pencil").font(.subheadline).frame(minHeight:44)}.accessibilityIdentifier("rename-trip-"+(trip.id ?? "draft"))
+                Spacer();Button(role:.destructive){deleting=trip}label:{Label(uiText("删除"),systemImage:"trash").font(.subheadline).frame(minWidth:70,minHeight:44)}.accessibilityLabel(Text(uiText("删除行程："+trip.title))).accessibilityIdentifier("delete-trip-"+(trip.id ?? "draft"))}.padding(.horizontal,16)
         }.background(.white,in:RoundedRectangle(cornerRadius:22)).disabled(deletingInProgress || store.busy)
     }
     @ViewBuilder private var selectedDestination:some View {
@@ -322,10 +338,10 @@ struct TripsView:View {
     }
     private var draftCard:some View {
         VStack(alignment:.leading,spacing:10){
-            Text("继续规划").font(.headline)
+            Text(uiText("继续规划")).font(.headline)
             Button{store.resumePendingTrip()}label:{HStack(spacing:12){
                 Image(systemName:"bubble.left.and.bubble.right").font(.title3).foregroundStyle(Palette.green)
-                VStack(alignment:.leading,spacing:5){Text(TripDraftSummary(fields:store.pendingTripFields).title).font(.subheadline.bold());Text(TripDraftSummary(fields:store.pendingTripFields).subtitle).font(.caption).foregroundStyle(Palette.muted)}
+                VStack(alignment:.leading,spacing:5){Text(uiText(TripDraftSummary(fields:store.pendingTripFields).title)).font(.subheadline.bold());Text(uiText(TripDraftSummary(fields:store.pendingTripFields).subtitle)).font(.caption).foregroundStyle(Palette.muted)}
                 Spacer();Image(systemName:"chevron.right").font(.caption)
             }.padding(16).background(Palette.mint.opacity(0.5),in:RoundedRectangle(cornerRadius:18))}.buttonStyle(.plain).disabled(store.busy)
         }.padding(.top,8)
@@ -334,30 +350,36 @@ struct TripsView:View {
 }
 
 private struct PlanningSteps:View {
+    @Environment(\.locale) private var interfaceLocale
+
     var progress:PlanningProgress
     var body:some View {
+        let _=interfaceLocale
         HStack(spacing:12){ForEach(Array(["找地点","核对路线","保存"].enumerated()),id:\.offset){index,title in
-            HStack(spacing:4){Image(systemName:index<progress.phase.step ? "checkmark.circle.fill":index==progress.phase.step ? "circle.inset.filled":"circle");Text(title)}
+            HStack(spacing:4){Image(systemName:index<progress.phase.step ? "checkmark.circle.fill":index==progress.phase.step ? "circle.inset.filled":"circle");Text(uiText(title))}
                 .font(.caption2.weight(index==progress.phase.step ? .semibold:.regular)).foregroundStyle(index<=progress.phase.step ? Palette.green:Palette.muted.opacity(0.7))
-        }}.accessibilityElement(children:.ignore).accessibilityLabel("准备进度："+progress.detail)
+        }}.accessibilityElement(children:.ignore).accessibilityLabel(uiText("准备进度："+progress.detail))
     }
 }
 private struct PlanningTaskDetails:View {
+    @Environment(\.locale) private var interfaceLocale
+
     @EnvironmentObject var store:AppStore
     var action:(String)->Void
     var body:some View {
+        let _=interfaceLocale
         NavigationStack{ScrollView{VStack(alignment:.leading,spacing:20){
             if let task=store.travelTask {
-                HStack(spacing:14){PetAvatar(mood:task.status=="generating" ? .thinking:.ready,size:80).frame(width:80,height:90);VStack(alignment:.leading,spacing:8){Text(TripDraftSummary(fields:task.fields).title).font(.title3.bold());Text(task.status=="generating" ? "你可以先去逛逛，这里会继续准备。":task.status=="completed" ? "路线收好啦，点开一起看看。":"需求都还在，不用重新回答。").font(.subheadline).foregroundStyle(Palette.muted)}}
-                if task.status=="generating",let progress=task.progress {Text(progress.detail).font(.headline);PlanningSteps(progress:progress);Text("按实际查询结果更新进度；班次核对期间无法准确预估剩余时间。").font(.caption).foregroundStyle(Palette.muted)}
-                if let message=task.message{Text(message).font(.subheadline).textSelection(.enabled)}
+                HStack(spacing:14){PetAvatar(mood:task.status=="generating" ? .thinking:.ready,size:80).frame(width:80,height:90);VStack(alignment:.leading,spacing:8){Text(uiText(TripDraftSummary(fields:task.fields).title)).font(.title3.bold());Text(uiText(task.status=="generating" ? "你可以先去逛逛，这里会继续准备。":task.status=="completed" ? "路线收好啦，点开一起看看。":"需求都还在，不用重新回答。")).font(.subheadline).foregroundStyle(Palette.muted)}}
+                if task.status=="generating",let progress=task.progress {Text(uiText(progress.detail)).font(.headline);PlanningSteps(progress:progress);Text(uiText("按实际查询结果更新进度；班次核对期间无法准确预估剩余时间。")).font(.caption).foregroundStyle(Palette.muted)}
+                if let message=task.message{Text(uiText(message)).font(.subheadline).textSelection(.enabled)}
                 if task.status=="completed"{PrimaryButton(title:"看看我们的路线"){action("open")}}
-                if task.status=="review"{PrimaryButton(title:"查看待确认的草案"){action("review")};Button("重新核对地点与路线"){store.startGeneratingPendingTrip()}.frame(minHeight:44);Button("修改旅行需求"){action("edit")}.frame(minHeight:44)}
-                if task.status=="failed" || task.status=="draft"{PrimaryButton(title:"重新准备"){store.startGeneratingPendingTrip()};Button("修改旅行需求"){action("edit")}.frame(minHeight:44)}
-                if store.canCancelPlanning{Button("暂停生成",role:.destructive){store.cancelPendingGeneration()}.frame(minHeight:44)}
-                if task.status=="generating",task.progress?.phase == .saving{Text("正在保存最后结果，很快就能在原来的旅行卡上查看。").font(.caption).foregroundStyle(Palette.muted)}
+                if task.status=="review"{PrimaryButton(title:"查看待确认的草案"){action("review")};Button(uiText("重新核对地点与路线")){store.startGeneratingPendingTrip()}.frame(minHeight:44);Button(uiText("修改旅行需求")){action("edit")}.frame(minHeight:44)}
+                if task.status=="failed" || task.status=="draft"{PrimaryButton(title:"重新准备"){store.startGeneratingPendingTrip()};Button(uiText("修改旅行需求")){action("edit")}.frame(minHeight:44)}
+                if store.canCancelPlanning{Button(uiText("暂停生成"),role:.destructive){store.cancelPendingGeneration()}.frame(minHeight:44)}
+                if task.status=="generating",task.progress?.phase == .saving{Text(uiText("正在保存最后结果，很快就能在原来的旅行卡上查看。")).font(.caption).foregroundStyle(Palette.muted)}
             }
-        }.padding(24)}.background(Palette.cream).navigationTitle("这次的小旅行").navigationBarTitleDisplayMode(.inline).toolbar{Button("关闭"){action("")}}}.tint(Palette.green)
+        }.padding(24)}.background(Palette.cream).navigationTitle(uiText("这次的小旅行")).navigationBarTitleDisplayMode(.inline).toolbar{Button(uiText("关闭")){action("")}}}.tint(Palette.green)
     }
 }
 
@@ -372,6 +394,8 @@ enum TripCreationDate {
     }
 }
 struct TripNameEditor:View {
+    @Environment(\.locale) private var interfaceLocale
+
     let trip:Trip
     @EnvironmentObject private var store:AppStore
     @Environment(\.dismiss) private var dismiss
@@ -379,18 +403,21 @@ struct TripNameEditor:View {
     @State private var problem:String?
     init(trip:Trip){self.trip=trip;_title=State(initialValue:trip.title)}
     var body:some View {
+        let _=interfaceLocale
         NavigationStack{Form{
-            TextField("旅行名称",text:$title).accessibilityIdentifier("trip-name-field")
-            Text("最多 40 个字，只修改名称，地点和日期保持不变。").font(.caption).foregroundStyle(Palette.muted)
-            if let problem{Text(problem).font(.caption).foregroundStyle(.red)}
-            Button("保存名称"){Task{problem=nil;if await store.renameTrip(trip,to:title){dismiss()}else{problem=store.errorMessage ?? store.language.text("名稱未儲存，請重試。")}}}
+            TextField(uiText("旅行名称"),text:$title).accessibilityIdentifier("trip-name-field")
+            Text(uiText("最多 40 个字，只修改名称，地点和日期保持不变。")).font(.caption).foregroundStyle(Palette.muted)
+            if let problem{Text(uiText(problem)).font(.caption).foregroundStyle(.red)}
+            Button(uiText("保存名称")){Task{problem=nil;if await store.renameTrip(trip,to:title){dismiss()}else{problem=store.errorMessage ?? store.language.text("名稱未儲存，請重試。")}}}
                 .disabled(store.busy || title.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty || title.count>40)
                 .accessibilityIdentifier("trip-name-save")
-        }.navigationTitle("给旅行起个名字").navigationBarTitleDisplayMode(.inline).toolbar{Button("取消"){dismiss()}.disabled(store.busy)}}
+        }.navigationTitle(uiText("给旅行起个名字")).navigationBarTitleDisplayMode(.inline).toolbar{Button(uiText("取消")){dismiss()}.disabled(store.busy)}}
         .interactiveDismissDisabled(store.busy)
     }
 }
 struct TripListRow:View {
+    @Environment(\.locale) private var interfaceLocale
+
     let trip:Trip
     var featured=false
     @EnvironmentObject private var store:AppStore
@@ -398,24 +425,27 @@ struct TripListRow:View {
     private var created:String {TripCreationDate.formatted(trip.createdAt).map{store.language.text("建立於 {0}",$0)} ?? store.language.text("建立日期未知")}
     private var highlights:String {(trip.days.first?.stops ?? []).prefix(2).map{$0.name}.joined(separator:" · ")}
     var body:some View {
+        let _=interfaceLocale
         HStack(alignment:.top,spacing:14){
             VStack(spacing:4){
-                Text(String(trip.profile.date.dropFirst(5)).replacingOccurrences(of:"-",with:"/")).font(.headline.monospacedDigit())
-                Text(store.language.text("{0} 天",String(trip.days.count))).font(.caption.bold())
-                Text(String(trip.profile.date.prefix(4))).font(.caption2)
+                Text(uiText(String(trip.profile.date.dropFirst(5)).replacingOccurrences(of:"-",with:"/"))).font(.headline.monospacedDigit())
+                Text(uiText(store.language.text("{0} 天",String(trip.days.count)))).font(.caption.bold())
+                Text(uiText(String(trip.profile.date.prefix(4)))).font(.caption2)
             }.foregroundStyle(Palette.green).frame(width:76).frame(minHeight:86).background(Palette.mint,in:RoundedRectangle(cornerRadius:16))
             VStack(alignment:.leading,spacing:7){
-                Text(trip.title).font(.headline)
-                Label(subtitle,systemImage:"calendar").font(.subheadline).foregroundStyle(Palette.muted)
-                Label(created,systemImage:"clock").font(.caption).foregroundStyle(Palette.muted).accessibilityIdentifier("trip-created-"+(trip.id ?? "draft"))
-                Text(highlights).font(.caption).foregroundStyle(Palette.muted).lineLimit(1)
-                if trip.mode != "live"{Text("示例路线").font(.caption2).foregroundStyle(Palette.green)}
+                Text(uiText(trip.title)).font(.headline)
+                Label(uiText(subtitle),systemImage:"calendar").font(.subheadline).foregroundStyle(Palette.muted)
+                Label(uiText(created),systemImage:"clock").font(.caption).foregroundStyle(Palette.muted).accessibilityIdentifier("trip-created-"+(trip.id ?? "draft"))
+                Text(uiText(highlights)).font(.caption).foregroundStyle(Palette.muted).lineLimit(1)
+                if trip.mode != "live"{Text(uiText("示例路线")).font(.caption2).foregroundStyle(Palette.green)}
             }.frame(maxWidth:.infinity,alignment:.leading)
             Image(systemName:"chevron.right").font(.caption.bold()).foregroundStyle(Palette.muted).padding(.top,5)
         }.padding(16).background(.white,in:RoundedRectangle(cornerRadius:22))
     }
 }
 struct SavedTripWorkspace:View {
+    @Environment(\.locale) private var interfaceLocale
+
     let trip:Trip
     var onNavigate:()->Void
     var onDelete:()->Void
@@ -433,14 +463,15 @@ struct SavedTripWorkspace:View {
     @State private var checkingWorld=false
     @State private var worldAction:WorldSuggestion?
     var body:some View {
+        let _=interfaceLocale
         VStack(spacing:0) {
-            HStack{Text("\(trip.profile.date) · \(trip.days.count) 天").font(.caption).foregroundStyle(Palette.muted);Spacer();Text("\(trip.profile.travelers ?? 1) 人同行").font(.caption).foregroundStyle(Palette.muted)}.padding(.horizontal,20).padding(.top,4)
-            Picker("旅行工作台",selection:$section){Text("地图").tag("map");Text(hasScheduleDraft ? "日程 · 未保存":"日程").tag("details")}.pickerStyle(.segmented).padding(.horizontal,20).padding(.vertical,10).accessibilityIdentifier("trip-workspace-section").disabled(savingSchedule)
-                .accessibilityRepresentation {HStack {Button("地图"){section="map"}.accessibilityIdentifier("trip-workspace-map").accessibilityAddTraits(section=="map" ? .isSelected:[]);Button(hasScheduleDraft ? "日程，未保存":"日程"){section="details"}.accessibilityIdentifier("trip-workspace-details").accessibilityAddTraits(section=="details" ? .isSelected:[])}}
+            HStack{Text(uiText("\(trip.profile.date) · \(trip.days.count) 天")).font(.caption).foregroundStyle(Palette.muted);Spacer();Text(uiText("\(trip.profile.travelers ?? 1) 人同行")).font(.caption).foregroundStyle(Palette.muted)}.padding(.horizontal,20).padding(.top,4)
+            Picker(uiText("旅行工作台"),selection:$section){Text(uiText("地图")).tag("map");Text(uiText(hasScheduleDraft ? "日程 · 未保存":"日程")).tag("details")}.pickerStyle(.segmented).padding(.horizontal,20).padding(.vertical,10).accessibilityIdentifier("trip-workspace-section").disabled(savingSchedule)
+                .accessibilityRepresentation {HStack {Button(uiText("地图")){section="map"}.accessibilityIdentifier("trip-workspace-map").accessibilityAddTraits(section=="map" ? .isSelected:[]);Button(uiText(hasScheduleDraft ? "日程，未保存":"日程")){section="details"}.accessibilityIdentifier("trip-workspace-details").accessibilityAddTraits(section=="details" ? .isSelected:[])}}
 
             TripDayPicker(trip:trip).padding(.horizontal,20).padding(.bottom,10).disabled(savingSchedule)
             if hasScheduleDraft && section=="map" {
-                HStack{Text("地图显示已保存的安排").font(.caption);Spacer();Button("返回修改预览"){section="details"}.font(.caption.bold())}.padding(.horizontal,20).padding(.vertical,8).background(Palette.mint)
+                HStack{Text(uiText("地图显示已保存的安排")).font(.caption);Spacer();Button(uiText("返回修改预览")){section="details"}.font(.caption.bold())}.padding(.horizontal,20).padding(.vertical,8).background(Palette.mint)
             }
             KokoTripActions(trip:trip,dayIndex:store.dayIndex,disabled:hasScheduleDraft || savingSchedule){intent in
                 if intent == .checkPlan{checkingWorld=true;return}
@@ -452,16 +483,16 @@ struct SavedTripWorkspace:View {
                 SavedTripOverview(trip:trip,onEdit:openEditor,onMap:{section="map"},onNavigate:onNavigate,onDelete:onDelete,showsDayPicker:false,sharedCompanion:true,onCompanion:{text in companionRequest=TripCompanionRequest(text:text,autoSend:false)},onDraftChange:{hasScheduleDraft=$0},onSavingChange:{savingSchedule=$0}).opacity(section=="details" ? 1:0).allowsHitTesting(section=="details").accessibilityHidden(section != "details")
             }
 
-        }.background(Palette.cream).navigationTitle(trip.title).navigationBarTitleDisplayMode(.inline)
+        }.background(Palette.cream).navigationTitle(uiText(trip.title)).navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
-        .toolbar{ToolbarItem(placement:.topBarLeading){Button{if hasScheduleDraft{leaving=true}else{dismiss()}}label:{Image(systemName:"chevron.left").frame(width:44,height:44)}.accessibilityLabel("返回我的行程").disabled(savingSchedule)}}
-        .alert("还有未保存的调整",isPresented:$leaving){Button("继续调整",role:.cancel){section="details"};Button("放弃修改并返回",role:.destructive){dismiss()}}message:{Text("已保存的行程不会改变。你也可以留在日程页，保存这次调整。")}
+        .toolbar{ToolbarItem(placement:.topBarLeading){Button{if hasScheduleDraft{leaving=true}else{dismiss()}}label:{Image(systemName:"chevron.left").frame(width:44,height:44)}.accessibilityLabel(uiText("返回我的行程")).disabled(savingSchedule)}}
+        .alert(uiText("还有未保存的调整"),isPresented:$leaving){Button(uiText("继续调整"),role:.cancel){section="details"};Button(uiText("放弃修改并返回"),role:.destructive){dismiss()}}message:{Text(uiText("已保存的行程不会改变。你也可以留在日程页，保存这次调整。"))}
         .toolbar{ToolbarItem(placement:.topBarTrailing){Menu{
-            Button("调整当天安排",systemImage:"slider.horizontal.3"){adjustingDay=true}
-            Button("完整时间与住宿设置",systemImage:"calendar",action:openEditor)
-            Button("修改名称",systemImage:"pencil"){renaming=true}
-            Button("删除行程",systemImage:"trash",role:.destructive,action:onDelete)
-        }label:{Image(systemName:"ellipsis").frame(width:44,height:36)}.accessibilityLabel("行程更多操作").disabled(store.busy || hasScheduleDraft)}}
+            Button(uiText("调整当天安排"),systemImage:"slider.horizontal.3"){adjustingDay=true}
+            Button(uiText("完整时间与住宿设置"),systemImage:"calendar",action:openEditor)
+            Button(uiText("修改名称"),systemImage:"pencil"){renaming=true}
+            Button(uiText("删除行程"),systemImage:"trash",role:.destructive,action:onDelete)
+        }label:{Image(systemName:"ellipsis").frame(width:44,height:36)}.accessibilityLabel(uiText("行程更多操作")).disabled(store.busy || hasScheduleDraft)}}
         .sheet(isPresented:$checkingWorld,onDismiss:{
             guard let action=worldAction else{return};worldAction=nil
             guard trip.days.indices.contains(action.dayIndex) else{return};store.dayIndex=action.dayIndex
@@ -501,6 +532,8 @@ struct TripDayPicker:View {
     }
 }
 struct TripDraftEditor:View {
+    @Environment(\.locale) private var interfaceLocale
+
     @EnvironmentObject var store:AppStore
     @Environment(\.dismiss) private var dismiss
     @StateObject private var chat=PetChatStore()
@@ -508,28 +541,29 @@ struct TripDraftEditor:View {
     @State private var problem:String?
     @State private var saving=false
     var body:some View {
+        let _=interfaceLocale
         NavigationStack{
             Form{
-                Section("这次旅行"){
+                Section(uiText("这次旅行")){
                     field("destination","目的地")
                     DatePicker("出发日期",selection:Binding(get:{dateValue},set:{fields["date"]=TripProfile.dateString($0)}),displayedComponents:.date)
                     Stepper("旅行天数：\(fields["days"] ?? "1") 天",value:Binding(get:{Int(fields["days"] ?? "1") ?? 1},set:{fields["days"]=String($0)}),in:1...15)
                     field("companions","同行伙伴")
                 }
-                Section("兴趣与节奏"){
+                Section(uiText("兴趣与节奏")){
                     field("interests","这次想玩什么")
                     field("pace","旅行节奏与步数")
                 }
-                Section("预算与补充"){
+                Section(uiText("预算与补充")){
                     field("budget","预算金额")
                     field("notes","补充要求")
                     ForEach(travelExtraFields,id:\.0){key,label in field(key,label)}
-                    Picker("预算范围",selection:Binding(get:{fields["budgetBasis"] ?? ""},set:{fields["budgetBasis"]=$0})){Text("请选择").tag("");ForEach(TravelRequirements.budgetBases,id:\.0){Text($0.1).tag($0.0)}}
+                    Picker(uiText("预算范围"),selection:Binding(get:{fields["budgetBasis"] ?? ""},set:{fields["budgetBasis"]=$0})){Text(uiText("请选择")).tag("");ForEach(TravelRequirements.budgetBases,id:\.0){Text(uiText($0.1)).tag($0.0)}}
                 }
-                Section{Text("修改只用于这次旅行，不会更改长期记忆。当前支持悉尼 1–15 天，预算按确认的范围计算；路线费用仅支持 AUD。").font(.caption).foregroundStyle(Palette.muted)}
-                if let problem{Section{Text(problem).foregroundStyle(.red)}}
-            }.navigationTitle("编辑旅行偏好").navigationBarTitleDisplayMode(.inline)
-            .toolbar{ToolbarItem(placement:.topBarLeading){Button("取消"){dismiss()}.disabled(saving)};ToolbarItem(placement:.topBarTrailing){Button(saving ? "保存中…":"保存"){Task{await save()}}.bold().disabled(saving)}}
+                Section{Text(uiText("修改只用于这次旅行，不会更改长期记忆。当前支持悉尼 1–15 天，预算按确认的范围计算；路线费用仅支持 AUD。")).font(.caption).foregroundStyle(Palette.muted)}
+                if let problem{Section{Text(uiText(problem)).foregroundStyle(.red)}}
+            }.navigationTitle(uiText("编辑旅行偏好")).navigationBarTitleDisplayMode(.inline)
+            .toolbar{ToolbarItem(placement:.topBarLeading){Button(uiText("取消")){dismiss()}.disabled(saving)};ToolbarItem(placement:.topBarTrailing){Button(uiText(saving ? "保存中…":"保存")){Task{await save()}}.bold().disabled(saving)}}
         }.interactiveDismissDisabled(saving)
     }
     private var dateValue:Date {
@@ -537,7 +571,7 @@ struct TripDraftEditor:View {
         return format.date(from:fields["date"] ?? "") ?? Date()
     }
     private func field(_ key:String,_ label:String)->some View {
-        VStack(alignment:.leading,spacing:8){Text(LocalizedStringKey(label)).font(.caption).foregroundStyle(Palette.muted);TextField("",text:Binding(get:{fields[key] ?? ""},set:{fields[key]=$0}),axis:.vertical).accessibilityLabel(label).keyboardType(key=="budget" ? .decimalPad:.default)}.padding(.vertical,4)
+        VStack(alignment:.leading,spacing:8){Text(uiText(label)).font(.caption).foregroundStyle(Palette.muted);TextField(uiText(""),text:Binding(get:{fields[key] ?? ""},set:{fields[key]=$0}),axis:.vertical).accessibilityLabel(uiText(label)).keyboardType(key=="budget" ? .decimalPad:.default)}.padding(.vertical,4)
     }
     private func save() async {
         guard !saving else{return};saving=true;defer{saving=false}
@@ -552,25 +586,28 @@ func savedTripNavigationDay(_ trip:Trip,today:String=TripProfile.dateString(Date
     return trip.days.count==1 ? 0:nil
 }
 struct SavedTripNavigationView:View {
+    @Environment(\.locale) private var interfaceLocale
+
     let trip:Trip
     @EnvironmentObject var store:AppStore
     @Environment(\.dismiss) private var dismiss
     @State private var dayIndex:Int?
     init(trip:Trip){self.trip=trip;_dayIndex=State(initialValue:savedTripNavigationDay(trip))}
     var body:some View {
+        let _=interfaceLocale
         Group {
             if store.mapProvider == .apple,trip.mode != "live",let index=dayIndex {
                 if trip.days[index].hasTransit {AppleTripWalkingView(trip:trip,initialDay:index)}else{WalkingNavigationView(day:trip.days[index],tripID:trip.id ?? "draft",autoStart:false,apple:true)}
             } else if let index=dayIndex,trip.days.indices.contains(index) {
                 if trip.mode=="live" {
-                    NavigationStack{VStack(spacing:20){Text("這份行程使用 Google 地點資料，目前 App 內逐站步行導航僅支援開源行程。請從查看地圖使用 Google 交通路線規劃。");Button("關閉"){dismiss()}}.padding().navigationTitle("開始導航")}
+                    NavigationStack{VStack(spacing:20){Text(uiText("這份行程使用 Google 地點資料，目前 App 內逐站步行導航僅支援開源行程。請從查看地圖使用 Google 交通路線規劃。"));Button(uiText("關閉")){dismiss()}}.padding().navigationTitle(uiText("開始導航"))}
                 } else {
                     WalkingNavigationView(day:trip.days[index],tripID:trip.id ?? "draft",autoStart:true)
                 }
             } else {
-                NavigationStack{List{Section("今天不在旅程日期內，請選擇要導航的行程"){ForEach(Array(trip.days.enumerated()),id:\.offset){i,day in
-                    Button{select(i)}label:{VStack(alignment:.leading,spacing:6){Text("第 \(i+1) 天 · \(day.date)").bold();Text("\(day.start.name) → \(day.stops.count) 個站點 → \(day.end.name)").font(.caption).foregroundStyle(Palette.muted)}}
-                }}}.navigationTitle("選擇導航日期").toolbar{Button("取消"){dismiss()}}}
+                NavigationStack{List{Section(uiText("今天不在旅程日期內，請選擇要導航的行程")){ForEach(Array(trip.days.enumerated()),id:\.offset){i,day in
+                    Button{select(i)}label:{VStack(alignment:.leading,spacing:6){Text(uiText("第 \(i+1) 天 · \(day.date)")).bold();Text(uiText("\(day.start.name) → \(day.stops.count) 個站點 → \(day.end.name)")).font(.caption).foregroundStyle(Palette.muted)}}
+                }}}.navigationTitle(uiText("選擇導航日期")).toolbar{Button(uiText("取消")){dismiss()}}}
             }
         }.onAppear{if store.mapProvider != .apple,let dayIndex{select(dayIndex)}}
     }
@@ -578,6 +615,8 @@ struct SavedTripNavigationView:View {
 }
 
 struct WeatherCard: View {
+    @Environment(\.locale) private var interfaceLocale
+
     @EnvironmentObject var store: AppStore
     var weather: WeatherInfo
     var compact = false
@@ -587,9 +626,10 @@ struct WeatherCard: View {
     @State private var refreshError:String?
     private var forecast:WeatherInfo {refreshed ?? weather}
     var body: some View {
+        let _=interfaceLocale
         VStack(alignment:.leading,spacing:12) {
             HStack {
-                Label("悉尼天气",systemImage:"calendar").font(.subheadline.bold())
+                Label(uiText("悉尼天气"),systemImage:"calendar").font(.subheadline.bold())
                 Spacer()
                 Button { Task {
                     refreshing=true;refreshError=nil
@@ -599,7 +639,7 @@ struct WeatherCard: View {
                     } catch {refreshError=store.language.text("天氣暫時無法更新")}
                 } } label: {
                     if refreshing { ProgressView() } else { Image(systemName:"arrow.clockwise") }
-                }.disabled(refreshing).accessibilityLabel("刷新天气")
+                }.disabled(refreshing).accessibilityLabel(uiText("刷新天气"))
             }
             if let days=forecast.days, !days.isEmpty {
                 ScrollView(.horizontal,showsIndicators:false) {
@@ -628,37 +668,40 @@ struct WeatherCard: View {
                 if !compact {
                     DisclosureGroup(store.language.text("天氣詳情")) {
                         VStack(alignment:.leading,spacing:6) {
-                            ForEach(days,id:\.date){Text($0.date+" · "+$0.summary).font(.caption)}
-                            Text(forecast.source).font(.caption2)
-                            if let date=forecast.fetchedAt{Text("查询于 "+date).font(.caption2)}
+                            ForEach(days,id:\.date){Text(uiText($0.date+" · "+$0.summary)).font(.caption)}
+                            Text(uiText(forecast.source)).font(.caption2)
+                            if let date=forecast.fetchedAt{Text(uiText("查询于 "+date)).font(.caption2)}
                         }.foregroundStyle(Palette.muted)
                     }.font(.caption).foregroundStyle(Palette.muted)
                 }
-            } else {Text(forecast.summary).font(.caption).foregroundStyle(Palette.muted)}
-            Text(forecast.source).font(.caption2).foregroundStyle(Palette.muted)
+            } else {Text(uiText(forecast.summary)).font(.caption).foregroundStyle(Palette.muted)}
+            Text(uiText(forecast.source)).font(.caption2).foregroundStyle(Palette.muted)
             if let refreshError{Text(refreshError).font(.caption).foregroundStyle(Palette.muted)}
         }.padding(14).background(.white,in:RoundedRectangle(cornerRadius:18))
     }
 }
 
 struct PreparationTrail: View {
+    @Environment(\.locale) private var interfaceLocale
+
     @EnvironmentObject var store: AppStore
     var openRoute: () -> Void
     @State var expanded = false
     var count: Int { ["route","weather","bag"].filter {store.prepared($0)}.count }
     var body: some View {
+        let _=interfaceLocale
         VStack(alignment:.leading,spacing:10) {
             Button { withAnimation { expanded.toggle() } } label: { HStack {
-                Label(count==3 ? "出发准备小达人" : "出发前的 3 个小任务",systemImage:count==3 ? "medal.fill" : "flag.checkered").font(.subheadline.bold()).foregroundStyle(Palette.green)
-                Spacer();Text("\(count)/3").font(.caption.bold()).foregroundStyle(Palette.muted)
+                Label(uiText(count==3 ? "出发准备小达人" : "出发前的 3 个小任务"),systemImage:count==3 ? "medal.fill" : "flag.checkered").font(.subheadline.bold()).foregroundStyle(Palette.green)
+                Spacer();Text(uiText("\(count)/3")).font(.caption.bold()).foregroundStyle(Palette.muted)
                 Image(systemName:expanded ? "chevron.up" : "chevron.down").font(.caption).foregroundStyle(Palette.green)
-            }}.buttonStyle(.plain).accessibilityLabel("出发准备，\(count)项已完成，点按展开或收起")
+            }}.buttonStyle(.plain).accessibilityLabel(uiText("出发准备，\(count)项已完成，点按展开或收起"))
             if expanded { HStack(spacing:8) {
                 task("route","看路线","map.fill",action:openRoute)
                 task("weather","看天气","cloud.sun.fill") { Task { await store.refreshWeather() } }
                 task("bag","行李备好","backpack.fill") {store.markPrepared("bag",undo:store.prepared("bag"))}
             }
-            Text(count==3 ? "准备得很棒！按自己的节奏出发。" : "随时回来继续，旅行没有断签惩罚。 ").font(.caption2).foregroundStyle(Palette.muted)
+            Text(uiText(count==3 ? "准备得很棒！按自己的节奏出发。" : "随时回来继续，旅行没有断签惩罚。 ")).font(.caption2).foregroundStyle(Palette.muted)
             }
         }.padding(14).background(.white,in:RoundedRectangle(cornerRadius:20))
     }
@@ -666,14 +709,16 @@ struct PreparationTrail: View {
         Button(action:action) {
             VStack(spacing:5) {
                 Image(systemName:store.prepared(key) ? "checkmark.circle.fill" : icon).font(.title3)
-                Text(title).font(.caption2.bold())
+                Text(uiText(title)).font(.caption2.bold())
             }.frame(maxWidth:.infinity).padding(.vertical,10).foregroundStyle(store.prepared(key) ? .white : Palette.green).background(store.prepared(key) ? Palette.green : Palette.mint,in:RoundedRectangle(cornerRadius:14))
-        }.buttonStyle(BuddyPressStyle()).accessibilityLabel(title + (store.prepared(key) ? "，已完成" : "，待完成"))
+        }.buttonStyle(BuddyPressStyle()).accessibilityLabel(uiText(title + (store.prepared(key) ? "，已完成" : "，待完成")))
     }
 }
 
 /// Suggestions stay local to this sheet until the user accepts the validated result.
 struct TripAdjustmentView:View {
+    @Environment(\.locale) private var interfaceLocale
+
     let original:Trip
     let dayIndex:Int
     var focusReplacement=false
@@ -694,50 +739,51 @@ struct TripAdjustmentView:View {
     private var proposedTrip:Trip? {model.trip.map{TripAdjustmentMerge.preservingOtherDays($0,original:original,dayIndex:dayIndex)}}
     private var canAdopt:Bool {requested && !model.busy && !model.dirty && model.error==nil && model.trip != nil && model.state?.issues.contains(where:{$0.blocking && ($0.day==dayIndex || $0.day == -1)})==false}
     var body:some View {
+        let _=interfaceLocale
         NavigationStack{ScrollView{VStack(alignment:.leading,spacing:16){
-            HStack{PetAvatar(mood:model.busy ? .thinking:requested ? .ready:.curious).frame(width:100,height:110);Text(focusReplacement ? "想换哪一站呀？选中后一起找个新地方。先看路线变化，喜欢再保存～":"我们只改第 \(dayIndex+1) 天。先看看建议，喜欢再收进正式行程～").font(.headline)}
-            if original.mode == "live" {Text("Google 来源行程请使用匹配的道路服务调整。").foregroundStyle(Palette.muted)}
+            HStack{PetAvatar(mood:model.busy ? .thinking:requested ? .ready:.curious).frame(width:100,height:110);Text(uiText(focusReplacement ? "想换哪一站呀？选中后一起找个新地方。先看路线变化，喜欢再保存～":"我们只改第 \(dayIndex+1) 天。先看看建议，喜欢再收进正式行程～")).font(.headline)}
+            if original.mode == "live" {Text(uiText("Google 来源行程请使用匹配的道路服务调整。")).foregroundStyle(Palette.muted)}
             else {
-                if !focusReplacement{HStack{Button("再轻松一点"){lighten()}.disabled((day?.activities.count ?? 0)<2);Button("多一点美食"){addFood()}.disabled(!choices.contains{$0.category=="美食"});Button("加一段休息"){addRest()}}
+                if !focusReplacement{HStack{Button(uiText("再轻松一点")){lighten()}.disabled((day?.activities.count ?? 0)<2);Button(uiText("多一点美食")){addFood()}.disabled(!choices.contains{$0.category=="美食"});Button(uiText("加一段休息")){addRest()}}
                     .buttonStyle(.bordered).disabled(model.busy || requested)}
                 if !focusReplacement,!requested,!choices.contains(where:{$0.category=="美食"}) {
-                    Text("当前没有未安排的餐饮候选。可以直接找一家餐厅，加入后先预览，不会立即保存。").font(.caption).foregroundStyle(Palette.muted)
-                    Button("寻找餐厅并加入当天",systemImage:"magnifyingglass"){discoveringFood=true}.disabled(model.busy)
+                    Text(uiText("当前没有未安排的餐饮候选。可以直接找一家餐厅，加入后先预览，不会立即保存。")).font(.caption).foregroundStyle(Palette.muted)
+                    Button(uiText("寻找餐厅并加入当天"),systemImage:"magnifyingglass"){discoveringFood=true}.disabled(model.busy)
                 }
-                if !requested,(day?.activities.count ?? 0)<2{Text("当天已很精简，可在编辑行程中调整停留和休息。").font(.caption).foregroundStyle(Palette.muted)}
+                if !requested,(day?.activities.count ?? 0)<2{Text(uiText("当天已很精简，可在编辑行程中调整停留和休息。")).font(.caption).foregroundStyle(Palette.muted)}
                 if !requested,let day {
-                    Text("换掉某一站").font(.headline)
+                    Text(uiText("换掉某一站")).font(.headline)
                     ForEach(day.activities.filter{$0.locked != true && !original.profile.mustVisit.contains($0.placeId ?? "")}){a in
                         Button{target=a.id}label:{Label(a.name,systemImage:target==a.id ? "checkmark.circle.fill":"circle")}.buttonStyle(.bordered)
                     }
                     if target != nil {
-                        Button("搜索替代地点",systemImage:"magnifyingglass"){discoveringReplacement=true}.buttonStyle(.borderedProminent).disabled(model.busy).accessibilityIdentifier("replace-search-place")
-                        if !focusReplacement{Text("已有候选").font(.subheadline.bold());ForEach(choices){candidate in Button(candidate.name){replace(with:candidate)}.buttonStyle(.bordered)}}
+                        Button(uiText("搜索替代地点"),systemImage:"magnifyingglass"){discoveringReplacement=true}.buttonStyle(.borderedProminent).disabled(model.busy).accessibilityIdentifier("replace-search-place")
+                        if !focusReplacement{Text(uiText("已有候选")).font(.subheadline.bold());ForEach(choices){candidate in Button(candidate.name){replace(with:candidate)}.buttonStyle(.bordered)}}
                     }
                 }
                 if model.busy{ProgressView("正在校验交通、步数和预算…")}
-                if let error=model.error{Text(error).foregroundStyle(.red);Button("重试校验"){model.recompute()}}
-                if let notice{Text(notice).font(.subheadline).foregroundStyle(Palette.muted)}
+                if let error=model.error{Text(uiText(error)).foregroundStyle(.red);Button(uiText("重试校验")){model.recompute()}}
+                if let notice{Text(uiText(notice)).font(.subheadline).foregroundStyle(Palette.muted)}
                 if requested,let proposed=proposedTrip,!model.busy,model.error==nil {
                     let before=original.days[dayIndex],after=proposed.days[dayIndex]
-                    VStack(alignment:.leading,spacing:10){Text("建议变化 · 尚未保存").font(.headline)
-                        Text("原来："+before.stops.map(\.name).joined(separator:" → "))
-                        Text("建议："+after.stops.map(\.name).joined(separator:" → "))
-                        Text("预计步数：\(before.estimatedSteps) → \(after.estimatedSteps)")
-                        Text("预计返回：\(before.finishTime) → \(after.finishTime)")
-                        Text("每人活动估算：A$\(Int(before.estimatedCost)) → A$\(Int(after.estimatedCost))")
+                    VStack(alignment:.leading,spacing:10){Text(uiText("建议变化 · 尚未保存")).font(.headline)
+                        Text(uiText("原来："+before.stops.map(\.name).joined(separator:" → ")))
+                        Text(uiText("建议："+after.stops.map(\.name).joined(separator:" → ")))
+                        Text(uiText("预计步数：\(before.estimatedSteps) → \(after.estimatedSteps)"))
+                        Text(uiText("预计返回：\(before.finishTime) → \(after.finishTime)"))
+                        Text(uiText("每人活动估算：A$\(Int(before.estimatedCost)) → A$\(Int(after.estimatedCost))"))
                         if before.stops.contains(where:{$0.id=="rocks" && $0.cost>0}),after.stops.contains(where:{$0.id=="rocks" && $0.cost==0}) {
-                            Text("岩石区原先包含餐饮预留。调整后街区游览不计餐费，餐饮按用餐站另计，避免重复预留。").font(.caption).foregroundStyle(Palette.muted)
+                            Text(uiText("岩石区原先包含餐饮预留。调整后街区游览不计餐费，餐饮按用餐站另计，避免重复预留。")).font(.caption).foregroundStyle(Palette.muted)
                         }
-                        Text("其他日期保留原安排。搜索加入的餐饮费用按每餐预留金额估算，实际价格、营业时间和排队仍需确认。").font(.caption).foregroundStyle(Palette.muted)
+                        Text(uiText("其他日期保留原安排。搜索加入的餐饮费用按每餐预留金额估算，实际价格、营业时间和排队仍需确认。")).font(.caption).foregroundStyle(Palette.muted)
                     }.font(.subheadline).padding(16).background(Palette.mint,in:RoundedRectangle(cornerRadius:18))
-                    ForEach((model.state?.issues ?? []).filter{$0.day==dayIndex || $0.day == -1}){issue in Text(store.language.display(issue.message)).font(.caption).foregroundStyle(issue.blocking ? .red:.orange)}
-                    Button("换一种调整"){model.restore();requested=false;target=nil;notice=nil}
+                    ForEach((model.state?.issues ?? []).filter{$0.day==dayIndex || $0.day == -1}){issue in Text(uiText(store.language.display(issue.message))).font(.caption).foregroundStyle(issue.blocking ? .red:.orange)}
+                    Button(uiText("换一种调整")){model.restore();requested=false;target=nil;notice=nil}
                 }
-                if let error=store.adjustmentError{Text(error).foregroundStyle(.red)}
+                if let error=store.adjustmentError{Text(uiText(error)).foregroundStyle(.red)}
             }
-        }.padding(20)}.background(Palette.cream).navigationTitle("调整这一天").navigationBarTitleDisplayMode(.inline)
-        .toolbar{Button("保留原行程"){dismiss()}.disabled(store.busy)}
+        }.padding(20)}.background(Palette.cream).navigationTitle(uiText("调整这一天")).navigationBarTitleDisplayMode(.inline)
+        .toolbar{Button(uiText("保留原行程")){dismiss()}.disabled(store.busy)}
         .safeAreaInset(edge:.bottom){if requested{PrimaryButton(title:"采用调整",symbol:"checkmark"){Task{if let value=proposedTrip,await store.saveAdjustment(value,original:original,dayIndex:dayIndex){dismiss()}}}.disabled(!canAdopt || store.busy).padding(20).background(Palette.cream)}}.tint(Palette.green)}
         .sheet(isPresented:$discoveringReplacement){PoiDiscoveryView(addingToDay:true,replacingPlace:true){candidate in
             discoveringReplacement=false
@@ -785,14 +831,17 @@ enum TripNavigationAvailability {
 
 }
 struct TripNavigationAction:View {
+    @Environment(\.locale) private var interfaceLocale
+
     let day:DayPlan?
     let mode:String
     var action:()->Void
     @EnvironmentObject private var store:AppStore
     var body:some View {
+        let _=interfaceLocale
         VStack(alignment:.leading,spacing:7){
             if day?.hasWalkingJourney != true {
-                Text("当天为自由安排，添加地点后即可查看前往路线。").font(.caption).foregroundStyle(Palette.muted)
+                Text(uiText("当天为自由安排，添加地点后即可查看前往路线。")).font(.caption).foregroundStyle(Palette.muted)
             } else if store.mapProvider == .apple,mode != "live" {
                 PrimaryButton(title:day?.hasTransit == true ? "查看乘车与接驳":"开始步行导航",symbol:day?.hasTransit == true ? "tram.fill":"figure.walk",action:action).accessibilityIdentifier("trip-walking-route")
             } else if TripNavigationAvailability.canNavigate(configured:store.health?.navigationConfigured,mode:mode) {
@@ -800,7 +849,7 @@ struct TripNavigationAction:View {
             } else if mode != "live" {
                 PrimaryButton(title:"用 Apple 查看 App 内步行路线",symbol:"figure.walk"){store.mapProvider = .apple;action()}
             } else {
-                Text("此行程使用 Google 地点资料，请切换到 Google 底图查看匹配的路线。").font(.caption).foregroundStyle(Palette.muted)
+                Text(uiText("此行程使用 Google 地点资料，请切换到 Google 底图查看匹配的路线。")).font(.caption).foregroundStyle(Palette.muted)
             }
         }
     }
@@ -848,14 +897,17 @@ enum TripCompanionContext {
     }
 }
 struct KokoTripActions:View {
+    @Environment(\.locale) private var interfaceLocale
+
     @EnvironmentObject private var store:AppStore
     let trip:Trip;let dayIndex:Int;var disabled=false
     let choose:(TripCompanionIntent?)->Void
     var body:some View {
+        let _=interfaceLocale
         HStack(spacing:6){
-            Button{choose(nil)}label:{PetAvatar(mood:store.busy ? .thinking:.listening,cue:store.koalaFeedback,size:36).frame(width:44,height:44)}.buttonStyle(BuddyPressStyle()).accessibilityLabel("和 Koko 聊这一天").accessibilityIdentifier("trip-companion-chat")
+            Button{choose(nil)}label:{PetAvatar(mood:store.busy ? .thinking:.listening,cue:store.koalaFeedback,size:36).frame(width:44,height:44)}.buttonStyle(BuddyPressStyle()).accessibilityLabel(uiText("和 Koko 聊这一天")).accessibilityIdentifier("trip-companion-chat")
             ScrollView(.horizontal,showsIndicators:false){HStack(spacing:7){ForEach(TripCompanionIntent.allCases){intent in
-                Button{choose(intent)}label:{Text(intent.label).font(.caption.weight(.semibold)).padding(.horizontal,12).frame(minHeight:44).background(Palette.mint.opacity(0.6),in:Capsule())}.buttonStyle(BuddyPressStyle()).accessibilityIdentifier("trip-companion-"+intent.rawValue)
+                Button{choose(intent)}label:{Text(uiText(intent.label)).font(.caption.weight(.semibold)).padding(.horizontal,12).frame(minHeight:44).background(Palette.mint.opacity(0.6),in:Capsule())}.buttonStyle(BuddyPressStyle()).accessibilityIdentifier("trip-companion-"+intent.rawValue)
             }}}
         }.disabled(disabled || store.busy)
     }
@@ -871,6 +923,8 @@ enum TripLibrary {
     }
 }
 struct TripLibraryCalendar:View {
+    @Environment(\.locale) private var interfaceLocale
+
     @Binding var month:Date
     @Binding var selection:String?
     let marked:Set<String>
@@ -881,24 +935,25 @@ struct TripLibraryCalendar:View {
     private var offset:Int {(calendar.component(.weekday,from:first)+5)%7}
     private var title:String {let f=DateFormatter();f.locale=Locale(identifier:language.rawValue);f.dateFormat="yyyy MMMM";return f.string(from:first)}
     var body:some View {
+        let _=interfaceLocale
         VStack(spacing:6) {
             HStack {
-                Button{shift(-1)}label:{Image(systemName:"chevron.left").frame(width:44,height:44)}.accessibilityIdentifier("trip-month-previous").accessibilityLabel("上個月")
-                Text(title).font(.headline).frame(maxWidth:.infinity)
-                Button{shift(1)}label:{Image(systemName:"chevron.right").frame(width:44,height:44)}.accessibilityLabel("下個月")
+                Button{shift(-1)}label:{Image(systemName:"chevron.left").frame(width:44,height:44)}.accessibilityIdentifier("trip-month-previous").accessibilityLabel(uiText("上個月"))
+                Text(uiText(title)).font(.headline).frame(maxWidth:.infinity)
+                Button{shift(1)}label:{Image(systemName:"chevron.right").frame(width:44,height:44)}.accessibilityLabel(uiText("下個月"))
             }
             let symbols=calendar.shortStandaloneWeekdaySymbols
             LazyVGrid(columns:Array(repeating:GridItem(.flexible(),spacing:0),count:7),spacing:4) {
-                ForEach(0..<7,id:\.self){index in Text(symbols[(index+1)%7]).font(.caption2).foregroundStyle(Palette.muted)}
+                ForEach(0..<7,id:\.self){index in Text(uiText(symbols[(index+1)%7])).font(.caption2).foregroundStyle(Palette.muted)}
                 ForEach(0..<((offset+count+6)/7)*7,id:\.self){cell in
                     let day=cell-offset+1
                     if day>0 && day<=count,let date=calendar.date(byAdding:.day,value:day-1,to:first) {
                         let key=TripProfile.dateString(date)
                         Button{selection=selection==key ? nil:key}label:{
-                            VStack(spacing:3){Text(String(day)).font(.subheadline.monospacedDigit());Circle().fill(marked.contains(key) ? (selection==key ? Color.white:Palette.green):Color.clear).frame(width:5,height:5)}
+                            VStack(spacing:3){Text(uiText(String(day))).font(.subheadline.monospacedDigit());Circle().fill(marked.contains(key) ? (selection==key ? Color.white:Palette.green):Color.clear).frame(width:5,height:5)}
                                 .frame(maxWidth:.infinity,minHeight:40).foregroundStyle(selection==key ? Color.white:Palette.ink)
                                 .background(selection==key ? Palette.green:Color.clear,in:RoundedRectangle(cornerRadius:12))
-                        }.buttonStyle(.plain).accessibilityIdentifier("trip-date-"+key).accessibilityLabel(key).accessibilityAddTraits(selection==key ? .isSelected:[])
+                        }.buttonStyle(.plain).accessibilityIdentifier("trip-date-"+key).accessibilityLabel(uiText(key)).accessibilityAddTraits(selection==key ? .isSelected:[])
                     }else{Color.clear.frame(height:40)}
                 }
             }

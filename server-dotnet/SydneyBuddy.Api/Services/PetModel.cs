@@ -21,6 +21,7 @@ public sealed class PetModel(HttpClient client,SecretStore secrets):IPetModel
         var system=TravelProfiling.SystemPrompt+(session.Dialogue is not null ? "\n"+KokoDialogue.Prompt:"");
         if(KokoCompanion.Enabled(session))system+="\n"+KokoCompanion.Prompt;
         system+="\ndayStyle 仅在明确半天游玩时为 halfDay，慢逛一整天为 fullDay；不确定为 flexible，不能用它补齐未知节奏。";
+        system+=PetResponseLanguage.Prompt(session);
         var messages=new JsonArray(new JsonObject{["role"]="system",["content"]=system});
         var zone=TimeZoneInfo.FindSystemTimeZoneById("Australia/Sydney");
         var context=new JsonObject{["today"]=TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow,zone).ToString("yyyy-MM-dd"),["tripFields"]=JsonSerializer.SerializeToNode(session.Fields),["personalProfile"]=session.PersonalProfile.DeepClone(),["confirmedPreferences"]=memories.DeepClone(),["pendingPreferences"]=JsonSerializer.SerializeToNode(session.Preferences.Where(x=>x.Status is "awaiting_confirmation" or "trip_only"),JsonExtensions.Options),["missingImportantFields"]=JsonSerializer.SerializeToNode(TravelProfiling.Missing(session)),["tripFieldKeys"]=JsonSerializer.SerializeToNode(PetQuestions.Keys),["preferenceKeys"]=JsonSerializer.SerializeToNode(TravelProfiling.Keys.Keys)};

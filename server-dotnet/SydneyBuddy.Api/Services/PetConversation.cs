@@ -12,6 +12,7 @@ public static class PetEmotion
 public sealed class PetSession
 {
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
+    public string ResponseLanguage { get; set; } = "";
     public List<PetMessage> Messages { get; set; } = [];
     public Dictionary<string,string> Fields { get; set; } = [];
     public JsonObject PersonalProfile { get; set; } = new();
@@ -59,6 +60,21 @@ public sealed class PetSessionStore(ProjectPaths paths)
         File.Move(temporary,path,true);
     }
     public void Delete(string id) => File.Delete(FilePath(id));
+}
+
+// Interface language is session metadata, never a travel preference or memory.
+public static class PetResponseLanguage
+{
+    public static void Apply(PetSession session,JsonObject input) {
+        var language=input.Str("language");
+        if(language is "zh-Hans" or "zh-Hant" or "en")session.ResponseLanguage=language;
+    }
+    public static string Prompt(PetSession session)=>session.ResponseLanguage switch {
+        "en"=>"\nWrite all user-visible replies, questions, option labels and trip inspiration in English. Keep JSON keys, enum values, place names, evidence quotes and the user's facts unchanged. The interface language does not change travel preferences or memory consent.",
+        "zh-Hans"=>"\n面向用户的回复、问题、选项文案和旅行灵感统一使用简体中文。JSON 键名、枚举值、地点原名、证据原文与用户事实保持不变。界面语言不是旅行偏好，不得写入记忆。",
+        "zh-Hant"=>"\n面向使用者的回覆、問題、選項文案與旅行靈感統一使用繁體中文。JSON 鍵名、列舉值、地點原名、證據原文與使用者事實保持不變。介面語言不是旅行偏好，不得寫入記憶。",
+        _=>""
+    };
 }
 
 public static class PetQuestions

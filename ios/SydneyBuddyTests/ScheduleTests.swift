@@ -516,6 +516,42 @@ import MapKit
         XCTAssertEqual(AppLanguage.english.text("Custom place"),"Custom place")
         XCTAssertEqual(store.trip!.days.flatMap(\.stops).map(\.id),ids)
     }
+    func testVisibleCopyUsesSelectedScriptAndKeepsPlaceholdersLiteral() {
+        XCTAssertEqual(AppLanguage.simplified.display("儲存行程後，開啟地圖。"),"储存行程后，开启地图。")
+        XCTAssertEqual(AppLanguage.traditional.display("保存行程后，打开地图。"),"保存行程後，打開地圖。")
+        XCTAssertEqual(AppLanguage.english.display("生成行程"),"Generate itinerary")
+        XCTAssertEqual(AppLanguage.english.display("第 3 天"),"Day 3")
+        XCTAssertEqual(AppLanguage.english.display("第 3 天 · 2026-10-26"),"Day 3 · 2026-10-26")
+        XCTAssertEqual(AppLanguage.english.text("{0} · {1} 天","Hotel {1}","3"),"Hotel {1} · 3 days")
+        XCTAssertEqual(AppLanguage.english.display("数据来源已连线 · 8 个行程景点"),"Connected · 8 itinerary places")
+        XCTAssertEqual(AppLanguage.english.display("继续 · 测试行程"),"Continue · 测试行程")
+        let budget=AppLanguage.english.display("收到！预算 120 AUD（每人每天），先收进这次的小背包。换算为每人每日活动预算约 120 AUD。")
+        XCTAssertFalse(budget.unicodeScalars.contains(where:{(0x3400...0x9FFF).contains($0.value)}),budget)
+        XCTAssertEqual(AppLanguage.english.text("{0} · {1} 天","2026-10-26","1"),"2026-10-26 · 1 day")
+        XCTAssertEqual(AppLanguage.english.display("旅行伙伴 Koko，正在思考"),"Your travel companion Koko, Thinking")
+        let assembled="好，我们直接聊旅行。你不用先整理好心情，想到什么说什么就好。这份心情只放进这次的小背包。\n这次想去哪个城市？目前可以生成悉尼路线，也能先保存其他城市的想法。"
+        let translated=AppLanguage.english.display(assembled)
+        XCTAssertFalse(translated.unicodeScalars.contains(where:{(0x3400...0x9FFF).contains($0.value)}),translated)
+        XCTAssertNotEqual(AppLanguage.english.display("选悉尼"),"选悉尼")
+        XCTAssertEqual(AppLanguage.english.display("Kittyhawk"),"Kittyhawk")
+        XCTAssertEqual(AppLanguage.english.display("https://example.com"),"https://example.com")
+    }
+    func testPreferenceSummaryLocalizesForDisplayWithoutMutatingProfile() {
+        var profile=UserTravelProfile();profile.queueTolerance="尽量不排队";profile.dailySteps=6000;profile.energy="低精力";profile.rhythm="轻松随意";profile.interests=["艺术","美食","自然"]
+        let original=profile.summary
+        let rendered=AppLanguage.english.display(original)
+        XCTAssertFalse(rendered.unicodeScalars.contains(where:{(0x3400...0x9FFF).contains($0.value)}),rendered)
+        XCTAssertTrue(rendered.contains("6000"))
+        XCTAssertEqual(profile.summary,original)
+    }
+    func testChatChoiceLabelsLocalizeWithoutTranslatingTypedMessagesOrEvidence() {
+        let typed=PetMessage(id:"typed",role:"user",text:"我想去自然公园")
+        XCTAssertEqual(typed.displayText(language:.english),typed.text)
+        let evidence=PetChoiceEvidence(questionMessageId:"q",questionText:"想怎么开始",optionId:"skip",optionText:"先聊旅行")
+        let choice=PetMessage(id:"choice",role:"user",text:"先聊旅行",choice:evidence)
+        XCTAssertNotEqual(choice.displayText(language:.english),choice.text)
+        XCTAssertEqual(choice.text,evidence.optionText)
+    }
     private func applePreview(_ day:DayPlan)->JourneyPlan {
         // Synthetic geometry for state tests only; real MapKit is exercised on the simulator.
         let points=[day.start.location]+day.stops.map(\.coordinate)+[day.end.location]

@@ -169,6 +169,8 @@ struct KoalaPlayback {
 }
 
 struct PetAvatar:View {
+    @Environment(\.locale) private var interfaceLocale
+
     var mood:PetMood = .greeting
     var cue:KoalaCue? = nil
     var animated=true
@@ -178,11 +180,12 @@ struct PetAvatar:View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     var body:some View {
+        let _=interfaceLocale
         Group {
             if let image=player.image{Image(uiImage:image).resizable().interpolation(.high).scaledToFit()}
             else {Image(systemName:"leaf.circle.fill").resizable().scaledToFit().foregroundStyle(Palette.green)}
         }.frame(width:size,height:size*116/108)
-        .accessibilityElement(children:.ignore).accessibilityLabel("旅行伙伴 Koko，"+(mood == .thinking ? "正在思考":mood == .listening ? "正在听你说":"陪你准备旅行"))
+        .accessibilityElement(children:.ignore).accessibilityLabel(uiText("旅行伙伴 Koko，\(mood == .thinking ? "正在思考":mood == .listening ? "正在听你说":"陪你准备旅行")"))
         .onAppear{player.onIdle=onIdle;player.request(cue?.action ?? KoalaAction.forMood(mood),token:cue?.id ?? "mood:"+mood.rawValue,returnToIdle:cue?.returnsToIdle ?? false)}
         .onChange(of:mood){_,value in player.request(KoalaAction.forMood(value),token:"mood:"+value.rawValue)}
         .onChange(of:cue){_,value in
@@ -197,6 +200,8 @@ struct PetAvatar:View {
 }
 
 struct KoalaFeedbackBanner:View {
+    @Environment(\.locale) private var interfaceLocale
+
     let cue:KoalaCue
     let dismiss:()->Void
     @State private var closing=false
@@ -227,7 +232,8 @@ struct KoalaFeedbackBanner:View {
         else{closing=true}
     }
     var body:some View {
-        HStack(spacing:8){PetAvatar(cue:visibleCue,onIdle:{if closing || !held{dismiss()}});VStack(alignment:.leading,spacing:8){Text(title).font(.subheadline.bold());if held{Button(closing ? "咱们继续":"知道了",action:close).font(.caption).disabled(closing)}}}
+        let _=interfaceLocale
+        HStack(spacing:8){PetAvatar(cue:visibleCue,onIdle:{if closing || !held{dismiss()}});VStack(alignment:.leading,spacing:8){Text(uiText(title)).font(.subheadline.bold());if held{Button(uiText(closing ? "咱们继续":"知道了"),action:close).font(.caption).disabled(closing)}}}
             .padding(.horizontal,18).background(Palette.cream,in:RoundedRectangle(cornerRadius:24))
             .onChange(of:cue.id){_,_ in closing=false}
             .task(id:cue.id){if reduceMotion && !held{do{try await Task.sleep(nanoseconds:1_700_000_000);dismiss()}catch{}}}
@@ -238,6 +244,8 @@ struct KoalaFeedbackBanner:View {
 /// One companion stage, shared by the welcome and current conversational turn.
 /// Prop gestures use authored clips; listening uses a small pose change only.
 struct KokoCompanionScene:View {
+    @Environment(\.locale) private var interfaceLocale
+
     var mood:PetMood = .greeting
     var cue:KoalaCue? = nil
     var ready=false
@@ -246,6 +254,7 @@ struct KokoCompanionScene:View {
     @State private var tapped:KoalaCue?
     private var activeCue:KoalaCue? {tapped ?? cue}
     var body:some View {
+        let _=interfaceLocale
         ZStack(alignment:.bottom){
             Ellipse().fill(Palette.mint.opacity(0.75)).frame(width:250,height:28).padding(.bottom,7)
             HStack{Image(systemName:"leaf.fill").rotationEffect(.degrees(-35));Spacer();Image(systemName:"leaf.fill").rotationEffect(.degrees(35))}.font(.system(size:22)).foregroundStyle(Palette.green.opacity(0.25)).frame(width:270).padding(.bottom,24).accessibilityHidden(true)
@@ -256,7 +265,7 @@ struct KokoCompanionScene:View {
                 PetAvatar(mood:mood,cue:activeCue,size:height*1.12)
                     .rotationEffect(.degrees(!reduceMotion && mood == .listening ? -4:0),anchor:.bottom)
                     .offset(y:!reduceMotion && mood == .excited ? -5:0)
-            }.buttonStyle(.plain).accessibilityLabel(mood == .thinking ? "Koko 正在看小地图":mood == .listening ? "Koko 正在听你说":ready ? "Koko 已准备好，点击打招呼":"和 Koko 打个招呼").accessibilityIdentifier("koko-companion")
+            }.buttonStyle(.plain).accessibilityLabel(uiText(mood == .thinking ? "Koko 正在看小地图":mood == .listening ? "Koko 正在听你说":ready ? "Koko 已准备好，点击打招呼":"和 Koko 打个招呼")).accessibilityIdentifier("koko-companion")
         }.frame(maxWidth:.infinity).frame(height:height).animation(reduceMotion ? nil:.spring(response:0.45,dampingFraction:0.8),value:mood).animation(reduceMotion ? nil:.easeInOut(duration:0.3),value:ready)
         .task(id:tapped?.id){
             guard let token=tapped?.id else{return}
