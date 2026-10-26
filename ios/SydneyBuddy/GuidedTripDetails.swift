@@ -58,11 +58,11 @@ struct GuidedTripDetails: View {
                         Button(uiText("悉尼")){destination="悉尼"}.buttonStyle(.bordered)
                         Text(uiText("目前可生成悉尼路线；其他目的地可以先保存想法。")).font(.caption).foregroundStyle(Palette.muted)
                     case 1:
-                        DatePicker("出发日期",selection:$date,displayedComponents:.date).datePickerStyle(.compact)
-                        Stepper("旅行 \(days) 天",value:$days,in:1...15).accessibilityIdentifier("details-days")
+                        DatePicker(uiText("出发日期"),selection:$date,displayedComponents:.date).datePickerStyle(.compact)
+                        Stepper(uiText("旅行 \(days) 天"),value:$days,in:1...15).accessibilityIdentifier("details-days")
                         Button(uiText("日期还没定，先留空")){Task{busy=true;error=await save(["date":""]);busy=false;if error==nil{if single{dismiss()}else{stage+=1}}}}.disabled(busy)
                     case 2:
-                        Stepper("一共 \(people) 人",value:$people,in:1...30)
+                        Stepper(uiText("一共 \(people) 人"),value:$people,in:1...30)
                         Text(uiText("包括你自己。特别的照顾需求可以继续告诉 Koko。")).font(.subheadline).foregroundStyle(Palette.muted)
                     case 3:
                         HStack {TextField(uiText("金额"),text:$budget).keyboardType(.decimalPad).textFieldStyle(.roundedBorder).accessibilityIdentifier("details-budget");Text(uiText("AUD")).fontWeight(.bold)}

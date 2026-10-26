@@ -17,8 +17,8 @@ public static class PetEndpoints
             await store.Gate.WaitAsync(ctx.RequestAborted);try{store.Save(s);}finally{store.Gate.Release();}
             return Results.Json(PetQuestions.View(s));
         });
-        routes.MapGet("/pet/sessions/{id}",async(string id,PetSessionStore store,MemoryRepository records,CancellationToken ct)=>
-        {await store.Gate.WaitAsync(ct);try{var s=store.Load(id);TravelProfiling.Refresh(s,await records.ListAsync(ct));store.Save(s);return Results.Json(PetQuestions.View(s));}finally{store.Gate.Release();}});
+        routes.MapGet("/pet/sessions/{id}",async(string id,HttpContext ctx,PetSessionStore store,MemoryRepository records,CancellationToken ct)=>
+        {await store.Gate.WaitAsync(ct);try{var s=store.Load(id);TravelProfiling.Refresh(s,await records.ListAsync(ct));store.Save(s);PetResponseLanguage.Apply(s,new JsonObject{["language"]=ctx.Request.Headers["X-App-Language"].ToString()});return Results.Json(PetQuestions.View(s));}finally{store.Gate.Release();}});
         routes.MapDelete("/pet/sessions/{id}",async(string id,PetSessionStore store,IMemoryService memory,CancellationToken ct)=>
         {await store.Gate.WaitAsync(ct);try{await memory.RunAsync("discard_session",new JsonObject{["sessionId"]=id},ct);store.Delete(id);return Results.Json(new{deleted=true});}finally{store.Gate.Release();}});
         routes.MapPatch("/pet/sessions/{id}",async(string id,HttpContext ctx,PetSessionStore store)=>
@@ -83,10 +83,10 @@ public static class PetEndpoints
                 {
                     if(!PetQuestions.Keys.Contains(field))throw new ServiceException("未知的旅行字段。");
                     var value=input.Str("value");if(value.Length is 0 or >600)throw new ServiceException("回答太长或为空。");
-                    if(field=="date"&&value is "今天" or "明天")value=TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTimeOffset.UtcNow,"Australia/Sydney").Date.AddDays(value=="明天"?1:0).ToString("yyyy-MM-dd");
+                    if(field=="date" && (value is "今天" or "明天" || value.Equals("Today",StringComparison.OrdinalIgnoreCase) || value.Equals("Tomorrow",StringComparison.OrdinalIgnoreCase)))value=TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTimeOffset.UtcNow,"Australia/Sydney").Date.AddDays(value=="明天" || value.Equals("Tomorrow",StringComparison.OrdinalIgnoreCase) ? 1:0).ToString("yyyy-MM-dd");
                     // Changing currency never reuses an amount entered in a different currency.
                     if(field=="budgetCurrency" && s.Fields.TryGetValue(field,out var oldCurrency) && PetQuestions.Known(oldCurrency) && oldCurrency!=value)s.Fields.Remove("budget");
-                    s.Fields[field]=value;
+                    PetQuestions.Apply(s,new JsonObject{[field]=value});
                     if(field=="companions" && value is "一个人" or "两个人")s.Fields["travelers"]=value=="一个人"?"1":"2";
                     if(PetQuestions.Required.Contains(field) && !PetQuestions.Known(value)) {
                         var repeated=s.Messages.LastOrDefault()?.Mood=="pouting";
@@ -118,7 +118,7 @@ public static class PetEndpoints
                     else if(s.Dialogue is not null)PetExplicitFacts.FilterUnsupportedHabits(message,changes);
                     // Do not let model-filled unknown placeholders skip unanswered questions.
                     foreach(var key in PetQuestions.Keys)
-                        if(changes.Str(key) is "未确定" or "未知" or "未提供" or "unknown") changes.Remove(key);
+                        if(changes.ContainsKey(key) && !PetQuestions.Known(changes.Str(key))) changes.Remove(key);
                     var explicitFacts=new JsonObject();PetExplicitFacts.Apply(message,explicitFacts);
                     foreach(var fact in explicitFacts)changes[fact.Key]=fact.Value?.DeepClone();
                     foreach(var uncertain in (s.CurrentChoice is null ? result.Array("needsClarification"):null) ?? new JsonArray()) {
@@ -137,7 +137,7 @@ public static class PetEndpoints
                     var suggestion=s.Dialogue is not null || result.Array("preferences") is not null || !TravelProfiling.AllowLegacySuggestion(message) ? "":result.Str("memorySuggestion");if(suggestion.Length>0)s.PendingMemory=suggestion[..Math.Min(500,suggestion.Length)];
                 }
                 var assistant=KokoCompanion.RespondWithCare(s,KokoDialogue.CompleteTurn(s,dialogueResult,reply,mood),message);
-                await Emit(new{type="reply",text=assistant.Text});
+                await Emit(new{type="reply",text=s.ResponseLanguage=="en" ? PetEnglishCopy.Translate(assistant.Text):assistant.Text});
                 s.Messages.Add(new(requestId,"user",message,Choice:s.CurrentChoice));s.Messages.Add(assistant);
                 if(s.Messages.Count>100)s.Messages=s.Messages.TakeLast(100).ToList();
                 s.CompletedRequests.Add(requestId);if(s.CompletedRequests.Count>100)s.CompletedRequests.RemoveAt(0);

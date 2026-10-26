@@ -39,7 +39,7 @@ let travelExtraFields:[(String,String)]=[("budgetCoverage","预算包含范围")
     private var storageKey: String { "petSession." + scope }
     private func request<T:Decodable>(_ path:String, method:String="GET", body:[String:Any]?=nil) async throws -> T {
         var req=URLRequest(url:base.appendingPathComponent(path));req.httpMethod=method;TravelDataSource.current.apply(to:&req);req.timeoutInterval=120
-        req.setValue("application/json",forHTTPHeaderField:"Content-Type")
+        req.setValue("application/json",forHTTPHeaderField:"Content-Type");req.setValue(AppLanguage.current.rawValue,forHTTPHeaderField:"X-App-Language")
         if var body {if path.hasPrefix("pet/sessions"){body["language"]=AppLanguage.current.rawValue};req.httpBody=try JSONSerialization.data(withJSONObject:body)}
         let (data,response)=try await loader(req)
         guard let http=response as? HTTPURLResponse,(200..<300).contains(http.statusCode) else {
@@ -778,9 +778,9 @@ struct PetWelcomeView: View {
             option("好呀，一起去悉尼！",detail:"海港、花园，还有街角的小惊喜",icon:"sun.horizon.fill",selected:true){choose("destination","悉尼")}
             Text(uiText("这一版先陪你探索悉尼。其他城市还在准备中。")).font(.caption).foregroundStyle(Palette.muted)
         case 1:
-            DatePicker("出发日期",selection:day,displayedComponents:.date).datePickerStyle(.compact).padding(18).background(.white,in:RoundedRectangle(cornerRadius:20))
+            DatePicker(uiText("出发日期"),selection:day,displayedComponents:.date).datePickerStyle(.compact).padding(18).background(.white,in:RoundedRectangle(cornerRadius:20))
             VStack(spacing:14) {
-                Stepper("旅行天数：\(values["days"] ?? "1") 天",value:Binding(get:{Int(values["days"] ?? "1") ?? 1},set:{choose("days",String($0))}),in:1...15)
+                Stepper(uiText("旅行天数：\(values["days"] ?? "1") 天"),value:Binding(get:{Int(values["days"] ?? "1") ?? 1},set:{choose("days",String($0))}),in:1...15)
                 Slider(value:Binding(get:{Double(values["days"] ?? "1") ?? 1},set:{values["days"]=String(Int($0))}),in:1...15,step:1,onEditingChanged:{editing in if !editing{choose("days",values["days"] ?? "1")}}).tint(Palette.green).accessibilityLabel(uiText("旅行天数"))
                 HStack{Text(uiText("1 天"));Spacer();Text(uiText("15 天"))}.font(.caption).foregroundStyle(Palette.muted)
             }.padding(20).background(.white,in:RoundedRectangle(cornerRadius:20)).disabled(working)

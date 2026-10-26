@@ -2,6 +2,28 @@ import XCTest
 @testable import SydneyBuddy
 
 final class KokoDialogueTests:XCTestCase {
+    @MainActor func testRequestsRespectInterfaceLanguageAndKeepTypedFacts() async throws {
+        let defaults=UserDefaults.standard
+        let keys=["appLanguage","petSession.english-integration-test"]
+        let previous=keys.map{defaults.object(forKey:$0)}
+        defer{for(key,value) in zip(keys,previous){if let value{defaults.set(value,forKey:key)}else{defaults.removeObject(forKey:key)}}}
+        for language in ["en","zh-Hant"] {
+            defaults.set(language,forKey:"appLanguage");defaults.removeObject(forKey:keys[1])
+            let chat=PetChatStore();let value=session();var bodies:[[String:Any]]=[];var headers:[String?]=[]
+            chat.loader={request in
+                headers.append(request.value(forHTTPHeaderField:"X-App-Language"))
+                if let data=request.httpBody{bodies.append(try JSONSerialization.jsonObject(with:data) as! [String:Any])}
+                return(try JSONEncoder().encode(value),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)
+            }
+            let typed="我想慢慢走，保留这句原话"
+            await chat.load(scope:"english-integration-test",seed:["notes":typed],profiling:true)
+            await chat.update(["notes":typed])
+            XCTAssertNil(chat.error);XCTAssertEqual(bodies.count,2)
+            XCTAssertTrue(headers.allSatisfy{$0==language})
+            for body in bodies {XCTAssertEqual(body["language"] as? String,language);XCTAssertEqual((body["fields"] as? [String:String])?["notes"],typed)}
+        }
+    }
+
     func testGuidedDetailsResumesAtMissingGroupWithoutMutatingDraft() {
         var fields=["destination":"悉尼","date":"2026-10-25","days":"15"]
         XCTAssertEqual(GuidedTripDetails.firstMissing(fields),2)

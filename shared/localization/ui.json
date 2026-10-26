@@ -1,6 +1,6 @@
 {
   " %.2f / 人": {
-    "en": " $0.00 / person",
+    "en": " %.2f / person",
     "zh-Hans": " %.2f / 人",
     "zh-Hant": " %.2f / 人"
   },

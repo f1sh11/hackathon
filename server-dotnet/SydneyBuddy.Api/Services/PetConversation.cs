@@ -92,7 +92,7 @@ public static class PetQuestions
     };
     public static readonly string[] Required=["destination","date","days","budget","budgetCurrency","budgetBasis","travelers"];
     public static readonly string[] Optional=["origin","companions","mustDo","avoid"];
-    public static bool Known(string? value)=>!new[]{"","未确定","暂不确定","未知","稍后补充","还没确定","还没想好","未提供","unknown","不确定","不知道"}.Contains((value??"").Trim());
+    public static bool Known(string? value)=>!new[]{"","未确定","暂不确定","未知","稍后补充","还没确定","还没想好","未提供","unknown","不确定","不知道","Not sure yet","Not decided yet","Not determined","Undecided","Unknown","Add later","Not provided","Unsure","Don’t know","Don't know"}.Contains((value??"").Trim(),StringComparer.OrdinalIgnoreCase);
     public static bool SupportedDestination(string? value)=>new[]{"悉尼","雪梨","sydney"}.Contains((value??"").Trim().ToLowerInvariant());
     public static bool UnsupportedDestination(PetSession s)=>Known(s.Fields.GetValueOrDefault("destination")) && !SupportedDestination(s.Fields.GetValueOrDefault("destination"));
     public static bool Answered(PetSession s,string key) {
@@ -154,7 +154,17 @@ public static class PetQuestions
         "budgetCurrency"=>["AUD"],"budgetBasis"=>["perPersonPerDay","groupPerDay","perPersonTrip","groupTrip"],"travelers"=>["1","2","3","4"],"origin"=>["环形码头","中央车站","稍后补充"],"mustDo"=>["暂不确定"],"avoid"=>["无特别要求","需要多休息","避免长时间步行"],
         "notes"=>["喜欢安静","需要多休息","没有其他要求"],_=>[]
     };
-    public static object View(PetSession s)=>new {s.Id,s.Messages,s.Fields,s.PendingMemory,s.UpdatedAt,s.MemoryWarning,s.DnaCompleted,s.Dialogue,travelDna=TravelProfiling.Dna(s),tripContext=s.Fields,planningFields=TravelProfiling.PlanningFields(s),pendingPreferences=s.Preferences.Where(x=>x.Status=="awaiting_confirmation"),tripPreferences=s.Preferences.Where(x=>x.Status=="trip_only"),missingImportantFields=TravelProfiling.Missing(s),nextField=Next(s),question=Question(Next(s)),options=Choices(Next(s)),completed=Required.Count(k=>Answered(s,k)), total=Required.Length};
+    public static object View(PetSession s) {
+        var english=s.ResponseLanguage=="en";
+        var display=english ? PetEnglishCopy.Presentation(s):null;
+        string Copy(string value)=>english ? PetEnglishCopy.Translate(value):value;
+        return new {s.Id,Messages=display?.Messages ?? s.Messages,s.Fields,s.PendingMemory,s.UpdatedAt,
+            MemoryWarning=display?.MemoryWarning ?? s.MemoryWarning,s.DnaCompleted,Dialogue=display?.Dialogue ?? s.Dialogue,
+            travelDna=TravelProfiling.Dna(s),tripContext=s.Fields,planningFields=TravelProfiling.PlanningFields(s),
+            pendingPreferences=s.Preferences.Where(x=>x.Status=="awaiting_confirmation"),tripPreferences=s.Preferences.Where(x=>x.Status=="trip_only"),
+            missingImportantFields=TravelProfiling.Missing(s),nextField=Next(s),question=Copy(Question(Next(s))),
+            options=Choices(Next(s)).Select(Copy).ToArray(),completed=Required.Count(k=>Answered(s,k)),total=Required.Length};
+    }
     public static void Apply(PetSession s,JsonObject fields)
     {
         foreach(var key in Keys)
@@ -164,10 +174,10 @@ public static class PetQuestions
                 text=text.Trim();
                 if(key=="budgetCurrency")text=text.ToUpperInvariant() switch {"澳元" or "澳币" or "澳幣"=>"AUD","人民币" or "人民幣" or "RMB"=>"CNY","美元" or "美金"=>"USD",_=>text.ToUpperInvariant()};
                 if(key=="budgetCoverage")text=text switch {"活动预算" or "活動預算" or "活动"=>"activities","全旅行" or "全部旅行费用" or "含住宿交通"=>"totalTravel",_=>text};
-                if(key=="energy") {text=text switch {"低"=>"低精力","中等" or "中"=>"中等精力","高"=>"高精力",_=>text};if(text.Length>0 && text is not ("低精力" or "中等精力" or "高精力"))continue;}
-                if(key=="rhythm") {text=text switch {"轻松" or "慢悠悠"=>"轻松随意","中等"=>"适中","紧凑"=>"紧凑充实",_=>text};if(text.Length>0 && text is not ("轻松随意" or "适中" or "紧凑充实"))continue;}
+                if(key=="energy") {text=text switch {"低" or "low" or "Low energy"=>"低精力","中等" or "中" or "moderate" or "Moderate energy"=>"中等精力","高" or "high" or "High energy"=>"高精力",_=>text};if(text.Length>0 && text is not ("低精力" or "中等精力" or "高精力"))continue;}
+                if(key=="rhythm") {text=text switch {"轻松" or "慢悠悠" or "relaxed" or "Relaxed" or "Easy-going"=>"轻松随意","中等" or "moderate" or "Moderate"=>"适中","紧凑" or "busy" or "Busy"=>"紧凑充实",_=>text};if(text.Length>0 && text is not ("轻松随意" or "适中" or "紧凑充实"))continue;}
                 if(text.Length==0)s.Fields.Remove(key);else s.Fields[key]=text;
-                if(key=="companions" && !s.Fields.ContainsKey("travelers") && text is "一个人" or "两个人")s.Fields["travelers"]=text=="一个人"?"1":"2";
+                if(key=="companions" && !s.Fields.ContainsKey("travelers") && text is "一个人" or "两个人" or "Solo" or "Two people")s.Fields["travelers"]=text is "一个人" or "Solo" ? "1":"2";
             }
     }
     public static string PartialReply(string json)
@@ -197,13 +207,13 @@ public static class PetExplicitFacts
     {
         if(!MentionsBudget(message))foreach(var key in new[]{"budget","budgetCurrency","budgetBasis","budgetCoverage"})fields.Remove(key);
         var evidence=new Dictionary<string,string>{
-            ["energy"]="精力|体力|活力|電量|电量",
-            ["rhythm"]="节奏|節奏|轻松|輕鬆|紧凑|緊湊|适中|慢慢|慢逛|悠闲|充实",
-            ["pace"]=@"(?:[0-9一二两三四五六七八九十百千万][0-9一二两三四五六七八九十百千万,，]*\s*步|步[数數]\s*[:：]?\s*[0-9]|慢悠悠|少走|多走)",
-            ["queueTolerance"]="排队|排隊|等位|等候",
-            ["interests"]="兴趣|興趣|喜欢|喜歡|爱好|愛好|自然|风景|風景|美食|文化|艺术|藝術|购物|購物|城市"
+            ["energy"]=@"精力|体力|活力|電量|电量|\b(?:energy|fitness|stamina|tired|rest)\b",
+            ["rhythm"]=@"节奏|節奏|轻松|輕鬆|紧凑|緊湊|适中|慢慢|慢逛|悠闲|充实|\b(?:pace|relaxed|relaxing|slow|moderate|busy|packed|easy|leisurely)\b",
+            ["pace"]=@"(?:[0-9一二两三四五六七八九十百千万][0-9一二两三四五六七八九十百千万,，]*\s*步|步[数數]\s*[:：]?\s*[0-9]|慢悠悠|少走|多走|[0-9][0-9,]*\s*steps?|less walking|more walking)",
+            ["queueTolerance"]=@"排队|排隊|等位|等候|\b(?:queues?|queuing|queueing|wait|waiting)\b",
+            ["interests"]=@"兴趣|興趣|喜欢|喜歡|爱好|愛好|自然|风景|風景|美食|文化|艺术|藝術|购物|購物|城市|\b(?:interests?|like|love|enjoy|prefer|nature|scenery|scenic|food|culture|art|shopping|city)\b"
         };
-        foreach(var item in evidence)if(fields.ContainsKey(item.Key) && !System.Text.RegularExpressions.Regex.IsMatch(message,item.Value))fields.Remove(item.Key);
+        foreach(var item in evidence)if(fields.ContainsKey(item.Key) && !System.Text.RegularExpressions.Regex.IsMatch(message,item.Value,System.Text.RegularExpressions.RegexOptions.IgnoreCase))fields.Remove(item.Key);
     }
 
     public static void Apply(string message,JsonObject fields)

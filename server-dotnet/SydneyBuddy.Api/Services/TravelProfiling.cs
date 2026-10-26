@@ -92,13 +92,13 @@ confirmedPreferences 是当前有效的已确认记忆，pendingPreferences 只�
             if(!Keys.TryGetValue(key,out var definition) || value.Length is 0 or >300)continue;
             var scope=item.Str("scope");if(scope is not ("trip" or "long_term" or "inferred" or "activity"))continue;
             if(session.CurrentChoice is not null && scope!="inferred")scope="activity";
-            if(new[]{"不保存","不要记","别记","不记住","只限这次","仅这次","只用于这次"}.Any(message.Contains))scope="trip";
+            if(new[]{"不保存","不要记","别记","不记住","只限这次","仅这次","只用于这次","don’t save","don't save","dont save","do not save","don’t remember","don't remember","dont remember","do not remember","this trip only","only for this trip"}.Any(x=>message.Contains(x,StringComparison.OrdinalIgnoreCase)))scope="trip";
             var explicitEvidence=evidence.Length>0 && evidence.Length<=500 && message.Contains(evidence,StringComparison.Ordinal);
             if(scope!="inferred" && !explicitEvidence)continue;
             // Companion requirements belong to this trip, not to the user's Travel DNA.
             if(scope=="long_term" && new[]{"这次","本次","这趟","for this trip"}.Any(x=>message.Contains(x,StringComparison.OrdinalIgnoreCase)) &&
-                !new[]{"平时","一般","总是","习惯","讨厌","每次","以后","通常","usually","always","hate"}.Any(x=>evidence.Contains(x,StringComparison.OrdinalIgnoreCase)))scope="trip";
-            if(scope=="long_term" && KokoCompanion.Enabled(session) && KokoCompanion.TemporaryFeeling(message) && !Regex.IsMatch(evidence,"平时|通常|一直|每次|以后|习惯|总是"))scope="trip";
+                !new[]{"平时","一般","总是","习惯","讨厌","每次","以后","通常","usually","always","hate","normally","habit","every trip","in future"}.Any(x=>evidence.Contains(x,StringComparison.OrdinalIgnoreCase)))scope="trip";
+            if(scope=="long_term" && KokoCompanion.Enabled(session) && KokoCompanion.TemporaryFeeling(message) && !Regex.IsMatch(evidence,"平时|通常|一直|每次|以后|习惯|总是|usually|normally|always|every trip|in future|habit",RegexOptions.IgnoreCase))scope="trip";
             var condition=item.Str("condition").Trim();if(condition.Length>150)continue;
             if(session.CurrentChoice is {} choice) {
                 // A contextual yes cannot establish someone's normal schedule, fitness, personality,
@@ -130,8 +130,8 @@ confirmedPreferences 是当前有效的已确认记忆，pendingPreferences 只�
     }
 
     public static bool AllowLegacySuggestion(string message)=>
-        !new[]{"不保存","不要记","别记","不记住","只限这次","仅这次","只用于这次"}.Any(message.Contains) &&
-        (!new[]{"这次","本次","这趟","for this trip"}.Any(x=>message.Contains(x,StringComparison.OrdinalIgnoreCase)) || new[]{"以后","平时","长期","每次","一直","通常"}.Any(message.Contains));
+        !new[]{"不保存","不要记","别记","不记住","只限这次","仅这次","只用于这次","don’t save","don't save","dont save","do not save","don’t remember","don't remember","dont remember","do not remember","this trip only","only for this trip"}.Any(x=>message.Contains(x,StringComparison.OrdinalIgnoreCase)) &&
+        (!new[]{"这次","本次","这趟","for this trip"}.Any(x=>message.Contains(x,StringComparison.OrdinalIgnoreCase)) || new[]{"以后","平时","长期","每次","一直","通常","in future","normally","long term","every trip","always","usually"}.Any(x=>message.Contains(x,StringComparison.OrdinalIgnoreCase)));
 
     public static TravelPreference? Read(JsonObject? node)
     {

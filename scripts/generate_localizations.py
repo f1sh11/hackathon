@@ -16,9 +16,14 @@ for key, values in catalog.items():
     if set(values) != set(languages):
         raise SystemExit(f'Incomplete languages: {key}')
     placeholders = Counter(re.findall(r'\{\d+\}', key))
+    printf_tokens = Counter(re.findall(r'%(?:\d+\$)?[-+#0 ]*\d*(?:\.\d+)?[@diuoxXfFeEgGcCsSp]', key))
     for language, value in values.items():
         if not isinstance(value, str) or Counter(re.findall(r'\{\d+\}', value)) != placeholders:
             raise SystemExit(f'Invalid placeholders: {language}: {key}')
+        if Counter(re.findall(r'%(?:\d+\$)?[-+#0 ]*\d*(?:\.\d+)?[@diuoxXfFeEgGcCsSp]', value)) != printf_tokens:
+            raise SystemExit(f'Invalid printf placeholders: {language}: {key}')
+        if language == 'en' and re.search(r'[\u3400-\u9fff]', value):
+            raise SystemExit(f'English translation contains Chinese copy: {key}')
 
 def output(path, content):
     if args.check:

@@ -690,8 +690,8 @@ struct TripDraftEditor:View {
             Form{
                 Section(uiText("这次旅行")){
                     field("destination","目的地")
-                    DatePicker("出发日期",selection:Binding(get:{dateValue},set:{fields["date"]=TripProfile.dateString($0)}),displayedComponents:.date)
-                    Stepper("旅行天数：\(fields["days"] ?? "1") 天",value:Binding(get:{Int(fields["days"] ?? "1") ?? 1},set:{fields["days"]=String($0)}),in:1...15)
+                    DatePicker(uiText("出发日期"),selection:Binding(get:{dateValue},set:{fields["date"]=TripProfile.dateString($0)}),displayedComponents:.date)
+                    Stepper(uiText("旅行天数：\(fields["days"] ?? "1") 天"),value:Binding(get:{Int(fields["days"] ?? "1") ?? 1},set:{fields["days"]=String($0)}),in:1...15)
                     field("companions","同行伙伴")
                 }
                 Section(uiText("兴趣与节奏")){

@@ -80,7 +80,7 @@ nickname、ideas、quickReplies 都不能来自产品文档里的模拟用户。
         var option=question?.QuickReplies?.FirstOrDefault(x=>x.Id==input.Str("optionId"));
         if(s.Dialogue is null || question?.Id!=input.Str("questionId") || option is null || option.Intent is "compose_name" or "details")
             throw new ServiceException("这组选项已更新，请使用当前回复，或直接告诉 Koko。 ");
-        if(input.Str("field").Length>0 || input.Str("message").Trim()!=option.Text)
+        if(input.Str("field").Length>0 || (input.Str("message").Trim()!=option.Text && (s.ResponseLanguage!="en" || input.Str("message").Trim()!=PetEnglishCopy.Translate(option.Text))))
             throw new ServiceException("点选内容与当前提议不一致，请刷新后重试。");
         s.CurrentChoice=new(question!.Id,question.Text,option.Id,option.Text);
         return option;
