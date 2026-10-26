@@ -1,0 +1,114 @@
+[
+  {
+    "id": "E01",
+    "title": "少走一点的港湾半日",
+    "module": "Planner / RouteScheduler",
+    "profile": {
+      "date": "2026-10-26", "days": 1, "budget": 80, "maxSteps": 10000, "startMinute": 600, "endMinute": 900,
+      "interests": ["风景", "文化"], "request": "今天想少走一点，看看港湾风景", "mustVisit": [],
+      "start": { "name": "环形码头", "lat": -33.8611, "lng": 151.2126 }, "end": { "name": "环形码头", "lat": -33.8611, "lng": 151.2126 }
+    },
+    "expected": { "outcome": "success", "maxSteps": 7000 }
+  },
+  {
+    "id": "E02",
+    "title": "美食与文化的一天",
+    "module": "RecommendationQuality / RouteScheduler",
+    "profile": {
+      "date": "2026-10-26", "days": 1, "budget": 120, "maxSteps": 12000, "startMinute": 600, "endMinute": 1080,
+      "interests": ["美食", "文化"], "request": "想吃一顿具体的悉尼午餐，再看看历史街区", "mustVisit": [],
+      "start": { "name": "环形码头", "lat": -33.8611, "lng": 151.2126 }, "end": { "name": "达令港", "lat": -33.873, "lng": 151.2009 }
+    },
+    "expected": { "outcome": "success", "maxCost": 120 }
+  },
+  {
+    "id": "E03",
+    "title": "零预算艺术行程",
+    "module": "RouteScheduler",
+    "profile": {
+      "date": "2026-10-26", "days": 1, "budget": 0, "maxSteps": 9000, "startMinute": 600, "endMinute": 1020,
+      "interests": ["艺术"], "request": "预算为零，只想看免费艺术地点", "mustVisit": [],
+      "start": { "name": "环形码头", "lat": -33.8611, "lng": 151.2126 }, "end": { "name": "环形码头", "lat": -33.8611, "lng": 151.2126 }
+    },
+    "expected": { "outcome": "success", "maxCost": 0 }
+  },
+  {
+    "id": "E04",
+    "title": "雨天仍坚持歌剧院",
+    "module": "Planner / RouteScheduler",
+    "profile": {
+      "date": "2026-10-26", "days": 1, "budget": 100, "maxSteps": 10000, "startMinute": 600, "endMinute": 1080,
+      "interests": ["艺术", "文化"], "request": "下雨天优先室内，但一定要去歌剧院", "mustVisit": ["opera"], "weatherOverride": "rain",
+      "start": { "name": "环形码头", "lat": -33.8611, "lng": 151.2126 }, "end": { "name": "环形码头", "lat": -33.8611, "lng": 151.2126 }
+    },
+    "expected": { "outcome": "success", "mustInclude": ["opera"], "indoorOnly": true }
+  },
+  {
+    "id": "E05",
+    "title": "时间窗口不足",
+    "module": "RouteScheduler",
+    "profile": {
+      "date": "2026-10-26", "days": 1, "budget": 100, "maxSteps": 10000, "startMinute": 600, "endMinute": 610,
+      "interests": ["文化"], "request": "只有十分钟，也想排一个完整景点", "mustVisit": [],
+      "start": { "name": "环形码头", "lat": -33.8611, "lng": 151.2126 }, "end": { "name": "环形码头", "lat": -33.8611, "lng": 151.2126 }
+    },
+    "expected": { "outcome": "error", "messageContains": "没有满足", "expectedBehavior": "明确拒绝不可行路线，且不保存任何草案。" }
+  },
+  {
+    "id": "E06",
+    "title": "三天多景点不重复",
+    "module": "RouteScheduler",
+    "profile": {
+      "date": "2026-10-26", "days": 3, "budget": 90, "maxSteps": 12000, "startMinute": 600, "endMinute": 1080,
+      "interests": ["文化", "艺术", "自然"], "request": "三天慢慢逛，不要重复同一景点", "mustVisit": [],
+      "start": { "name": "环形码头", "lat": -33.8611, "lng": 151.2126 }, "end": { "name": "环形码头", "lat": -33.8611, "lng": 151.2126 }
+    },
+    "expected": { "outcome": "success", "maxCost": 90 }
+  },
+  {
+    "id": "E07",
+    "title": "必去歌剧院并避开博物馆",
+    "module": "TravelConstraints / RouteScheduler",
+    "profile": {
+      "date": "2026-10-26", "days": 2, "budget": 100, "maxSteps": 10000, "startMinute": 600, "endMinute": 1080,
+      "interests": ["文化", "风景"], "request": "不想逛博物馆，歌剧院一定要去", "mustVisit": [], "mustDo": "悉尼歌剧院", "avoid": "博物馆",
+      "start": { "name": "环形码头", "lat": -33.8611, "lng": 151.2126 }, "end": { "name": "环形码头", "lat": -33.8611, "lng": 151.2126 }
+    },
+    "expected": { "outcome": "success", "mustInclude": ["opera"], "mustExclude": ["mca", "museum"] }
+  },
+  {
+    "id": "E08",
+    "title": "途中疲劳但缺少步行回放证据",
+    "module": "RemainingJourney / WalkingEvidence",
+    "scenario": "remaining_without_walking_evidence",
+    "profile": {
+      "date": "2026-10-26", "days": 1, "budget": 100, "maxSteps": 10000, "startMinute": 600, "endMinute": 1080,
+      "interests": ["文化"], "request": "先按正常体力规划", "mustVisit": [],
+      "start": { "name": "环形码头", "lat": -33.8611, "lng": 151.2126 }, "end": { "name": "环形码头", "lat": -33.8611, "lng": 151.2126 }
+    },
+    "remainingRequest": { "day": 0, "request": "我累了，少走一点", "currentMinute": 780, "origin": { "name": "环形码头", "lat": -33.8611, "lng": 151.2126 }, "completedIds": [], "skippedIds": [] },
+    "expected": { "outcome": "error", "messageContains": "请先查询真实步行时间", "expectedBehavior": "缺少可回放道路证据时明确停止，不用直线距离伪造途中重算。" }
+  },
+  {
+    "id": "E09",
+    "title": "候选不足的十五天旅行",
+    "module": "RouteScheduler / RecommendationQuality",
+    "profile": {
+      "date": "2026-10-26", "days": 15, "budget": 20, "maxSteps": 9000, "startMinute": 600, "endMinute": 1020,
+      "interests": ["艺术"], "request": "十五天都住在市区，候选不够时必须说明", "mustVisit": [],
+      "start": { "name": "环形码头", "lat": -33.8611, "lng": 151.2126 }, "end": { "name": "环形码头", "lat": -33.8611, "lng": 151.2126 }
+    },
+    "expected": { "outcome": "success", "minimumFreeDays": 1, "maxCost": 20 }
+  },
+  {
+    "id": "E10",
+    "title": "必去付费馆但预算为零",
+    "module": "RouteScheduler",
+    "profile": {
+      "date": "2026-10-26", "days": 1, "budget": 0, "maxSteps": 10000, "startMinute": 600, "endMinute": 1080,
+      "interests": ["艺术"], "request": "当代艺术博物馆一定要去，但没有预算", "mustVisit": ["mca"],
+      "start": { "name": "环形码头", "lat": -33.8611, "lng": 151.2126 }, "end": { "name": "环形码头", "lat": -33.8611, "lng": 151.2126 }
+    },
+    "expected": { "outcome": "error", "messageContains": "没有满足", "expectedBehavior": "不能静默移除必去地点；应说明预算、步数、营业时间或返程条件不成立。" }
+  }
+]

@@ -1,0 +1,5 @@
+{
+  "mode": "not-recorded",
+  "note": "The default evaluation deliberately contains no Apple MapKit or public-transit replay. It uses the existing demo estimator and labels every route as an estimate. E08 verifies that remaining-journey replanning refuses to invent road evidence. Add separate, dated provider responses only for a dedicated replay run.",
+  "routes": []
+}

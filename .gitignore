@@ -52,3 +52,6 @@ infra/zetaris/migration/*.local.*
 
 # Local Zetaris JDBC tooling environment
 .venv-zetaris/
+
+# Generated, per-run evidence and reports from the deterministic planning evaluation.
+evaluation/output/
