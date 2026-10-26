@@ -17,6 +17,11 @@ public sealed class PetSession
     public string InteractionContext { get; set; } = "";
     [System.Text.Json.Serialization.JsonIgnore]
     public bool PersonalizingTrip {get;set;}
+    public Dictionary<string,string> EnglishDisplay {get;set;}=[];
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool EnglishPresentationPrepared {get;set;}
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool EnglishPresentationUnavailable {get;set;}
     public List<PetMessage> Messages { get; set; } = [];
     public Dictionary<string,string> Fields { get; set; } = [];
     public JsonObject PersonalProfile { get; set; } = new();
@@ -161,7 +166,7 @@ public static class PetQuestions
         var english=s.ResponseLanguage=="en";
         var display=english ? PetEnglishCopy.Presentation(s):null;
         string Copy(string value)=>english ? PetEnglishCopy.Translate(value):value;
-        return new {s.Id,Messages=display?.Messages ?? s.Messages,s.Fields,s.PendingMemory,s.UpdatedAt,
+        return new {s.Id,presentationWarning=english && s.EnglishPresentationUnavailable ? "Some replies couldn’t be displayed in English. Your original conversation is safe.":"",Messages=display?.Messages ?? s.Messages,s.Fields,s.PendingMemory,s.UpdatedAt,
             MemoryWarning=display?.MemoryWarning ?? s.MemoryWarning,s.DnaCompleted,Dialogue=display?.Dialogue ?? s.Dialogue,
             travelDna=TravelProfiling.Dna(s),tripContext=s.Fields,planningFields=TravelProfiling.PlanningFields(s),
             pendingPreferences=s.Preferences.Where(x=>x.Status=="awaiting_confirmation"),tripPreferences=s.Preferences.Where(x=>x.Status=="trip_only"),

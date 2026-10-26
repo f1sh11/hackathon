@@ -9,6 +9,7 @@ extension PetMessage {
 struct PetSession: Codable {
     var id: String; var messages: [PetMessage]; var fields: [String:String]; var pendingMemory: String
     var nextField: String; var question: String; var options: [String]; var completed: Int; var total: Int
+    var presentationWarning:String? = nil
     var dnaCompleted:Bool? = nil;var planningFields:[String:String]? = nil;var travelDna:[TravelPreference]? = nil;var pendingPreferences:[TravelPreference]? = nil;var tripPreferences:[TravelPreference]? = nil;var memoryWarning:String? = nil
     var dialogue:ProfilingDialogueState? = nil
     var effectiveFields:[String:String] {planningFields ?? fields}
@@ -374,6 +375,7 @@ struct PetChatView:View {
                             TravelPreferenceCard(preference:preference,busy:chat.busy,decide:{consent,ignored in Task{await chat.decidePreference(preference,consent:consent,dismiss:ignored)}},correct:{message="关于"+preference.label+"，其实我";composing=true})
                         }
                         if let warning=chat.session?.memoryWarning,!warning.isEmpty{Text(uiText(warning)).font(.caption).foregroundStyle(Palette.muted)}
+                        englishDisplayNotice
                         if !personalSetup,let session=chat.session,session.dnaCompleted != true,(session.pendingPreferences ?? []).isEmpty,(session.travelDna ?? []).contains(where:{$0.status=="confirmed"}) {
                             Button(uiText("完成旅行习惯整理")){Task{await chat.completeDna();if chat.error==nil{store.showPersonalPreferences=false;UserDefaults.standard.set(true,forKey:"personalPreferences.v2.completed")}}}.buttonStyle(.borderedProminent).tint(Palette.green).disabled(chat.busy).accessibilityIdentifier("complete-travel-dna")
                         }
@@ -418,6 +420,11 @@ struct PetChatView:View {
             }.padding(.horizontal,20).padding(.vertical,8)
         }.background(Color(red:0.985,green:0.985,blue:0.975)).foregroundStyle(Color(red:0.09,green:0.15,blue:0.24)).tint(chatBlue)
     }
+    @ViewBuilder private var englishDisplayNotice:some View {
+        if let warning=chat.session?.presentationWarning,!warning.isEmpty {
+            HStack(alignment:.top){Text(warning).font(.caption).foregroundStyle(Palette.muted);Spacer();Button(uiText("Retry")){Task{await chat.reloadSession()}}.font(.caption.weight(.semibold)).disabled(chat.busy)}
+        }
+    }
     private var usesPlanningStudio:Bool {!personalSetup && (onboarding || draftScope)}
     private var studioBasicsReady:Bool {canPlanDirectly || waitingForDeferredDates}
     private var studioMessages:[PetMessage] {
@@ -448,6 +455,7 @@ struct PetChatView:View {
                     PlanningBasicsRows(fields:liveFields,language:store.language,busy:chat.busy || chat.session==nil){detailRoute=TripDetailRoute(id:$0)}
                     Text(uiText("Activities only. Meals, stays and transport are extra.")).font(.caption2).foregroundStyle(Palette.muted).multilineTextAlignment(.center)
                     if let issue=generationIssue{Text(uiText(issue)).font(.caption).foregroundStyle(Palette.muted)}
+                    englishDisplayNotice
                     if let error=chat.error{Text(uiText(error)).font(.caption).foregroundStyle(.red);Button(uiText("Retry")){Task{await chat.reloadSession()}}}
                     if chat.busy{ProgressView(uiText("正在收好…")).font(.caption)}
                 }.padding(.horizontal,20).padding(.bottom,16)
@@ -499,6 +507,7 @@ struct PetChatView:View {
                             TravelPreferenceCard(preference:preference,busy:chat.busy,decide:{consent,ignored in Task{await chat.decidePreference(preference,consent:consent,dismiss:ignored)}},correct:{message=preference.label+": ";composing=true})
                         }
                         if let warning=chat.session?.memoryWarning,!warning.isEmpty{Text(uiText(warning)).font(.caption).foregroundStyle(Palette.muted)}
+                        englishDisplayNotice
                         if let session=chat.session,!session.pendingMemory.isEmpty{
                             VStack(alignment:.leading,spacing:8){Text(uiText("以后也这样安排，好吗？")).font(.headline);Text(uiText(session.pendingMemory)).font(.subheadline);HStack{Button(uiText("以后都记住")){Task{await chat.decideMemory(true)}};Button(uiText("仅限这次")){Task{await chat.decideMemory(false)}}}}.padding(14).background(chatBlue.opacity(0.05),in:RoundedRectangle(cornerRadius:14)).disabled(chat.busy)
                         }

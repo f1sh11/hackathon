@@ -3,8 +3,8 @@ using System.Text.Json;
 
 namespace SydneyBuddy.Api;
 
-/// Updates recognised application copy in old drafts without translating user messages or evidence.
-/// Historical free-form model prose has no reliable translation and is deliberately left intact.
+/// Deterministic application-copy localization. PetEnglishPresenter supplies cached English
+/// display versions for free-form assistant prose; stored messages and evidence stay intact.
 internal static class PetEnglishCopy
 {
     private static readonly Dictionary<string,string> Copy=new()
@@ -251,14 +251,14 @@ internal static class PetEnglishCopy
     internal sealed record Display(List<PetMessage> Messages,ProfilingDialogue? Dialogue,string MemoryWarning);
     internal static Display Presentation(PetSession session) {
         var messages=session.Messages.Select(message=>message.Role!="assistant" ? message:message with {
-            Text=Translate(message.Text),QuickReplies=message.QuickReplies?.Select(option=>option with {Text=Translate(option.Text)}).ToArray()
+            Text=PetEnglishPresenter.Display(session,message.Text),QuickReplies=message.QuickReplies?.Select(option=>option with {Text=PetEnglishPresenter.Display(session,option.Text)}).Where(option=>option.Text!=PetEnglishPresenter.Unavailable).ToArray()
         }).ToList();
         var dialogue=session.Dialogue is null ? null:JsonSerializer.Deserialize<ProfilingDialogue>(JsonSerializer.Serialize(session.Dialogue,JsonExtensions.Options),JsonExtensions.Options);
         if(dialogue is not null) {
-            dialogue.Ideas=dialogue.Ideas.Select(x=>Translate(x)).ToArray();
-            if(dialogue.Inspiration is {} inspiration)dialogue.Inspiration=inspiration with {Title=Translate(inspiration.Title),Ideas=inspiration.Ideas.Select(x=>Translate(x)).ToArray()};
+            dialogue.Ideas=dialogue.Ideas.Select(x=>PetEnglishPresenter.Display(session,x)).ToArray();
+            if(dialogue.Inspiration is {} inspiration)dialogue.Inspiration=inspiration with {Title=PetEnglishPresenter.Display(session,inspiration.Title),Ideas=inspiration.Ideas.Select(x=>PetEnglishPresenter.Display(session,x)).ToArray()};
         }
-        return new(messages,dialogue,Translate(session.MemoryWarning));
+        return new(messages,dialogue,PetEnglishPresenter.Display(session,session.MemoryWarning));
     }
     private static string DisplayValue(string value) {
         var known=value switch {

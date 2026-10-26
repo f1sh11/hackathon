@@ -76,7 +76,7 @@ nickname、ideas、quickReplies 都不能来自产品文档里的模拟用户。
     public static bool RepeatedChoice(PetSession s,JsonObject input) {
         if(input.Str("field").Length>0 || input.Str("questionId").Length==0 || input.Str("optionId").Length==0)return false;
         var previous=s.Messages.LastOrDefault(x=>x.Role=="user" && x.Choice?.QuestionMessageId==input.Str("questionId") && x.Choice.OptionId==input.Str("optionId"));
-        return previous?.Choice is {} choice && (input.Str("message").Trim()==choice.OptionText || s.ResponseLanguage=="en" && input.Str("message").Trim()==PetEnglishCopy.Translate(choice.OptionText));
+        return previous?.Choice is {} choice && (input.Str("message").Trim()==choice.OptionText || s.ResponseLanguage=="en" && input.Str("message").Trim()==PetEnglishPresenter.Display(s,choice.OptionText));
     }
     public static bool DateIsDeferred(PetSession s) {
         if(s.Dialogue is not {} d || PetQuestions.Answered(s,"date") && PetQuestions.Answered(s,"days"))return false;
@@ -100,7 +100,7 @@ nickname、ideas、quickReplies 都不能来自产品文档里的模拟用户。
         var option=question?.QuickReplies?.FirstOrDefault(x=>x.Id==input.Str("optionId"));
         if(s.Dialogue is null || question?.Id!=input.Str("questionId") || option is null || option.Intent is "compose_name" or "details")
             throw new ServiceException("这组选项已更新，请使用当前回复，或直接告诉 Koko。 ");
-        if(input.Str("field").Length>0 || (input.Str("message").Trim()!=option.Text && (s.ResponseLanguage!="en" || input.Str("message").Trim()!=PetEnglishCopy.Translate(option.Text))))
+        if(input.Str("field").Length>0 || (input.Str("message").Trim()!=option.Text && (s.ResponseLanguage!="en" || input.Str("message").Trim()!=PetEnglishPresenter.Display(s,option.Text))))
             throw new ServiceException("点选内容与当前提议不一致，请刷新后重试。");
         s.CurrentChoice=new(question!.Id,question.Text,option.Id,option.Text);
         return option;
