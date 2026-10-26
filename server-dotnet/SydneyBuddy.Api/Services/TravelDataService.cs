@@ -180,7 +180,7 @@ public sealed class PublicTravelWeather(HttpClient http,TravelDataContext select
             double? Read(string key){var values=daily.Array(key);return values is not null&&i<values.Count?Number(values[i]):null;}
             var low=Read("temperature_2m_min");var high=Read("temperature_2m_max");var probability=Read("precipitation_probability_max");var code=Read("weather_code");
             var available=low is not null&&high is not null&&low<=high&&probability is >=0 and <=100&&code is not null;
-            result.Add(new JsonObject{["date"]=dates[i]!.GetValue<string>(),["available"]=available,["temperatureMin"]=low,["temperatureMax"]=high,["precipitationProbability"]=probability,["rainy"]=available&&(probability>=60||code is 51 or 53 or 55 or 56 or 57 or 61 or 63 or 65 or 66 or 67 or 80 or 81 or 82 or 95 or 96 or 99),["fetchedAt"]=fetched.ToString("O"),["source"]="Open-Meteo",["timezone"]="Australia/Sydney"});
+            result.Add(new JsonObject{["date"]=dates[i]!.GetValue<string>(),["available"]=available,["temperatureMin"]=low,["temperatureMax"]=high,["weatherCode"]=code,["precipitationProbability"]=probability,["rainy"]=available&&(probability>=60||code is 51 or 53 or 55 or 56 or 57 or 61 or 63 or 65 or 66 or 67 or 80 or 81 or 82 or 95 or 96 or 99),["fetchedAt"]=fetched.ToString("O"),["source"]="Open-Meteo",["timezone"]="Australia/Sydney"});
         }
         return result;
     }

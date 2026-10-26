@@ -1755,5 +1755,25 @@
     "en": "Adult ticket from {0}",
     "zh-Hant": "成人票 {0} 起",
     "zh-Hans": "成人票 {0} 起"
+  },
+  "待預報": {
+    "en": "Not yet available",
+    "zh-Hans": "待预报",
+    "zh-Hant": "待預報"
+  },
+  "待更新": {
+    "en": "Refresh needed",
+    "zh-Hans": "待更新",
+    "zh-Hant": "待更新"
+  },
+  "天氣詳情": {
+    "en": "Weather details",
+    "zh-Hans": "天气详情",
+    "zh-Hant": "天氣詳情"
+  },
+  "天氣暫時無法更新": {
+    "en": "Weather could not be refreshed",
+    "zh-Hans": "天气暂时无法更新",
+    "zh-Hant": "天氣暫時無法更新"
   }
 }

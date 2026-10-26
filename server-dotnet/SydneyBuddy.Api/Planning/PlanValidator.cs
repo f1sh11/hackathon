@@ -102,7 +102,7 @@ public static class PlanValidator
     public static JsonObject ValidateForecast(JsonObject raw) {
         try {
             if(!DateOnly.TryParseExact(raw.Str("date"),"yyyy-MM-dd",CultureInfo.InvariantCulture,DateTimeStyles.None,out var date))throw new FormatException();
-            var days=ReadInteger(raw,"days",1);if(days is <1 or >3)throw new FormatException();_ = date.AddDays(days-1);
+            var days=ReadInteger(raw,"days",1);if(days is <1 or >15)throw new FormatException();_ = date.AddDays(days-1);
             return new(){["date"]=date.ToString("yyyy-MM-dd",CultureInfo.InvariantCulture),["days"]=days,["weatherOverride"]=raw.Str("weatherOverride")};
         }catch(Exception e)when(e is FormatException or InvalidOperationException or ArgumentException or OverflowException){throw new ServiceException("請檢查預報日期與天數。");}
     }

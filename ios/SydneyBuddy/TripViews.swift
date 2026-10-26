@@ -46,7 +46,7 @@ struct ProposalView:View {
                             let before=Set(old.days.flatMap(\.stops).map(\.name)),after=Set(plan.days.flatMap{ $0.stops+($0.completedStops ?? []) }.map(\.name))
                             VStack(alignment:.leading,spacing:8) { Text("调整对比").font(.headline);Text("新增："+(after.subtracting(before).sorted().joined(separator:"、").isEmpty ? "无" : after.subtracting(before).sorted().joined(separator:"、")));Text("移除："+(before.subtracting(after).sorted().joined(separator:"、").isEmpty ? "无" : before.subtracting(after).sorted().joined(separator:"、")));Text("预计步数：\(old.days.reduce(0){$0+$1.estimatedSteps}) → \(plan.days.reduce(0){$0+$1.estimatedSteps})") }.font(.caption).padding(18).frame(maxWidth:.infinity,alignment:.leading).background(.white,in:RoundedRectangle(cornerRadius:20))
                         }
-                        WeatherCard(weather:plan.weather)
+                        WeatherCard(weather:plan.weather,profile:plan.profile)
                         ForEach(plan.days) { day in DaySummary(day:day) }
                         VStack(alignment:.leading,spacing:8) {Text("数据与限制").font(.headline);ForEach(plan.warnings,id:\.self){Text("· "+$0).font(.caption).foregroundStyle(Palette.muted)}}
                         DisclosureGroup("查看规划依据与验证记录") {ForEach(plan.trace){trace in VStack(alignment:.leading,spacing:5){Text(trace.title).font(.subheadline.bold());Text(trace.detail).font(.caption);Text(trace.source).font(.caption2).foregroundStyle(Palette.green)}.padding(.vertical,8)}}
@@ -581,25 +581,62 @@ struct WeatherCard: View {
     @EnvironmentObject var store: AppStore
     var weather: WeatherInfo
     var compact = false
+    var profile:TripProfile? = nil
+    @State private var refreshed:WeatherInfo?
+    @State private var refreshing=false
+    @State private var refreshError:String?
+    private var forecast:WeatherInfo {refreshed ?? weather}
     var body: some View {
-        VStack(alignment:.leading,spacing:8) {
+        VStack(alignment:.leading,spacing:12) {
             HStack {
-                Label("悉尼天气",systemImage:weather.status == "unavailable" ? "cloud.slash" : weather.rainy ? "cloud.rain.fill" : "cloud.sun.fill").font(.subheadline.bold())
+                Label("悉尼天气",systemImage:"calendar").font(.subheadline.bold())
                 Spacer()
-                Button { Task { await store.refreshWeather() } } label: {
-                    if store.weatherBusy { ProgressView() } else { Image(systemName:"arrow.clockwise") }
-                }.disabled(store.weatherBusy).accessibilityLabel("刷新天气")
+                Button { Task {
+                    refreshing=true;refreshError=nil
+                    defer {refreshing=false}
+                    do {
+                        refreshed=try await store.api("weather",method:"POST",body:JSONEncoder().encode(profile ?? store.trip?.profile ?? store.profile))
+                    } catch {refreshError=store.language.text("天氣暫時無法更新")}
+                } } label: {
+                    if refreshing { ProgressView() } else { Image(systemName:"arrow.clockwise") }
+                }.disabled(refreshing).accessibilityLabel("刷新天气")
             }
-            if let days=weather.days, !days.isEmpty {
-                ForEach(days.filter { !compact || $0.date == store.currentDay?.date },id: \.date) { day in
-                    Text(day.date + " · " + day.summary).font(.caption)
+            if let days=forecast.days, !days.isEmpty {
+                ScrollView(.horizontal,showsIndicators:false) {
+                    HStack(spacing:8) {
+                        ForEach(days.filter { !compact || $0.date == store.currentDay?.date },id: \.date) { day in
+                            VStack(spacing:8) {
+                                Text(String(day.date.suffix(5)).replacingOccurrences(of:"-",with:"/")).font(.caption.bold()).monospacedDigit()
+                                Image(systemName:day.symbol).symbolRenderingMode(.multicolor).font(.system(size:27)).frame(width:42,height:42).background((day.available ? Color.blue:Color.gray).opacity(0.10),in:Circle())
+                                if let temperature=day.temperatureLabel {
+                                    Text(temperature).font(.caption.bold()).monospacedDigit().lineLimit(1).minimumScaleFactor(0.8)
+                                    if let rain=day.precipitationProbability {
+                                        Label("\(Int(rain.rounded()))%",systemImage:"drop.fill").font(.caption2).foregroundStyle(.blue)
+                                    }
+                                } else {
+                                    Text(store.language.text(day.stale == true ? "待更新":"待預報")).font(.caption).foregroundStyle(Palette.muted)
+                                }
+                            }
+                            .frame(width:80).frame(minHeight:112).padding(.vertical,8)
+                            .background(Palette.cream,in:RoundedRectangle(cornerRadius:14))
+                            .accessibilityElement(children:.ignore)
+                            .accessibilityLabel(day.date+", "+day.summary)
+                            .accessibilityIdentifier("weather-day-"+day.date)
+                        }
+                    }
+                }.accessibilityIdentifier("weather-days")
+                if !compact {
+                    DisclosureGroup(store.language.text("天氣詳情")) {
+                        VStack(alignment:.leading,spacing:6) {
+                            ForEach(days,id:\.date){Text($0.date+" · "+$0.summary).font(.caption)}
+                            Text(forecast.source).font(.caption2)
+                            if let date=forecast.fetchedAt{Text("查询于 "+date).font(.caption2)}
+                        }.foregroundStyle(Palette.muted)
+                    }.font(.caption).foregroundStyle(Palette.muted)
                 }
-            } else { Text(weather.summary).font(.caption) }
-            Text(weather.source).font(.caption2).foregroundStyle(Palette.muted)
-            if !compact {
-                Text("日间 07–19 时 / 夜间 19–07 时预报；气温为全日范围。刷新仅更新天气，调整路线请点问 AI。").font(.caption2).foregroundStyle(Palette.muted)
-                if let date=weather.fetchedAt { Text("查询于 " + date).font(.caption2).foregroundStyle(Palette.muted) }
-            }
+            } else {Text(forecast.summary).font(.caption).foregroundStyle(Palette.muted)}
+            Text(forecast.source).font(.caption2).foregroundStyle(Palette.muted)
+            if let refreshError{Text(refreshError).font(.caption).foregroundStyle(Palette.muted)}
         }.padding(14).background(.white,in:RoundedRectangle(cornerRadius:18))
     }
 }

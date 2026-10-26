@@ -493,3 +493,8 @@
 
 "本機 Zetaris" = "Local Zetaris";
 "雲端 Zetaris（雪梨）" = "Cloud Zetaris (Sydney)";
+
+"待預報" = "Not yet available";
+"待更新" = "Refresh needed";
+"天氣詳情" = "Weather details";
+"天氣暫時無法更新" = "Weather could not be refreshed";

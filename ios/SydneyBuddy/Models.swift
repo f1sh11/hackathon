@@ -103,7 +103,33 @@ struct DayPlan: Codable, Identifiable {
     var hasWalkingJourney:Bool {!stops.isEmpty || CLLocation(latitude:start.lat,longitude:start.lng).distance(from:CLLocation(latitude:end.lat,longitude:end.lng))>1}
     var id: String { date }
 }
-struct WeatherDay: Codable { var date: String; var summary: String; var rainy: Bool; var available: Bool }
+struct WeatherDay: Codable {
+    var date: String; var summary: String; var rainy: Bool; var available: Bool
+    var temperatureMin:Double? = nil; var temperatureMax:Double? = nil
+    var precipitationProbability:Double? = nil; var weatherCode:Int? = nil; var stale:Bool? = nil
+    var symbol:String {
+        guard available else{return "questionmark.circle"}
+        guard let code=weatherCode else{return rainy ? "cloud.rain.fill":"cloud.fill"}
+        switch code {
+        case 0:return "sun.max.fill"
+        case 1,2:return "cloud.sun.fill"
+        case 3:return "cloud.fill"
+        case 45,48:return "cloud.fog.fill"
+        case 51...57:return "cloud.drizzle.fill"
+        case 61...67,80...82:return "cloud.rain.fill"
+        case 71...77,85,86:return "cloud.snow.fill"
+        case 95...99:return "cloud.bolt.rain.fill"
+        default:return "cloud.fill"
+        }
+    }
+    var temperatureLabel:String? {
+        guard available else{return nil}
+        if let low=temperatureMin,let high=temperatureMax{return "\(Int(low.rounded()))–\(Int(high.rounded()))°"}
+        // Previously saved drafts only kept the provider's formatted summary.
+        guard let range=summary.range(of:#"-?\d+(?:\.\d+)?[–−~-]-?\d+(?:\.\d+)?°C"#,options:.regularExpression) else{return nil}
+        return String(summary[range]).replacingOccurrences(of:"°C",with:"°")
+    }
+}
 struct WeatherInfo: Codable {
     var summary: String; var rainy: Bool; var source: String
     var status: String?; var days: [WeatherDay]?; var fetchedAt: String?
