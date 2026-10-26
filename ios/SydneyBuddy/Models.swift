@@ -375,11 +375,24 @@ struct TravelPlanningTask:Codable {
         } catch {if !Task.isCancelled{errorMessage=error.localizedDescription}}
     }
     var planningDiscovery:(TripProfile) async throws -> [ScheduleCandidate] = {try await ApplePlanningDiscovery.search($0)}
+    func discoverPlanningCandidates(_ profile:TripProfile,source:TravelDataSource) async throws -> [ScheduleCandidate] {
+        guard source.warehouse else{return try await planningDiscovery(profile)}
+        return try await ApplePlanningDiscovery.search(profile,preserveDetails:true,lookup:{point,category,query in
+            struct Result:Decodable {var places:[ScheduleCandidate];var dataSource:String}
+            let kinds=["restaurants":"restaurants","parks":"parks","museums":"museums"]
+            let kind=kinds[query] ?? category
+            let text=category == "all" ? query:""
+            let body:[String:Any]=["lat":point.latitude,"lng":point.longitude,"radius":5000,"category":kind,"query":text,"provider":"osm"]
+            let result:Result=try await self.api("poi/search",method:"POST",body:JSONSerialization.data(withJSONObject:body),source:source)
+            guard result.dataSource==source.rawValue else{throw NSError(domain:"Planning",code:4,userInfo:[NSLocalizedDescriptionKey:"规划地点来源不一致，请重新选择资料来源后再试。"])}
+            return result.places
+        })
+    }
     var roadLegs:([DayPlan]) async throws -> [WalkingObservation] = {try await AppleWalkingRoads.shared.legs($0)}
     private var remainingRequest:[String:Any]?
     private func roadPlan(_ raw:[String:Any],profile:TripProfile,replanExisting:Bool=true,background:Bool=false) async throws -> Trip {
         let mapProvider=background ? (planningMapProvider ?? self.mapProvider):self.mapProvider
-        let requestSource=background ? planningDataSource:nil
+        let requestSource=background ? (planningDataSource ?? travelDataSource):travelDataSource
         func report(_ detail:String,_ phase:PlanningPhase = .roads,_ done:Int?=nil,_ total:Int?=nil) {
             if background {travelTask?.progress=PlanningProgress(phase:phase,detail:detail,completed:done,total:total)}else{operationDetail=detail}
         }
@@ -416,8 +429,8 @@ struct TravelPlanningTask:Codable {
             if let existing,existing.days.indices.contains(dayIndex) {
                 let day=existing.days[dayIndex]
                 let needsCandidates = profile.mustDo != existing.profile.mustDo || profile.avoid != existing.profile.avoid || (profile.request ?? "").range(of:"多一点美食|加.*餐|more food|add.*restaurant",options:.regularExpression) != nil
-                if needsCandidates,health?.nvidiaConfigured==true {
-                    let additions=try await planningDiscovery(profile)
+                if needsCandidates,requestSource.warehouse || health?.nvidiaConfigured==true {
+                    let additions=try await discoverPlanningCandidates(profile,source:requestSource)
                     let combined=(existing.planningCandidates ?? [])+additions.filter{p in !(existing.planningCandidates ?? []).contains{$0.id==p.id}}
                     payload["planningCandidates"]=try JSONSerialization.jsonObject(with:JSONEncoder().encode(Array(combined.prefix(60))))
                     catalog+=additions.filter{p in !catalog.contains{$0.id==p.id}}
@@ -427,12 +440,12 @@ struct TravelPlanningTask:Codable {
                 observations=try await AppleWalkingRoads.shared.matrix(points){done,total in report("正在核对步行路段 \(done)/\(total)…",.roads,done,total)}
             }else {
                 struct Shortlist:Decodable {var candidateDays:[[String]];var candidates:[ScheduleCandidate]?}
-                if health?.nvidiaConfigured==true {
-                    report("正在搜索符合你兴趣的真实地点…",.places)
-                    let discovered=try await planningDiscovery(profile)
+                if requestSource.warehouse || health?.nvidiaConfigured==true {
+                    report(requestSource.warehouse ? "正在从所选 Zetaris 来源查找地点…":"正在搜索符合你兴趣的真实地点…",.places)
+                    let discovered=try await discoverPlanningCandidates(profile,source:requestSource)
                     guard !discovered.isEmpty else{throw NSError(domain:"Plan",code:3,userInfo:[NSLocalizedDescriptionKey:"暂时没有搜到可用地点，请缩小范围或补充想去的地方。未生成示例替代行程。"])}
                     payload["planningCandidates"]=try JSONSerialization.jsonObject(with:JSONEncoder().encode(discovered))
-                    payload["useAgent"]=true
+                    payload["useAgent"]=health?.nvidiaConfigured==true
                 }
                 report("正在挑选活动与合适的用餐地点…",.places)
                 let shortlist:Shortlist=try await api("plan/prepare",method:"POST",body:JSONSerialization.data(withJSONObject:payload),source:requestSource)

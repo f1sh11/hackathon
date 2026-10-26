@@ -1,7 +1,37 @@
 import SwiftUI
 
+enum TripAdjustmentComparison {
+    static func hasVisibleChanges(_ before:Trip,_ after:Trip,includeConstraints:Bool=true)->Bool {
+        func signature(_ trip:Trip)->Data? {
+            guard let data=try? JSONEncoder().encode(trip),let raw=(try? JSONSerialization.jsonObject(with:data)) as? [String:Any],let days=raw["days"] as? [[String:Any]] else{return nil}
+            let reduced=days.map {day -> [String:Any] in
+                var result:[String:Any]=[:]
+                for key in ["date","start","end","finishTime","estimatedSteps","estimatedCost"]{result[key]=day[key]}
+                let stops=(day["completedStops"] as? [[String:Any]] ?? [])+(day["stops"] as? [[String:Any]] ?? [])
+                result["stops"]=stops.map {stop in Dictionary(uniqueKeysWithValues:["id","name","lat","lng","arrival","departure","visitMinutes","cost"].compactMap {key in stop[key].map{(key,$0)}})}
+                result["legs"]=(day["legs"] as? [[String:Any]] ?? []).map {leg -> [String:Any] in
+                    ["mode":leg["mode"] ?? "walk","minutes":leg["minutes"] ?? 0,"meters":leg["meters"] ?? 0,"walkingMeters":leg["walkingMeters"] ?? leg["meters"] ?? 0]
+                }
+                return result
+            }
+            let profile=raw["profile"] as? [String:Any] ?? [:]
+            let constraints=Dictionary(uniqueKeysWithValues:["destination","date","days","budget","maxSteps","startMinute","endMinute","mustDo","avoid","interests","transportPreference","budgetCurrency","budgetBasis","budgetAmount","travelers"].compactMap {key in profile[key].map{(key,$0)}})
+            return try? JSONSerialization.data(withJSONObject:["days":reduced,"constraints":includeConstraints ? constraints:[:]],options:.sortedKeys)
+        }
+        guard let old=signature(before),let new=signature(after) else{return true}
+        return old != new
+    }
+}
 struct ProposalView:View {
     @EnvironmentObject var store:AppStore
+    var unchanged:Bool {
+        guard !store.proposalFromNewTrip,let old=store.trip,let plan=store.proposal else{return false}
+        return !TripAdjustmentComparison.hasVisibleChanges(old,plan,includeConstraints:false)
+    }
+    var unchangedRequest:Bool {
+        guard !store.proposalFromNewTrip,let old=store.trip,let plan=store.proposal else{return false}
+        return !TripAdjustmentComparison.hasVisibleChanges(old,plan)
+    }
     var body:some View {
         if store.proposal?.mode == "demo" && !store.proposalIsSuggestion {ScheduleEditorView()} else { legacy }
     }
@@ -10,8 +40,8 @@ struct ProposalView:View {
             ScrollView {
                 if let plan=store.proposal {
                     VStack(alignment:.leading,spacing:20) {
-                        HStack { Robot(size:65);VStack(alignment:.leading,spacing:6) {Text(plan.recommendationStatus == "partial" ? "这份草案还需要你看看":store.trip==nil || store.proposalFromNewTrip ? "你的路线准备好了" : "看看这次怎么调整").font(.title2.bold());Text("确认之后，才会保存到你的行程").font(.caption).foregroundStyle(Palette.muted)} }
-                        Text(plan.explanation).font(.subheadline).padding(18).background(Palette.mint,in:RoundedRectangle(cornerRadius:20))
+                        HStack { Robot(size:65);VStack(alignment:.leading,spacing:6) {Text(unchanged ? "这次试算没有改变安排":plan.recommendationStatus == "partial" ? "这份草案还需要你看看":store.trip==nil || store.proposalFromNewTrip ? "你的路线准备好了" : "看看这次怎么调整").font(.title2.bold());Text(unchanged ? (unchangedRequest ? "原行程保持不变，不需要再次保存":"路线未变；可以确认保存这次的需求更新"):"确认之后，才会保存到你的行程").font(.caption).foregroundStyle(Palette.muted)} }
+                        Text(unchanged ? "这次试算没有改变地点、时间或预计步数，也没有减少步行。可以先保留原行程，或返回日程缩短停留、移除可选活动，再重新核对路线。":plan.explanation).font(.subheadline).padding(18).background(Palette.mint,in:RoundedRectangle(cornerRadius:20))
                         if let old=store.trip,!store.proposalFromNewTrip {
                             let before=Set(old.days.flatMap(\.stops).map(\.name)),after=Set(plan.days.flatMap{ $0.stops+($0.completedStops ?? []) }.map(\.name))
                             VStack(alignment:.leading,spacing:8) { Text("调整对比").font(.headline);Text("新增："+(after.subtracting(before).sorted().joined(separator:"、").isEmpty ? "无" : after.subtracting(before).sorted().joined(separator:"、")));Text("移除："+(before.subtracting(after).sorted().joined(separator:"、").isEmpty ? "无" : before.subtracting(after).sorted().joined(separator:"、")));Text("预计步数：\(old.days.reduce(0){$0+$1.estimatedSteps}) → \(plan.days.reduce(0){$0+$1.estimatedSteps})") }.font(.caption).padding(18).frame(maxWidth:.infinity,alignment:.leading).background(.white,in:RoundedRectangle(cornerRadius:20))
@@ -24,7 +54,7 @@ struct ProposalView:View {
                 }
             }.background(Palette.cream).navigationTitle("行程草案").navigationBarTitleDisplayMode(.inline)
             .toolbar {ToolbarItem(placement:.topBarLeading){Button("取消"){store.proposal=nil}.tint(Palette.muted)}}
-            .safeAreaInset(edge:.bottom){PrimaryButton(title:"确认并保存",symbol:"checkmark"){Task{await store.acceptProposal()}}.padding(20).background(Palette.cream)}
+            .safeAreaInset(edge:.bottom){PrimaryButton(title:unchangedRequest ? "保留原行程":unchanged ? "保存需求，保留路线":"确认并保存",symbol:"checkmark"){if unchangedRequest{store.proposal=nil}else{Task{await store.acceptProposal()}}}.padding(20).background(Palette.cream)}
         }
     }
 }

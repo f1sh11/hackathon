@@ -241,6 +241,7 @@ import MapKit
         XCTAssertEqual(restored.days[0].stops[0].sourceURL,"https://example.com/restaurant")
     }
     func testNewTripDoesNotAdjustExistingTripAndPartialRecommendationNeedsReview() async throws {
+        let restoreDefaults=preservePlanningDefaults();defer{restoreDefaults()}
         var result=try fixture();result.recommendationStatus="partial";result.schedule=nil
         result.profile.end=result.profile.start
         var existing=result;existing.id="existing-trip";existing.revision=2
@@ -412,6 +413,7 @@ import MapKit
         XCTAssertNotNil(store.errorMessage);XCTAssertNil(store.koalaFeedback);XCTAssertFalse(store.busy)
     }
     func testSuccessfulBackgroundGenerationDoesNotOpenOrReplaceTheCurrentWorkspace() async throws {
+        let restoreDefaults=preservePlanningDefaults();defer{restoreDefaults()}
         let defaults=UserDefaults.standard
         let keys=["pendingTripFields","travelPlanningTask","onboarded","petSession.draft","petSession.nav-workspace-trip"]
         let previous=keys.map{defaults.object(forKey:$0)}
@@ -442,6 +444,8 @@ import MapKit
     }
     private func preservePlanningDefaults()->()->Void {
         let keys=["travelPlanningTask","pendingTripFields","userTravelProfile","travelDataSource","mapProvider"];let defaults=UserDefaults.standard;let values=keys.map{defaults.object(forKey:$0)}
+        // Existing background fixtures stub the direct-source catalog, not a warehouse POI response.
+        defaults.set("direct",forKey:"travelDataSource")
         return {for (key,value) in zip(keys,values){if let value{defaults.set(value,forKey:key)}else{defaults.removeObject(forKey:key)}}}
     }
     func testBackgroundTaskAllowsNavigationAndKeepsPartialResultsInsideItsCard() async throws {

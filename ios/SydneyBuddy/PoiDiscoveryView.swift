@@ -604,7 +604,7 @@ struct TicketPriceSummary:Decodable {
         if meal{p.category="美食";p.visitMinutes=45}
         return p
     }
-    static func search(_ profile:TripProfile,lookup:(CLLocationCoordinate2D,String,String) async throws -> [ScheduleCandidate] = {point,category,query in try await ApplePoiProvider.search(point,category,query)}) async throws -> [ScheduleCandidate] {
+    static func search(_ profile:TripProfile,preserveDetails:Bool=false,lookup:(CLLocationCoordinate2D,String,String) async throws -> [ScheduleCandidate] = {point,category,query in try await ApplePoiProvider.search(point,category,query)}) async throws -> [ScheduleCandidate] {
         var groups:[(String,String)]=[]
         let interests=profile.interests
         if interests.contains("美食"){groups.append(("food","restaurants"))}
@@ -625,7 +625,12 @@ struct TicketPriceSummary:Decodable {
             if category=="sights",!query.isEmpty {results += try await lookup(profile.start.location,category,"")}
             var added=0
             for var p in results.filter({category != "food" || primaryMealName($0.name)}) where seen.insert(p.id).inserted {
-                p=planningCandidate(p)
+                if preserveDetails {
+                    let kind=p.poiKind ?? ""
+                    if (kind=="restaurant" || kind.hasSuffix("_restaurant") || ["fast_food","food_court","casual_eatery"].contains(kind)),primaryMealName(p.name) {
+                        p.activityType="meal";p.category="美食"
+                    }
+                }else{p=planningCandidate(p)}
                 if category != "all" && isTransportAccess(p){continue}
                 if category=="shops"{p.category="购物"}
                 found.append(p);added+=1
