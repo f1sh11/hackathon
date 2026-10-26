@@ -1,6 +1,7 @@
 import XCTest
 import SwiftUI
 import Security
+import MapKit
 @testable import SydneyBuddy
 
 private final class JourneyStub:URLProtocol {
@@ -17,6 +18,19 @@ private final class JourneyStub:URLProtocol {
     override func stopLoading(){}
 }
 @MainActor final class JourneyTests:XCTestCase {
+    func testWalkingFailureSurvivesSessionCleanupAndAllowsRetry() async throws {
+        let roads=AppleWalkingRoads.shared;let old=roads.query;defer{roads.query=old}
+        var value=day();value.start=Coordinate(name:"QA start",lat:-33.891234,lng:151.111234);value.end=Coordinate(name:"QA end",lat:-33.894567,lng:151.114567)
+        let navigator=WalkingNavigator(day:value,tripID:"qa-inline-navigation-error",endpoint:"http://127.0.0.1:8787/navigation/route",apple:true)
+        defer{navigator.pause()};navigator.setSimulation(true)
+        roads.query={_,_ in throw MKError(.directionsNotFound)}
+        navigator.start()
+        let deadline=Date().addingTimeInterval(8)
+        while navigator.busy && Date()<deadline{try await Task.sleep(for:.milliseconds(20))}
+        XCTAssertFalse(navigator.busy);XCTAssertFalse(navigator.active)
+        XCTAssertEqual(navigator.message,MKError(.directionsNotFound).localizedDescription)
+    }
+
     func testCloudAccessCodeOnlyGoesToConfiguredHTTPSOrigin() throws {
         let prefs=UserDefaults.standard;let previous=prefs.object(forKey:"cloudBackendURL");let previousMode=prefs.object(forKey:"backendMode")
         let base=URL(string:"https://backend-test.example.invalid")!;let code="synthetic-test-access-code-123456789"
@@ -94,6 +108,21 @@ private final class JourneyStub:URLProtocol {
         store.loader={request in (Data(#"{"dataSource":"direct","places":[]}"#.utf8),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)}
         do{_ = try await store.discoverPlanningCandidates(profile,source:.zetarisCloud);XCTFail("Wrong source accepted")}
         catch{XCTAssertTrue(error.localizedDescription.contains("来源不一致"))}
+    }
+    func testCloudArtDiscoveryQueriesGalleryTypesInsteadOfTheNearestGenericSights() async throws {
+        let store=AppStore();var profile=TripProfile();profile.interests=["艺术","自然"]
+        var searches:[String]=[]
+        store.loader={request in
+            let body=try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:Any]
+            let category=body["category"] as! String;let text=body["query"] as? String ?? "";searches.append(category+"|"+text)
+            let gallery=category=="sights" && text=="gallery";let park=category=="parks"
+            let point:[String:Any]=["id":gallery ? "osm:gallery":park ? "osm:park":"osm:memorial","name":gallery ? "Real Gallery":park ? "Real Park":"Nearby Memorial","category":"风景","indoor":false,"visitMinutes":60,"cost":0,"lat":-33.86,"lng":151.21,"reason":"source fixture","source":"OpenStreetMap","poiKind":gallery ? "art_gallery":park ? "park":"memorial"]
+            return (try JSONSerialization.data(withJSONObject:["dataSource":"zetaris-cloud","places":[point]]),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)
+        }
+        let found=try await store.discoverPlanningCandidates(profile,source:.zetarisCloud)
+        XCTAssertTrue(searches.contains("sights|gallery"));XCTAssertTrue(searches.contains("parks|"))
+        XCTAssertEqual(found.first{$0.id=="osm:gallery"}?.category,"艺术");XCTAssertEqual(found.first{$0.id=="osm:park"}?.category,"自然")
+        XCTAssertTrue(found.contains{$0.id=="osm:gallery"});XCTAssertTrue(found.contains{$0.id=="osm:park"})
     }
     func testAdjustmentComparisonIgnoresMetadataButDetectsTimeAndRouteChanges() throws {
         let original=try JSONDecoder().decode(Trip.self,from:Data(contentsOf:Bundle(for:Self.self).url(forResource:"schedule-trip-test",withExtension:"json")!))

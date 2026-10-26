@@ -13,6 +13,8 @@ public sealed class PetSession
 {
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
     public string ResponseLanguage { get; set; } = "";
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string InteractionContext { get; set; } = "";
     public List<PetMessage> Messages { get; set; } = [];
     public Dictionary<string,string> Fields { get; set; } = [];
     public JsonObject PersonalProfile { get; set; } = new();
@@ -67,6 +69,9 @@ public static class PetResponseLanguage
 {
     public static void Apply(PetSession session,JsonObject input) {
         var language=input.Str("language");
+        var context=input.Str("interactionContext");
+        if(context.Length>2000)throw new ServiceException("行程上下文过长。");
+        session.InteractionContext=context;
         if(language is "zh-Hans" or "zh-Hant" or "en")session.ResponseLanguage=language;
     }
     public static string Prompt(PetSession session)=>session.ResponseLanguage switch {
@@ -104,7 +109,7 @@ public static class PetQuestions
         };
     }
     private static bool ValidBudget(PetSession s,string? value) {
-        if(s.Fields.GetValueOrDefault("budgetCoverage")=="totalTravel" || !double.TryParse(value,System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out var amount) || !double.IsFinite(amount) || amount<=0 || amount>1000000)return false;
+        if(s.Fields.GetValueOrDefault("budgetCoverage")=="totalTravel" || !double.TryParse(value,System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out var amount) || !double.IsFinite(amount) || amount<0 || amount>1000000)return false;
         var basis=s.Fields.GetValueOrDefault("budgetBasis","");
         if(int.TryParse(s.Fields.GetValueOrDefault("days"),out var days) && days>0 && int.TryParse(s.Fields.GetValueOrDefault("travelers"),out var people) && people>0){
             var daily=amount/(basis.StartsWith("group") ? people:1)/(basis.EndsWith("Trip") ? days:1);return daily<=10000;
@@ -290,7 +295,7 @@ public static class PetExplicitFacts
     public static string? BudgetReply(PetSession session)
     {
         var f=session.Fields;
-        if(!double.TryParse(f.GetValueOrDefault("budget"),System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out var amount) || !double.IsFinite(amount) || amount<=0)return null;
+        if(!double.TryParse(f.GetValueOrDefault("budget"),System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out var amount) || !double.IsFinite(amount) || amount<0)return null;
         var currency=f.GetValueOrDefault("budgetCurrency","");
         var basis=f.GetValueOrDefault("budgetBasis","");
         var basisLabel=basis switch {"perPersonPerDay"=>"每人每天","groupPerDay"=>"全体每天","perPersonTrip"=>"每人全程","groupTrip"=>"全体全程",_=>"范围待确认"};

@@ -25,6 +25,33 @@ public sealed class PlannerTests : IDisposable
     private static JsonObject SearchPlace(string id,string name,double lat) => new() {
         ["id"]="apple:"+id,["name"]=name,["lat"]=lat,["lng"]=151.2126,["source"]="Apple Maps",["category"]="风景",["poiKind"]="pointOfInterest"
     };
+    private static JsonObject ConflictingPlace(string id,string name) {
+        var place=SearchPlace("unused",name,-33.862);place["id"]=id;place["source"]="Overture Maps";return place;
+    }
+    [Theory]
+    [InlineData("overture:6807df81-5509-4b67-8318-8c619ef155eb","Great Barrier Reef Australia")]
+    [InlineData("overture:ebf9a059-1f0f-420d-9a95-dea2a5da6424","Ayers Rock, Uluru NT")]
+    public async Task ConfirmedLocationConflictsCannotEnterPlanOrWalkingBackups(string id,string name) {
+        var profile=TestSupport.Profile();profile["interests"]=new JsonArray("风景");profile["maxSteps"]=60000;
+        profile["planningCandidates"]=new JsonArray(ConflictingPlace(id,name),SearchPlace("safe","Harbour Garden",-33.862));
+        var plan=await Create().PlanAsync(profile,"demo");
+        Assert.DoesNotContain(plan.Array("days")!.OfType<JsonObject>().SelectMany(x=>x.Array("stops")!.OfType<JsonObject>()),s=>s.Str("id")==id);
+        var shortlist=await Create().PrepareWalkingAsync(profile);
+        Assert.DoesNotContain(shortlist.Array("candidateDays")!.OfType<JsonArray>().SelectMany(x=>x),p=>p!.GetValue<string>()==id);
+        Assert.Contains(plan.Array("trace")!.OfType<JsonObject>(),x=>x.Str("title")=="核对地点位置");
+        profile["mustVisit"]=new JsonArray(id);
+        var error=await Assert.ThrowsAsync<ServiceException>(()=>Create().PlanAsync(profile,"demo"));
+        Assert.Contains("坐标存在冲突",error.Message);Assert.Contains(id,profile.Array("mustVisit")!.ToJsonString());
+    }
+    [Fact] public void SimilarNamesAndCorrectedSourceCoordinatesAreNotBlacklisted() {
+        Assert.False(PlanningLocationGuard.HasKnownConflict(SearchPlace("cafe","Uluru Cafe",-33.86)));
+        var corrected=ConflictingPlace("overture:ebf9a059-1f0f-420d-9a95-dea2a5da6424","Ayers Rock, Uluru NT");
+        corrected["lat"]=-25.344;corrected["lng"]=131.037;
+        Assert.False(PlanningLocationGuard.HasKnownConflict(corrected));
+        var profile=TestSupport.Profile();profile["mustVisit"]=new JsonArray();
+        Assert.Throws<ServiceException>(()=>TravelConstraints.Apply(profile,[ConflictingPlace("overture:ebf9a059-1f0f-420d-9a95-dea2a5da6424","Ayers Rock") ]));
+    }
+
     [Theory]
     [InlineData("Le Jolly Christmas Market",true)]
     [InlineData("聖誕市集",true)]

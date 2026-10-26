@@ -35,6 +35,45 @@ import MapKit
         XCTAssertTrue(map.visibleMapRect.contains(MKMapPoint(center)))
         XCTAssertGreaterThan(map.visibleMapRect.width*MKMetersPerMapPointAtLatitude(center.latitude),649)
     }
+    func testMealReplacementDoesNotRecommendAnAttraction() {
+        let museum=ScheduleCandidate(id:"museum",name:"Museum",category:"文化",indoor:true,visitMinutes:60,cost:0,lat:-33.86,lng:151.21,reason:"")
+        var restaurant=museum;restaurant.id="restaurant";restaurant.category="美食";restaurant.activityType="meal"
+        XCTAssertFalse(ScheduleSwapOptions.matches(museum,replacingKind:"meal"))
+        XCTAssertTrue(ScheduleSwapOptions.matches(restaurant,replacingKind:"meal"))
+        XCTAssertTrue(ScheduleSwapOptions.matches(museum,replacingKind:nil))
+    }
+
+    func testInlineUndoDoesNotOpenTheGlobalLoadingScreen() async throws {
+        let store=AppStore();var value=try fixture();value.id="inline-undo-test";value.revision=1
+        store.trip=value;store.saved=[value];store.lastAdjustment=value
+        var accepted=value;accepted.revision=2
+        let data=try JSONEncoder().encode(accepted)
+        store.loader={request in XCTAssertFalse(store.busy);return(data,HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)}
+        let result=await store.undoLastAdjustment(inline:true)
+        XCTAssertTrue(result);XCTAssertFalse(store.busy);XCTAssertNil(store.lastAdjustment);XCTAssertEqual(store.trip?.revision,2)
+    }
+
+    func testSmallEditNeverAutoSavesAnExistingManualDraftOrLegacyDemo() {
+        XCTAssertTrue(ExperienceEditPolicy.automatic(unified:true,hasDraft:false,alreadyAutomatic:false))
+        XCTAssertTrue(ExperienceEditPolicy.automatic(unified:true,hasDraft:true,alreadyAutomatic:true))
+        XCTAssertFalse(ExperienceEditPolicy.automatic(unified:true,hasDraft:true,alreadyAutomatic:false))
+        XCTAssertFalse(ExperienceEditPolicy.automatic(unified:false,hasDraft:false,alreadyAutomatic:false))
+    }
+
+    func testWorkspaceAdjustmentStaysInlineButNewTripsAndAdvancedEditorStillPresent() throws {
+        let store=AppStore();var plan=try fixture();plan.id="workspace-trip"
+        store.workspaceTripID=plan.id;store.proposalIsSuggestion=true;store.proposal=plan
+        XCTAssertEqual(store.workspaceAdjustment?.id,plan.id);XCTAssertFalse(store.shouldPresentProposalSheet)
+        store.proposalFromNewTrip=true
+        XCTAssertNil(store.workspaceAdjustment);XCTAssertTrue(store.shouldPresentProposalSheet)
+        store.proposalFromNewTrip=false;store.proposalIsSuggestion=false
+        XCTAssertTrue(store.shouldPresentProposalSheet)
+        store.proposalIsSuggestion=true;store.workspaceTripID="another-trip"
+        XCTAssertTrue(store.shouldPresentProposalSheet)
+        store.proposal=nil
+        XCTAssertFalse(store.shouldPresentProposalSheet)
+    }
+
     func testPersonalConversationSkipPreservesTripDraftAndDoesNotClaimMemoryWasSaved() throws {
         let defaults=UserDefaults.standard
         let keys=["koko.personalChat.finished","pendingTripFields","userTravelProfile","personalPreferences.v2.completed","personalPreferences.completed","onboarded","travelPlanningTask"]

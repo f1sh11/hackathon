@@ -237,7 +237,13 @@ struct TravelPlanningTask:Codable {
     private var planningMapProvider:MapProvider?
     @Published var preparations: [String] = UserDefaults.standard.stringArray(forKey:"preparations") ?? []
     @Published var trip: Trip? { didSet { refreshedWeather = nil } }
+    @Published var workspaceTripID:String?
     @Published var proposal: Trip? {didSet{if proposal == nil{proposalIsSuggestion=false;proposalFromNewTrip=false;remainingRequest=nil}}}
+    var workspaceAdjustment:Trip? {
+        guard workspaceTripID != nil,proposalIsSuggestion,!proposalFromNewTrip,proposal?.id==workspaceTripID else{return nil}
+        return proposal
+    }
+    var shouldPresentProposalSheet:Bool {proposal != nil && workspaceAdjustment==nil}
     @Published var proposalIsSuggestion=false
     @Published var proposalFromNewTrip=false
     @Published var selectedStopID:String?
@@ -303,7 +309,7 @@ struct TravelPlanningTask:Codable {
     }
     var mapViewport: MapViewport?
     @Published var live = false
-    @Published var language = AppLanguage(rawValue:UserDefaults.standard.string(forKey:"appLanguage") ?? "") ?? .simplified {
+    @Published var language = AppLanguage(rawValue:UserDefaults.standard.string(forKey:"appLanguage") ?? "") ?? .english {
         didSet {UserDefaults.standard.set(language.rawValue,forKey:"appLanguage")}
     }
     @Published var tab = 1
@@ -428,7 +434,9 @@ struct TravelPlanningTask:Codable {
             struct Result:Decodable {var places:[ScheduleCandidate];var dataSource:String}
             let kinds=["restaurants":"restaurants","parks":"parks","museums":"museums"]
             let kind=kinds[query] ?? category
-            let text=category == "all" ? query:""
+            // The warehouse uses typed filters for parks/museums, but art needs a keyword.
+            // Keep the established API contract so an older shared backend can still search.
+            let text=query == "art galleries" ? "gallery":category == "all" ? query:""
             let body:[String:Any]=["lat":point.latitude,"lng":point.longitude,"radius":5000,"category":kind,"query":text,"provider":"osm"]
             let result:Result=try await self.api("poi/search",method:"POST",body:JSONSerialization.data(withJSONObject:body),source:source)
             guard result.dataSource==source.rawValue else{throw NSError(domain:"Planning",code:4,userInfo:[NSLocalizedDescriptionKey:"规划地点来源不一致，请重新选择资料来源后再试。"])}
@@ -587,9 +595,9 @@ struct TravelPlanningTask:Codable {
             lastAdjustment=original;if let i=saved.firstIndex(where:{$0.id==accepted.id}){saved[i]=accepted};trip=accepted;self.dayIndex=dayIndex;selectedStopID=nil;adjustmentError=nil;koalaFeedback=KoalaCue(event:.preferenceConfirmed);return true
         }catch{adjustmentError=error.localizedDescription;return false}
     }
-    func undoLastAdjustment() async -> Bool {
+    func undoLastAdjustment(inline:Bool=false) async -> Bool {
         guard !busy,let original=trip,lastAdjustment?.id==original.id else{return false}
-        busy=true;defer{busy=false}
+        if !inline{busy=true};defer{if !inline{busy=false}}
         do {
             operationTitle="正在恢复原安排…"
             let raw:[String:Any]=["trip":try JSONSerialization.jsonObject(with:JSONEncoder().encode(original)),"expectedRevision":original.revision ?? 0,"undoAdjustment":true]

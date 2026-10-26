@@ -9,6 +9,28 @@ namespace SydneyBuddy.Api.Tests;
 public sealed class PetConversationTests(ApiFixture fixture):IClassFixture<ApiFixture>
 {
     [Fact]
+    public void ItineraryContextIsEphemeralAndNotTravelMemoryOrUserMessage() {
+        var session=new PetSession();
+        PetResponseLanguage.Apply(session,new JsonObject{["language"]="en",["interactionContext"]="Discuss only day 2; preview before saving."});
+        Assert.Contains("day 2",session.InteractionContext);
+        Assert.Empty(session.Messages);Assert.Empty(session.Fields);Assert.Empty(session.Preferences);
+        var json=System.Text.Json.JsonSerializer.Serialize(session,JsonExtensions.Options);
+        Assert.DoesNotContain("interactionContext",json);Assert.DoesNotContain("Discuss only day 2",json);
+        PetResponseLanguage.Apply(session,new JsonObject{["language"]="en"});Assert.Empty(session.InteractionContext);
+    }
+    [Theory]
+    [InlineData("perPersonPerDay")]
+    [InlineData("groupPerDay")]
+    [InlineData("perPersonTrip")]
+    [InlineData("groupTrip")]
+    public void ZeroActivityBudgetDoesNotKeepAskingForMoney(string basis) {
+        var session=new PetSession();
+        PetQuestions.Apply(session,new JsonObject{["destination"]="悉尼",["date"]="2026-11-01",["days"]="2",["travelers"]="2",["budget"]="0",["budgetBasis"]=basis,["budgetCurrency"]="AUD",["budgetCoverage"]="activities"});
+        Assert.True(PetQuestions.Answered(session,"budget"));Assert.Equal("",PetQuestions.Next(session));
+        Assert.Contains("预算 0 AUD",PetExplicitFacts.BudgetReply(session));
+        session.Fields["budget"]="-0.01";Assert.False(PetQuestions.Answered(session,"budget"));
+    }
+    [Fact]
     public void InterfaceLanguageIsValidatedAndDoesNotBecomeTravelMemory() {
         var session=new PetSession();session.Fields["destination"]="悉尼";
         PetResponseLanguage.Apply(session,new JsonObject{["language"]="en"});

@@ -163,6 +163,7 @@ enum PoiDiscoveryCategory {
 
     var embedded=false
     var initialQuery=""
+    var initialCategory:String?=nil
     var addingToDay=false
     var replacingPlace=false
     var onAdd:(ScheduleCandidate)->Void = {PoiToolbox.shared.add($0)}
@@ -302,7 +303,7 @@ enum PoiDiscoveryCategory {
             model.center = CLLocationCoordinate2D(latitude: viewport.lat, longitude: viewport.lng)
         }
         model.query=initialQuery
-        if addingToDay{model.category=replacingPlace ? "all":"food"}
+        if let initialCategory{model.category=initialCategory}else if addingToDay{model.category=replacingPlace ? "all":"food"}
         model.configure(searchProvider, googleMapConfigured: SydneyBuddyApp.mapConfigured,dataSource:store.travelDataSource)
     }
     .onChange(of:localProvider){_,provider in if addingToDay{detail=nil;areaChanged=false;cameraAction=nil;model.configure(provider,googleMapConfigured:SydneyBuddyApp.mapConfigured,dataSource:store.travelDataSource)}}
@@ -644,6 +645,14 @@ struct TicketPriceSummary:Decodable {
 }
 
 @MainActor enum ApplePlanningDiscovery {
+    static func sourceInterest(_ kind:String?)->String? {
+        let kind=(kind ?? "").lowercased()
+        if ["art_gallery","gallery","art_museum","contemporary_art_museum","artwork"].contains(kind){return "艺术"}
+        if kind=="museum" || kind.hasSuffix("_museum"){return "文化"}
+        if ["park","garden","botanical_garden","national_park","state_park","city_park","nature_reserve","beach","waterfall","forest"].contains(kind){return "自然"}
+        if ["historic_site","memorial","monument","archaeological_site","heritage_site"].contains(kind){return "文化"}
+        return nil
+    }
     /// MapKit may label station groceries and snack counters as restaurants.
     static func primaryMealName(_ name:String)->Bool {
         name.range(of:"bakery|bakehouse|patisserie|juice|fruit|food market|mini.?mart|grocery|supermarket|catering|coffee|café|cafe|面包|烘焙|果汁|咖啡",options:[.regularExpression,.caseInsensitive]) == nil
@@ -682,6 +691,7 @@ struct TicketPriceSummary:Decodable {
             for var p in results.filter({category != "food" || primaryMealName($0.name)}) where seen.insert(p.id).inserted {
                 if preserveDetails {
                     let kind=p.poiKind ?? ""
+                    if ["風景","风景","sights"].contains(p.category),let interest=sourceInterest(kind){p.category=interest}
                     if (kind=="restaurant" || kind.hasSuffix("_restaurant") || ["fast_food","food_court","casual_eatery"].contains(kind)),primaryMealName(p.name) {
                         p.activityType="meal";p.category="美食"
                     }

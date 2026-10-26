@@ -1,6 +1,22 @@
 using System.Text.Json.Nodes;
 namespace SydneyBuddy.Api.Tests;
 public sealed class TravelWorldModelTests {
+    [Theory]
+    [InlineData(0,true,"low")]
+    [InlineData(0,false,"unknown")]
+    [InlineData(0.5,true,"high")]
+    [InlineData(0.5,false,"high")]
+    public void ZeroBudgetStillDetectsOverspendAndDoesNotAssumeUnknownPlacesAreFree(double cost,bool costKnown,string risk) {
+        var trip=Trip();trip.Object("profile")!["budget"]=0;
+        foreach(var day in trip.Array("days")!.OfType<JsonObject>()) {
+            day["estimatedCost"]=cost;day.Array("stops")![0]!["cost"]=cost;day.Array("stops")![0]!["costKnown"]=costKnown;
+        }
+        Assert.Equal(risk,TravelWorldModelService.Evaluate(trip).Object("summary")!.Str("budgetRisk"));
+    }
+    [Fact] public void MissingBudgetIsNotAnExplicitZeroBudget() {
+        var trip=Trip();trip.Object("profile")!.Remove("budget");
+        Assert.Equal("unknown",TravelWorldModelService.Evaluate(trip).Object("summary")!.Str("budgetRisk"));
+    }
     private static JsonObject Trip() => JsonNode.Parse("""
     {"profile":{"maxSteps":10000,"budget":100,"startMinute":600},"weather":{"status":"partial","days":[{"date":"2026-10-25","available":true,"rainy":false},{"date":"2026-10-26","available":false,"rainy":false}]},"days":[
     {"date":"2026-10-25","planningStartMinute":660,"estimatedSteps":6000,"estimatedCost":60,"start":{"name":"起点"},"end":{"name":"酒店"},"finishTime":"17:00","stops":[{"name":"A","arrival":"12:00","cost":60,"steps":1200,"indoor":true,"visitMinutes":60}],"legs":[{"minutes":40,"source":"Apple MapKit"},{"minutes":40,"source":"TfNSW"}]},

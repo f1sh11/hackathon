@@ -457,7 +457,12 @@ extension WalkingNavigator {
                 }
                 try await Task.sleep(for:simulation ? .milliseconds(150):.seconds(1))
             }
-        }catch {guard generation==token else{return};pause();message=Task.isCancelled ? nil:error.localizedDescription}}
+        }catch {
+            guard generation==token else{return}
+            // pause() cancels this task; capture cancellation before cleanup so real failures remain visible.
+            let cancelled=Task.isCancelled || error is CancellationError
+            pause();message=cancelled ? nil:error.localizedDescription
+        }}
     }
 }
 
@@ -465,5 +470,57 @@ extension WalkingNavigator {
     static func display(_ raw:String,remaining:Double,target:String)->String {
         let arrival=raw.contains("到达") || raw.contains("目的地在") || raw.lowercased().contains("destination") || raw.lowercased().contains("arrive")
         return arrival && remaining>25 ? "沿路线继续前往"+target+"，剩余约 \(Int(remaining)) 米":raw
+    }
+}
+
+// The trip workspace keeps navigation and its itinerary in the same hierarchy.
+struct UnifiedWalkingMap:View {
+    @ObservedObject var navigator:WalkingNavigator
+    var day:DayPlan?=nil
+    var overview:OverviewRoute?=nil
+    var sections:[JourneyMapSection]=[]
+    var body:some View {
+        Group {
+            if navigator.geometry.isEmpty,let day {
+                NativeRouteMap(day:day,overview:overview,expanded:true,bottomInset:24,provider:navigator.apple ? .apple:.osm,viewport:nil,onViewport:{_ in},sections:sections)
+            }else{WalkingNativeMap(points:navigator.points,geometry:navigator.geometry,position:navigator.position,osm:!navigator.apple)}
+        }.accessibilityIdentifier("trip-navigation-map")
+    }
+}
+struct UnifiedWalkingControls:View {
+    @ObservedObject var navigator:WalkingNavigator
+    var onStop:()->Void
+    @State private var confirmSkip=false
+    @State private var confirmReset=false
+    var body:some View {
+        VStack(alignment:.leading,spacing:8) {
+            HStack {Text(navigator.progress.finished ? uiText("今天的行程已完成"):AppLanguage.current.text("Next: {0}",uiText(navigator.target.name))).font(.headline).lineLimit(2);Spacer();Button(uiText("结束导航"),action:onStop).font(.caption)}
+            if navigator.busy {ProgressView(uiText("正在获取位置与步行路线…"))}
+            if let message=navigator.message{
+                Text(uiText(message)).font(.caption).foregroundStyle(.red)
+                Text(uiText("You can still follow the planned route on the map. View day to change your plans.")).font(.caption).foregroundStyle(Palette.muted)
+            }
+            if navigator.active {Text(uiText(navigator.instruction)).font(.subheadline);Text(uiText(navigator.remaining)).font(.caption).foregroundStyle(Palette.muted)}
+            if navigator.simulation{Text(uiText("模拟位置 · 快速演示 · 不记录实际行程进度")).font(.caption).foregroundStyle(.orange)}
+            HStack {
+                if navigator.active {
+                    Button(uiText("我已到达")){navigator.arrived()}.buttonStyle(.borderedProminent)
+                    Button(uiText("暂停导航")){navigator.pause()}
+                }else if navigator.progress.arrived && !navigator.progress.finished {
+                    Button(uiText(navigator.progress.leg+1==navigator.count ? "完成今天行程":"前往下一站")){navigator.next()}.buttonStyle(.borderedProminent)
+                }else if !navigator.progress.finished {
+                    Button(uiText(navigator.simulation ? "开始模拟导航":navigator.message != nil ? "Try location again":"Navigate from my location")){navigator.start()}.buttonStyle(.borderedProminent)
+                }
+                Spacer()
+                Menu {
+                    Button(uiText(navigator.muted ? "开启语音":"静音")){navigator.toggleMute()}
+                    if !navigator.progress.finished{Button(uiText("跳过这一站")){confirmSkip=true}}
+                    Toggle(uiText("模拟导航（不使用设备定位）"),isOn:Binding(get:{navigator.simulation},set:{navigator.setSimulation($0)})).disabled(navigator.active || navigator.busy)
+                    Button(uiText("重置今天导航进度"),role:.destructive){confirmReset=true}
+                }label:{Image(systemName:"ellipsis").frame(width:44,height:44)}
+            }.disabled(navigator.busy)
+        }.padding(16).background(.white).accessibilityIdentifier("trip-inline-navigation")
+        .confirmationDialog(uiText("跳过当前地点，直接前往下一站？"),isPresented:$confirmSkip){Button(uiText("跳过这一站"),role:.destructive){navigator.skip()}}
+        .confirmationDialog(uiText("重置今天的导航进度？"),isPresented:$confirmReset){Button(uiText("重置"),role:.destructive){navigator.reset()}}
     }
 }

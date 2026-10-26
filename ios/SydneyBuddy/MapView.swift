@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 import GoogleMaps
 import MapKit
 
@@ -286,6 +287,7 @@ struct NativeRouteMap:UIViewRepresentable {
     var onPoiSelect:(ScheduleCandidate)->Void={_ in}
     var insightMarkers:[InsightMarker] = []
     var cameraAction:RouteMapCameraAction? = nil
+    var navigation:WalkingNavigator? = nil
     func makeCoordinator()->Coordinator {Coordinator(self)}
     func makeUIView(context:Context)->MKMapView {
         let map=MKMapView();map.delegate=context.coordinator
@@ -298,6 +300,7 @@ struct NativeRouteMap:UIViewRepresentable {
     }
     func updateUIView(_ map:MKMapView,context:Context) {
         context.coordinator.parent=self
+        defer {context.coordinator.updateNavigation(map)}
         if let action=cameraAction,context.coordinator.lastCameraAction != action.id {
             context.coordinator.lastCameraAction=action.id
             switch action.kind {
@@ -362,7 +365,7 @@ struct NativeRouteMap:UIViewRepresentable {
                 // Calculate padding after layout so the first fit does not hide pins behind the card.
                 map.layoutIfNeeded()
                 let height=map.bounds.height>0 ? map.bounds.height:600
-                let padding=expanded ? UIEdgeInsets(top:110,left:45,bottom:180,right:45):UIEdgeInsets(top:min(130,height*0.25),left:35,bottom:min(bottomInset,height*0.65),right:35)
+                let padding=expanded ? UIEdgeInsets(top:min(110,height*0.18),left:35,bottom:min(bottomInset,height*0.25),right:35):UIEdgeInsets(top:min(130,height*0.25),left:35,bottom:min(bottomInset,height*0.65),right:35)
                 map.setVisibleMapRect(bounds,edgePadding:padding,animated:false)
             }
         }
@@ -375,6 +378,29 @@ struct NativeRouteMap:UIViewRepresentable {
         var lastSelection:String?
         var lastCameraAction:UUID?
         var lastBottomInset:CGFloat?
+        var navigationLine:MKPolyline?
+        var navigationKey=""
+        var positionPin:MKPointAnnotation?
+        var lastNavigationPosition:CLLocationCoordinate2D?
+        func updateNavigation(_ map:MKMapView){
+            let geometry=parent.navigation?.geometry ?? []
+            let key=geometry.map{"\($0.latitude),\($0.longitude)"}.joined(separator:";")
+            if key != navigationKey || (navigationLine != nil && !map.overlays.contains(where:{$0 === navigationLine})) {
+                navigationKey=key
+                if let navigationLine{map.removeOverlay(navigationLine)}
+                navigationLine=nil
+                if geometry.count>1{let line=MKPolyline(coordinates:geometry,count:geometry.count);line.title="walk";navigationLine=line;map.addOverlay(line,level:.aboveLabels)}
+            }
+            if let position=parent.navigation?.position{
+                let pin=positionPin ?? MKPointAnnotation();pin.title=uiText("当前位置");pin.coordinate=position
+                if !map.annotations.contains(where:{$0 === pin}){map.addAnnotation(pin)}
+                positionPin=pin
+                if parent.navigation?.active==true,(lastNavigationPosition?.latitude != position.latitude || lastNavigationPosition?.longitude != position.longitude){
+                    map.setRegion(MKCoordinateRegion(center:position,latitudinalMeters:700,longitudinalMeters:700),animated:false)
+                }
+                lastNavigationPosition=position
+            }else if let pin=positionPin{map.removeAnnotation(pin);positionPin=nil;lastNavigationPosition=nil}
+        }
         var nearbyKey=""
         func refreshNearby(_ map:MKMapView){
             let key=parent.nearbyPlaces.map(\.id).joined()
@@ -446,6 +472,9 @@ struct ProviderRouteMap:View {
     var expanded = false
     var bottomInset:CGFloat=240
     var cameraAction:RouteMapCameraAction? = nil
+    var dayOverride:DayPlan?=nil
+    var navigation:WalkingNavigator?=nil
+    @State private var navigationRevision=0
     @EnvironmentObject var store:AppStore
     @StateObject private var nearby=PoiSearchModel()
     @State private var placeDetail:ScheduleCandidate?
@@ -455,15 +484,16 @@ struct ProviderRouteMap:View {
     }
     var body:some View {
         let _=interfaceLocale
+        let _=navigationRevision
         // A live trip contains Google Places coordinates as well as Google route paths.
         // Keep provider-owned trip geometry on Google; nearby discovery uses the selected data source.
-        let visibleDay=store.trip?.mode=="live" && store.mapProvider != .google ? nil : store.currentDay
+        let visibleDay=store.trip?.mode=="live" && store.mapProvider != .google ? nil : (dayOverride ?? store.currentDay)
         let canShowOverview = (!overviewIsGoogle || store.mapProvider == .google) && (store.trip?.mode != "live" || overviewIsGoogle)
         let safeOverview = canShowOverview ? overview : nil
         let safeSections = canShowOverview ? sections : []
         Group {switch store.mapProvider {
         case .osm,.apple:
-            NativeRouteMap(day:visibleDay,overview:safeOverview,expanded:expanded,bottomInset:bottomInset,provider:store.mapProvider,viewport:expanded ? nil : store.mapViewport,onViewport:moved,sections:safeSections,selectedStopID:store.selectedStopID,onSelect:{if store.selectedStopID != $0{store.selectedStopID=$0}},nearbyPlaces:showsNearby ? nearby.places:[],onPoiSelect:{placeDetail=$0},insightMarkers:showsInsights ? (store.insights?.traffic.items ?? [])+(store.insights?.pricePlaces ?? []) : [],cameraAction:cameraAction).id(store.mapProvider)
+            NativeRouteMap(day:visibleDay,overview:safeOverview,expanded:expanded,bottomInset:bottomInset,provider:store.mapProvider,viewport:expanded ? nil : store.mapViewport,onViewport:moved,sections:safeSections,selectedStopID:store.selectedStopID,onSelect:{if store.selectedStopID != $0{store.selectedStopID=$0}},nearbyPlaces:showsNearby ? nearby.places:[],onPoiSelect:{placeDetail=$0},insightMarkers:showsInsights ? (store.insights?.traffic.items ?? [])+(store.insights?.pricePlaces ?? []) : [],cameraAction:cameraAction,navigation:navigation).id(store.mapProvider)
         case .google:
             if SydneyBuddyApp.mapReady {GoogleRouteMap(day:visibleDay,overview:safeOverview,expanded:expanded,bottomInset:bottomInset,viewport:expanded ? nil : store.mapViewport,onViewport:moved,sections:safeSections,selectedStopID:store.selectedStopID,onSelect:{if store.selectedStopID != $0{store.selectedStopID=$0}},nearbyPlaces:showsNearby ? nearby.places:[],onPoiSelect:{placeDetail=$0},insightMarkers:showsInsights ? (store.insights?.traffic.items ?? [])+(store.insights?.pricePlaces ?? []) : [],cameraAction:cameraAction)}
             else {Palette.mint.overlay(Text(uiText("Google 地图未配置密钥\n请在“我的”选择其他底图")).multilineTextAlignment(.center))}
@@ -477,6 +507,9 @@ struct ProviderRouteMap:View {
         .overlay(alignment:.topLeading){
             if showsNearby && nearby.busy{ProgressView("搜尋附近地點…").font(.caption).padding(8).background(.regularMaterial,in:Capsule()).padding(.top,expanded ? 100:130).padding(.leading,16)}
             else if showsNearby,let error=nearby.error,store.mapProvider != .schematic{Button{nearby.search()}label:{Label(uiText("附近地點未載入・點此重試"),systemImage:"arrow.clockwise").font(.caption).padding(8).background(.regularMaterial,in:Capsule())}.accessibilityHint(uiText(error)).padding(.top,expanded ? 100:130).padding(.leading,16)}
+        }
+        .onReceive(navigation?.objectWillChange.eraseToAnyPublisher() ?? Empty<Void,Never>().eraseToAnyPublisher()){_ in
+            Task{@MainActor in await Task.yield();navigationRevision &+= 1}
         }
         .onDisappear{nearby.stop()}
         .sheet(item:$placeDetail){SchedulePlaceDetail(candidate:$0)}

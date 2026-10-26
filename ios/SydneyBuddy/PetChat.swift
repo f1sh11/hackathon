@@ -32,6 +32,7 @@ let travelExtraFields:[(String,String)]=[("budgetCoverage","预算包含范围")
     @Published var koalaCue:KoalaCue?
     private var scope = "draft"
     private var profiling = false
+    var interactionContext=""
     var loader:(URLRequest) async throws -> (Data,URLResponse) = {try await BackendConnection.data(for:$0)}
     private var base:URL {BackendConnection.base}
     private var pendingRequest: (String,String)?
@@ -84,10 +85,11 @@ let travelExtraFields:[(String,String)]=[("budgetCoverage","预算包含范围")
         await run {
             let scene=session?.replyQuestion?.text ?? ""
             let questionId=reply == nil ? nil:session?.replyQuestion?.id
-            let fingerprint=text+"|"+(field ?? "")+"|"+(value ?? "")+"|"+(reply?.id ?? "")+"|"+(questionId ?? "")
+            let fingerprint=interactionContext+"|"+text+"|"+(field ?? "")+"|"+(value ?? "")+"|"+(reply?.id ?? "")+"|"+(questionId ?? "")
             let requestID=pendingRequest?.0 == fingerprint ? pendingRequest!.1 : UUID().uuidString
             pendingRequest=(fingerprint,requestID);outgoing=text;outgoingIsChoice=reply != nil || field != nil;streaming=""
             var body:[String:Any] = ["message":text,"requestId":requestID,"language":AppLanguage.current.rawValue]
+            if !interactionContext.isEmpty{body["interactionContext"]=interactionContext}
             if let field {body["field"]=field;body["value"]=value ?? text}
             if let reply,let questionId{body["optionId"]=reply.id;body["questionId"]=questionId}
             var req=URLRequest(url:base.appendingPathComponent("pet/sessions/\(id)/turn"));req.httpMethod="POST";TravelDataSource.current.apply(to:&req);req.timeoutInterval=120
@@ -232,6 +234,15 @@ struct PetSpeechBubble:View {
 
 private struct TripDetailRoute:Identifiable {let id:Int}
 
+enum PetComposerDraft {
+    static func restored(_ pending:String,contextual:Bool)->String {
+        guard contextual else{return pending}
+        // Remove only the exact legacy app-generated context, never arbitrary user prose.
+        let pattern = #"(?m)^关于「[^\n]+」第 \d+ 天（\d{4}-\d{2}-\d{2}）。[^\n]*仅调整这一天，保留其余日期和已完成活动；先展示建议，确认后再保存。(?:\n|$)"#
+        return pending.replacingOccurrences(of:pattern,with:"",options:.regularExpression).trimmingCharacters(in:.newlines)
+    }
+}
+
 struct PetChatView:View {
     @Environment(\.locale) private var interfaceLocale
 
@@ -254,6 +265,7 @@ struct PetChatView:View {
     var conversationOnly=false
     var draftScope=false
     var initialMessage=""
+    var interactionContext=""
     var autoSendInitial=false
     @State private var sentInitial=false
     @State private var parkedMessage=""
@@ -401,7 +413,10 @@ struct PetChatView:View {
             var seed:[String:String]=personalSetup ? [:]:(onboarding || draftScope) ? store.pendingTripFields:[:]
             // Legacy habits remain context; only explicit trip answers populate fields.
             if !personalSetup && !onboarding && !draftScope,let t=store.trip{seed=TripConversationSeed.fields(t.profile)}
-            let pendingMessage=UserDefaults.standard.string(forKey:"petComposer."+scope) ?? ""
+            chat.interactionContext=interactionContext
+            let rawPending=UserDefaults.standard.string(forKey:"petComposer."+scope) ?? ""
+            let pendingMessage=PetComposerDraft.restored(rawPending,contextual:!interactionContext.isEmpty)
+            if rawPending != pendingMessage{UserDefaults.standard.set(rawPending,forKey:"petComposer.legacyContext."+scope)}
             parkedMessage=UserDefaults.standard.string(forKey:"petComposer.parked."+scope) ?? ""
             if autoSendInitial {
                 if !pendingMessage.isEmpty{parkedMessage=pendingMessage;UserDefaults.standard.set(pendingMessage,forKey:"petComposer.parked."+scope)}
@@ -656,7 +671,7 @@ struct PetTripDraft {
     static func profile(_ fields:[String:String],base:TripProfile=TripProfile()) throws -> TripProfile {
         func failure(_ message:String)->NSError{NSError(domain:"PetDraft",code:1,userInfo:[NSLocalizedDescriptionKey:message])}
         guard TravelRequirements.supportedDestination(fields["destination"]) else{throw failure("这份资料可保存。当前只能生成悉尼路线，其他城市暂未接入。")}
-        guard let days=Int(fields["days"] ?? ""),(1...15).contains(days),let budget=Double(fields["budget"] ?? ""),budget.isFinite,budget>0,budget<=10000 else{throw failure("请填写 1–15 天和有效的每日活动预算（纯数字，最多 10000 AUD）。")}
+        guard let days=Int(fields["days"] ?? ""),(1...15).contains(days),let budget=Double(fields["budget"] ?? ""),budget.isFinite,budget>=0,budget<=10000 else{throw failure("请填写 1–15 天和有效的每日活动预算（纯数字，最多 10000 AUD）。")}
         let format=DateFormatter();format.locale=Locale(identifier:"en_US_POSIX");format.dateFormat="yyyy-MM-dd";format.isLenient=false
         guard let date=fields["date"],let parsed=format.date(from:date),format.string(from:parsed)==date else{throw failure("请填写 YYYY-MM-DD 格式的有效出发日期。")}
         var result=base;result.date=date;result.days=days;result.budget=budget
@@ -907,7 +922,7 @@ struct TravelRequirements {
         if fields["budgetCurrency"] != nil || fields["budgetBasis"] != nil {
             guard fields["budgetCurrency"]?.uppercased()=="AUD",let basis=fields["budgetBasis"],budgetBases.contains(where:{$0.0==basis}) else{throw fail("请确认预算币种，以及是每人还是全体、每天还是全程。")}
             guard let people=Int(fields["travelers"] ?? ""),(1...30).contains(people) else{throw fail("请确认同行总人数（1–30 人，包含自己）。")}
-            guard let days=Int(fields["days"] ?? ""),(1...15).contains(days),let amount=Double(fields["budget"] ?? ""),amount.isFinite,amount>0,amount<=1000000 else{throw fail("请确认有效的预算金额和 1–15 天的旅行时长。")}
+            guard let days=Int(fields["days"] ?? ""),(1...15).contains(days),let amount=Double(fields["budget"] ?? ""),amount.isFinite,amount>=0,amount<=1000000 else{throw fail("请确认有效的预算金额和 1–15 天的旅行时长。")}
             let perDay=amount / (basis.hasPrefix("group") ? Double(people):1) / (basis.hasSuffix("Trip") ? Double(days):1)
             normalized["budget"]=String(perDay)
         }

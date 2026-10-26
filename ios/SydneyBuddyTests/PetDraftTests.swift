@@ -2,6 +2,31 @@ import XCTest
 @testable import SydneyBuddy
 
 final class PetDraftTests:XCTestCase {
+    func testContextMigrationRemovesOnlyGeneratedLinesAndKeepsUserDraft() {
+        let first="关于「Test」第 1 天（2026-10-27）。我想聊聊这一天的安排。仅调整这一天，保留其余日期和已完成活动；先展示建议，确认后再保存。"
+        let second=first.replacingOccurrences(of:"第 1 天",with:"第 2 天")
+        XCTAssertEqual(PetComposerDraft.restored(first+"\n"+second,contextual:true),"")
+        XCTAssertEqual(PetComposerDraft.restored(first+"\nI want more coffee stops.",contextual:true),"I want more coffee stops.")
+        XCTAssertEqual(PetComposerDraft.restored("关于这一天，我想少走一点。",contextual:true),"关于这一天，我想少走一点。")
+        XCTAssertEqual(PetComposerDraft.restored(first,contextual:false),first)
+    }
+    func testComposedDetailsAcknowledgementIsFullyEnglish() {
+        let text=AppLanguage.english.display("目的地、日期、天数、人数、预算、出发地点、必去安排收好啦。\n资料准备齐啦！可以直接生成行程，也可以继续聊或单独修改。")
+        XCTAssertEqual(text,"All set. Want to tweak anything before we plan?")
+        XCTAssertFalse(text.unicodeScalars.contains{(0x3400...0x9FFF).contains($0.value)},text)
+    }
+
+    func testZeroActivityBudgetCanReachPlanningForEveryConfirmedBudgetBasis() throws {
+        for basis in TravelRequirements.budgetBases.map(\.0) {
+            var values=fields
+            values["budget"]="0";values["budgetCurrency"]="AUD";values["budgetBasis"]=basis;values["travelers"]="2";values["budgetCoverage"]="activities"
+            let profile=try TravelRequirements.readyProfile(values,personal:UserTravelProfile())
+            XCTAssertEqual(profile.budget,0,basis);XCTAssertEqual(profile.budgetAmount,0,basis)
+            XCTAssertEqual(profile.budgetBasis,basis);XCTAssertTrue(TravelRequirements.missingFields(values).isEmpty)
+            values["budget"]="-0.01"
+            XCTAssertThrowsError(try TravelRequirements.readyProfile(values,personal:UserTravelProfile()),basis)
+        }
+    }
     func testSavedTripConversationKeepsKnownFactsAndNormalizedBudget() {
         var p=TripProfile();p.days=5;p.travelers=2;p.budget=80;p.budgetAmount=800;p.budgetBasis="groupTrip";p.origin="中央车站";p.mustDo="悉尼歌剧院";p.avoid="购物";p.transportPreference="lessWalking"
         let fields=TripConversationSeed.fields(p)

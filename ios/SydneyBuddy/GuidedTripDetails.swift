@@ -93,7 +93,7 @@ struct GuidedTripDetails: View {
         case 1:delta=["date":TripProfile.dateString(date),"days":String(days)]
         case 2:delta=["travelers":String(people)]
         case 3:
-            guard let amount=Double(budget.trimmingCharacters(in:.whitespacesAndNewlines)),amount.isFinite,amount>0 else{error="活动预算需要大于 0，填一个大概金额就好～";return}
+            guard let amount=Double(budget.trimmingCharacters(in:.whitespacesAndNewlines)),amount.isFinite,amount>=0 else{error="活动预算不能为负数，免费活动可以填 0～";return}
             let daily=amount / (basis.hasPrefix("group") ? Double(people):1) / (basis.hasSuffix("Trip") ? Double(days):1)
             guard amount<=1000000,daily<=10000 else{error="金额超出当前范围：每人每天活动预算最多 10,000 AUD，请调整金额或预算范围。";return}
             delta=["budget":budget.trimmingCharacters(in:.whitespacesAndNewlines),"budgetCurrency":"AUD","budgetBasis":basis,"budgetCoverage":"activities"]

@@ -77,7 +77,7 @@ struct RootView: View {
             }
         }
         }.background(Palette.cream.ignoresSafeArea())
-        .sheet(isPresented:Binding(get:{store.proposal != nil},set:{if !$0 {store.proposal=nil}})) { ProposalView() }
+        .sheet(isPresented:Binding(get:{store.shouldPresentProposalSheet},set:{if !$0 {store.proposal=nil}})) { ProposalView() }
         .alert(uiText("需要留意"),isPresented:Binding(get:{store.errorMessage != nil},set:{if !$0 {store.errorMessage=nil}})) { Button(uiText("知道了"),role:.cancel) {} } message: { Text(uiText(store.errorMessage ?? "")) }
         .onChange(of:store.travelTask?.status){old,new in if old=="generating",new=="completed"{UINotificationFeedbackGenerator().notificationOccurred(.success)}}
         .environment(\.locale,Locale(identifier:store.language.rawValue))

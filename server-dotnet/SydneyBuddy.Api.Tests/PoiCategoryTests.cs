@@ -29,6 +29,27 @@ public sealed class PoiCategoryTests {
         Assert.Contains("[amenity=toilets]",OsmPoiProvider.Query(-33.865,151.212,1500,"toilets",""));
         Assert.Contains("[natural=beach]",OsmPoiProvider.Query(-33.865,151.212,1500,"beaches",""));
     }
+    [Theory]
+    [InlineData("park","自然")]
+    [InlineData("botanical_garden","自然")]
+    [InlineData("art_gallery","艺术")]
+    [InlineData("gallery","艺术")]
+    [InlineData("art_museum","艺术")]
+    [InlineData("museum","文化")]
+    [InlineData("history_museum","文化")]
+    [InlineData("memorial","文化")]
+    public void ImportedSourceKindsRetainTheirActualInterestWithoutInventingPrices(string kind,string category) {
+        var point=Point("osm:node:1001",kind,"sights");point["category"]="风景";
+        var candidate=Assert.Single(PlanningCandidates.Merge([],new JsonArray(point)));
+        Assert.Equal(category,candidate.Str("category"));Assert.True(RecommendationQuality.Matches(candidate,category));
+        if(category=="自然")Assert.True(RecommendationQuality.Matches(candidate,"风景"));
+        Assert.False(candidate.Bool("costKnown"));Assert.False(candidate.Bool("indoorKnown"));Assert.False(candidate.Bool("hoursVerified"));
+    }
+    [Fact] public void APlaceNameAloneDoesNotProveAnArtGalleryOrPark() {
+        var point=Point("osm:node:1002","attraction","sights");point["name"]="Art Gallery Park Hotel";point["category"]="风景";
+        var candidate=Assert.Single(PlanningCandidates.Merge([],new JsonArray(point)));
+        Assert.Equal("风景",candidate.Str("category"));Assert.False(RecommendationQuality.Matches(candidate,"艺术"));
+    }
     [Fact] public void FoodPoisReceiveDeterministicPriceTierMapping(){
         var cafe=Point("c1","cafe");cafe["category"]="美食";PoiCategories.ApplyFoodPriceMapping(cafe);
         Assert.Equal(1,cafe.Int("priceRange"));Assert.Equal("$",cafe.Str("priceTier"));Assert.Equal(20,cafe.Int("estimatedSpendAud"));Assert.Equal("$ · 預估均消 A$20/人",cafe.Str("priceLabel"));
