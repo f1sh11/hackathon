@@ -67,6 +67,25 @@ public sealed class JourneyProviderTests : IDisposable
         if(variant is "booking" or "bad-coordinates" or "bad-time")Assert.Throws<ServiceException>(()=>NswJourneyProvider.Parse(fixture,Departure));
         else {var steps=NswJourneyProvider.Parse(fixture,Departure);if(variant=="missing-shape")Assert.Empty(steps[1].Geometry);else Assert.True(steps[1].Realtime);}
     }
+    [Fact] public void NswSkipsAnEarlierDepartureAndKeepsTheNextTimetableUnchanged()
+    {
+        var fixture=Fixture("nsw-journey-test.json");
+        var valid=fixture.Array("journeys")![0]!.DeepClone();
+        var early=valid.DeepClone();
+        early.Array("legs")![0]!["origin"]!["departureTimePlanned"]=Departure.AddMinutes(-2).ToString("O");
+        fixture["journeys"]=new JsonArray(early,valid);
+        var steps=NswJourneyProvider.Parse(fixture,Departure);
+        Assert.True(steps[0].DepartureTime>=Departure);
+        var expected=NswJourneyProvider.Parse(new JsonObject{["journeys"]=new JsonArray(valid.DeepClone())},Departure);
+        Assert.Equal(expected.Select(x=>x.DepartureTime),steps.Select(x=>x.DepartureTime));
+        Assert.Equal(expected.Select(x=>x.ArrivalTime),steps.Select(x=>x.ArrivalTime));
+    }
+    [Fact] public void NswRejectsAllAlternativesThatRequireLeavingBeforeRequestedTime()
+    {
+        var fixture=Fixture("nsw-journey-test.json");
+        fixture.Array("journeys")![0]!.Array("legs")![0]!["origin"]!["departureTimePlanned"]=Departure.AddMinutes(-2).ToString("O");
+        Assert.Throws<ServiceException>(()=>NswJourneyProvider.Parse(fixture,Departure));
+    }
     [Fact] public async Task NswNetworkFailureDoesNotExposeProviderBodyOrCredentials()
     {
         var handler=new CaptureHandler(_=>new JsonObject(),HttpStatusCode.Forbidden);var config=Config();var client=new HttpClient(handler);

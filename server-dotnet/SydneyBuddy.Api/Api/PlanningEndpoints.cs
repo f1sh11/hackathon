@@ -13,7 +13,7 @@ public static class PlanningEndpoints
             return Results.Json(new
             {
                 managedTravelDataSource = travel.ManagedMode,
-                navigationConfigured = navigation.Configured, transitConfigured = journeys.TransitConfigured, status = "ok", database = "postgresql", paidServicesAllowed = paidServices.Allowed,
+                navigationConfigured = navigation.Configured, transitConfigured = journeys.TransitConfigured || config["TFNSW_API_KEY"].Length > 0, status = "ok", database = "postgresql", paidServicesAllowed = paidServices.Allowed,
                 nvidiaConfigured = config["NVIDIA_API_KEY"].Length > 0,
                 nswTransitConfigured = config["TFNSW_API_KEY"].Length > 0,
                 googleConfigured = config["GOOGLE_SERVER_KEY"].Length > 0,
