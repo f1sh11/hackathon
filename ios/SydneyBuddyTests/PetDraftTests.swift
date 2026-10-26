@@ -2,6 +2,25 @@ import XCTest
 @testable import SydneyBuddy
 
 final class PetDraftTests:XCTestCase {
+    func testNewTripCompanionRecallAndWelcomeAreEnglish() {
+        let fixtures=[
+            "那这次不用努力打卡啦。我们给坐着吹风和发呆留点位置。\n我记得你确认过「轻松随意」。这次也参考它吗？想换换也可以。",
+            "好呀，小馋雷达亮了！我们给好吃的留个位置，预算还是听你的。\n我记得你确认过「每天约 6000 步」。这次也参考它吗？想换换也可以。",
+            "Alex，咱们先挑一种玩法：绿意慢走，还是城市故事？你也可以自己说。",
+            "Alex，咱们先找一点这趟旅行的灵感。",
+            "这次按每人每天 60 AUD 活动预算来安排，不含住宿、交通和全部餐饮。\n资料准备齐啦！可以直接生成行程，也可以继续聊或单独修改。",
+            "这次按每人每天 0 AUD 活动预算来安排，不含住宿、交通和全部餐饮。\n这次一共几个人？记得包括自己呀。",
+            "沿用这个习惯","这次想换换","先说想去哪儿","这次轻松点","这次充实点","少走些，约6000步","多逛些，约12000步"
+        ]
+        for source in fixtures {
+            let translated=AppLanguage.english.display(source)
+            XCTAssertFalse(translated.unicodeScalars.contains{(0x3400...0x9FFF).contains($0.value)},translated)
+        }
+        XCTAssertTrue(AppLanguage.english.display(fixtures[1]).contains("6000"))
+        XCTAssertTrue(AppLanguage.english.display("小林，咱们先找一点这趟旅行的灵感。").hasPrefix("小林,"))
+        XCTAssertEqual(AppLanguage.english.display("我想去一个还没取英文名的小店"),"我想去一个还没取英文名的小店")
+    }
+
     func testContextMigrationRemovesOnlyGeneratedLinesAndKeepsUserDraft() {
         let first="关于「Test」第 1 天（2026-10-27）。我想聊聊这一天的安排。仅调整这一天，保留其余日期和已完成活动；先展示建议，确认后再保存。"
         let second=first.replacingOccurrences(of:"第 1 天",with:"第 2 天")

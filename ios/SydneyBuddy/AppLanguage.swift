@@ -52,7 +52,7 @@ enum AppLanguage:String,CaseIterable,Identifiable {
             }
         }
         if self == .english {
-            for separator in [" · ","、","\n"] where value.contains(separator) {
+            for separator in ["\n"," · ","、"] where value.contains(separator) {
                 return value.components(separatedBy:separator).map{display($0)}.joined(separator:separator == "、" ? ", ":separator)
             }
             if value.hasPrefix("· "){return "· "+display(String(value.dropFirst(2)))}

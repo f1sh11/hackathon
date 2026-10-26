@@ -18243,5 +18243,25 @@
     "en": "Past adventures",
     "zh-Hans": "过去的小冒险",
     "zh-Hant": "過去的小冒險"
+  },
+  "我记得你确认过「{0}」。这次也参考它吗？想换换也可以。": {
+    "en": "You previously chose “{0}”. Keep that for this trip, or try something different?",
+    "zh-Hans": "我记得你确认过「{0}」。这次也参考它吗？想换换也可以。",
+    "zh-Hant": "我記得你確認過「{0}」。這次也參考它嗎？想換換也可以。"
+  },
+  "{0}，咱们先挑一种玩法：绿意慢走，还是城市故事？你也可以自己说。": {
+    "en": "{0}, how about a gentle nature walk or a little city exploring? Or tell me your own idea.",
+    "zh-Hans": "{0}，咱们先挑一种玩法：绿意慢走，还是城市故事？你也可以自己说。",
+    "zh-Hant": "{0}，咱們先挑一種玩法：綠意慢走，還是城市故事？你也可以自己說。"
+  },
+  "{0}，咱们先找一点这趟旅行的灵感。": {
+    "en": "{0}, let’s find a little inspiration for this trip.",
+    "zh-Hans": "{0}，咱们先找一点这趟旅行的灵感。",
+    "zh-Hant": "{0}，咱們先找一點這趟旅行的靈感。"
+  },
+  "这次按每人每天 {0} AUD 活动预算来安排，不含住宿、交通和全部餐饮。": {
+    "en": "We’ll use an activity budget of A${0} per person per day. Accommodation, transport and meals are separate.",
+    "zh-Hans": "这次按每人每天 {0} AUD 活动预算来安排，不含住宿、交通和全部餐饮。",
+    "zh-Hant": "這次按每人每天 {0} AUD 活動預算來安排，不含住宿、交通和全部餐飲。"
   }
 }
