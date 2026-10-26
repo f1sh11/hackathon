@@ -23,6 +23,8 @@ jobs:
           with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
               print('id=' + device['udid'], file=output)
           print('Selected ' + device['name'])
+          if device.get('state') != 'Booted':
+              subprocess.run(['xcrun', 'simctl', 'boot', device['udid']], check=True)
           PY
       - name: Build and test the native iOS app
         run: |
@@ -31,8 +33,54 @@ jobs:
             -scheme SydneyBuddy \
             -destination 'platform=iOS Simulator,id=${{ steps.simulator.outputs.id }}' \
             -parallel-testing-enabled NO \
+            -derivedDataPath "$RUNNER_TEMP/SydneyBuddyDerivedData" \
             -resultBundlePath "$RUNNER_TEMP/SydneyBuddy.xcresult" \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGN_IDENTITY=- CODE_SIGNING_ALLOWED=YES
+      - name: Report native test results and signing entitlements
+        if: always()
+        run: |
+          app="$RUNNER_TEMP/SydneyBuddyDerivedData/Build/Products/Debug-iphonesimulator/SydneyBuddy.app"
+          if [ -d "$app" ]; then
+            if ! codesign -d --entitlements :- "$app"; then
+              echo "::warning::Could not inspect the built app’s signing entitlements."
+            fi
+          fi
+          if [ ! -d "$RUNNER_TEMP/SydneyBuddy.xcresult" ]; then
+            echo "No xcresult bundle was produced. See the build diagnostics above."
+            exit 0
+          fi
+          xcrun xcresulttool get test-results summary \
+            --path "$RUNNER_TEMP/SydneyBuddy.xcresult" > "$RUNNER_TEMP/SydneyBuddy-test-summary.json"
+          xcrun xcresulttool get test-results tests \
+            --path "$RUNNER_TEMP/SydneyBuddy.xcresult" > "$RUNNER_TEMP/SydneyBuddy-test-tree.json"
+          python3 - <<'PYRESULT'
+          import json, os, pathlib, subprocess
+          temporary = pathlib.Path(os.environ['RUNNER_TEMP'])
+          summary = json.loads((temporary / 'SydneyBuddy-test-summary.json').read_text())
+          keys = ('title', 'result', 'totalTestCount', 'passedTests', 'failedTests',
+                  'skippedTests', 'expectedFailures', 'testFailures')
+          print(json.dumps({key: summary[key] for key in keys if key in summary}, indent=2))
+          failed = set()
+          def visit(node):
+              if isinstance(node, dict):
+                  if node.get('result') == 'Failed':
+                      identifier = node.get('nodeIdentifier') or node.get('testIdentifier')
+                      if node.get('nodeType') == 'Test Case' and identifier:
+                          failed.add(identifier)
+                  for value in node.values():
+                      visit(value)
+              elif isinstance(node, list):
+                  for value in node:
+                      visit(value)
+          visit(json.loads((temporary / 'SydneyBuddy-test-tree.json').read_text()))
+          for failure in summary.get('testFailures') or []:
+              if failure.get('testIdentifier'):
+                  failed.add(failure['testIdentifier'])
+          for identifier in sorted(failed):
+              subprocess.run(['xcrun', 'xcresulttool', 'get', 'test-results', 'test-details',
+                              '--path', str(temporary / 'SydneyBuddy.xcresult'),
+                              '--test-id', identifier], check=True)
+          PYRESULT
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
