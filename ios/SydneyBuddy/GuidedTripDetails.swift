@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Small, explicitly confirmed groups; no defaults are stored merely by opening.
 struct GuidedTripDetails: View {
@@ -22,13 +23,17 @@ struct GuidedTripDetails: View {
         let index=startStage ?? Self.firstMissing(fields)
         _extra=State(initialValue:fields[Self.extraKey(index)] ?? "")
         _stage=State(initialValue:index)
-        _destination=State(initialValue:fields["destination"] ?? "")
+        _destination=State(initialValue:Self.destinationDisplay(fields["destination"] ?? "",language:AppLanguage.current))
         let formatter=DateFormatter();formatter.dateFormat="yyyy-MM-dd"
         _date=State(initialValue:formatter.date(from:fields["date"] ?? "") ?? Date())
         _days=State(initialValue:min(15,max(1,Int(fields["days"] ?? "") ?? 1)))
         _people=State(initialValue:min(30,max(1,Int(fields["travelers"] ?? "") ?? 1)))
         _budget=State(initialValue:fields["budgetCurrency"] == "AUD" ? fields["budget"] ?? "":"")
         _basis=State(initialValue:TravelRequirements.budgetBases.contains(where:{$0.0==fields["budgetBasis"]}) ? fields["budgetBasis"]!:"perPersonPerDay")
+    }
+    static func destinationDisplay(_ value:String,language:AppLanguage)->String {
+        guard TravelRequirements.supportedDestination(value) else{return value}
+        return language.display("悉尼")
     }
     static func firstMissing(_ fields:[String:String])->Int {
         if !TravelRequirements.known(fields["destination"]){return 0}
@@ -57,7 +62,7 @@ struct GuidedTripDetails: View {
                     switch stage {
                     case 0:
                         TextField(uiText("城市或地区"),text:$destination).textFieldStyle(.roundedBorder).accessibilityIdentifier("details-destination")
-                        Button(uiText("悉尼")){destination="悉尼"}.buttonStyle(.bordered)
+                        Button(uiText("悉尼")){destination=Self.destinationDisplay("Sydney",language:AppLanguage.current)}.buttonStyle(.bordered)
                         Text(uiText("目前可生成悉尼路线；其他目的地可以先保存想法。")).font(.caption).foregroundStyle(Palette.muted)
                     case 1:
                         DatePicker(uiText("出发日期"),selection:$date,displayedComponents:.date).datePickerStyle(.compact)
@@ -74,7 +79,7 @@ struct GuidedTripDetails: View {
                         Stepper(uiText("一共 \(people) 人"),value:$people,in:1...30)
                         Text(uiText("包括你自己。特别的照顾需求可以继续告诉 Koko。")).font(.subheadline).foregroundStyle(Palette.muted)
                     case 3:
-                        HStack {TextField(uiText("金额"),text:$budget).keyboardType(.decimalPad).textFieldStyle(.roundedBorder).accessibilityIdentifier("details-budget");Text(uiText("AUD")).fontWeight(.bold)}
+                        HStack {BudgetAmountInput(text:$budget).frame(minHeight:48).accessibilityIdentifier("details-budget");Text(uiText("AUD")).fontWeight(.bold)}
                         Picker(uiText("预算范围"),selection:$basis){ForEach(TravelRequirements.budgetBases,id:\.0){Text(uiText($0.1)).tag($0.0)}}
                         Text(uiText("这是活动预算，不包含住宿、交通及全部餐饮。选择每人或全体、每天或全程。")).font(.caption).foregroundStyle(Palette.muted)
                     default:
@@ -106,10 +111,11 @@ struct GuidedTripDetails: View {
         case 1:delta=["date":TripProfile.dateString(date),"days":String(days)]
         case 2:delta=["travelers":String(people)]
         case 3:
-            guard let amount=Double(budget.trimmingCharacters(in:.whitespacesAndNewlines)),amount.isFinite,amount>=0 else{error="活动预算不能为负数，免费活动可以填 0～";return}
+            let canonical=BudgetAmountInput.canonicalAmount(budget)
+            guard let amount=Double(canonical),amount.isFinite,amount>=0 else{error="活动预算不能为负数，免费活动可以填 0～";return}
             let daily=amount / (basis.hasPrefix("group") ? Double(people):1) / (basis.hasSuffix("Trip") ? Double(days):1)
             guard amount<=1000000,daily<=10000 else{error="金额超出当前范围：每人每天活动预算最多 10,000 AUD，请调整金额或预算范围。";return}
-            delta=["budget":budget.trimmingCharacters(in:.whitespacesAndNewlines),"budgetCurrency":"AUD","budgetBasis":basis,"budgetCoverage":"activities"]
+            delta=["budget":canonical,"budgetCurrency":"AUD","budgetBasis":basis,"budgetCoverage":"activities"]
         default:delta=[Self.extraKey(stage):extra.trimmingCharacters(in:.whitespacesAndNewlines)]
         }
         busy=true;error=await save(delta);busy=false
@@ -155,5 +161,77 @@ struct TripDetailsSummary:View {
     }
     private func row(_ title:String,_ detail:String,_ stage:Int)->some View {
         Button{editing=TripDetailSelection(id:stage)}label:{HStack {VStack(alignment:.leading,spacing:5){Text(uiText(title)).font(.subheadline.bold());Text(uiText(detail)).font(.caption).foregroundStyle(Palette.muted)};Spacer();Image(systemName:"chevron.right").font(.caption)}}.foregroundStyle(Palette.ink).accessibilityIdentifier("trip-detail-\(stage)")
+    }
+}
+
+
+// A stable native responder for money input. Updating SwiftUI state must not replace
+// the field, reset the selection, or reconfigure its keyboard after each character.
+struct BudgetAmountInput:UIViewRepresentable {
+    @Binding var text:String
+    @Environment(\.isEnabled) private var enabled
+    static func canonicalAmount(_ text:String)->String {
+        (text.applyingTransform(.fullwidthToHalfwidth,reverse:false) ?? text)
+            .replacingOccurrences(of:"。",with:".").replacingOccurrences(of:"｡",with:".")
+            .trimmingCharacters(in:.whitespacesAndNewlines)
+    }
+    func makeCoordinator()->Coordinator {Coordinator(self)}
+    func makeUIView(context:Context)->BudgetAmountTextField {
+        let field=BudgetAmountTextField()
+        field.borderStyle = .roundedRect
+        field.font = .preferredFont(forTextStyle:.body)
+        field.adjustsFontForContentSizeCategory=true
+        field.keyboardType = .decimalPad
+        field.textContentType=nil
+        field.autocorrectionType = .no
+        field.spellCheckingType = .no
+        field.autocapitalizationType = .none
+        field.smartQuotesType = .no
+        field.smartDashesType = .no
+        field.smartInsertDeleteType = .no
+        field.clearButtonMode = .whileEditing
+        field.inputAssistantItem.leadingBarButtonGroups=[]
+        field.inputAssistantItem.trailingBarButtonGroups=[]
+        if #available(iOS 18.0,*){field.writingToolsBehavior = .none}
+        if #available(iOS 26.0,*){field.allowsNumberPadPopover=false}
+        field.delegate=context.coordinator
+        field.accessibilityIdentifier="details-budget"
+        field.addTarget(context.coordinator,action:#selector(Coordinator.changed(_:)),for:.editingChanged)
+        field.setContentHuggingPriority(.defaultLow,for:.horizontal)
+        field.setContentCompressionResistancePriority(.defaultLow,for:.horizontal)
+        return field
+    }
+    func updateUIView(_ field:BudgetAmountTextField,context:Context) {
+        context.coordinator.parent=self
+        field.placeholder=uiText("金额")
+        field.accessibilityLabel=uiText("金额")
+        field.isEnabled=enabled
+        // Reassigning text while typing moves the caret and can interrupt marked input.
+        if field.text != text{field.text=text}
+    }
+    final class Coordinator:NSObject,UITextFieldDelegate {
+        var parent:BudgetAmountInput
+        init(_ parent:BudgetAmountInput){self.parent=parent}
+        @objc func changed(_ field:UITextField){parent.text=field.text ?? ""}
+        func textFieldShouldReturn(_ textField:UITextField)->Bool{textField.resignFirstResponder();return true}
+        func textField(_ textField:UITextField,editMenuForCharactersIn range:NSRange,suggestedActions:[UIMenuElement])->UIMenu? {editingMenu(textField)}
+        @available(iOS 26.0,*)
+        func textField(_ textField:UITextField,editMenuForCharactersInRanges ranges:[NSValue],suggestedActions:[UIMenuElement])->UIMenu? {editingMenu(textField)}
+        private func editingMenu(_ field:UITextField)->UIMenu {
+            // Build the amount field's edit menu from public editing operations only.
+            // The system's AutoFill submenu is unrelated to a travel budget.
+            var actions:[UIMenuElement]=[]
+            if field.canPerformAction(#selector(UIResponderStandardEditActions.selectAll(_:)),withSender:nil){actions.append(UIAction(title:uiText("Select all")){[weak field] _ in field?.selectAll(nil)})}
+            if field.canPerformAction(#selector(UIResponderStandardEditActions.copy(_:)),withSender:nil){actions.append(UIAction(title:uiText("Copy")){[weak field] _ in field?.copy(nil)})}
+            if field.canPerformAction(#selector(UIResponderStandardEditActions.cut(_:)),withSender:nil){actions.append(UIAction(title:uiText("Cut")){[weak field] _ in field?.cut(nil)})}
+            if field.canPerformAction(#selector(UIResponderStandardEditActions.paste(_:)),withSender:nil){actions.append(UIAction(title:uiText("Paste")){[weak field] _ in field?.paste(nil)})}
+            return UIMenu(children:actions)
+        }
+    }
+}
+final class BudgetAmountTextField:UITextField {
+    override func canPerformAction(_ action:Selector,withSender sender:Any?)->Bool {
+        let editing=[#selector(UIResponderStandardEditActions.copy(_:)),#selector(UIResponderStandardEditActions.cut(_:)),#selector(UIResponderStandardEditActions.paste(_:)),#selector(UIResponderStandardEditActions.select(_:)),#selector(UIResponderStandardEditActions.selectAll(_:)),#selector(UIResponderStandardEditActions.delete(_:))]
+        return editing.contains(action) && super.canPerformAction(action,withSender:sender)
     }
 }

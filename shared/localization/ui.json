@@ -18868,5 +18868,25 @@
     "en": "Opening hours need checking.",
     "zh-Hans": "营业时间待核实。",
     "zh-Hant": "營業時間待核實。"
+  },
+  "Select all": {
+    "en": "Select all",
+    "zh-Hans": "全选",
+    "zh-Hant": "全選"
+  },
+  "Copy": {
+    "en": "Copy",
+    "zh-Hans": "复制",
+    "zh-Hant": "複製"
+  },
+  "Cut": {
+    "en": "Cut",
+    "zh-Hans": "剪切",
+    "zh-Hant": "剪下"
+  },
+  "Paste": {
+    "en": "Paste",
+    "zh-Hans": "粘贴",
+    "zh-Hant": "貼上"
   }
 }

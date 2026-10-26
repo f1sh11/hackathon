@@ -4,6 +4,21 @@ import MapKit
 @testable import SydneyBuddy
 
 @MainActor final class ScheduleTests:XCTestCase {
+    func testSydneyDestinationUsesInterfaceLanguageWithoutRewritingOtherCities() {
+        for alias in ["悉尼","雪梨","Sydney","SYDNEY"] {
+            XCTAssertEqual(GuidedTripDetails.destinationDisplay(alias,language:.english),"Sydney")
+        }
+        XCTAssertEqual(GuidedTripDetails.destinationDisplay("Sydney",language:.simplified),"悉尼")
+        XCTAssertEqual(GuidedTripDetails.destinationDisplay("墨尔本",language:.english),"墨尔本")
+        XCTAssertEqual(GuidedTripDetails.destinationDisplay("",language:.english),"")
+    }
+
+    func testBudgetAmountNormalizesFullwidthNumbersAndChineseDecimalPoint() {
+        XCTAssertEqual(BudgetAmountInput.canonicalAmount("１２５。５０"),"125.50")
+        XCTAssertEqual(BudgetAmountInput.canonicalAmount(" ０ "),"0")
+        XCTAssertEqual(BudgetAmountInput.canonicalAmount("12.50"),"12.50")
+    }
+
     func testProposalReviewDoesNotPresentUnknownZeroPriceAsFree() throws {
         var plan=try fixture();plan.days[0].estimatedCost=0;plan.days[0].stops[0].costKnown=false
         XCTAssertEqual(ProposalReviewPresentation.cost([plan.days[0]]),"Cost to confirm")
