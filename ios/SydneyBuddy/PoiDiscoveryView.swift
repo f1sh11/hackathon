@@ -231,20 +231,7 @@ enum PoiDiscoveryCategory {
                         .accessibilityLabel(uiText("切换地图来源"))
                     }
 
-                    ScrollView(.horizontal,showsIndicators:false){HStack(spacing:8){
-                        ForEach(PoiDiscoveryCategory.groups,id:\.0){id,label in
-                            Button{model.category=id}label:{Text(uiText(label)).font(.subheadline).padding(.horizontal,12).padding(.vertical,8).background(PoiDiscoveryCategory.parent(model.category)==id ? Palette.green:Palette.mint,in:Capsule()).foregroundStyle(PoiDiscoveryCategory.parent(model.category)==id ? .white:Palette.ink)}.accessibilityIdentifier("poi-category-"+id)
-                        }
-                    }}.padding(6).background(.regularMaterial,in:RoundedRectangle(cornerRadius:16))
-                    if !PoiDiscoveryCategory.filters(model.category).isEmpty {
-                        HStack(spacing:6){
-                            Text(uiText("細分類")).font(.caption).foregroundStyle(Palette.muted)
-                            ScrollView(.horizontal,showsIndicators:false){HStack(spacing:6){
-                                if PoiDiscoveryCategory.parent(model.category) != "all"{categoryFilter(PoiDiscoveryCategory.parent(model.category),"全部")}
-                                ForEach(PoiDiscoveryCategory.filters(model.category),id:\.0){id,title,_ in categoryFilter(id,title)}
-                            }}
-                        }.padding(6).background(.regularMaterial,in:RoundedRectangle(cornerRadius:14))
-                    }
+                    categoryBar
                     Button{showInsights=true;Task{await store.refreshInsights(places:insightPoints)}}label:{Label(uiText("交通・人潮・費用"),systemImage:"info.circle").font(.caption).padding(10).background(.regularMaterial,in:Capsule())}.accessibilityIdentifier("travel-insights-open")
 
                     if areaChanged {
@@ -416,8 +403,47 @@ enum PoiDiscoveryCategory {
             .toolbar{ToolbarItem(placement:.topBarTrailing){Button(uiText("完成")){showDataInfo=false}}}
         }.presentationDetents([.medium,.large]).presentationDragIndicator(.visible)
     }
-    private func categoryFilter(_ id:String,_ title:String)->some View {
-        Button{model.category=id}label:{Text(uiText(title)).font(.caption.bold()).padding(.horizontal,10).padding(.vertical,8).background(model.category==id ? Palette.green:Palette.mint,in:Capsule()).foregroundStyle(model.category==id ? .white:Palette.ink)}.accessibilityIdentifier("poi-category-"+id)
+    private var categoryMenuGroups:[(String,String)] {PoiDiscoveryCategory.groups.filter{group in PoiDiscoveryCategory.details.contains{$0.2==group.0}}}
+    private func categorySection(_ group:(String,String))->some View {
+        let options=PoiDiscoveryCategory.details.filter{$0.2==group.0}
+        return Section(uiText(group.1)) {
+            ForEach(options,id:\.0){option in categoryOption(option.0,option.1)}
+        }
+    }
+    private var categoryBar:some View {
+        HStack(spacing:6) {
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal,showsIndicators:false){HStack(spacing:6){
+                    ForEach(PoiDiscoveryCategory.groups,id:\.0){id,label in
+                        Button{model.category=id}label:{Text(uiText(label)).font(.subheadline).padding(.horizontal,12).frame(minHeight:40).background(PoiDiscoveryCategory.parent(model.category)==id ? Palette.green:Color.clear,in:Capsule()).foregroundStyle(PoiDiscoveryCategory.parent(model.category)==id ? .white:Palette.ink)}.id(id).accessibilityIdentifier("poi-category-"+id)
+                    }
+                }}
+                .onChange(of:model.category){_,category in withAnimation(reduceMotion ? nil:.easeInOut(duration:0.2)){proxy.scrollTo(PoiDiscoveryCategory.parent(category),anchor:.center)}}
+            }
+            if !PoiDiscoveryCategory.filters(model.category).isEmpty {
+                Divider().frame(height:24)
+                Menu {
+                    categoryOption(PoiDiscoveryCategory.parent(model.category),"全部")
+                    if PoiDiscoveryCategory.parent(model.category)=="all" {
+                        ForEach(categoryMenuGroups,id:\.0){group in categorySection(group)}
+                    } else {
+                        ForEach(PoiDiscoveryCategory.filters(model.category),id:\.0){id,title,_ in categoryOption(id,title)}
+                    }
+                } label: {
+                    Label(uiText(selectedCategoryDetail ?? "篩選"),systemImage:"line.3.horizontal.decrease")
+                        .font(.caption.bold()).fixedSize(horizontal:true,vertical:false).padding(.horizontal,10).frame(minHeight:40)
+                        .background(selectedCategoryDetail != nil ? Palette.green:Palette.mint,in:Capsule())
+                        .foregroundStyle(selectedCategoryDetail != nil ? .white:Palette.ink)
+                }.accessibilityIdentifier("poi-category-filter").accessibilityLabel(uiText("細分類")+"："+uiText(selectedCategoryDetail ?? "全部"))
+            }
+        }.padding(6).background(.regularMaterial,in:RoundedRectangle(cornerRadius:16))
+    }
+    private var selectedCategoryDetail:String? {PoiDiscoveryCategory.details.first{$0.0==model.category}?.1}
+    private func categoryOption(_ id:String,_ title:String)->some View {
+        Button{model.category=id}label:{
+            if model.category==id{Label(uiText(title),systemImage:"checkmark")}
+            else{Text(uiText(title))}
+        }.accessibilityIdentifier("poi-category-"+id)
     }
     private func isAdded(_ p:ScheduleCandidate)->Bool {toolbox.places.contains{$0.id==p.id}}
     private func loadTicketSummaries() async {
