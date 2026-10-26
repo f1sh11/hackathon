@@ -498,3 +498,7 @@
 "待更新" = "Refresh needed";
 "天氣詳情" = "Weather details";
 "天氣暫時無法更新" = "Weather could not be refreshed";
+
+"放大地圖" = "Zoom in";
+"縮小地圖" = "Zoom out";
+"全日路線" = "Fit day route";

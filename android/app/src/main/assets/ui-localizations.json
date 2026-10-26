@@ -1775,5 +1775,20 @@
     "en": "Weather could not be refreshed",
     "zh-Hans": "天气暂时无法更新",
     "zh-Hant": "天氣暫時無法更新"
+  },
+  "放大地圖": {
+    "en": "Zoom in",
+    "zh-Hans": "放大地图",
+    "zh-Hant": "放大地圖"
+  },
+  "縮小地圖": {
+    "en": "Zoom out",
+    "zh-Hans": "缩小地图",
+    "zh-Hant": "縮小地圖"
+  },
+  "全日路線": {
+    "en": "Fit day route",
+    "zh-Hans": "全日路线",
+    "zh-Hant": "全日路線"
   }
 }

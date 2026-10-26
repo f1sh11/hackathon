@@ -2,6 +2,23 @@ import SwiftUI
 import GoogleMaps
 import MapKit
 
+struct RouteMapCameraAction {
+    enum Kind {case zoomIn,zoomOut,fit}
+    let id=UUID()
+    let kind:Kind
+}
+
+func routeCameraBounds(_ coordinates:[CLLocationCoordinate2D])->MKMapRect {
+    let bounds=coordinates.reduce(MKMapRect.null) {rect,coordinate in
+        let point=MKMapPoint(coordinate)
+        return rect.union(MKMapRect(x:point.x,y:point.y,width:1,height:1))
+    }
+    guard !bounds.isNull else{return bounds}
+    let latitude=MKMapPoint(x:bounds.midX,y:bounds.midY).coordinate.latitude
+    let minimum=650/max(0.001,MKMetersPerMapPointAtLatitude(latitude))
+    return MKMapRect(x:bounds.midX-max(bounds.width,minimum)/2,y:bounds.midY-max(bounds.height,minimum)/2,width:max(bounds.width,minimum),height:max(bounds.height,minimum)).insetBy(dx:-1,dy:-1)
+}
+
 // Screen points, independent of Retina scale and geographic zoom.
 private func walkingDotMetrics(_ size:CGSize)->(width:CGFloat,halo:CGFloat,spacing:CGFloat) {
     let shortSide=min(size.width,size.height)
@@ -22,12 +39,14 @@ struct GoogleRouteMap: UIViewRepresentable {
     var nearbyPlaces:[ScheduleCandidate]=[]
     var onPoiSelect:(ScheduleCandidate)->Void={_ in}
     var insightMarkers:[InsightMarker] = []
+    var cameraAction:RouteMapCameraAction? = nil
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     final class Coordinator: NSObject, GMSMapViewDelegate {
         var parent: GoogleRouteMap
         var sceneKey: String?
         var cameraSceneKey: String?
         var lastSelection:String?
+        var lastCameraAction:UUID?
         var lastBottomInset:CGFloat?
         var nearbyKey=""
         var nearbyMarkers:[GMSMarker]=[]
@@ -70,6 +89,14 @@ struct GoogleRouteMap: UIViewRepresentable {
     }
     func updateUIView(_ map:GMSMapView,context:Context) {
         context.coordinator.parent=self
+        if let action=cameraAction,context.coordinator.lastCameraAction != action.id {
+            context.coordinator.lastCameraAction=action.id
+            switch action.kind {
+            case .zoomIn:map.animate(toZoom:min(20,map.camera.zoom+1))
+            case .zoomOut:map.animate(toZoom:max(3,map.camera.zoom-1))
+            case .fit:context.coordinator.sceneKey=nil;context.coordinator.cameraSceneKey=nil
+            }
+        }
         map.padding=expanded ? UIEdgeInsets(top:90,left:25,bottom:160,right:25):UIEdgeInsets(top:140,left:25,bottom:bottomInset,right:25)
         let insetChanged=context.coordinator.lastBottomInset != bottomInset
         context.coordinator.lastBottomInset=bottomInset
@@ -123,11 +150,16 @@ struct GoogleRouteMap: UIViewRepresentable {
             pin.groundAnchor=CGPoint(x:0.5,y:0.5);pin.zIndex=1;pin.map=map
         }
         coordinates.forEach {bounds=bounds.includingCoordinate($0)}
-        let cameraKey=key
+        let cameraKey=mapSceneKey(day)+"|"+String(Int(bottomInset))+(viewport == nil ? "|"+String(overview?.coordinates.count ?? 0):"")
         guard context.coordinator.cameraSceneKey != cameraKey else {return}
         context.coordinator.cameraSceneKey=cameraKey
-        if !insetChanged,overview == nil,let saved=viewport, saved.sceneKey==mapSceneKey(day) {map.camera=GMSCameraPosition(latitude:saved.lat,longitude:saved.lng,zoom:Float(saved.zoom))}
-        else {map.moveCamera(GMSCameraUpdate.fit(bounds,withPadding:55))}
+        if cameraAction?.kind != .fit,!insetChanged,let saved=viewport, saved.sceneKey==mapSceneKey(day) {map.camera=GMSCameraPosition(latitude:saved.lat,longitude:saved.lng,zoom:Float(saved.zoom))}
+        else {
+            let center=CLLocationCoordinate2D(latitude:(bounds.northEast.latitude+bounds.southWest.latitude)/2,longitude:(bounds.northEast.longitude+bounds.southWest.longitude)/2)
+            let latitude=650/111_000.0/2,longitude=latitude/max(0.1,cos(center.latitude * .pi/180))
+            bounds=bounds.includingCoordinate(.init(latitude:center.latitude-latitude,longitude:center.longitude-longitude)).includingCoordinate(.init(latitude:center.latitude+latitude,longitude:center.longitude+longitude))
+            map.moveCamera(GMSCameraUpdate.fit(bounds,withPadding:55))
+        }
     }
 }
 enum MapProvider: String, CaseIterable, Identifiable {
@@ -253,10 +285,11 @@ struct NativeRouteMap:UIViewRepresentable {
     var nearbyPlaces:[ScheduleCandidate]=[]
     var onPoiSelect:(ScheduleCandidate)->Void={_ in}
     var insightMarkers:[InsightMarker] = []
+    var cameraAction:RouteMapCameraAction? = nil
     func makeCoordinator()->Coordinator {Coordinator(self)}
     func makeUIView(context:Context)->MKMapView {
         let map=MKMapView();map.delegate=context.coordinator
-        map.showsUserLocation=false;map.isPitchEnabled=false;map.isRotateEnabled=false
+        map.showsUserLocation=false;map.showsScale=true;map.isPitchEnabled=false;map.isRotateEnabled=false
         map.pointOfInterestFilter = .excludingAll
         map.layoutMargins = .zero
         if provider == .osm {map.addOverlay(OsmTiles(),level:.aboveRoads)}
@@ -265,6 +298,17 @@ struct NativeRouteMap:UIViewRepresentable {
     }
     func updateUIView(_ map:MKMapView,context:Context) {
         context.coordinator.parent=self
+        if let action=cameraAction,context.coordinator.lastCameraAction != action.id {
+            context.coordinator.lastCameraAction=action.id
+            switch action.kind {
+            case .zoomIn,.zoomOut:
+                let factor=action.kind == .zoomIn ? 0.5:2.0
+                let span=map.region.span
+                let region=MKCoordinateRegion(center:map.centerCoordinate,span:MKCoordinateSpan(latitudeDelta:min(160,max(0.0003,span.latitudeDelta*factor)),longitudeDelta:min(180,max(0.0003,span.longitudeDelta*factor))))
+                map.setRegion(region,animated:true)
+            case .fit:context.coordinator.sceneKey=nil;context.coordinator.cameraSceneKey=nil
+            }
+        }
         let insetChanged=context.coordinator.lastBottomInset != bottomInset
         context.coordinator.lastBottomInset=bottomInset
         if context.coordinator.lastSelection != selectedStopID {
@@ -306,18 +350,15 @@ struct NativeRouteMap:UIViewRepresentable {
             }}
             if sections.isEmpty {map.addAnnotations(overviewDirections(geometry))}
         }
-        let cameraKey=key
+        let cameraKey=mapSceneKey(day)+"|"+String(Int(bottomInset))+(viewport == nil ? "|"+String(overview?.coordinates.count ?? 0):"")
         guard context.coordinator.cameraSceneKey != cameraKey else {return}
         context.coordinator.cameraSceneKey=cameraKey
-        if !insetChanged,overview == nil,let saved=viewport,saved.sceneKey==mapSceneKey(day) {
+        if cameraAction?.kind != .fit,!insetChanged,let saved=viewport,saved.sceneKey==mapSceneKey(day) {
             let longitudeDelta=saved.longitudeDelta ?? 360/pow(2,saved.zoom)
             let latitudeDelta=saved.latitudeDelta ?? longitudeDelta*Double(max(1,map.bounds.height)/max(1,map.bounds.width))*cos(saved.lat*Double.pi/180)
             map.setRegion(MKCoordinateRegion(center:CLLocationCoordinate2D(latitude:saved.lat,longitude:saved.lng),span:MKCoordinateSpan(latitudeDelta:latitudeDelta,longitudeDelta:longitudeDelta)),animated:false)
         } else {
-            let bounds=(coordinates+(overview?.coordinates ?? [])).reduce(MKMapRect.null) {rect,coordinate in
-                let point=MKMapPoint(coordinate)
-                return rect.union(MKMapRect(x:point.x,y:point.y,width:1,height:1))
-            }
+            let bounds=routeCameraBounds(coordinates+(overview?.coordinates ?? []))
             DispatchQueue.main.async {
                 // The first representable update can precede layout (bounds.height == 0).
                 // Calculate padding after layout so the first fit does not hide pins behind the card.
@@ -334,6 +375,7 @@ struct NativeRouteMap:UIViewRepresentable {
         var sceneKey:String?
         var cameraSceneKey:String?
         var lastSelection:String?
+        var lastCameraAction:UUID?
         var lastBottomInset:CGFloat?
         var nearbyKey=""
         func refreshNearby(_ map:MKMapView){
@@ -402,6 +444,7 @@ struct ProviderRouteMap:View {
     var showsInsights=false
     var expanded = false
     var bottomInset:CGFloat=240
+    var cameraAction:RouteMapCameraAction? = nil
     @EnvironmentObject var store:AppStore
     @StateObject private var nearby=PoiSearchModel()
     @State private var placeDetail:ScheduleCandidate?
@@ -418,9 +461,9 @@ struct ProviderRouteMap:View {
         let safeSections = canShowOverview ? sections : []
         Group {switch store.mapProvider {
         case .osm,.apple:
-            NativeRouteMap(day:visibleDay,overview:safeOverview,expanded:expanded,bottomInset:bottomInset,provider:store.mapProvider,viewport:expanded ? nil : store.mapViewport,onViewport:moved,sections:safeSections,selectedStopID:store.selectedStopID,onSelect:{if store.selectedStopID != $0{store.selectedStopID=$0}},nearbyPlaces:nearby.places,onPoiSelect:{placeDetail=$0},insightMarkers:showsInsights ? (store.insights?.traffic.items ?? [])+(store.insights?.pricePlaces ?? []) : []).id(store.mapProvider)
+            NativeRouteMap(day:visibleDay,overview:safeOverview,expanded:expanded,bottomInset:bottomInset,provider:store.mapProvider,viewport:expanded ? nil : store.mapViewport,onViewport:moved,sections:safeSections,selectedStopID:store.selectedStopID,onSelect:{if store.selectedStopID != $0{store.selectedStopID=$0}},nearbyPlaces:nearby.places,onPoiSelect:{placeDetail=$0},insightMarkers:showsInsights ? (store.insights?.traffic.items ?? [])+(store.insights?.pricePlaces ?? []) : [],cameraAction:cameraAction).id(store.mapProvider)
         case .google:
-            if SydneyBuddyApp.mapReady {GoogleRouteMap(day:visibleDay,overview:safeOverview,expanded:expanded,bottomInset:bottomInset,viewport:expanded ? nil : store.mapViewport,onViewport:moved,sections:safeSections,selectedStopID:store.selectedStopID,onSelect:{if store.selectedStopID != $0{store.selectedStopID=$0}},nearbyPlaces:nearby.places,onPoiSelect:{placeDetail=$0},insightMarkers:showsInsights ? (store.insights?.traffic.items ?? [])+(store.insights?.pricePlaces ?? []) : [])}
+            if SydneyBuddyApp.mapReady {GoogleRouteMap(day:visibleDay,overview:safeOverview,expanded:expanded,bottomInset:bottomInset,viewport:expanded ? nil : store.mapViewport,onViewport:moved,sections:safeSections,selectedStopID:store.selectedStopID,onSelect:{if store.selectedStopID != $0{store.selectedStopID=$0}},nearbyPlaces:nearby.places,onPoiSelect:{placeDetail=$0},insightMarkers:showsInsights ? (store.insights?.traffic.items ?? [])+(store.insights?.pricePlaces ?? []) : [],cameraAction:cameraAction)}
             else {Palette.mint.overlay(Text("Google 地图未配置密钥\n请在“我的”选择其他底图").multilineTextAlignment(.center))}
         case .schematic:SchematicMap(day:visibleDay)
         }}
@@ -524,7 +567,7 @@ struct HomeView: View {
     @State var chat=false
     @State var details=false
     @State private var adjusting=false
-    @State var expandedMap=false
+    @State private var mapCameraAction:RouteMapCameraAction?
     @State var journey=false
     @State var navigation=false
     @StateObject private var overview=ItineraryOverview()
@@ -542,10 +585,19 @@ struct HomeView: View {
         VStack(spacing:0){
             if showsDayPicker,let trip=store.trip{TripDayPicker(trip:trip).padding(.horizontal,20).padding(.bottom,10)}
             ZStack(alignment:.bottom){
-                ProviderRouteMap(overview:overview.key == mapSceneKey(store.currentDay) ? overview.route : nil,sections:overview.key == mapSceneKey(store.currentDay) ? (overview.plan?.sections ?? []) : [],overviewIsGoogle:overview.plan?.source == "Google Routes",expanded:expandedMap,bottomInset:140).id(expandedMap)
+                ProviderRouteMap(overview:overview.key == mapSceneKey(store.currentDay) ? overview.route : nil,sections:overview.key == mapSceneKey(store.currentDay) ? (overview.plan?.sections ?? []) : [],overviewIsGoogle:overview.plan?.source == "Google Routes",bottomInset:140,cameraAction:mapCameraAction)
                 VStack(alignment:.trailing,spacing:12){
                     Spacer()
-                    Button{store.mapViewport=nil;expandedMap.toggle()}label:{Image(systemName:"location.viewfinder").font(.title3).frame(width:46,height:46).background(.white,in:Circle()).shadow(color:.black.opacity(0.08),radius:5,y:2)}.accessibilityLabel("重新居中地图")
+                    if store.mapProvider != .schematic {
+                        VStack(spacing:10) {
+                            VStack(spacing:0) {
+                                Button{mapCameraAction=RouteMapCameraAction(kind:.zoomIn)}label:{Image(systemName:"plus").font(.headline).frame(width:46,height:46)}.accessibilityLabel(store.language.text("放大地圖")).accessibilityIdentifier("map-zoom-in")
+                                Divider().frame(width:26)
+                                Button{mapCameraAction=RouteMapCameraAction(kind:.zoomOut)}label:{Image(systemName:"minus").font(.headline).frame(width:46,height:46)}.accessibilityLabel(store.language.text("縮小地圖")).accessibilityIdentifier("map-zoom-out")
+                            }.background(.white,in:RoundedRectangle(cornerRadius:18)).shadow(color:.black.opacity(0.08),radius:5,y:2)
+                            Button{store.mapViewport=nil;store.selectedStopID=nil;mapCameraAction=RouteMapCameraAction(kind:.fit)}label:{Label(store.language.text("全日路線"),systemImage:"arrow.up.left.and.arrow.down.right").font(.caption.bold()).padding(.horizontal,14).frame(minHeight:44).background(.white,in:Capsule())}.shadow(color:.black.opacity(0.08),radius:5,y:2).accessibilityIdentifier("map-fit-day")
+                        }
+                    }
                     VStack(alignment:.leading,spacing:10){
                         HStack(alignment:.center,spacing:12){
                             VStack(alignment:.leading,spacing:5){
@@ -575,7 +627,7 @@ struct HomeView: View {
             }.clipped()
         }.task(id:mapSceneKey(store.currentDay)+"|"+store.mapProvider.rawValue+"|"+(store.trip?.mode ?? "")) {if let day=store.currentDay{overview.loadHome(day,provider:store.mapProvider,contentSource:store.trip?.mode == "live" ? "google":"open")}}
         .sheet(isPresented:$adjusting){if let trip=store.trip{TripAdjustmentView(original:trip,dayIndex:store.dayIndex)}}
-        .onChange(of:store.dayIndex){_,_ in store.selectedStopID=nil}
+        .onChange(of:store.dayIndex){_,_ in store.selectedStopID=nil;mapCameraAction=nil}
         .task(id:(store.trip?.id ?? "")+store.travelDataSource.rawValue){if store.trip != nil{await store.refreshWeather()}}
         .task(id:mapSceneKey(store.currentDay)+"|"+store.travelDataSource.rawValue+"|"+store.mapProvider.rawValue){await store.refreshInsights()}
         .sheet(isPresented:$showInsights){TravelInsightsSheet()}
