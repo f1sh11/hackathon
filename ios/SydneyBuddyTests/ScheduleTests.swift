@@ -118,6 +118,26 @@ import MapKit
         XCTAssertEqual(state.days[0].startMinute,660)
         XCTAssertEqual(ScheduleClock.minute(ScheduleClock.date(665)),665)
     }
+    func testTripsHomeOpensTodayInsteadOfAlwaysDayOne() throws {
+        var trip=try fixture();var first=trip.days[0];first.date="2026-10-27"
+        var second=first;second.date="2026-10-28"
+        var third=first;third.date="2026-10-30"
+        trip.days=[first,second,third]
+        XCTAssertEqual(TripHomePresentation.dayIndex(trip,today:"2026-10-28"),1)
+        XCTAssertEqual(TripHomePresentation.dayIndex(trip,today:"2026-10-29"),2)
+        XCTAssertEqual(TripHomePresentation.dayIndex(trip,today:"2026-10-31"),0)
+        trip.days=[];XCTAssertEqual(TripHomePresentation.dayIndex(trip,today:"2026-10-28"),0)
+    }
+    func testTripsHomePreviewKeepsFeaturedOutAndPrefersUpcomingTrips() throws {
+        var featured=try fixture();featured.id="featured";featured.profile.date="2026-10-27";featured.days[0].date="2026-10-27"
+        var next=featured;next.id="next";next.profile.date="2026-10-29";next.days[0].date="2026-10-29"
+        var past=featured;past.id="past";past.profile.date="2026-10-20";past.days[0].date="2026-10-20"
+        let trips=[past,featured,next]
+        XCTAssertEqual(TripHomePresentation.previewTrips(trips,featuredID:"featured",limit:2,today:"2026-10-27").map(\.id),["next","past"])
+        XCTAssertEqual(TripHomePresentation.previewTrips(trips,featuredID:"featured",limit:1,today:"2026-10-27").map(\.id),["next"])
+        XCTAssertTrue(TripHomePresentation.previewTrips(trips,featuredID:"featured",limit:0,today:"2026-10-27").isEmpty)
+        XCTAssertEqual(TripHomePresentation.previewTrips(trips,featuredID:"featured",limit:1,today:"2026-10-27",priorityID:"past").map(\.id),["past"])
+    }
     func testHomeFocusResumesCurrentTripAndDoesNotChoosePastOrDuplicateFuture() throws {
         var today=try fixture();today.id="current";today.profile.date="2026-10-25";today.days=Array(today.days.prefix(1));today.days[0].date="2026-10-25"
         var future=today;future.id="future";future.profile.date="2026-10-28";future.days[0].date="2026-10-28"

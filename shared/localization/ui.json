@@ -18263,5 +18263,270 @@
     "en": "We’ll use an activity budget of A${0} per person per day. Accommodation, transport and meals are separate.",
     "zh-Hans": "这次按每人每天 {0} AUD 活动预算来安排，不含住宿、交通和全部餐饮。",
     "zh-Hant": "這次按每人每天 {0} AUD 活動預算來安排，不含住宿、交通和全部餐飲。"
+  },
+  "Your day, your pace.": {
+    "en": "Your day, your pace.",
+    "zh-Hans": "你的一天，你的节奏。",
+    "zh-Hant": "你的一天，你的節奏。"
+  },
+  "I’m checking the way for you.": {
+    "en": "I’m checking the way for you.",
+    "zh-Hans": "我在帮你核对路线。",
+    "zh-Hant": "我在幫你核對路線。"
+  },
+  "Plan a new trip": {
+    "en": "Plan a new trip",
+    "zh-Hans": "规划新的旅行",
+    "zh-Hant": "規劃新的旅行"
+  },
+  "Open today": {
+    "en": "Open today",
+    "zh-Hans": "打开今天的行程",
+    "zh-Hant": "打開今天的行程"
+  },
+  "Trip options": {
+    "en": "Trip options",
+    "zh-Hans": "行程更多操作",
+    "zh-Hant": "行程更多操作"
+  },
+  "Your trips": {
+    "en": "Your trips",
+    "zh-Hans": "你的小旅行",
+    "zh-Hant": "你的小旅行"
+  },
+  "See all": {
+    "en": "See all",
+    "zh-Hans": "查看全部",
+    "zh-Hant": "查看全部"
+  },
+  "Your next little trip": {
+    "en": "Your next little trip",
+    "zh-Hans": "下一段小旅行",
+    "zh-Hant": "下一段小旅行"
+  },
+  "Draft · Pick up where you left off": {
+    "en": "Draft · Pick up where you left off",
+    "zh-Hans": "草稿 · 接着上次聊",
+    "zh-Hant": "草稿 · 接著上次聊"
+  },
+  "{0} · Day {1} of {2}": {
+    "en": "{0} · Day {1} of {2}",
+    "zh-Hans": "{0} · 第 {1}/{2} 天",
+    "zh-Hant": "{0} · 第 {1}/{2} 天"
+  },
+  "{0} · {1} days": {
+    "en": "{0} · {1} days",
+    "zh-Hans": "{0} · {1} 天",
+    "zh-Hant": "{0} · {1} 天"
+  },
+  "+ {0} more stops": {
+    "en": "+ {0} more stops",
+    "zh-Hans": "还有 {0} 站",
+    "zh-Hant": "還有 {0} 站"
+  },
+  "Where shall we go?": {
+    "en": "Where shall we go?",
+    "zh-Hans": "我们去哪里呀？",
+    "zh-Hant": "我們去哪裡呀？"
+  },
+  "A little idea is all we need.": {
+    "en": "A little idea is all we need.",
+    "zh-Hans": "一点小想法，就能一起出发。",
+    "zh-Hant": "一點小想法，就能一起出發。"
+  },
+  "Day {0} of {1}": {
+    "en": "Day {0} of {1}",
+    "zh-Hans": "第 {0} 天，共 {1} 天",
+    "zh-Hant": "第 {0} 天，共 {1} 天"
+  },
+  "Today’s plan": {
+    "en": "Today’s plan",
+    "zh-Hans": "今天的安排",
+    "zh-Hant": "今天的安排"
+  },
+  "Start route": {
+    "en": "Start route",
+    "zh-Hans": "开始出发",
+    "zh-Hant": "開始出發"
+  },
+  "Our trip plan": {
+    "en": "Our trip plan",
+    "zh-Hans": "我们的旅行计划",
+    "zh-Hant": "我們的旅行計劃"
+  },
+  "When": {
+    "en": "When",
+    "zh-Hans": "日期",
+    "zh-Hant": "日期"
+  },
+  "Starting near": {
+    "en": "Starting near",
+    "zh-Hans": "出发位置",
+    "zh-Hant": "出發位置"
+  },
+  "Traveling": {
+    "en": "Traveling",
+    "zh-Hans": "同行与节奏",
+    "zh-Hant": "同行與節奏"
+  },
+  "Activities": {
+    "en": "Activities",
+    "zh-Hans": "活动预算",
+    "zh-Hant": "活動預算"
+  },
+  "Details to confirm": {
+    "en": "Details to confirm",
+    "zh-Hans": "稍后确认",
+    "zh-Hant": "稍後確認"
+  },
+  "{0} · 1 day": {
+    "en": "{0} · 1 day",
+    "zh-Hans": "{0} · 1 天",
+    "zh-Hant": "{0} · 1 天"
+  },
+  "Meals, accommodation and transport extra.": {
+    "en": "Meals, accommodation and transport extra.",
+    "zh-Hans": "餐饮、住宿和交通另计。",
+    "zh-Hant": "餐飲、住宿和交通另計。"
+  },
+  "All packed! Shall I put our day together?": {
+    "en": "All packed! Shall I put our day together?",
+    "zh-Hans": "小背包准备好啦！一起把今天安排起来？",
+    "zh-Hant": "小背包準備好啦！一起把今天安排起來？"
+  },
+  "Full reply": {
+    "en": "Full reply",
+    "zh-Hans": "完整回复",
+    "zh-Hant": "完整回覆"
+  },
+  "Start a fresh adventure?": {
+    "en": "Start a fresh adventure?",
+    "zh-Hans": "开始一段新旅程？",
+    "zh-Hant": "開始一段新旅程？"
+  },
+  "This will replace your unfinished draft.": {
+    "en": "This will replace your unfinished draft.",
+    "zh-Hans": "这会替换尚未完成的旅行草稿。",
+    "zh-Hant": "這會替換尚未完成的旅行草稿。"
+  },
+  "Your saved trips and memories will stay.": {
+    "en": "Your saved trips and memories will stay.",
+    "zh-Hans": "已保存的旅行和记忆都会保留。",
+    "zh-Hant": "已儲存的旅行和記憶都會保留。"
+  },
+  "Start new trip": {
+    "en": "Start new trip",
+    "zh-Hans": "开始新旅行",
+    "zh-Hant": "開始新旅行"
+  },
+  "Keep planning": {
+    "en": "Keep planning",
+    "zh-Hans": "保留当前草稿",
+    "zh-Hant": "保留目前草稿"
+  },
+  "Destination": {
+    "en": "Destination",
+    "zh-Hans": "目的地",
+    "zh-Hant": "目的地"
+  },
+  "Dates & duration": {
+    "en": "Dates & duration",
+    "zh-Hans": "日期与天数",
+    "zh-Hant": "日期與天數"
+  },
+  "Travel companions": {
+    "en": "Travel companions",
+    "zh-Hans": "同行人",
+    "zh-Hant": "同行人"
+  },
+  "Activity budget": {
+    "en": "Activity budget",
+    "zh-Hans": "活动预算",
+    "zh-Hant": "活動預算"
+  },
+  "Starting point": {
+    "en": "Starting point",
+    "zh-Hans": "出发地点",
+    "zh-Hant": "出發地點"
+  },
+  "Must-do plans": {
+    "en": "Must-do plans",
+    "zh-Hans": "想去想做",
+    "zh-Hant": "想去想做"
+  },
+  "Things to avoid": {
+    "en": "Things to avoid",
+    "zh-Hans": "避开安排",
+    "zh-Hant": "避開安排"
+  },
+  "Travel needs": {
+    "en": "Travel needs",
+    "zh-Hans": "出行需求",
+    "zh-Hant": "出行需求"
+  },
+  "When are we going?": {
+    "en": "When are we going?",
+    "zh-Hans": "我们哪天出发？",
+    "zh-Hant": "我們哪天出發？"
+  },
+  "Who’s coming along?": {
+    "en": "Who’s coming along?",
+    "zh-Hans": "这次和谁一起去？",
+    "zh-Hant": "這次和誰一起去？"
+  },
+  "What feels right for activities?": {
+    "en": "What feels right for activities?",
+    "zh-Hans": "活动预算留多少合适？",
+    "zh-Hant": "活動預算留多少合適？"
+  },
+  "Where shall we start?": {
+    "en": "Where shall we start?",
+    "zh-Hans": "我们从哪里出发？",
+    "zh-Hant": "我們從哪裡出發？"
+  },
+  "What’s on your wish list?": {
+    "en": "What’s on your wish list?",
+    "zh-Hans": "有什么特别想体验的？",
+    "zh-Hant": "有什麼特別想體驗的？"
+  },
+  "Anything you’d rather skip?": {
+    "en": "Anything you’d rather skip?",
+    "zh-Hans": "有什么想避开的安排？",
+    "zh-Hant": "有什麼想避開的安排？"
+  },
+  "What would make the trip easier?": {
+    "en": "What would make the trip easier?",
+    "zh-Hans": "怎样能让这次出行更舒服？",
+    "zh-Hant": "怎樣能讓這次出行更舒服？"
+  },
+  "Trip length": {
+    "en": "Trip length",
+    "zh-Hans": "旅行天数",
+    "zh-Hant": "旅行天數"
+  },
+  "Up to 15 days": {
+    "en": "Up to 15 days",
+    "zh-Hans": "最长 15 天",
+    "zh-Hant": "最長 15 天"
+  },
+  "Fewer days": {
+    "en": "Fewer days",
+    "zh-Hans": "减少天数",
+    "zh-Hant": "減少天數"
+  },
+  "More days": {
+    "en": "More days",
+    "zh-Hans": "增加天数",
+    "zh-Hant": "增加天數"
+  },
+  "Decide the date later": {
+    "en": "Decide the date later",
+    "zh-Hans": "稍后再定日期",
+    "zh-Hant": "稍後再定日期"
+  },
+  "Just for this trip. Your other details stay as they are.": {
+    "en": "Just for this trip. Your other details stay as they are.",
+    "zh-Hans": "只修改本次旅行，其他资料会保留。",
+    "zh-Hant": "只修改本次旅行，其他資料會保留。"
   }
 }

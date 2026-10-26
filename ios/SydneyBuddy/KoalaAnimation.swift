@@ -328,15 +328,17 @@ struct KokoCompanionStage:View {
 struct KokoOptionButtonStyle:ButtonStyle {
     var prominent=false
     var compact=false
+    var quiet=false
+    private var accent:Color {quiet ? Color(red:0.20,green:0.36,blue:0.79):Palette.green}
     func makeBody(configuration:Configuration)->some View {
         configuration.label
             .foregroundStyle(prominent ? .white:Palette.ink)
-            .frame(maxWidth:.infinity,minHeight:compact ? 34:44)
+            .frame(maxWidth:.infinity,minHeight:44)
             .padding(.horizontal,16).padding(.vertical,compact ? 5:7)
-            .background(RoundedRectangle(cornerRadius:18).fill(prominent ? Palette.green:Palette.cream))
-            .overlay(RoundedRectangle(cornerRadius:18).stroke(Palette.green.opacity(0.8),lineWidth:1.5))
-            .background(RoundedRectangle(cornerRadius:18).fill(Palette.green).offset(y:configuration.isPressed ? 0:5))
-            .offset(y:configuration.isPressed ? 4:0).padding(.bottom,5)
+            .background(RoundedRectangle(cornerRadius:18).fill(prominent ? accent:(quiet ? .white:Palette.cream)))
+            .overlay(RoundedRectangle(cornerRadius:18).stroke(accent.opacity(quiet ? 0.3:0.8),lineWidth:quiet ? 1:1.5))
+            .background(RoundedRectangle(cornerRadius:18).fill(quiet ? .clear:accent).offset(y:configuration.isPressed ? 0:5))
+            .offset(y:configuration.isPressed ? 4:0).padding(.bottom,quiet ? 0:5)
             .animation(.easeOut(duration:0.10),value:configuration.isPressed)
     }
 }
