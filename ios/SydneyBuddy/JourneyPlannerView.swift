@@ -315,7 +315,8 @@ struct AppleTripWalkingView:View {
     var body:some View {
         NavigationStack{ScrollView{VStack(alignment:.leading,spacing:16){
             if trip.days.count>1 {
-                Picker("查看哪一天",selection:$dayIndex){ForEach(trip.days.indices,id:\.self){Text("第 \($0+1) 天").tag($0)}}.pickerStyle(.segmented).accessibilityIdentifier("apple-walking-day")
+                MapDaySelector(dates:trip.days.map(\.date),selection:$dayIndex,language:store.language,identifierPrefix:"apple-walking-day-")
+                    .accessibilityIdentifier("apple-walking-day")
             }
             if let day {
                 Text(day.date+(day.hasTransit ? " · 步行与公共交通":" · 步行路线预览")).font(.subheadline.bold())
