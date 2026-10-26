@@ -114,7 +114,7 @@ REGISTER DATASOURCE TABLE "travel_activity_offers" FROM sydneybuddy_travel;
 ## 驗收
 
 1. 雲端 cluster Active，使用目標組織登入。
-2. AWS 來源表 COUNT 對照 manifest，檢查九個 views。
+2. AWS 來源表 COUNT 對照 manifest；PostgreSQL 方案檢查九個 views，S3 方案只登錄 manifest 中非空的表（本次為七張）。
 3. Zetaris 查詢同名資料表，抽查座標、圖片署名與票價。
 4. App 分別選三種來源，確認 `/data/status`、搜尋、票價、天氣回應的 dataSource 一致。
 5. 連續查兩次天氣，核對來源請求記錄；斷開雲端確認明確錯誤、未改用本機。

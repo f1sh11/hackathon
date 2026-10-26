@@ -60,7 +60,7 @@ public sealed class PoiService(IPoiProvider provider,IMemoryCache cache,GooglePo
         if(travel?.Warehouse==true){
             var snapshot=travel.Snapshot??throw new ServiceException("Zetaris 店家資料尚未取得。");
             var found=OverturePoiProvider.SearchSnapshot(snapshot.Poi,lat,lng,radius,category,text,token);
-            return new JsonObject{["places"]=found,["source"]="Overture Maps / Zetaris",["dataSource"]="zetaris",["attribution"]="Overture Maps Foundation · CDLA-Permissive-2.0 / Apache-2.0",["metadata"]=new JsonObject{["release"]=snapshot.Poi.Str("release"),["readAt"]=snapshot.ReadAt,["totalPlaces"]=snapshot.Poi.Array("places")!.Count},["message"]="Zetaris 公開資料快照；不是即時商家資訊。"};
+            return new JsonObject{["places"]=found,["source"]="Overture Maps / Zetaris",["dataSource"]=travel.Mode,["attribution"]="Overture Maps Foundation · CDLA-Permissive-2.0 / Apache-2.0",["metadata"]=new JsonObject{["release"]=snapshot.Poi.Str("release"),["readAt"]=snapshot.ReadAt,["totalPlaces"]=snapshot.Poi.Array("places")!.Count},["message"]="Zetaris 公開資料快照；不是即時商家資訊。"};
         }
         var source=input.Str("provider","osm");
         if(source=="google")return google is null?throw new ServiceException("Google Places 尚未設定。"):
@@ -94,7 +94,7 @@ public sealed class PoiService(IPoiProvider provider,IMemoryCache cache,GooglePo
         string Short(string key,int max){var s=p.Str(key);return s[..Math.Min(max,s.Length)];}
         var result=new JsonObject{["id"]=id,["name"]=name,["lat"]=lat,["lng"]=lng,["source"]=restaurant?"Restaurant evidence":social?"Community social recommendation":gem?"Wikivoyage":apple?"Apple Maps":overture?"Overture Maps":"OpenStreetMap",["category"]=p.Str("category") is "美食" or "設施" or "住宿" or "店家"?p.Str("category"):"風景",["indoor"]=p.Bool("indoor"),["visitMinutes"]=Math.Clamp(p.Int("visitMinutes",60),5,240),["cost"]=0,["description"]=Short("description",3000),["note"]="費用、營業狀態與排隊未知；尚未預留費用，請自行確認。",["website"]=Short("website",2000),["phone"]=Short("phone",100),["address"]=Short("address",600),["sourceRelease"]=Short("sourceRelease",40),["openingHoursText"]=Short("openingHoursText",300),["poiKind"]=Short("poiKind",40),["reason"]="由地圖搜尋加入工具箱"};
         PoiCategories.ApplyFoodPriceMapping(result);
-        foreach(var key in new[]{"sourceUrl","sourceLicense","retrievedAt","sources","sourceIds","wikidata","hiddenGem","accessStatus","priceRange","priceTier","estimatedSpendAud","avgCostForTwoAud","nightlyRateAud","priceLabel","aggregateRating","reviewCount","ratingLabel","reviewSummary","reviewHighlights"})if(p[key] is not null&&result[key] is null)result[key]=p[key]!.DeepClone();
+        foreach(var key in new[]{"sourceUrl","sourceLicense","retrievedAt","sources","sourceIds","wikidata","hiddenGem","accessStatus","priceRange","priceTier","estimatedSpendAud","avgCostForTwoAud","nightlyRateAud","priceLabel","aggregateRating","reviewCount","ratingLabel","reviewSummary","reviewHighlights","photos"})if(p[key] is not null&&result[key] is null)result[key]=p[key]!.DeepClone();
         if(gem||social||restaurant){foreach(var key in new[]{"guide","photos","reviews","hiddenGem","accessStatus","reviewsStatus","socialRecommendations","matchedPlaceId","verificationStatus","socialHiddenGemClaim","restaurantData"})if(p[key] is not null)result[key]=p[key]!.DeepClone();}
         return result;
     }

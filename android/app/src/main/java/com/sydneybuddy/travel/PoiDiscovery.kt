@@ -279,7 +279,7 @@ internal class PlaceMediaState(initial:List<JSONObject>) {
 @Composable internal fun PlaceMedia(p:JSONObject,store:BuddyStore,requester:suspend(JSONObject)->JSONObject={store.poiMedia(it)}) {
     val scope=rememberCoroutineScope();val uri=LocalUriHandler.current
     val media=remember(p.optString("id"),store.travelDataSource){PlaceMediaState(p.array("photos").objects())}
-    val request=remember(p.optString("id")){JSONObject().put("id",p.optString("id")).put("lat",p.optDouble("lat")).put("lng",p.optDouble("lng"))}
+    val request=remember(p.optString("id")){JSONObject().put("id",p.optString("id")).put("name",p.optString("name")).put("lat",p.optDouble("lat")).put("lng",p.optDouble("lng")).put("wikidata",p.optString("wikidata")).put("poiKind",p.optString("poiKind")).put("category",p.optString("category"))}
     LaunchedEffect(media){if(media.photos.isEmpty())media.load(request,requester)}
     Text(ui("照片與街景"),style=MaterialTheme.typography.titleSmall)
     Small(ui(if(p.optBoolean("hiddenGem"))"社群照片保留作者與授權；附近照片不代表已確認拍攝此景點。"else "附近 100 公尺的實景照片，並非已核實的商家或店內照片。"))
@@ -290,7 +290,8 @@ internal class PlaceMediaState(initial:List<JSONObject>) {
         CommonsPhoto(photo.optString("url"))
         Text(photo.optString("title"),fontSize=12.sp)
         Small(photo.optString("artist")+" · "+photo.optString("license"))
-        if(photo.optString("matchKind")=="nearby-unverified")Small("附近照片，景點配對未確認")
+        if(photo.optString("matchKind")=="exact-place"||photo.optString("matchKind")=="guide-file")Small("✓ 已配對景點實景照片")
+        else if(photo.optString("matchKind")=="nearby-unverified")Small("附近照片，景點配對未確認")
         TextButton(onClick={uri.openUri(photo.getString("pageUrl"))}){Text(ui("照片來源與授權"))}
     }
     TextButton(onClick={uri.openUri("https://www.mapillary.com/app/?lat=${p.optDouble("lat")}&lng=${p.optDouble("lng")}&z=17")}){Text(ui("開啟附近街景（外部地圖）"))}

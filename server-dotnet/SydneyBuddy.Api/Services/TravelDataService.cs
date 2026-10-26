@@ -25,38 +25,52 @@ public interface ITravelWarehouse {
 }
 
 /// <summary>Only fixed public SELECTs leave this backend. Weather uses an uncached native Zetaris REST table.</summary>
-public sealed class ZetarisTravelWarehouse(HttpClient http,IConfiguration config,IMemoryCache cache,TravelDataContext? selection=null):ITravelWarehouse {
+public sealed class ZetarisTravelWarehouse(HttpClient http,IConfiguration config,IMemoryCache cache,TravelDataContext? selection=null,ProjectPaths? paths=null):ITravelWarehouse {
     static readonly SemaphoreSlim Gate=new(1,1);
     bool Cloud=>selection?.Mode=="zetaris-cloud";
+    Dictionary<string,string> LoadEnvFile(){
+        var env=new Dictionary<string,string>();
+        var file=Setting("EnvironmentFile")??(paths is not null&&string.IsNullOrEmpty(config["Zetaris:Username"])&&string.IsNullOrEmpty(config["Zetaris:Cloud:BaseUrl"])?Path.Combine(paths.RepoRoot,"infra","zetaris",".env.local"):null);
+        if(!string.IsNullOrEmpty(file)&&File.Exists(file))foreach(var line in File.ReadLines(file)){
+            if(line.StartsWith('#'))continue;var at=line.IndexOf('=');
+            if(at>0)env[line[..at].Trim()]=line[(at+1)..].Trim().Trim('"','\'');
+        }
+        return env;
+    }
     string? Setting(string key)=>config["Zetaris:"+(Cloud?"Cloud:":"Local:")+key] ?? (Cloud?null:config["Zetaris:"+key]);
-    Uri Endpoint(string key,string localDefault){
-        var raw=Setting(key)??(Cloud?"":localDefault);
-        if(!Uri.TryCreate(raw,UriKind.Absolute,out var uri)||uri.UserInfo.Length>0||uri.Query.Length>0||uri.Fragment.Length>0||
-            (Cloud ? uri.Scheme!="https"||uri.IsLoopback : uri.Scheme!="http"||!uri.IsLoopback))
+    Uri Endpoint(string key,string localDefault,Dictionary<string,string> env){
+        var envKey=key=="BaseUrl"?"ZETARIS_BASE_URL":key=="LoginUrl"?"ZETARIS_LOGIN_URL":"";
+        var raw=Setting(key)??(envKey.Length>0?env.GetValueOrDefault(envKey):null)??(Cloud?"":localDefault);
+        if(!Uri.TryCreate(raw,UriKind.Absolute,out var uri)||uri.UserInfo.Length>0||uri.Query.Length>0||uri.Fragment.Length>0)
+            throw new ServiceException(Cloud?"雲端 Zetaris 尚未設定有效的 HTTPS 連線。":"Zetaris 本機連線設定無效。");
+        var isCloudHost=uri.Scheme=="https"&&!uri.IsLoopback;
+        var isLocalHost=uri.Scheme=="http"&&uri.IsLoopback;
+        if(Cloud?!isCloudHost:(!isLocalHost&&!(env.ContainsKey("ZETARIS_BASE_URL")&&uri.Host.EndsWith(".cloud.zetaris.com",StringComparison.OrdinalIgnoreCase))))
             throw new ServiceException(Cloud?"雲端 Zetaris 尚未設定有效的 HTTPS 連線。":"Zetaris 本機連線設定無效。");
         return uri;
     }
     async Task<JsonArray> QueryAsync(string sql,CancellationToken token){
         try {
-            var api=Endpoint("BaseUrl","http://127.0.0.1:8888");
-            var proxy=Setting("Transport")=="ui-proxy";
+            var env=LoadEnvFile();
+            var api=Endpoint("BaseUrl","http://127.0.0.1:8888",env);
+            var proxy=Setting("Transport")=="ui-proxy"||api.Host.StartsWith("new-ui.",StringComparison.OrdinalIgnoreCase);
             var bearer=Setting("ApiKey")??"";var org=Setting("OrgId");
-            if(bearer.Length==0){
-                var login=Endpoint("LoginUrl","http://127.0.0.1:3000/api/auth/login");
-            var env=new Dictionary<string,string>();var file=Setting("EnvironmentFile");
-            // A cloud request never reads the local platform's admin credentials.
-            if(!Cloud&&!string.IsNullOrEmpty(file)&&File.Exists(file))foreach(var line in File.ReadLines(file)){
-                if(line.StartsWith('#'))continue;var at=line.IndexOf('=');
-                if(at>0)env[line[..at].Trim()]=line[(at+1)..].Trim().Trim('"','\'');
+            var authKey="zetaris-auth:"+api.Host+":"+(Setting("Username")??env.GetValueOrDefault("ZETARIS_ADMIN_EMAIL")??"");
+            if(bearer.Length==0&&api.Scheme=="https"&&paths is not null&&cache.TryGetValue<(string Bearer,string Org)>(authKey,out var cachedAuth)){
+                (bearer,org)=cachedAuth;
             }
-            var username=Setting("Username")??env.GetValueOrDefault("ZETARIS_ADMIN_EMAIL");
-            var password=Setting("Password")??env.GetValueOrDefault("ZETARIS_ADMIN_PASSWORD");
-            if(string.IsNullOrEmpty(username)||string.IsNullOrEmpty(password))throw new ServiceException("Zetaris 尚未設定後端連線。可切回直接來源。");
-            using var authResponse=await http.PostAsJsonAsync(login,new{username,password},token);
-            if(!authResponse.IsSuccessStatusCode)throw new ServiceException("Zetaris 登入失敗，請檢查後端設定。");
-            var auth=JsonNode.Parse(await authResponse.Content.ReadAsStringAsync(token))?.AsObject()??throw new ServiceException("Zetaris 登入回應無效。");
-            bearer=auth.Str("idToken");org=auth["orgId"]?.ToString();
-            if(Setting("OrgId") is {Length:>0} expectedOrg && org!=expectedOrg)throw new ServiceException("Zetaris 登入組織與設定不符。");
+            if(bearer.Length==0){
+                var defaultLogin=api.Scheme=="https"?new Uri(api,"/api/auth/login").ToString():"http://127.0.0.1:3000/api/auth/login";
+                var login=Endpoint("LoginUrl",defaultLogin,env);
+                var username=Setting("Username")??env.GetValueOrDefault("ZETARIS_ADMIN_EMAIL");
+                var password=Setting("Password")??env.GetValueOrDefault("ZETARIS_ADMIN_PASSWORD");
+                if(string.IsNullOrEmpty(username)||string.IsNullOrEmpty(password))throw new ServiceException("Zetaris 尚未設定後端連線。可切回直接來源。");
+                using var authResponse=await http.PostAsJsonAsync(login,new{username,password},token);
+                if(!authResponse.IsSuccessStatusCode)throw new ServiceException("Zetaris 登入失敗，請檢查後端設定。");
+                var auth=JsonNode.Parse(await authResponse.Content.ReadAsStringAsync(token))?.AsObject()??throw new ServiceException("Zetaris 登入回應無效。");
+                bearer=auth.Str("idToken");org=auth["orgId"]?.ToString();
+                if(Setting("OrgId") is {Length:>0} expectedOrg && org!=expectedOrg)throw new ServiceException("Zetaris 登入組織與設定不符。");
+                if(api.Scheme=="https"&&paths is not null&&bearer.Length>0&&!string.IsNullOrEmpty(org))cache.Set(authKey,(bearer,org!),TimeSpan.FromMinutes(10));
             }
             if(bearer.Length==0||string.IsNullOrEmpty(org))throw new ServiceException("Zetaris 登入或應用程式組織設定無效。");
             using var request=new HttpRequestMessage(HttpMethod.Post,new Uri(api,proxy?"/api/proxy/sql-editor/sqls/run-query":"/api/v1.0/sql-editor/sqls/run"));

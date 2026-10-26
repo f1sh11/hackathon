@@ -516,7 +516,7 @@ struct PlacePhoto:Codable,Identifiable {
         do{
             var request=URLRequest(url:BackendConnection.url("poi/media"))
             request.httpMethod="POST";dataSource.apply(to:&request);request.timeoutInterval=22;request.setValue("application/json",forHTTPHeaderField:"Content-Type")
-            request.httpBody=try JSONSerialization.data(withJSONObject:["lat":candidate.lat,"lng":candidate.lng,"id":candidate.id])
+            request.httpBody=try JSONSerialization.data(withJSONObject:["lat":candidate.lat,"lng":candidate.lng,"id":candidate.id,"name":candidate.name,"wikidata":candidate.wikidata ?? "","poiKind":candidate.poiKind ?? "","category":candidate.category])
             let (data,response)=try await loader(request)
             try Task.checkCancellation();guard token==generation else{return}
             guard (response as? HTTPURLResponse)?.statusCode==200 else{throw URLError(.badServerResponse)}
@@ -544,17 +544,7 @@ struct PlaceMediaView:View {
             Button(media.photos.isEmpty ? "載入附近照片":"重新載入照片"){Task{await media.load(candidate,dataSource:store.travelDataSource)}}.disabled(media.loading).accessibilityIdentifier("place-media-retry")
             if media.loading{ProgressView("正在載入照片…").accessibilityIdentifier("place-media-loading")}
             if let message=media.message{Text(LocalizedStringKey(message)).font(.caption).accessibilityIdentifier("place-media-status")}
-            ScrollView(.horizontal){HStack(alignment:.top,spacing:12){ForEach(media.photos){photo in
-                VStack(alignment:.leading,spacing:5){
-                    AsyncImage(url:URL(string:photo.url)){phase in
-                        switch phase{case .success(let image):image.resizable().scaledToFill();case .failure:Text("照片無法載入");default:ProgressView()}
-                    }.frame(width:260,height:170).clipped().clipShape(RoundedRectangle(cornerRadius:12))
-                    Text(photo.title).font(.caption).lineLimit(2)
-                    Text(photo.artist+" · "+photo.license).font(.caption2).lineLimit(3)
-                    if photo.matchKind == "nearby-unverified" {Text("附近照片，景點配對未確認").font(.caption2)}
-                    if let url=URL(string:photo.pageUrl){Link("照片來源與授權",destination:url).font(.caption)}
-                }.frame(width:260,alignment:.leading)
-            }}}
+            ScrollView(.horizontal){HStack(alignment:.top,spacing:12){ForEach(media.photos,content:photoCard)}}
             if store.mapProvider != .google {
                 Button("預覽街景（Apple Look Around）"){Task{
                     panoramaLoading=true;panoramaMessage=nil
@@ -573,6 +563,19 @@ struct PlaceMediaView:View {
             scene=nil;panoramaMessage=nil;media.loader=store.loader
             await media.prepare(candidate,dataSource:store.travelDataSource)
         }
+    }
+    @ViewBuilder private func photoCard(_ photo:PlacePhoto)->some View {
+        let credit="\(photo.artist) · \(photo.license)"
+        VStack(alignment:.leading,spacing:5){
+            AsyncImage(url:URL(string:photo.url)){phase in
+                switch phase{case .success(let image):image.resizable().scaledToFill();case .failure:Text("照片無法載入");default:ProgressView()}
+            }.frame(width:260,height:170).clipped().clipShape(RoundedRectangle(cornerRadius:12))
+            Text(photo.title).font(.caption).lineLimit(2)
+            Text(credit).font(.caption2).lineLimit(3)
+            if photo.matchKind == "exact-place" || photo.matchKind == "guide-file" {Text("✓ 已配對景點實景照片").font(.caption2).foregroundStyle(Palette.green)}
+            else if photo.matchKind == "nearby-unverified" {Text("附近照片，景點配對未確認").font(.caption2)}
+            if let url=URL(string:photo.pageUrl){Link("照片來源與授權",destination:url).font(.caption)}
+        }.frame(width:260,alignment:.leading)
     }
 }
 
