@@ -153,6 +153,10 @@ nickname、ideas、quickReplies 都不能来自产品文档里的模拟用户。
     public static PetMessage CompleteTurn(PetSession s,JsonObject result,string reply,string mood)
     {
         if(s.Dialogue is not {} d)return new(Guid.NewGuid().ToString("N"),"assistant",reply,mood);
+        if(s.PersonalizingTrip && !result.Bool("followTripStep") && !result.Bool("companionTurn")){
+            var optional=(result.Array("quickReplies") ?? new JsonArray()).OfType<JsonObject>().Where(x=>x.Str("text").Length is >0 and <=45).Take(3).Select(x=>Reply(x.Str("text"))).ToArray();
+            return new(Guid.NewGuid().ToString("N"),"assistant",reply,mood,optional);
+        }
         if(result.Bool("companionTurn")){d.ResponseCount=Math.Min(MaximumResponses,d.ResponseCount+1);d.Phase="exploring";return new(Guid.NewGuid().ToString("N"),"assistant",reply,"relaxed",KokoCompanion.Options(result));}
         var initial=d.Inspiration is null;
         if(initial)d.ResponseCount=Math.Min(MaximumResponses,d.ResponseCount+1);

@@ -9,6 +9,17 @@ namespace SydneyBuddy.Api.Tests;
 public sealed class KokoDialogueUnitTests
 {
     [Fact]
+    public void PersonalizationPreservesNaturalFollowUpWithConfirmedBasics()
+    {
+        var s=new PetSession();KokoDialogue.Enable(s,new(){["profilingVersion"]=2});
+        s.PersonalizingTrip=true;s.Fields["destination"]="Sydney";s.Fields["date"]="2026-10-30";
+        var reply=KokoDialogue.CompleteTurn(s,new(){["readyForDraft"]=true},"A quiet cafe sounds lovely. Do you enjoy waterfront walks too?","curious");
+        Assert.Equal("A quiet cafe sounds lovely. Do you enjoy waterfront walks too?",reply.Text);
+        Assert.Equal("2026-10-30",s.Fields["date"]);Assert.Empty(s.Preferences);
+        Assert.DoesNotContain("trip details",reply.Text);
+    }
+
+    [Fact]
     public void OptionalNameCountsAsOneRoundAndDoesNotRequireModelOrTyping()
     {
         var s=new PetSession();KokoDialogue.Enable(s,new(){["profilingVersion"]=2});

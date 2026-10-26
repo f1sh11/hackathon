@@ -15,6 +15,8 @@ public sealed class PetSession
     public string ResponseLanguage { get; set; } = "";
     [System.Text.Json.Serialization.JsonIgnore]
     public string InteractionContext { get; set; } = "";
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool PersonalizingTrip {get;set;}
     public List<PetMessage> Messages { get; set; } = [];
     public Dictionary<string,string> Fields { get; set; } = [];
     public JsonObject PersonalProfile { get; set; } = new();
@@ -72,6 +74,7 @@ public static class PetResponseLanguage
         var context=input.Str("interactionContext");
         if(context.Length>2000)throw new ServiceException("行程上下文过长。");
         session.InteractionContext=context;
+        session.PersonalizingTrip=input.Str("conversationPhase")=="personalize";
         if(language is "zh-Hans" or "zh-Hant" or "en")session.ResponseLanguage=language;
     }
     public static string Prompt(PetSession session)=>session.ResponseLanguage switch {
