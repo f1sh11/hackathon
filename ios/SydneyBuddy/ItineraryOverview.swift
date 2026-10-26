@@ -163,14 +163,14 @@ func overviewBadge(_ text: String, direction: Bool = false) -> UIImage {
         let circle=UIBezierPath(ovalIn:rect);circle.fill()
         if !start && !direction {UIColor.darkGray.setStroke();circle.lineWidth=2;circle.stroke()}
         let attrs:[NSAttributedString.Key:Any]=[.font:UIFont.boldSystemFont(ofSize:direction ? 16 : text.count>2 ? 10 : 15),.foregroundColor:start || direction ? UIColor.white : UIColor.darkGray]
-        let label=text == "●" ? "" : text
+        let label=text == "●" ? "" : uiText(text)
         let measured=(label as NSString).size(withAttributes:attrs)
         (label as NSString).draw(at:CGPoint(x:(size.width-measured.width)/2,y:(size.height-measured.height)/2),withAttributes:attrs)
     }
 }
 func overviewPins(_ day: DayPlan) -> [ItineraryPin] {
     let loop = CLLocation(latitude: day.start.lat, longitude: day.start.lng).distance(from: CLLocation(latitude: day.end.lat, longitude: day.end.lng)) < 3
-    var pins = [ItineraryPin(day.start.location, badge: loop ? "起/终" : "起", title: day.start.name + (loop ? " · 起点 / 返回点" : " · 起点"))]
+    var pins = [ItineraryPin(day.start.location, badge: loop ? "起/终" : "起", title: day.start.name + uiText(loop ? " · 起点 / 返回点" : " · 起点"))]
     var consumed=Set<Int>()
     for (i,stop) in day.stops.enumerated() where !consumed.contains(i) {
         let origin=CLLocation(latitude:stop.lat,longitude:stop.lng)
@@ -178,7 +178,7 @@ func overviewPins(_ day: DayPlan) -> [ItineraryPin] {
         consumed.formUnion(group)
         pins.append(ItineraryPin(stop.coordinate,badge:group.map{String($0+1)}.joined(separator:"/"),title:group.map{"\($0+1). \(day.stops[$0].name)"}.joined(separator:" → "),detail:group.map{"\(day.stops[$0].arrival)–\(day.stops[$0].departure)"}.joined(separator:" · ")))
     }
-    if !loop { pins.append(ItineraryPin(day.end.location, badge: "终", title: day.end.name + " · 返回点")) }
+    if !loop { pins.append(ItineraryPin(day.end.location, badge: "终", title: day.end.name + uiText(" · 返回点"))) }
     return pins
 }
 func overviewDirections(_ coordinates: [CLLocationCoordinate2D]) -> [ItineraryPin] {
@@ -207,21 +207,24 @@ func overviewTransportLegs(_ day:DayPlan,route:OverviewRoute?,plan:JourneyPlan?)
     return route.legSeconds.enumerated().map{i,seconds in OverviewTransportLeg(id:i,label:"\(i==0 ? "起":String(i))→\(i==day.stops.count ? "終":String(i+1))",from:names[i],to:names[i+1],mode:"walk",transport:seconds == 0 ? "同一位置" : "步行",minutes:Int(ceil(seconds/60)))}
 }
 struct HomeTransportStrip:View {
+    @Environment(\.locale) private var interfaceLocale
+
     var day:DayPlan;@ObservedObject var overview:ItineraryOverview
     @EnvironmentObject var store:AppStore
     var onPlan:()->Void;var onRetry:()->Void
     var body:some View {
+        let _=interfaceLocale
         VStack(alignment:.leading,spacing:6){
-            HStack{Button(action:onPlan){Label("交通方式",systemImage:"arrow.triangle.swap").font(.caption.bold())};Spacer();if overview.route != nil{Text(store.language.text("{0} 分 · 道路查詢",String(Int(ceil((overview.route?.seconds ?? 0)/60))))).font(.caption2).foregroundStyle(Palette.muted)}}
-            Text(day.legs.allSatisfy({$0.source.contains("Apple")}) ? "已按 Apple 步行时间校准，排程逐段向上取整为 \(day.legs.reduce(0){$0+$1.minutes}) 分。":"行程交通估算 \(day.legs.reduce(0){$0+$1.minutes}) 分；道路查询尚未用于校准安排。").font(.caption2).foregroundStyle(Palette.muted)
+            HStack{Button(action:onPlan){Label(uiText("交通方式"),systemImage:"arrow.triangle.swap").font(.caption.bold())};Spacer();if overview.route != nil{Text(uiText(store.language.text("{0} 分 · 道路查詢",String(Int(ceil((overview.route?.seconds ?? 0)/60)))))).font(.caption2).foregroundStyle(Palette.muted)}}
+            Text(uiText(day.legs.allSatisfy({$0.source.contains("Apple")}) ? "已按 Apple 步行时间校准，排程逐段向上取整为 \(day.legs.reduce(0){$0+$1.minutes}) 分。":"行程交通估算 \(day.legs.reduce(0){$0+$1.minutes}) 分；道路查询尚未用于校准安排。")).font(.caption2).foregroundStyle(Palette.muted)
             if overview.busy{ProgressView("正在載入道路路線…").font(.caption)}
             else if overview.route != nil{
                 ScrollView(.horizontal,showsIndicators:false){HStack(spacing:6){ForEach(overviewTransportLegs(day,route:overview.route,plan:overview.plan)){leg in
-                    VStack(alignment:.leading,spacing:4){Label(store.language.text("{0} · {1} {2} 分",leg.label,store.language.text(leg.transport),String(leg.minutes)),systemImage:transportSymbol(leg.mode)).font(.caption.bold()).lineLimit(1);Text(leg.from+" → "+leg.to).font(.system(size:10)).lineLimit(1)}.padding(8).frame(maxWidth:220,alignment:.leading).background(Palette.mint.opacity(0.65),in:RoundedRectangle(cornerRadius:10))
+                    VStack(alignment:.leading,spacing:4){Label(uiText(store.language.text("{0} · {1} {2} 分",leg.label,store.language.text(leg.transport),String(leg.minutes))),systemImage:transportSymbol(leg.mode)).font(.caption.bold()).lineLimit(1);Text(uiText(leg.from+" → "+leg.to)).font(.system(size:10)).lineLimit(1)}.padding(8).frame(maxWidth:220,alignment:.leading).background(Palette.mint.opacity(0.65),in:RoundedRectangle(cornerRadius:10))
                 }}}.accessibilityIdentifier("home-transport-legs")
             }else if let message=overview.message{
-                HStack(alignment:.top){Text(message).font(.caption2).foregroundStyle(.red);Spacer();Button("重試",action:onRetry).font(.caption.bold())}.accessibilityIdentifier("home-route-error")
-            }else{Text("選擇交通方式以規劃路線").font(.caption2).foregroundStyle(Palette.muted)}
+                HStack(alignment:.top){Text(uiText(message)).font(.caption2).foregroundStyle(.red);Spacer();Button(uiText("重試"),action:onRetry).font(.caption.bold())}.accessibilityIdentifier("home-route-error")
+            }else{Text(uiText("選擇交通方式以規劃路線")).font(.caption2).foregroundStyle(Palette.muted)}
         }
     }
 }

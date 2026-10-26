@@ -2,6 +2,8 @@ import SwiftUI
 
 /// Small, explicitly confirmed groups; no defaults are stored merely by opening.
 struct GuidedTripDetails: View {
+    @Environment(\.locale) private var interfaceLocale
+
     let single:Bool
     let save: ([String:String]) async -> String?
     @Environment(\.dismiss) private var dismiss
@@ -44,39 +46,40 @@ struct GuidedTripDetails: View {
     private static func extraKey(_ index:Int)->String {[4:"origin",5:"mustDo",6:"avoid",7:"companionNeeds"][index] ?? ""}
     private var question:String {["这次想去哪里呀？","哪天出发，玩几天？","这次有几位旅行搭子？","给活动留多少预算？","每天从哪里出发？","有什么特别想去或想做的？","有哪些安排要避开？","同行者需要哪些照顾？"][stage]}
     var body:some View {
+        let _=interfaceLocale
         NavigationStack {
             ScrollView {VStack(alignment:.leading,spacing:24){
                 if !single{ProgressView(value:Double(stage+1),total:4).tint(Palette.green)}
-                HStack {PetAvatar(mood:.curious).frame(width:88,height:100);VStack(alignment:.leading,spacing:8){if !single{Text("第 \(stage+1) / 4 步").font(.caption).foregroundStyle(Palette.muted)};Text(question).font(.title2.bold())}}
+                HStack {PetAvatar(mood:.curious).frame(width:88,height:100);VStack(alignment:.leading,spacing:8){if !single{Text(uiText("第 \(stage+1) / 4 步")).font(.caption).foregroundStyle(Palette.muted)};Text(uiText(question)).font(.title2.bold())}}
                 VStack(alignment:.leading,spacing:20) {
                     switch stage {
                     case 0:
-                        TextField("城市或地区",text:$destination).textFieldStyle(.roundedBorder).accessibilityIdentifier("details-destination")
-                        Button("悉尼"){destination="悉尼"}.buttonStyle(.bordered)
-                        Text("目前可生成悉尼路线；其他目的地可以先保存想法。").font(.caption).foregroundStyle(Palette.muted)
+                        TextField(uiText("城市或地区"),text:$destination).textFieldStyle(.roundedBorder).accessibilityIdentifier("details-destination")
+                        Button(uiText("悉尼")){destination="悉尼"}.buttonStyle(.bordered)
+                        Text(uiText("目前可生成悉尼路线；其他目的地可以先保存想法。")).font(.caption).foregroundStyle(Palette.muted)
                     case 1:
                         DatePicker("出发日期",selection:$date,displayedComponents:.date).datePickerStyle(.compact)
                         Stepper("旅行 \(days) 天",value:$days,in:1...15).accessibilityIdentifier("details-days")
-                        Button("日期还没定，先留空"){Task{busy=true;error=await save(["date":""]);busy=false;if error==nil{if single{dismiss()}else{stage+=1}}}}.disabled(busy)
+                        Button(uiText("日期还没定，先留空")){Task{busy=true;error=await save(["date":""]);busy=false;if error==nil{if single{dismiss()}else{stage+=1}}}}.disabled(busy)
                     case 2:
                         Stepper("一共 \(people) 人",value:$people,in:1...30)
-                        Text("包括你自己。特别的照顾需求可以继续告诉 Koko。").font(.subheadline).foregroundStyle(Palette.muted)
+                        Text(uiText("包括你自己。特别的照顾需求可以继续告诉 Koko。")).font(.subheadline).foregroundStyle(Palette.muted)
                     case 3:
-                        HStack {TextField("金额",text:$budget).keyboardType(.decimalPad).textFieldStyle(.roundedBorder).accessibilityIdentifier("details-budget");Text("AUD").fontWeight(.bold)}
-                        Picker("预算范围",selection:$basis){ForEach(TravelRequirements.budgetBases,id:\.0){Text($0.1).tag($0.0)}}
-                        Text("这是活动预算，不包含住宿、交通及全部餐饮。选择每人或全体、每天或全程。").font(.caption).foregroundStyle(Palette.muted)
+                        HStack {TextField(uiText("金额"),text:$budget).keyboardType(.decimalPad).textFieldStyle(.roundedBorder).accessibilityIdentifier("details-budget");Text(uiText("AUD")).fontWeight(.bold)}
+                        Picker(uiText("预算范围"),selection:$basis){ForEach(TravelRequirements.budgetBases,id:\.0){Text(uiText($0.1)).tag($0.0)}}
+                        Text(uiText("这是活动预算，不包含住宿、交通及全部餐饮。选择每人或全体、每天或全程。")).font(.caption).foregroundStyle(Palette.muted)
                     default:
-                        TextField("暂未确定，可以留空",text:$extra,axis:.vertical).lineLimit(3...6).textFieldStyle(.roundedBorder)
-                        if stage==4{Text("暂未确定时，生成路线会明确提示采用的临时起点。").font(.caption).foregroundStyle(Palette.muted)}
+                        TextField(uiText("暂未确定，可以留空"),text:$extra,axis:.vertical).lineLimit(3...6).textFieldStyle(.roundedBorder)
+                        if stage==4{Text(uiText("暂未确定时，生成路线会明确提示采用的临时起点。")).font(.caption).foregroundStyle(Palette.muted)}
                     }
                 }.padding(20).background(.white,in:RoundedRectangle(cornerRadius:20))
-                if let error {Text(error).font(.subheadline).foregroundStyle(.red)}
-                Text("只用于这次旅行。已经确认的资料会保留。").font(.caption).foregroundStyle(Palette.muted)
+                if let error {Text(uiText(error)).font(.subheadline).foregroundStyle(.red)}
+                Text(uiText("只用于这次旅行。已经确认的资料会保留。")).font(.caption).foregroundStyle(Palette.muted)
                 PrimaryButton(title:busy ? "正在收好…":single ? "保存修改":stage==3 ? "完成，回到聊天":"确认，下一步",symbol:"checkmark"){Task{await advance()}}.disabled(busy)
-                if stage>0 && !single{Button("上一步"){error=nil;stage-=1}.frame(maxWidth:.infinity).disabled(busy)}
+                if stage>0 && !single{Button(uiText("上一步")){error=nil;stage-=1}.frame(maxWidth:.infinity).disabled(busy)}
             }.padding(24)}.background(Palette.cream).foregroundStyle(Palette.ink)
-                .navigationTitle("准备这次旅行").navigationBarTitleDisplayMode(.inline)
-                .toolbar{Button(single ? "取消":"稍后继续"){dismiss()}.disabled(busy)}
+                .navigationTitle(uiText("准备这次旅行")).navigationBarTitleDisplayMode(.inline)
+                .toolbar{Button(uiText(single ? "取消":"稍后继续")){dismiss()}.disabled(busy)}
         }.tint(Palette.green).interactiveDismissDisabled(busy)
     }
     @MainActor private func advance() async {
@@ -103,6 +106,8 @@ struct GuidedTripDetails: View {
 
 private struct TripDetailSelection:Identifiable {let id:Int}
 struct TripDetailsSummary:View {
+    @Environment(\.locale) private var interfaceLocale
+
     let fields:[String:String]
     let save:([String:String]) async -> String?
     @Environment(\.dismiss) private var dismiss
@@ -110,31 +115,32 @@ struct TripDetailsSummary:View {
     @State private var continuing=false
     private func value(_ key:String)->String {TravelRequirements.known(fields[key]) ? fields[key]!:"待补充"}
     var body:some View {
+        let _=interfaceLocale
         NavigationStack {
             List {
-                Section("本次旅行 · 点哪项就改哪项") {
+                Section(uiText("本次旅行 · 点哪项就改哪项")) {
                     row("目的地",value("destination"),0)
                     row("日期与天数",(TravelRequirements.known(fields["date"]) ? value("date"):"日期未定")+(TravelRequirements.known(fields["days"]) ? " · "+value("days")+" 天":" · 天数未定"),1)
                     row("同行人数",TravelRequirements.known(fields["travelers"]) ? value("travelers")+" 人":"人数待确认",2)
                     row("活动预算",TravelRequirements.known(fields["budget"]) ? value("budget")+" "+(fields["budgetCurrency"] ?? "币种待确认")+" · "+TravelRequirements.optionTitle(fields["budgetBasis"] ?? "范围待确认",field:"budgetBasis"):"金额待确认",3)
                 }
-                Section("可选补充") {
+                Section(uiText("可选补充")) {
                     row("住宿 / 每日起点",value("origin"),4)
                     row("特别想去或想做",value("mustDo"),5)
                     row("需要避开",value("avoid"),6)
                     row("同行者需要",value("companionNeeds"),7)
                 }
                 if !TravelRequirements.missingFields(fields).isEmpty {
-                    Button("按步骤补齐剩余资料"){continuing=true}
+                    Button(uiText("按步骤补齐剩余资料")){continuing=true}
                 }
-                Text("只修改这次旅行。保存后 Koko 会告诉你还缺什么；取消不会保存当前修改。").font(.caption).foregroundStyle(Palette.muted)
+                Text(uiText("只修改这次旅行。保存后 Koko 会告诉你还缺什么；取消不会保存当前修改。")).font(.caption).foregroundStyle(Palette.muted)
             }.scrollContentBackground(.hidden).background(Palette.cream)
-                .navigationTitle("旅行资料").navigationBarTitleDisplayMode(.inline).toolbar{Button("回到聊天"){dismiss()}}
+                .navigationTitle(uiText("旅行资料")).navigationBarTitleDisplayMode(.inline).toolbar{Button(uiText("回到聊天")){dismiss()}}
                 .sheet(item:$editing){item in GuidedTripDetails(fields:fields,startStage:item.id,single:true,save:save)}
                 .sheet(isPresented:$continuing){GuidedTripDetails(fields:fields,save:save)}
         }.tint(Palette.green)
     }
     private func row(_ title:String,_ detail:String,_ stage:Int)->some View {
-        Button{editing=TripDetailSelection(id:stage)}label:{HStack {VStack(alignment:.leading,spacing:5){Text(title).font(.subheadline.bold());Text(detail).font(.caption).foregroundStyle(Palette.muted)};Spacer();Image(systemName:"chevron.right").font(.caption)}}.foregroundStyle(Palette.ink).accessibilityIdentifier("trip-detail-\(stage)")
+        Button{editing=TripDetailSelection(id:stage)}label:{HStack {VStack(alignment:.leading,spacing:5){Text(uiText(title)).font(.subheadline.bold());Text(uiText(detail)).font(.caption).foregroundStyle(Palette.muted)};Spacer();Image(systemName:"chevron.right").font(.caption)}}.foregroundStyle(Palette.ink).accessibilityIdentifier("trip-detail-\(stage)")
     }
 }

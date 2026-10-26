@@ -83,6 +83,8 @@ func journeyTime(_ raw:String)->String {
 }
 
 struct JourneyPlannerView:View {
+    @Environment(\.locale) private var interfaceLocale
+
     let day:DayPlan
     let tripID:String
     let provider:MapProvider
@@ -104,13 +106,14 @@ struct JourneyPlannerView:View {
     private var result:JourneyPlan? {fixture ?? model.plan}
     private var points:[(String,String)] {[("起",day.start.name)]+day.stops.enumerated().map{(String($0.offset+1),$0.element.name)}+[("终",day.end.name)]}
     var body:some View {
+        let _=interfaceLocale
         ZStack(alignment:.top) {
             map.ignoresSafeArea()
             VStack(spacing:10) {
-                HStack {Text("交通路线").font(.headline);Spacer();Button("关闭"){dismiss()}}.padding().background(.white,in:RoundedRectangle(cornerRadius:20))
-                if fixture != nil {Text("测试资料 · TEST 公车非真实班次").font(.caption.bold()).padding(8).background(.yellow,in:Capsule())}
+                HStack {Text(uiText("交通路线")).font(.headline);Spacer();Button(uiText("关闭")){dismiss()}}.padding().background(.white,in:RoundedRectangle(cornerRadius:20))
+                if fixture != nil {Text(uiText("测试资料 · TEST 公车非真实班次")).font(.caption.bold()).padding(8).background(.yellow,in:Capsule())}
                 if !details {
-                    VStack(alignment:.leading,spacing:8){Text("起 · \(day.start.name)").bold();Text("↓ \(day.stops.count) 个停留点").font(.caption);Text("终 · \(day.end.name)").bold()}.padding().frame(maxWidth:.infinity,alignment:.leading).background(.white,in:RoundedRectangle(cornerRadius:20))
+                    VStack(alignment:.leading,spacing:8){Text(uiText("起 · \(day.start.name)")).bold();Text(uiText("↓ \(day.stops.count) 个停留点")).font(.caption);Text(uiText("终 · \(day.end.name)")).bold()}.padding().frame(maxWidth:.infinity,alignment:.leading).background(.white,in:RoundedRectangle(cornerRadius:20))
                 }
                 Spacer(minLength:0)
                 panel
@@ -127,68 +130,68 @@ struct JourneyPlannerView:View {
         case .osm,.apple: NativeRouteMap(day:day,overview:overview,expanded:true,provider:provider,viewport:nil,onViewport:{_ in},sections:result?.sections ?? []).id(result?.arrivalTime ?? "unplanned")
         case .google:
             if SydneyBuddyApp.mapReady {GoogleRouteMap(day:day,overview:overview,expanded:true,viewport:nil,onViewport:{_ in},sections:result?.sections ?? []).id(result?.arrivalTime ?? "unplanned")}
-            else {Palette.mint.overlay(Text("Google 地图未配置密钥，可切换 OpenStreetMap"))}
+            else {Palette.mint.overlay(Text(uiText("Google 地图未配置密钥，可切换 OpenStreetMap")))}
         case .schematic:SchematicMap(day:day)
         }
     }
     private var panel:some View {
         VStack(alignment:.leading,spacing:10) {
             HStack {
-                Text(result.map{"\(Int(ceil($0.travelSeconds/60))) 分钟 · \(Int($0.meters)) 米"} ?? "选择每段交通方式").font(.headline)
-                Spacer();Button(details ? "收起" : "路线详情"){details.toggle()}.font(.caption.bold())
+                Text(uiText(result.map{"\(Int(ceil($0.travelSeconds/60))) 分钟 · \(Int($0.meters)) 米"} ?? "选择每段交通方式")).font(.headline)
+                Spacer();Button(uiText(details ? "收起" : "路线详情")){details.toggle()}.font(.caption.bold())
             }
-            if let result {Text(result.source).font(.caption2).foregroundStyle(Palette.muted)}
+            if let result {Text(uiText(result.source)).font(.caption2).foregroundStyle(Palette.muted)}
             if details {
                 ScrollView {
                     VStack(alignment:.leading,spacing:12) {
                         if result == nil {
-                        Picker("路线资料",selection:$routingProvider) {
-                            if contentSource != "google" {Text("开源 · Valhalla / OTP").tag("open");Text("NSW 交通 + Valhalla").tag("nsw")}
-                            if provider == .google {Text("Google Routes").tag("google")}
-                            if provider == .apple && contentSource != "google" {Text("Apple Maps").tag("apple")}
+                        Picker(uiText("路线资料"),selection:$routingProvider) {
+                            if contentSource != "google" {Text(uiText("开源 · Valhalla / OTP")).tag("open");Text(uiText("NSW 交通 + Valhalla")).tag("nsw")}
+                            if provider == .google {Text(uiText("Google Routes")).tag("google")}
+                            if provider == .apple && contentSource != "google" {Text(uiText("Apple Maps")).tag("apple")}
                         }.font(.caption)
                         if routingProvider == "apple" && modes.contains("transit") {
-                            Text("步行使用 Apple，公共交通按所选出发时间查询 NSW 班次，路线仍在 App 内显示。").font(.caption).foregroundStyle(Palette.muted)
+                            Text(uiText("步行使用 Apple，公共交通按所选出发时间查询 NSW 班次，路线仍在 App 内显示。")).font(.caption).foregroundStyle(Palette.muted)
                         }
                         DatePicker("出发时间（悉尼）",selection:$departure).environment(\.timeZone,TimeZone(identifier:"Australia/Sydney")!).font(.caption)
-                        HStack {ForEach(["walk","drive","transit"],id:\.self){mode in Button {modes=Array(repeating:mode,count:modes.count)} label:{Label(transportLabel(mode),systemImage:transportSymbol(mode)).font(.caption.bold()).padding(8).background(modes.allSatisfy{$0==mode} ? Palette.mint : Color.gray.opacity(0.08),in:Capsule())}.accessibilityValue(modes.allSatisfy{$0==mode} ? "已选择" : "未选择")}}
-                        } else {HStack {Text("出发 \(journeyTime(result!.departureTime)) · 悉尼").font(.caption);Spacer();if fixture == nil {Button("调整交通"){model.invalidate()}.font(.caption)}}}
+                        HStack {ForEach(["walk","drive","transit"],id:\.self){mode in Button {modes=Array(repeating:mode,count:modes.count)} label:{Label(uiText(transportLabel(mode)),systemImage:transportSymbol(mode)).font(.caption.bold()).padding(8).background(modes.allSatisfy{$0==mode} ? Palette.mint : Color.gray.opacity(0.08),in:Capsule())}.accessibilityValue(modes.allSatisfy{$0==mode} ? "已选择" : "未选择")}}
+                        } else {HStack {Text(uiText("出发 \(journeyTime(result!.departureTime)) · 悉尼")).font(.caption);Spacer();if fixture == nil {Button(uiText("调整交通")){model.invalidate()}.font(.caption)}}}
                         ForEach(points.indices,id:\.self){i in
-                            HStack(alignment:.top,spacing:12){Text(points[i].0).font(.caption.bold()).frame(width:26,height:26).background(Palette.mint,in:Circle());Text(points[i].1).font(.subheadline.bold());Spacer()}
+                            HStack(alignment:.top,spacing:12){Text(uiText(points[i].0)).font(.caption.bold()).frame(width:26,height:26).background(Palette.mint,in:Circle());Text(uiText(points[i].1)).font(.subheadline.bold());Spacer()}
                             if i<modes.count {
-                                if result == nil {Picker("第 \(i+1) 段交通",selection:$modes[i]) {ForEach(["walk","drive","transit"],id:\.self){Text(transportLabel($0)).tag($0)}}.pickerStyle(.segmented)}
+                                if result == nil {Picker(uiText("第 \(i+1) 段交通"),selection:$modes[i]) {ForEach(["walk","drive","transit"],id:\.self){Text(uiText(transportLabel($0))).tag($0)}}.pickerStyle(.segmented)}
                                 if let leg=result?.legs.first(where:{$0.index==i}) {
-                                    Text("\(journeyTime(leg.departureTime)) → \(journeyTime(leg.arrivalTime))"+(leg.staySeconds>0 ? " · 到站停留 \(Int(leg.staySeconds/60)) 分" : "")).font(.caption).foregroundStyle(Palette.muted)
+                                    Text(uiText("\(journeyTime(leg.departureTime)) → \(journeyTime(leg.arrivalTime))"+(leg.staySeconds>0 ? " · 到站停留 \(Int(leg.staySeconds/60)) 分" : ""))).font(.caption).foregroundStyle(Palette.muted)
                                     ForEach(Array(leg.steps.enumerated()),id:\.offset){_,step in stepRow(step)}
                                 }
                             }
                         }
-                        if let result {ForEach(result.warnings,id:\.self){Text($0).font(.caption2).foregroundStyle(Palette.muted)};Text("\(result.source) · 时间为悉尼当地时间").font(.caption2)}
-                        else {Text("步行：蓝色密集小圆点 · 开车：绿色细实线 · 公共交通：蓝色细实线。尚未查询时仅显示站点，不画直线；路线沿服务回传的道路线形。").font(.caption2).foregroundStyle(Palette.muted)}
+                        if let result {ForEach(result.warnings,id:\.self){Text(uiText($0)).font(.caption2).foregroundStyle(Palette.muted)};Text(uiText("\(result.source) · 时间为悉尼当地时间")).font(.caption2)}
+                        else {Text(uiText("步行：蓝色密集小圆点 · 开车：绿色细实线 · 公共交通：蓝色细实线。尚未查询时仅显示站点，不画直线；路线沿服务回传的道路线形。")).font(.caption2).foregroundStyle(Palette.muted)}
                     }.padding(.vertical,4)
                 }.frame(maxHeight:360)
             }
-            if let error=model.error {Text(error).font(.caption).foregroundStyle(.red).accessibilityIdentifier("journey-error").fixedSize(horizontal:false,vertical:true)}
+            if let error=model.error {Text(uiText(error)).font(.caption).foregroundStyle(.red).accessibilityIdentifier("journey-error").fixedSize(horizontal:false,vertical:true)}
             HStack {
-                Button(model.busy ? "正在查询交通…" : result == nil ? "规划交通路线" : "重新查询"){model.load(day:day,modes:modes,departure:departure,routingProvider:routingProvider,mapProvider:provider.rawValue,contentSource:contentSource)}.disabled(model.busy || fixture != nil).buttonStyle(.borderedProminent)
-                if model.busy {Button("取消"){model.invalidate()}}
-                if fixture == nil,routingProvider == "open",result != nil,modes.allSatisfy({$0=="walk"}) {Button("开始步行导航"){navigation=true}}
+                Button(uiText(model.busy ? "正在查询交通…" : result == nil ? "规划交通路线" : "重新查询")){model.load(day:day,modes:modes,departure:departure,routingProvider:routingProvider,mapProvider:provider.rawValue,contentSource:contentSource)}.disabled(model.busy || fixture != nil).buttonStyle(.borderedProminent)
+                if model.busy {Button(uiText("取消")){model.invalidate()}}
+                if fixture == nil,routingProvider == "open",result != nil,modes.allSatisfy({$0=="walk"}) {Button(uiText("开始步行导航")){navigation=true}}
                 Spacer()
             }
-            if provider == .osm {Link("© OpenStreetMap contributors",destination:URL(string:"https://www.openstreetmap.org/copyright")!).font(.caption2)}
+            if provider == .osm {Link(uiText("© OpenStreetMap contributors"),destination:URL(string:"https://www.openstreetmap.org/copyright")!).font(.caption2)}
         }.padding(16).background(.white,in:RoundedRectangle(cornerRadius:24)).shadow(color:.black.opacity(0.1),radius:10)
     }
     private func stepRow(_ step:JourneyStep)->some View {
         VStack(alignment:.leading,spacing:5) {
-            HStack {Label(step.title,systemImage:transportSymbol(step.mode)).font(.subheadline.bold()).foregroundStyle(transportColor(step.mode));Spacer();Text("\(Int(ceil(step.seconds/60))) 分").font(.caption.bold())}
-            if step.waitSeconds>0 {Text("候车／衔接约 \(Int(ceil(step.waitSeconds/60))) 分").font(.caption)}
-            Text("\(step.from) → \(step.to)").font(.caption)
-            if let direction=step.headsign,!direction.isEmpty {Text("往 \(direction)").font(.caption)}
+            HStack {Label(uiText(step.title),systemImage:transportSymbol(step.mode)).font(.subheadline.bold()).foregroundStyle(transportColor(step.mode));Spacer();Text(uiText("\(Int(ceil(step.seconds/60))) 分")).font(.caption.bold())}
+            if step.waitSeconds>0 {Text(uiText("候车／衔接约 \(Int(ceil(step.waitSeconds/60))) 分")).font(.caption)}
+            Text(uiText("\(step.from) → \(step.to)")).font(.caption)
+            if let direction=step.headsign,!direction.isEmpty {Text(uiText("往 \(direction)")).font(.caption)}
             if step.mode != "walk" && step.mode != "drive" {
-                Text("\(journeyTime(step.departureTime)) 上车 · \(journeyTime(step.arrivalTime)) 下车"+(step.stopCount.map{" · \($0) 站"} ?? "")+(step.platform?.isEmpty == false ? " · 站台 \(step.platform!)" : "")).font(.caption)
-                Text(step.realtime ? "实时更新" : "时刻表班次 · 非实时").font(.caption2).foregroundStyle(Palette.muted)
+                Text(uiText("\(journeyTime(step.departureTime)) 上车 · \(journeyTime(step.arrivalTime)) 下车"+(step.stopCount.map{" · \($0) 站"} ?? "")+(step.platform?.isEmpty == false ? " · 站台 \(step.platform!)" : ""))).font(.caption)
+                Text(uiText(step.realtime ? "实时更新" : "时刻表班次 · 非实时")).font(.caption2).foregroundStyle(Palette.muted)
             }
-            if step.geometry.count<2 {Text("此段未提供路线线形，请按站名确认。").font(.caption2).foregroundStyle(Palette.muted)}
+            if step.geometry.count<2 {Text(uiText("此段未提供路线线形，请按站名确认。")).font(.caption2).foregroundStyle(Palette.muted)}
         }.padding(10).background(transportColor(step.mode).opacity(0.08),in:RoundedRectangle(cornerRadius:12))
     }
 }
@@ -293,6 +296,8 @@ struct JourneyPlannerView:View {
 
 /// Read-only Apple walking preview: no external-app handoff and no live-navigation claim.
 struct AppleTripWalkingView:View {
+    @Environment(\.locale) private var interfaceLocale
+
     let trip:Trip
     private let initialDay:Int
     private let initialPlan:JourneyPlan?
@@ -313,60 +318,61 @@ struct AppleTripWalkingView:View {
     }
     private var day:DayPlan? {trip.days.indices.contains(dayIndex) ? trip.days[dayIndex]:nil}
     var body:some View {
+        let _=interfaceLocale
         NavigationStack{ScrollView{VStack(alignment:.leading,spacing:16){
             if trip.days.count>1 {
-                Picker("查看哪一天",selection:$dayIndex){ForEach(trip.days.indices,id:\.self){Text("第 \($0+1) 天").tag($0)}}.pickerStyle(.segmented).accessibilityIdentifier("apple-walking-day")
+                Picker(uiText("查看哪一天"),selection:$dayIndex){ForEach(trip.days.indices,id:\.self){Text(uiText("第 \($0+1) 天")).tag($0)}}.pickerStyle(.segmented).accessibilityIdentifier("apple-walking-day")
             }
             if let day {
-                Text(day.date+(day.hasTransit ? " · 步行与公共交通":" · 步行路线预览")).font(.subheadline.bold())
+                Text(uiText(day.date+(day.hasTransit ? " · 步行与公共交通":" · 步行路线预览"))).font(.subheadline.bold())
                 NativeRouteMap(day:day,overview:overview.route,expanded:false,bottomInset:28,provider:.apple,viewport:nil,onViewport:{_ in},sections:overview.plan?.sections ?? []).frame(height:300).clipShape(RoundedRectangle(cornerRadius:20)).accessibilityIdentifier("apple-walking-map")
-                if !day.hasWalkingJourney{Text("当天为自由安排，先在行程中添加地点。").foregroundStyle(Palette.muted)}
+                if !day.hasWalkingJourney{Text(uiText("当天为自由安排，先在行程中添加地点。")).foregroundStyle(Palette.muted)}
                 else if overview.busy {ProgressView(day.hasTransit ? "正在读取当天步行与公共交通路线…":"Apple 正在查询当天步行路线…").accessibilityIdentifier("apple-walking-loading")}
                 else if let plan=overview.plan {
-                    Label(day.hasTransit ? "步行＋公共交通 · 约 \(Int(ceil(plan.travelSeconds/60))) 分钟":"约 \(Int(plan.meters.rounded())) 米 · 步行 \(Int(ceil(plan.travelSeconds/60))) 分钟",systemImage:day.hasTransit ? "tram.fill":"figure.walk").font(.headline).accessibilityIdentifier("apple-walking-summary")
-                    Text(day.hasTransit ? "交通总计包含接驳和等车，不含游览停留；各段班次见下方。":"步行总计不含停留和等待；开始导航后跟随当前位置，偏离路线会重新查询。").font(.caption).foregroundStyle(Palette.muted)
-                    if !day.hasTransit {Button("开始步行导航",systemImage:"location.fill"){navigating=true}.buttonStyle(.borderedProminent)}
-                    if day.hasTransit {Text(refreshed ? "这是按新出发时间查询的路线预览；尚未修改已保存日程，票价未知。":"已保存的计划班次，不能保证现在仍能赶上。出发前请刷新交通；票价未知。").font(.caption)}
-                    else if day.legs.count==plan.legs.count && zip(day.legs,plan.legs).allSatisfy({ old,new in old.source.contains("Apple") && old.minutes==Int(ceil(new.steps.reduce(0){$0+$1.seconds}/60)) }) {Label("当天安排已按 Apple 步行时间校准",systemImage:"checkmark.circle").font(.caption).foregroundStyle(Palette.green)}
+                    Label(uiText(day.hasTransit ? "步行＋公共交通 · 约 \(Int(ceil(plan.travelSeconds/60))) 分钟":"约 \(Int(plan.meters.rounded())) 米 · 步行 \(Int(ceil(plan.travelSeconds/60))) 分钟"),systemImage:day.hasTransit ? "tram.fill":"figure.walk").font(.headline).accessibilityIdentifier("apple-walking-summary")
+                    Text(uiText(day.hasTransit ? "交通总计包含接驳和等车，不含游览停留；各段班次见下方。":"步行总计不含停留和等待；开始导航后跟随当前位置，偏离路线会重新查询。")).font(.caption).foregroundStyle(Palette.muted)
+                    if !day.hasTransit {Button(uiText("开始步行导航"),systemImage:"location.fill"){navigating=true}.buttonStyle(.borderedProminent)}
+                    if day.hasTransit {Text(uiText(refreshed ? "这是按新出发时间查询的路线预览；尚未修改已保存日程，票价未知。":"已保存的计划班次，不能保证现在仍能赶上。出发前请刷新交通；票价未知。")).font(.caption)}
+                    else if day.legs.count==plan.legs.count && zip(day.legs,plan.legs).allSatisfy({ old,new in old.source.contains("Apple") && old.minutes==Int(ceil(new.steps.reduce(0){$0+$1.seconds}/60)) }) {Label(uiText("当天安排已按 Apple 步行时间校准"),systemImage:"checkmark.circle").font(.caption).foregroundStyle(Palette.green)}
                     else {
-                        Text("行程里的到达与返回时间尚未按这条道路路线校准。").font(.caption).foregroundStyle(Palette.muted)
+                        Text(uiText("行程里的到达与返回时间尚未按这条道路路线校准。")).font(.caption).foregroundStyle(Palette.muted)
                         if trip.id != nil {
-                            Button("按真实步行时间更新当天安排"){Task{if await store.updateWalkingTimes(plan,original:trip,dayIndex:dayIndex){updated=true;dismiss()}else{updateError=store.adjustmentError}}}.buttonStyle(.borderedProminent).disabled(store.busy).accessibilityIdentifier("apply-walking-times")
-                            Text("保留原景点与停留，计入衔接和休息；超出步数或时间上限会提示，原安排保留。").font(.caption2).foregroundStyle(Palette.muted)
-                        }else{Text("保存行程后可按最新步行时间校验安排。").font(.caption)}
-                        if let updateError{Text(updateError).font(.caption).foregroundStyle(.red)}
+                            Button(uiText("按真实步行时间更新当天安排")){Task{if await store.updateWalkingTimes(plan,original:trip,dayIndex:dayIndex){updated=true;dismiss()}else{updateError=store.adjustmentError}}}.buttonStyle(.borderedProminent).disabled(store.busy).accessibilityIdentifier("apply-walking-times")
+                            Text(uiText("保留原景点与停留，计入衔接和休息；超出步数或时间上限会提示，原安排保留。")).font(.caption2).foregroundStyle(Palette.muted)
+                        }else{Text(uiText("保存行程后可按最新步行时间校验安排。")).font(.caption)}
+                        if let updateError{Text(uiText(updateError)).font(.caption).foregroundStyle(.red)}
                     }
                     ForEach(plan.legs){leg in
                         DisclosureGroup {
                             let directions=leg.steps.flatMap{$0.walkingDirections ?? []}
-                            if leg.mode=="transit" {ForEach(leg.steps){step in VStack(alignment:.leading,spacing:4){Text(step.title).bold();Text(step.from+" → "+step.to);Text(journeyTime(step.departureTime)+"–"+journeyTime(step.arrivalTime)+(step.realtime ? " · 实时预估":" · 时刻表"))}.font(.caption).padding(.vertical,6)}}
-                            if directions.isEmpty && leg.mode != "transit" {Text("此段暂未提供分步文字，请参考地图路线。").font(.caption)}
+                            if leg.mode=="transit" {ForEach(leg.steps){step in VStack(alignment:.leading,spacing:4){Text(uiText(step.title)).bold();Text(uiText(step.from+" → "+step.to));Text(uiText(journeyTime(step.departureTime)+"–"+journeyTime(step.arrivalTime)+(step.realtime ? " · 实时预估":" · 时刻表")))}.font(.caption).padding(.vertical,6)}}
+                            if directions.isEmpty && leg.mode != "transit" {Text(uiText("此段暂未提供分步文字，请参考地图路线。")).font(.caption)}
                             ForEach(Array(directions.enumerated()),id:\.offset){_,instruction in
-                                HStack(alignment:.top){Text(instruction.text).font(.subheadline);Spacer();if instruction.meters>0{Text("\(Int(instruction.meters.rounded())) 米").font(.caption).foregroundStyle(Palette.muted)}}.padding(.vertical,5)
+                                HStack(alignment:.top){Text(uiText(instruction.text)).font(.subheadline);Spacer();if instruction.meters>0{Text(uiText("\(Int(instruction.meters.rounded())) 米")).font(.caption).foregroundStyle(Palette.muted)}}.padding(.vertical,5)
                             }
-                        } label:{VStack(alignment:.leading,spacing:4){Text("\(leg.index+1). "+leg.from+" → "+leg.to).font(.subheadline.bold());Text(leg.walkingSummary).font(.caption).foregroundStyle(Palette.muted)}}.padding(14).background(.white,in:RoundedRectangle(cornerRadius:16))
+                        } label:{VStack(alignment:.leading,spacing:4){Text(uiText("\(leg.index+1). "+leg.from+" → "+leg.to)).font(.subheadline.bold());Text(uiText(leg.walkingSummary)).font(.caption).foregroundStyle(Palette.muted)}}.padding(14).background(.white,in:RoundedRectangle(cornerRadius:16))
                     }
                 } else if let error=overview.message {
-                    Label(store.language.display(error),systemImage:"exclamationmark.circle").font(.subheadline).foregroundStyle(Palette.muted).accessibilityIdentifier("apple-walking-error")
-                    Button("重试步行路线"){overview.load(day,provider:.apple)}.buttonStyle(.borderedProminent).accessibilityIdentifier("apple-walking-retry")
+                    Label(uiText(store.language.display(error)),systemImage:"exclamationmark.circle").font(.subheadline).foregroundStyle(Palette.muted).accessibilityIdentifier("apple-walking-error")
+                    Button(uiText("重试步行路线")){overview.load(day,provider:.apple)}.buttonStyle(.borderedProminent).accessibilityIdentifier("apple-walking-retry")
                 }
                 if day.hasTransit {
-                    Button(refreshedJourney.busy ? "正在查询最新班次…":"刷新交通路线") {
+                    Button(uiText(refreshedJourney.busy ? "正在查询最新班次…":"刷新交通路线")) {
                         let f=DateFormatter();f.timeZone=TimeZone(identifier:"Australia/Sydney");f.dateFormat="yyyy-MM-dd HH:mm"
                         let minute=day.planningStartMinute ?? trip.profile.startMinute
                         let scheduled=f.date(from:day.date+String(format:" %02d:%02d",minute/60,minute%60)) ?? Date()
                         refreshedJourney.load(day:day,modes:day.transportModes,departure:max(Date(),scheduled),routingProvider:"apple",mapProvider:"apple")
                     }.buttonStyle(.borderedProminent).disabled(refreshedJourney.busy).accessibilityIdentifier("refresh-transit-route")
-                    if let error=refreshedJourney.error{Text(error).font(.caption).foregroundStyle(.red)}
+                    if let error=refreshedJourney.error{Text(uiText(error)).font(.caption).foregroundStyle(.red)}
                 }
                 if overview.plan != nil {
-                    if day.hasTransit {Button("按最新班次重新安排"){store.trip=trip;store.dayIndex=dayIndex;dismiss();Task{await store.generate("重新核对第 \(dayIndex+1) 天剩余行程的公共交通和时间，保留已完成活动与固定安排。",profileOverride:trip.profile)}}.font(.subheadline)}
-                    else{Button("重新查询路线"){overview.clear();overview.load(day,provider:.apple)}.font(.subheadline)}
+                    if day.hasTransit {Button(uiText("按最新班次重新安排")){store.trip=trip;store.dayIndex=dayIndex;dismiss();Task{await store.generate("重新核对第 \(dayIndex+1) 天剩余行程的公共交通和时间，保留已完成活动与固定安排。",profileOverride:trip.profile)}}.font(.subheadline)}
+                    else{Button(uiText("重新查询路线")){overview.clear();overview.load(day,provider:.apple)}.font(.subheadline)}
                 }
-                Button("选择出发时间与交通方式",systemImage:"slider.horizontal.3"){choosingTransport=true}.font(.subheadline).accessibilityIdentifier("route-transport-options")
-                Text(day.hasTransit ? "路线来源：Apple Maps＋Transport for NSW · 原行程保持不变":"路线来源：Apple Maps / MapKit · 原行程安排保持不变").font(.caption2).foregroundStyle(Palette.muted)
+                Button(uiText("选择出发时间与交通方式"),systemImage:"slider.horizontal.3"){choosingTransport=true}.font(.subheadline).accessibilityIdentifier("route-transport-options")
+                Text(uiText(day.hasTransit ? "路线来源：Apple Maps＋Transport for NSW · 原行程保持不变":"路线来源：Apple Maps / MapKit · 原行程安排保持不变")).font(.caption2).foregroundStyle(Palette.muted)
             }
-        }.padding(18)}.fullScreenCover(isPresented:$navigating){if let day {WalkingNavigationView(day:day,tripID:trip.id ?? "draft",apple:true)}}.background(Palette.cream).navigationTitle(day?.hasTransit == true ? "步行与公共交通":"App 内步行路线").navigationBarTitleDisplayMode(.inline).toolbar{Button("关闭"){dismiss()}}.tint(Palette.green)}
+        }.padding(18)}.fullScreenCover(isPresented:$navigating){if let day {WalkingNavigationView(day:day,tripID:trip.id ?? "draft",apple:true)}}.background(Palette.cream).navigationTitle(uiText(day?.hasTransit == true ? "步行与公共交通":"App 内步行路线")).navigationBarTitleDisplayMode(.inline).toolbar{Button(uiText("关闭")){dismiss()}}.tint(Palette.green)}
         .sheet(isPresented:$choosingTransport){if let day{JourneyPlannerView(day:day,tripID:trip.id ?? "draft",provider:.apple,departure:transportDeparture(day))}}
         .onReceive(refreshedJourney.$plan){value in if let value,let day{refreshed=true;overview.accept(value,day:day)}}
         .onDisappear{refreshedJourney.invalidate()}

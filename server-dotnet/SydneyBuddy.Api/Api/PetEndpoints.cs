@@ -8,7 +8,7 @@ public static class PetEndpoints
     {
         routes.MapPost("/pet/sessions",async (HttpContext ctx,PetSessionStore store,MemoryRepository records)=>
         {
-            var input=await RequestJson.ReadAsync(ctx);var s=new PetSession();
+            var input=await RequestJson.ReadAsync(ctx);var s=new PetSession();PetResponseLanguage.Apply(s,input);
             TravelProfiling.Refresh(s,await records.ListAsync(ctx.RequestAborted));
             if(input.Object("personalProfile") is JsonObject personal)s.PersonalProfile=(JsonObject)personal.DeepClone();
             PetQuestions.Apply(s,input.Object("fields")??new());
@@ -24,7 +24,7 @@ public static class PetEndpoints
         routes.MapPatch("/pet/sessions/{id}",async(string id,HttpContext ctx,PetSessionStore store)=>
         {
             var input=await RequestJson.ReadAsync(ctx);await store.Gate.WaitAsync(ctx.RequestAborted);
-            try{var s=store.Load(id);PetQuestions.Apply(s,input.Object("fields")??new());KokoDialogue.Enable(s,input);KokoDialogue.DetailsUpdated(s,input.Object("fields")??new());store.Save(s);return Results.Json(PetQuestions.View(s));}finally{store.Gate.Release();}
+            try{var s=store.Load(id);PetResponseLanguage.Apply(s,input);PetQuestions.Apply(s,input.Object("fields")??new());KokoDialogue.Enable(s,input);KokoDialogue.DetailsUpdated(s,input.Object("fields")??new());store.Save(s);return Results.Json(PetQuestions.View(s));}finally{store.Gate.Release();}
         });
         routes.MapPost("/pet/sessions/{id}/memory",async(string id,HttpContext ctx,PetSessionStore store,PreferenceService preferences,MemoryRepository records,IMemoryService memory)=>
         {
@@ -70,7 +70,7 @@ public static class PetEndpoints
         await store.Gate.WaitAsync(ctx.RequestAborted);
         try
         {
-            var s=store.Load(id);
+            var s=store.Load(id);PetResponseLanguage.Apply(s,input);
             ctx.Response.ContentType="application/x-ndjson; charset=utf-8";
             ctx.Response.Headers.CacheControl="no-store";ctx.Response.Headers["X-Accel-Buffering"]="no";
             async Task Emit(object value){await ctx.Response.WriteAsync(JsonSerializer.Serialize(value,JsonExtensions.Options)+"\n",ctx.RequestAborted);await ctx.Response.Body.FlushAsync(ctx.RequestAborted);}
