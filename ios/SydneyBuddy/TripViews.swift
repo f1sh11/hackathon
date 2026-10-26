@@ -351,7 +351,10 @@ struct TripsView:View {
                 if action=="open",let trip=taskSavedTrip{store.trip=trip;selectedTrip=trip}
             }){PlanningTaskDetails{action in planningAction=action;showingPlanning=false}.environmentObject(store)}
     }
-    private var homeTrip:Trip? {TripHomeFocus.pick(store.saved,lastOpenedID:UserDefaults.standard.string(forKey:"lastOpenedTripID"),today:TripProfile.dateString(Date()))}
+    private var homeTrip:Trip? {
+        if store.travelTask?.status == "completed", let trip=taskSavedTrip{return trip}
+        return TripHomeFocus.pick(store.saved,lastOpenedID:UserDefaults.standard.string(forKey:"lastOpenedTripID"),today:TripProfile.dateString(Date()))
+    }
     private var homeCue:KoalaCue {
         if let task=store.travelTask,task.status=="generating"{return KoalaCue(event:.planningStarted,id:task.id)}
         if let task=store.travelTask,task.status=="completed",task.tripID==homeTrip?.id {return KoalaCue(event:.tripSaved,id:"saved:"+task.id)}
@@ -375,11 +378,11 @@ struct TripsView:View {
                 }.frame(maxWidth:.infinity,alignment:.leading)
             }.padding(.top,12)
             Button{
-                if hasDraft{beginPlanning()}else{store.newTrip()}
+                if store.isGeneratingTrip{showingPlanning=true}else if hasDraft{beginPlanning()}else{store.newTrip()}
             }label:{
-                Label(uiText(hasDraft ? "Continue planning":"Plan a trip"),systemImage:hasDraft ? "bubble.left":"plus")
+                Label(uiText(store.isGeneratingTrip ? "View progress":hasDraft ? "Continue planning":"Plan a trip"),systemImage:store.isGeneratingTrip ? "sparkles":hasDraft ? "bubble.left":"plus")
                     .font(.system(.headline,design:.rounded,weight:.bold)).frame(maxWidth:.infinity,minHeight:54)
-            }.buttonStyle(TripsCreateButtonStyle()).disabled(store.isGeneratingTrip || store.busy).accessibilityIdentifier("koko-home-plan")
+            }.buttonStyle(TripsCreateButtonStyle()).disabled(store.busy && !store.isGeneratingTrip).accessibilityIdentifier("koko-home-plan")
             if hasDraft && !store.isGeneratingTrip {
                 Button{replacingDraft=true}label:{Label(uiText("Plan a new trip"),systemImage:"plus").font(.subheadline.weight(.semibold)).frame(maxWidth:.infinity,minHeight:44)}.foregroundStyle(tripsBlue).buttonStyle(BuddyPressStyle())
             }
@@ -412,12 +415,17 @@ struct TripsView:View {
     private var tripsPreview:some View {
         VStack(alignment:.leading,spacing:8){
             HStack{Text(uiText("Your trips")).font(.system(.title3,design:.rounded,weight:.bold));Spacer();Button{libraryOpen=true}label:{HStack(spacing:5){Text(uiText("See all"));Text(String(store.saved.count)).font(.caption);Image(systemName:"chevron.right").font(.caption)}}.font(.subheadline.bold()).foregroundStyle(tripsBlue).accessibilityIdentifier("all-trips")}.frame(minHeight:36)
+            if let task=store.travelTask,task.status != "completed"{planningCard(task).background(tripsBlue.opacity(0.065),in:RoundedRectangle(cornerRadius:18))}
             if let trip=homeTrip{featuredTrip(trip)}
             ForEach(previewTrips,id:\.id){trip in compactTrip(trip);Divider().padding(.leading,72)}
-            if let task=store.travelTask,task.status != "completed"{planningCard(task)}
-            else if hasDraft{Button{beginPlanning()}label:{HStack(spacing:12){Image(systemName:"bubble.left").font(.title2).foregroundStyle(Palette.berry).frame(width:44,height:48);VStack(alignment:.leading,spacing:4){Text(uiText("Your next little trip")).font(.subheadline.bold());Text(uiText("Draft · Pick up where you left off")).font(.caption).foregroundStyle(Palette.muted)};Spacer();Image(systemName:"chevron.right").font(.caption)}.padding(14).background(.white,in:RoundedRectangle(cornerRadius:18))}.buttonStyle(BuddyPressStyle()).accessibilityIdentifier("planning-trip-card")}
+            if store.travelTask == nil && hasDraft{draftResumeCard}
+
+
             if previewTrips.isEmpty && store.travelTask==nil && !hasDraft{Text(uiText("Your little adventures will live here.")).font(.subheadline).foregroundStyle(Palette.muted).padding(.vertical,12)}
         }
+    }
+    private var draftResumeCard:some View {
+        Button{beginPlanning()}label:{HStack(spacing:12){Image(systemName:"bubble.left").font(.title2).foregroundStyle(Palette.berry).frame(width:44,height:48);VStack(alignment:.leading,spacing:4){Text(uiText("Your next little trip")).font(.subheadline.bold());Text(uiText("Draft · Pick up where you left off")).font(.caption).foregroundStyle(Palette.muted)};Spacer();Image(systemName:"chevron.right").font(.caption)}.padding(14).background(.white,in:RoundedRectangle(cornerRadius:18))}.buttonStyle(BuddyPressStyle()).accessibilityIdentifier("planning-trip-card")
     }
     private func compactTrip(_ trip:Trip)->some View {
         Button{store.trip=trip;selectedTrip=trip}label:{
