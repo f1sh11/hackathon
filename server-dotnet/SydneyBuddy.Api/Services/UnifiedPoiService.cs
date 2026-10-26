@@ -47,6 +47,11 @@ public sealed class UnifiedPoiService(TravelDataContext travel,OverturePoiProvid
             token.ThrowIfCancellationRequested();
             if(point.Str("source").Length==0)point["source"]="Catalog";
             if(point.Str("poiKind").Length==0)point["poiKind"]=point.Str("activityType")=="meal"?"restaurant":"attraction";
+            // iOS ScheduleCandidate requires these keys; catalog rows may omit them.
+            if(point["reason"] is null)point["reason"]=point.Str("note").Length>0?point.Str("note"):"精選地點";
+            if(point["indoor"] is null)point["indoor"]=false;
+            if(point["visitMinutes"] is null)point["visitMinutes"]=60;
+            if(point["cost"] is null)point["cost"]=0;
             var kind=Kind(point);
             if(!PoiCategories.Matches(point,category))continue;
             if(!tokens.All(q=>CultureInfo.InvariantCulture.CompareInfo.IndexOf(point.Str("searchText",point.Str("name")+" "+point.Str("description")+" "+point.Str("address")),q,CompareOptions.IgnoreCase|CompareOptions.IgnoreNonSpace)>=0))continue;
