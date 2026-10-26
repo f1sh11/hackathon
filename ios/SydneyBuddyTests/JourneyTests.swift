@@ -57,6 +57,44 @@ private final class JourneyStub:URLProtocol {
         do{let _: [Trip]=try await store.api("trips");XCTFail("An old backend error must not replace the new connection state")}
         catch is CancellationError {}
     }
+    func testCloudPlanningUsesWarehouseAndKeepsPriceEvidence() async throws {
+        let store=AppStore();var profile=TripProfile();profile.interests=["美食"]
+        store.planningDiscovery={_ in XCTFail("Cloud planning must not use Apple place discovery");return []}
+        var calls=0
+        store.loader={request in
+            calls+=1
+            XCTAssertEqual(request.url?.lastPathComponent,"search")
+            XCTAssertEqual(request.value(forHTTPHeaderField:"X-Travel-Data-Source"),"zetaris-cloud")
+            let body=try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:Any]
+            let food=body["category"] as? String == "restaurants"
+            let point:[String:Any]=["id":food ? "osm:meal":"osm:museum","name":food ? "Real Restaurant":"Real Museum","category":food ? "美食":"文化","indoor":true,"visitMinutes":food ? 45:75,"cost":food ? 65:12,"costKnown":false,"lat":-33.86,"lng":151.21,"reason":"test","source":"OpenStreetMap / Zetaris","poiKind":food ? "restaurant":"museum"]
+            return(try JSONSerialization.data(withJSONObject:["dataSource":"zetaris-cloud","places":[point]]),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)
+        }
+        let result=try await store.discoverPlanningCandidates(profile,source:.zetarisCloud)
+        XCTAssertGreaterThan(calls,0);XCTAssertEqual(Set(result.map(\.id)),Set(["osm:meal","osm:museum"]))
+        XCTAssertEqual(result.first(where:{$0.id=="osm:meal"})?.cost,65)
+        XCTAssertEqual(result.first(where:{$0.id=="osm:meal"})?.activityType,"meal")
+        XCTAssertEqual(result.first(where:{$0.id=="osm:meal"})?.source,"OpenStreetMap / Zetaris")
+    }
+    func testCloudPlanningRejectsWrongSourceWithoutAppleFallback() async throws {
+        let store=AppStore();var profile=TripProfile();profile.interests=["文化"]
+        store.planningDiscovery={_ in XCTFail("No silent Apple fallback");return []}
+        store.loader={request in (Data(#"{"dataSource":"direct","places":[]}"#.utf8),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)}
+        do{_ = try await store.discoverPlanningCandidates(profile,source:.zetarisCloud);XCTFail("Wrong source accepted")}
+        catch{XCTAssertTrue(error.localizedDescription.contains("来源不一致"))}
+    }
+    func testAdjustmentComparisonIgnoresMetadataButDetectsTimeAndRouteChanges() throws {
+        let original=try JSONDecoder().decode(Trip.self,from:Data(contentsOf:Bundle(for:Self.self).url(forResource:"schedule-trip-test",withExtension:"json")!))
+        var same=original;same.explanation="重新核对成功"
+        XCTAssertFalse(TripAdjustmentComparison.hasVisibleChanges(original,same))
+        var changed=original;changed.days[0].finishTime="23:59"
+        XCTAssertTrue(TripAdjustmentComparison.hasVisibleChanges(original,changed))
+        changed=original;changed.days[0].estimatedSteps+=100
+        XCTAssertTrue(TripAdjustmentComparison.hasVisibleChanges(original,changed))
+        changed=original;changed.profile.budget+=10
+        XCTAssertTrue(TripAdjustmentComparison.hasVisibleChanges(original,changed))
+        XCTAssertFalse(TripAdjustmentComparison.hasVisibleChanges(original,changed,includeConstraints:false))
+    }
     func testEmptyKeywordSearchStillUsesRealNearbyMuseum() async throws {
         let data=Data(#"{"id":"apple:museum","name":"Real Nearby Museum","category":"文化","indoor":false,"visitMinutes":60,"cost":0,"lat":-33.86,"lng":151.21,"reason":"test","source":"Apple Maps","poiKind":"attraction"}"#.utf8)
         let museum=try JSONDecoder().decode(ScheduleCandidate.self,from:data)
