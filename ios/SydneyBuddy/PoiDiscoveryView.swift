@@ -179,6 +179,7 @@ enum PoiDiscoveryCategory {
     private var searchProvider:MapProvider {addingToDay ? localProvider:store.mapProvider}
     @ObservedObject private var toolbox=PoiToolbox.shared
     @State private var showInsights=false
+    @State private var showDataInfo=false
     @State private var zoom:Double=14
     @State private var cameraAction:RouteMapCameraAction?
     @State private var expanded=false
@@ -295,6 +296,7 @@ enum PoiDiscoveryCategory {
     .task(id:visiblePlaces.map(\.id).joined()+store.travelDataSource.rawValue+searchProvider.rawValue){await loadTicketSummaries()}
     .sheet(item: $detail) { SchedulePlaceDetail(candidate: $0) }
     .sheet(isPresented:$showInsights){TravelInsightsSheet(places:insightPoints)}
+    .sheet(isPresented:$showDataInfo){dataInfo}
     .task(id:visiblePlaces.map(\.id).joined()+store.travelDataSource.rawValue+store.mapProvider.rawValue){if !visiblePlaces.isEmpty{await store.refreshInsights(places:insightPoints)}}
     .onAppear {
         model.language = store.language == .english ? "en" : store.language == .simplified ? "zh-CN" : "zh-TW"
@@ -345,20 +347,25 @@ enum PoiDiscoveryCategory {
             Button{togglePanel()}label:{VStack(spacing:10){Capsule().fill(Palette.muted.opacity(0.35)).frame(width:36,height:4);HStack{Text(uiText(model.busy ? "正在寻找好去处…":"附近地点")).font(.headline);Text(uiText("\(visiblePlaces.count)")).font(.caption).foregroundStyle(Palette.muted);Spacer();Image(systemName:expanded ? "chevron.down":"chevron.up").font(.caption.bold())}}.padding(.horizontal,20).padding(.top,10).padding(.bottom,12)}.buttonStyle(.plain).accessibilityLabel(uiText(expanded ? "收起地点列表":"展开地点列表"))
                 .gesture(DragGesture(minimumDistance:15).onEnded{value in if abs(value.translation.height)>20{expanded=value.translation.height<0}})
             if model.busy{ProgressView().padding(12)}
-            if let summary=model.searchSummary{Text(uiText(summary)).font(.caption).foregroundStyle(Palette.muted).padding(.horizontal,16).padding(.bottom,6).accessibilityIdentifier("poi-search-summary")}
             if let error=model.error{ScrollView{VStack(spacing:10){Text(uiText("暂时没找到地点资料")).font(.headline);Text(uiText(error)).font(.caption).foregroundStyle(Palette.muted);Button(uiText("重新搜索")){search()}}.padding(20)}}
             else if !model.busy && visiblePlaces.isEmpty {ContentUnavailableView(uiText("换个地方看看"),systemImage:"magnifyingglass",description:Text(uiText("移动地图后自动搜索，也可点“搜索此区域”，或换一个关键词。")))}
             else{ScrollViewReader{proxy in ScrollView{LazyVStack(spacing:0){ForEach(orderedPlaces){p in placeRow(p).id(p.id);Divider().padding(.leading,68)}}}.onChange(of:model.selected){_,id in if let id{proxy.scrollTo(id,anchor:.top)}}}}
-            Text(uiText(store.language.text("地點資料：{0}",model.source))).font(.caption2).foregroundStyle(Palette.muted)
-            attribution.padding(.horizontal,16).padding(.vertical,6)
+            Button{showDataInfo=true}label:{
+                HStack(spacing:8){
+                    Label(uiText("資料說明"),systemImage:"info.circle").font(.caption)
+                    Spacer(minLength:8)
+                    Text(verbatim:compactCredit).font(.caption2).multilineTextAlignment(.trailing)
+                }.frame(minHeight:44).padding(.horizontal,16)
+            }.buttonStyle(.plain).foregroundStyle(Palette.muted).accessibilityIdentifier("poi-data-info")
         }.frame(height:height).frame(maxWidth:.infinity).background(Palette.cream,in:UnevenRoundedRectangle(topLeadingRadius:24,topTrailingRadius:24)).shadow(color:.black.opacity(0.08),radius:12,y:-3)
     }
     private func placeRow(_ p:ScheduleCandidate)->some View {
-        let priceText:String=ticketSummaries[p.id]?.label(store.language) ?? p.mappedFoodPriceLabel ?? store.insights?.places.first{$0.id==p.id}?.price.summary ?? "費用未知"
-        let metaLine:String="\(p.mappedRatingLabel) · \(priceText) · 人潮未知"
+        let insightPrice=store.insights?.places.first{$0.id==p.id}?.price
+        let priceText=ticketSummaries[p.id]?.label(store.language) ?? p.mappedFoodPriceLabel ?? (insightPrice?.status == "unknown" ? nil:insightPrice?.summary)
+        let metaLine=[p.hasSourcedRating ? p.mappedRatingLabel:nil,priceText].compactMap{$0}.joined(separator:" · ")
         return HStack(alignment:.top,spacing:12){
             Image(systemName:p.discoverySymbol).font(.title3).foregroundStyle(Palette.green).frame(width:38,height:44).background(Palette.mint,in:RoundedRectangle(cornerRadius:12))
-            Button{focusPlace(p)}label:{VStack(alignment:.leading,spacing:5){Text(p.name).font(.subheadline.bold()).multilineTextAlignment(.leading);Text(uiText(metaLine)).font(.caption2).foregroundStyle(Palette.muted);Text(uiText(p.description ?? "点击查看地点详情")).font(.caption).foregroundStyle(Palette.muted).lineLimit(2)}.frame(maxWidth:.infinity,alignment:.leading)}.buttonStyle(.plain).accessibilityLabel(uiText("查看地点："+p.name)).accessibilityIdentifier("poi-focus-"+p.id)
+            Button{focusPlace(p)}label:{VStack(alignment:.leading,spacing:5){Text(p.name).font(.subheadline.bold()).multilineTextAlignment(.leading);if !metaLine.isEmpty{Text(uiText(metaLine)).font(.caption2).foregroundStyle(Palette.muted)};Text(uiText(p.address?.isEmpty == false ? p.address! : (p.description ?? "点击查看地点详情"))).font(.caption).foregroundStyle(Palette.muted).lineLimit(1)}.frame(maxWidth:.infinity,alignment:.leading)}.buttonStyle(.plain).accessibilityLabel(uiText("查看地点："+p.name)).accessibilityIdentifier("poi-focus-"+p.id)
             Button{focusPlace(p);detail=p}label:{Image(systemName:"info.circle").frame(width:36,height:44)}.accessibilityLabel(uiText("介紹："+p.name)).accessibilityIdentifier("poi-detail-"+p.id)
             if p.source == "Google Places" {
                 Text(uiText("Google 地點暫不匯入本機示例時間軸")).font(.caption2).foregroundStyle(Palette.muted)
@@ -375,13 +382,39 @@ enum PoiDiscoveryCategory {
             }
         }.padding(.horizontal,16).padding(.vertical,12).background(model.selected==p.id ? Palette.mint.opacity(0.5):.clear)
     }
-    @ViewBuilder private var attribution:some View {
-        if searchProvider == .osm {
-            VStack(spacing:3) {
-                HStack{Link(uiText("地圖 © OpenStreetMap contributors · ODbL"),destination:URL(string:"https://www.openstreetmap.org/copyright")!);Spacer();Link(uiText(model.attribution),destination:URL(string:model.attribution.contains("OpenStreetMap") ? "https://www.openstreetmap.org/copyright":"https://docs.overturemaps.org/attribution/")!).lineLimit(1)}
-                if let version=model.dataVersion { Text(uiText(store.language.text("本機地點資料快照：{0}",version))) }
-            }.font(.caption2).foregroundStyle(Palette.muted)
-        } else{Text(uiText(model.attribution)).font(.caption2).foregroundStyle(Palette.muted)}
+    private var compactCredit:String {
+        if model.attribution.contains("OpenStreetMap") || searchProvider == .osm {
+            return model.attribution.contains("Overture") ? "© OpenStreetMap · Overture":"© OpenStreetMap"
+        }
+        return searchProvider == .google ? "Google Maps":searchProvider == .apple ? "Apple Maps":"Overture"
+    }
+    private var dataInfo:some View {
+        NavigationStack {
+            List {
+                if let summary=model.searchSummary {
+                    Section(uiText("搜尋結果說明")){Text(uiText(summary)).accessibilityIdentifier("poi-search-summary")}
+                }
+                Section(uiText("資料來源")) {
+                    Text(uiText(store.language.text("地點資料：{0}",model.source)))
+                    Text(uiText(searchProvider.label))
+                    if let version=model.dataVersion{LabeledContent(uiText("資料版本"),value:version)}
+                }
+                Section(uiText("授權與致謝")) {
+                    Text(verbatim:model.attribution).font(.subheadline)
+                    if model.attribution.contains("OpenStreetMap") || searchProvider == .osm {
+                        Link("© OpenStreetMap contributors · ODbL",destination:URL(string:"https://www.openstreetmap.org/copyright")!)
+                    }
+                    if model.attribution.contains("Overture") {
+                        Link("Overture Maps Foundation",destination:URL(string:"https://docs.overturemaps.org/attribution/")!)
+                    }
+                    if model.attribution.contains("Wikivoyage") {
+                        Link("Wikivoyage · CC BY-SA 4.0",destination:URL(string:"https://creativecommons.org/licenses/by-sa/4.0/")!)
+                    }
+                }
+            }
+            .navigationTitle(uiText("資料來源與說明")).navigationBarTitleDisplayMode(.inline)
+            .toolbar{ToolbarItem(placement:.topBarTrailing){Button(uiText("完成")){showDataInfo=false}}}
+        }.presentationDetents([.medium,.large]).presentationDragIndicator(.visible)
     }
     private func categoryFilter(_ id:String,_ title:String)->some View {
         Button{model.category=id}label:{Text(uiText(title)).font(.caption.bold()).padding(.horizontal,10).padding(.vertical,8).background(model.category==id ? Palette.green:Palette.mint,in:Capsule()).foregroundStyle(model.category==id ? .white:Palette.ink)}.accessibilityIdentifier("poi-category-"+id)

@@ -17748,5 +17748,35 @@
     "en": "Show search area",
     "zh-Hans": "显示搜索范围",
     "zh-Hant": "顯示搜尋範圍"
+  },
+  "資料說明": {
+    "en": "Data info",
+    "zh-Hans": "资料说明",
+    "zh-Hant": "資料說明"
+  },
+  "搜尋結果說明": {
+    "en": "About these results",
+    "zh-Hans": "搜索结果说明",
+    "zh-Hant": "搜尋結果說明"
+  },
+  "資料來源": {
+    "en": "Data sources",
+    "zh-Hans": "资料来源",
+    "zh-Hant": "資料來源"
+  },
+  "資料版本": {
+    "en": "Data version",
+    "zh-Hans": "资料版本",
+    "zh-Hant": "資料版本"
+  },
+  "授權與致謝": {
+    "en": "Licenses and credits",
+    "zh-Hans": "授权与致谢",
+    "zh-Hant": "授權與致謝"
+  },
+  "資料來源與說明": {
+    "en": "Data sources and information",
+    "zh-Hans": "资料来源与说明",
+    "zh-Hant": "資料來源與說明"
   }
 }
