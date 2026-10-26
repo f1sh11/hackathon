@@ -13,14 +13,18 @@ def materialize(snapshot,output,prefix,max_bytes=850_000):
     # Preserve each JSON record intact. Never split a UTF-8 line or change its payload.
     parts=[]
     for table,rows in groups.items():
-        chunk=bytearray();part=0
+        # NDP's JSON reader treats files as multi-line JSON documents. JSON Lines
+        # silently returned only the first record per file in the deployed engine.
+        chunk=bytearray(b'[');part=0
         for row in rows:
-            line=(json.dumps(row,ensure_ascii=False)+'\n').encode('utf-8')
-            if len(line)>max_bytes:raise ValueError('One record exceeds the upload batch limit')
-            if chunk and len(chunk)+len(line)>max_bytes:
-                parts.append((f'{table}-{part:04}.json',bytes(chunk)));chunk=bytearray();part+=1
-            chunk.extend(line)
-        if chunk:parts.append((f'{table}-{part:04}.json',bytes(chunk)))
+            record=json.dumps(row,ensure_ascii=False).encode('utf-8')
+            if len(record)+2>max_bytes:raise ValueError('One record exceeds the upload batch limit')
+            if len(chunk)>1 and len(chunk)+1+len(record)+1>max_bytes:
+                chunk.extend(b']');parts.append((f'{table}-{part:04}.json',bytes(chunk)));chunk=bytearray(b'[');part+=1
+            if len(chunk)>1:chunk.extend(b',')
+            chunk.extend(record)
+        if len(chunk)>1:
+            chunk.extend(b']');parts.append((f'{table}-{part:04}.json',bytes(chunk)))
     output.mkdir(parents=True,exist_ok=False)
     files=[];batch=1;batch_bytes=0
     for name,raw in parts:

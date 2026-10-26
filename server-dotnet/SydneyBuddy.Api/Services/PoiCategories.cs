@@ -20,7 +20,7 @@ public static class PoiCategories {
             "bakeries"=>kind is "bakery" or "cake_shop" or "dessert_shop" or "pastry_shop" or "pastry" or "donut_shop",
             "bars"=>kind is "bar" or "pub" or "cocktail_bar" or "wine_bar" or "beer_garden" or "biergarten" or "night_club" or "nightclub",
             "museums"=>kind=="museum"||kind.EndsWith("_museum",StringComparison.Ordinal),
-            "parks"=>kind is "park" or "national_park" or "state_park" or "city_park" or "botanical_garden" or "garden",
+            "parks"=>kind is "park" or "national_park" or "state_park" or "city_park" or "botanical_garden" or "garden" or "nature_reserve",
             "beaches"=>kind=="beach",
             "hotels"=>kind is "hotel" or "motel" or "guest_house" or "resort_hotel",
             "hostels"=>kind=="hostel",

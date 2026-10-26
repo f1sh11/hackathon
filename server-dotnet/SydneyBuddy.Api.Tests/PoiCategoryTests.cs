@@ -5,7 +5,7 @@ public sealed class PoiCategoryTests {
     [Theory]
     [InlineData("restaurants","japanese_restaurant")][InlineData("cafes","coffee_shop")][InlineData("bakeries","bakery")]
     [InlineData("bars","pub")][InlineData("museums","history_museum")][InlineData("parks","botanical_garden")]
-    [InlineData("hotels","hotel")][InlineData("hostels","hostel")]
+    [InlineData("hotels","hotel")][InlineData("hostels","hostel")][InlineData("parks","nature_reserve")]
     [InlineData("beaches","beach")][InlineData("supermarkets","supermarket")][InlineData("toilets","toilets")][InlineData("drinking_water","drinking_water")]
     public void DetailedCategoriesMatchSourceTypesRatherThanNames(string category,string kind){
         Assert.True(PoiCategories.Valid(category));Assert.True(PoiCategories.Matches(Point("1",kind),category));

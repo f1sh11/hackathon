@@ -18,7 +18,7 @@ public sealed class UnifiedPoiService(TravelDataContext travel,OverturePoiProvid
             original=File.Exists(Path.Combine(paths.RepoRoot,"infra","poi","data","places.json")) ? overture.PublicSnapshot : new JsonObject{["places"]=new JsonArray()};
             try { community = gems?.PublicPlaces ?? new JsonArray(); } catch { community = new JsonArray(); }
             var path=Path.Combine(paths.RepoRoot,"infra","zetaris","data","osm-map-places.json");
-            osm=File.Exists(path) ? JsonNode.Parse(File.ReadAllText(path))!.AsObject().Array("places")??new JsonArray() : new JsonArray();
+            osm=File.Exists(path) ? CachedOsm(path) : new JsonArray();
             catalogPoints=catalog is not null ? new JsonArray(catalog.Get().Select(x=>(JsonNode)x.DeepClone()).ToArray()) : new JsonArray();
         }
         var socialPoints=travel.Warehouse ? travel.Snapshot?.Social ?? new JsonArray() : social?.Published() ?? new JsonArray();
@@ -30,6 +30,15 @@ public sealed class UnifiedPoiService(TravelDataContext travel,OverturePoiProvid
         result["metadata"]=new JsonObject{["release"]=original.Str("release"),["readAt"]=travel.Snapshot?.ReadAt,["totalPlaces"]=catalogPoints.Count+original.Array("places")!.Count+osm.Count+community.Count+socialPoints.Count+restaurantPoints.Count};
         result["message"]="整合已匯入的新南威爾斯州 (NSW) 地點；底圖原生標記可能不同。探索候選不代表已確認冷門；房價、營業狀態與評論未即時核實；社群推薦為附原文證據的作者意見。";
         return result;
+    }
+    static readonly object OsmLock=new();static string? osmPath;static DateTime osmStamp;static JsonArray osmCache=new();
+    /// <summary>The NSW OSM export is large; parse it once per file change instead of per request.</summary>
+    static JsonArray CachedOsm(string path){
+        lock(OsmLock){
+            var stamp=File.GetLastWriteTimeUtc(path);
+            if(osmPath!=path||osmStamp!=stamp){osmCache=JsonNode.Parse(File.ReadAllText(path))!.AsObject().Array("places")??new JsonArray();osmPath=path;osmStamp=stamp;}
+            return osmCache;
+        }
     }
     static string NameKey(string value)=>string.Concat(value.Normalize(NormalizationForm.FormD).Where(c=>char.IsLetterOrDigit(c)&&CharUnicodeInfo.GetUnicodeCategory(c)!=UnicodeCategory.NonSpacingMark)).ToLowerInvariant();
     static string Kind(JsonObject p)=>p.Bool("hiddenGem")||p.Str("source")=="Wikivoyage"?"gems":p.Str("searchCategory",p.Str("category") switch{"美食"=>"food","設施"=>"facilities","住宿"=>"lodging","店家"=>"shops",_=>"sights"});

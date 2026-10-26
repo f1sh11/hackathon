@@ -16,10 +16,10 @@ public sealed class OsmPoiProvider(HttpClient http,IConfiguration? configuration
             "restaurants"=>new[]{"[amenity~\"^(restaurant|fast_food|food_court)$\"]"},
             "cafes"=>new[]{"[amenity=cafe]"},"bakeries"=>new[]{"[shop~\"^(bakery|pastry)$\"]"},
             "bars"=>new[]{"[amenity~\"^(bar|pub|nightclub|biergarten)$\"]"},
-            "museums"=>new[]{"[tourism=museum]"},"parks"=>new[]{"[leisure~\"^(park|garden)$\"]"},"beaches"=>new[]{"[natural=beach]"},
+            "museums"=>new[]{"[tourism=museum]"},"parks"=>new[]{"[leisure~\"^(park|garden|nature_reserve)$\"]"},"beaches"=>new[]{"[natural=beach]"},
             "hotels"=>new[]{"[tourism~\"^(hotel|motel|guest_house)$\"]"},"hostels"=>new[]{"[tourism=hostel]"},
             "supermarkets"=>new[]{"[shop~\"^(supermarket|convenience)$\"]"},
-            "toilets"=>new[]{"[amenity=toilets]"},"drinking_water"=>new[]{"[amenity=drinking_water]"},"all"=>new[]{"[tourism]","[shop]","[historic]","[amenity~\"^(restaurant|cafe|fast_food|food_court|toilets|drinking_water)$\"]"},"lodging"=>new[]{"[tourism~\"^(hotel|hostel|motel|guest_house)$\"]"},"shops"=>new[]{"[shop]"},"gems"=>new[]{"[tourism=viewpoint]","[historic]","[waterway=waterfall]"},"food"=>new[]{"[amenity~\"^(restaurant|cafe|fast_food|food_court)$\"]"},"facilities"=>new[]{"[amenity~\"^(toilets|drinking_water)$\"]"},_=>new[]{"[tourism~\"^(attraction|museum|gallery|viewpoint)$\"]","[leisure=park]","[historic]"}};
+            "toilets"=>new[]{"[amenity=toilets]"},"drinking_water"=>new[]{"[amenity=drinking_water]"},"all"=>new[]{"[tourism]","[shop]","[historic]","[amenity~\"^(restaurant|cafe|fast_food|food_court|pub|bar|nightclub|biergarten|ice_cream|toilets|drinking_water)$\"]"},"lodging"=>new[]{"[tourism~\"^(hotel|hostel|motel|guest_house|camp_site|caravan_site)$\"]"},"shops"=>new[]{"[shop]"},"gems"=>new[]{"[tourism=viewpoint]","[historic]","[waterway=waterfall]"},"food"=>new[]{"[amenity~\"^(restaurant|cafe|fast_food|food_court|pub|bar|nightclub|biergarten|ice_cream)$\"]"},"facilities"=>new[]{"[amenity~\"^(toilets|drinking_water)$\"]"},_=>new[]{"[tourism~\"^(attraction|museum|gallery|viewpoint)$\"]","[leisure=park]","[historic]"}};
         return "[out:json][timeout:20];("+string.Concat(filters.Select(f=>"nwr"+around+f+name+";"))+");out center 120;";
     }
     public async Task<JsonArray> SearchAsync(double lat,double lng,int radius,string category,string text,CancellationToken token) {
@@ -38,7 +38,7 @@ public sealed class OsmPoiProvider(HttpClient http,IConfiguration? configuration
                 if(!ValidPoint(a,b))continue;
                 var kind=tags.Str("amenity",tags.Str("tourism",tags.Str("leisure",tags.Str("shop",tags.Str("natural","attraction")))));
                 var name=tags.Str("name:zh",tags.Str("name",kind=="toilets"?"公共廁所":kind=="drinking_water"?"飲水設施":""));if(name.Length==0)continue;
-                var kindCategory=category=="all"?(tags.Str("shop").Length>0?"shops":new[]{"hotel","hostel","motel","guest_house"}.Contains(tags.Str("tourism"))?"lodging":new[]{"restaurant","cafe","fast_food","food_court"}.Contains(tags.Str("amenity"))?"food":new[]{"toilets","drinking_water"}.Contains(tags.Str("amenity"))?"facilities":"sights"):PoiCategories.Parent(category);
+                var kindCategory=category=="all"?(tags.Str("shop").Length>0?"shops":new[]{"hotel","hostel","motel","guest_house","camp_site","caravan_site"}.Contains(tags.Str("tourism"))?"lodging":new[]{"restaurant","cafe","fast_food","food_court","pub","bar","nightclub","biergarten","ice_cream"}.Contains(tags.Str("amenity"))?"food":new[]{"toilets","drinking_water"}.Contains(tags.Str("amenity"))?"facilities":"sights"):PoiCategories.Parent(category);
                 var item=new JsonObject { ["id"]="osm:"+e.Str("type")+":"+e["id"]?.ToString(),["name"]=name,["lat"]=a,["lng"]=b,["category"]=kindCategory=="food"?"美食":kindCategory=="facilities"?"設施":kindCategory=="lodging"?"住宿":kindCategory=="shops"?"店家":"風景",["indoor"]=tags.Str("indoor")=="yes",["visitMinutes"]=kindCategory=="food"?45:kindCategory=="facilities"?10:60,["cost"]=0,["source"]="OpenStreetMap",["poiKind"]=kind,["description"]=tags.Str("description:zh",tags.Str("description","OSM 社群地點，詳細介紹尚未提供。")),["openingHoursText"]=tags.Str("opening_hours"),["note"]="費用、營業狀態與排隊未知；尚未預留費用，請自行確認。",["reason"]="由地圖搜尋加入工具箱" };
                 PoiCategories.ApplyFoodPriceMapping(item);
                 result.Add(item);
@@ -48,7 +48,7 @@ public sealed class OsmPoiProvider(HttpClient http,IConfiguration? configuration
         catch(HttpRequestException){throw new ServiceException("無法連線開源地點服務，請稍後重試。");}
         catch(System.Text.Json.JsonException){throw new ServiceException("開源地點回應無效，請稍後重試。");}
     }
-    internal static bool ValidPoint(double a,double b)=>double.IsFinite(a)&&double.IsFinite(b)&&a is >= -37.5 and <= -28.0&&b is >=141.0 and <=154.0;
+    internal static bool ValidPoint(double a,double b)=>double.IsFinite(a)&&double.IsFinite(b)&&a is >= -37.5 and <= -28.0&&b is >=141.0 and <=160.0;
 }
 public sealed class PoiService(IPoiProvider provider,IMemoryCache cache,GooglePoiProvider? google=null,TravelDataContext? travel=null,HiddenGemService? gems=null,UnifiedPoiService? unified=null) {
     static readonly SemaphoreSlim Gate=new(1,1);
