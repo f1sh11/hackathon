@@ -165,6 +165,31 @@ import MapKit
         XCTAssertTrue(TripHomePresentation.previewTrips(trips,featuredID:"featured",limit:0,today:"2026-10-27").isEmpty)
         XCTAssertEqual(TripHomePresentation.previewTrips(trips,featuredID:"featured",limit:1,today:"2026-10-27",priorityID:"past").map(\.id),["past"])
     }
+    func testTripsShareStableOrderingAndReleaseNewTripPriority() throws {
+        var current=try fixture();current.id="current";current.profile.date="2026-10-27";current.days=Array(current.days.prefix(1));current.days[0].date="2026-10-27"
+        var future=current;future.id="future";future.profile.date="2026-11-01";future.days[0].date="2026-11-01"
+        var past=current;past.id="past";past.profile.date="2026-10-20";past.days[0].date="2026-10-20"
+        let trips=[past,future,current]
+        XCTAssertEqual(TripHomePresentation.orderedTrips(trips,today:"2026-10-27",priorityID:"future").map(\.id),["future","current","past"])
+        XCTAssertEqual(TripHomePresentation.orderedTrips(trips,today:"2026-10-27").map(\.id),["current","future","past"])
+        XCTAssertEqual(TripHomePresentation.orderedTrips(trips,today:"2026-10-27",priorityID:"deleted").map(\.id),["current","future","past"])
+        var earlier=current;earlier.id="earlier";earlier.profile.date="2026-10-25";earlier.days[0].date="2026-10-29"
+        XCTAssertEqual(TripHomePresentation.orderedTrips([earlier,current,future],today:"2026-10-27").map(\.id),["current","earlier","future"])
+        var same=current;same.id="newer";same.createdAt="2099-01-01T00:00:00Z"
+        XCTAssertEqual(TripHomePresentation.orderedTrips([current,same],today:"2026-10-27").first?.id,"newer")
+    }
+    func testOnlyGeneratedTripTitlesAreLocalized() throws {
+        var trip=try fixture();trip.title="悉尼 · 风景与自然 · 2天"
+        XCTAssertEqual(TripHomePresentation.title(trip,language:.english),"Sydney · Nature · 2 days")
+        XCTAssertTrue(TripLibrary.matches(trip,query:"Nature",date:nil))
+        XCTAssertTrue(TripLibrary.matches(trip,query:"风景",date:nil))
+        trip.title="Sydney · Food · 1天"
+        XCTAssertEqual(TripHomePresentation.title(trip,language:.english),"Sydney · Food · 1 day")
+        trip.title="我的毕业旅行"
+        XCTAssertEqual(TripHomePresentation.title(trip,language:.english),"我的毕业旅行")
+        XCTAssertEqual(TripHomePresentation.planningAction("review"),"Review draft")
+        XCTAssertEqual(TripHomePresentation.planningAction("failed"),"View options & retry")
+    }
     func testHomeFocusResumesCurrentTripAndDoesNotChoosePastOrDuplicateFuture() throws {
         var today=try fixture();today.id="current";today.profile.date="2026-10-25";today.days=Array(today.days.prefix(1));today.days[0].date="2026-10-25"
         var future=today;future.id="future";future.profile.date="2026-10-28";future.days[0].date="2026-10-28"
