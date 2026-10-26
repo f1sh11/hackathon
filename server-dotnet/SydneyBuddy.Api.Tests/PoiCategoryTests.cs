@@ -31,7 +31,7 @@ public sealed class PoiCategoryTests {
     }
     [Fact] public void FoodPoisReceiveDeterministicPriceTierMapping(){
         var cafe=Point("c1","cafe");cafe["category"]="美食";PoiCategories.ApplyFoodPriceMapping(cafe);
-        Assert.Equal(1,cafe.Int("priceRange"));Assert.Equal("$",cafe.Str("priceTier"));Assert.Equal(20,cafe.Int("estimatedSpendAud"));Assert.Equal("$ · 預估均消 A$20/人",cafe.Str("priceLabel"));
+        Assert.Equal(1,cafe.Int("priceRange"));Assert.Equal("$",cafe.Str("priceTier"));Assert.Equal(20,cafe.Int("estimatedSpendAud"));Assert.Equal("$ · Estimated A$20/person",cafe.Str("priceLabel"));
         var thai=Point("r1","thai_restaurant");thai["category"]="美食";PoiCategories.ApplyFoodPriceMapping(thai);
         Assert.Equal(2,thai.Int("priceRange"));Assert.Equal("$$",thai.Str("priceTier"));Assert.Equal(40,thai.Int("estimatedSpendAud"));
         var steak=Point("s1","steakhouse");steak["category"]="美食";PoiCategories.ApplyFoodPriceMapping(steak);
@@ -39,7 +39,7 @@ public sealed class PoiCategoryTests {
     }
     [Fact] public void LodgingPoisReceiveDeterministicPriceTierMapping(){
         var hostel=Point("l1","hostel","lodging");hostel["category"]="住宿";PoiCategories.ApplyFoodPriceMapping(hostel);
-        Assert.Equal(1,hostel.Int("priceRange"));Assert.Equal("$",hostel.Str("priceTier"));Assert.Equal(65,hostel.Int("nightlyRateAud"));Assert.Equal("$ · 預估每晚 A$65/晚",hostel.Str("priceLabel"));
+        Assert.Equal(1,hostel.Int("priceRange"));Assert.Equal("$",hostel.Str("priceTier"));Assert.Equal(65,hostel.Int("nightlyRateAud"));Assert.Equal("$ · Estimated A$65/night",hostel.Str("priceLabel"));
         var hotel=Point("l2","hotel","lodging");hotel["category"]="住宿";PoiCategories.ApplyFoodPriceMapping(hotel);
         Assert.Equal(2,hotel.Int("priceRange"));Assert.Equal("$$",hotel.Str("priceTier"));Assert.Equal(185,hotel.Int("nightlyRateAud"));
         var suites=Point("l3","hotel","lodging");suites["category"]="住宿";suites["name"]="Meriton Suites Pitt Street";PoiCategories.ApplyFoodPriceMapping(suites);

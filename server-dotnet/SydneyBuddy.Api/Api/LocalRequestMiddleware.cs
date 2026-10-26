@@ -24,20 +24,20 @@ public sealed class LocalRequestMiddleware(RequestDelegate next, ILogger<LocalRe
         if (context.Request.Host.Host is not ("127.0.0.1" or "localhost") ||
             (origin.Length > 0 && !AllowedOrigins.Contains(origin)))
         {
-            await ErrorAsync(context, 403, "仅支持本机请求");
+            await ErrorAsync(context, 403, "Only local requests are supported");
             return;
         }
         try { await next(context); }
         catch (RevisionConflictException exception) { await ErrorAsync(context, 409, exception.Message); }
         catch (ServiceException exception) { await ErrorAsync(context, 422, exception.Message); }
-        catch (JsonException) { await ErrorAsync(context, 400, "请求格式不合法"); }
-        catch (BadHttpRequestException exception) { await ErrorAsync(context, exception.StatusCode, "请求格式或大小不合法"); }
+        catch (JsonException) { await ErrorAsync(context, 400, "Invalid request format"); }
+        catch (BadHttpRequestException exception) { await ErrorAsync(context, exception.StatusCode, "Invalid request format or size"); }
         catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested) { context.Abort(); }
         catch (Exception exception)
         {
             // 只记录异常类型与编号，避开原始异常正文。 / Omit raw exception messages that may contain private data.
             logger.LogError("Unhandled {ExceptionType}; TraceId {TraceId}", exception.GetType().Name, context.TraceIdentifier);
-            await ErrorAsync(context, 500, "服务处理失败，原行程保持不变");
+            await ErrorAsync(context, 500, "The service could not complete the request. Your original trip is unchanged.");
         }
         finally
         {

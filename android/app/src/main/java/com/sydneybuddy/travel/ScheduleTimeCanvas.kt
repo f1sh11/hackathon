@@ -58,8 +58,8 @@ private fun timelineClock(minute:Int)="%02d:%02d".format(minute/60,minute%60)
         })
     }
     Column(verticalArrangement=Arrangement.spacedBy(12.dp)) {
-        Text("時間軸 · 每格 5 分",fontSize=11.sp,color=Green,fontWeight=FontWeight.Bold)
-        Row(verticalAlignment=Alignment.CenterVertically){Text("停留時間",fontSize=10.sp);Spacer(Modifier.weight(1f));TextButton(onClick={scale=max(2f,scale-1)},modifier=Modifier.width(32.dp),contentPadding=PaddingValues(4.dp)){Text("−")};TextButton(onClick={scale=min(6f,scale+1)},modifier=Modifier.width(32.dp),contentPadding=PaddingValues(4.dp)){Text("＋")}}
+        Text("Timeline · 5 min per slot",fontSize=11.sp,color=Green,fontWeight=FontWeight.Bold)
+        Row(verticalAlignment=Alignment.CenterVertically){Text("Stay time",fontSize=10.sp);Spacer(Modifier.weight(1f));TextButton(onClick={scale=max(2f,scale-1)},modifier=Modifier.width(32.dp),contentPadding=PaddingValues(4.dp)){Text("−")};TextButton(onClick={scale=min(6f,scale+1)},modifier=Modifier.width(32.dp),contentPadding=PaddingValues(4.dp)){Text("＋")}}
 
         Box(Modifier.fillMaxWidth().height(((last-first)*scale+20).dp).testTag("timeline-canvas").onGloballyPositioned{onCanvasPosition(it.positionInRoot(),first,scale)}) {
             for(minute in first..last step 30)Row(Modifier.offset(y=((minute-first)*scale-6).dp).fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text(timelineClock(minute),Modifier.width(38.dp),fontSize=10.sp,color=Color.Gray);HorizontalDivider(color=Green.copy(alpha=.16f))}
@@ -67,18 +67,18 @@ private fun timelineClock(minute:Int)="%02d:%02d".format(minute/60,minute%60)
                 val id=a.getString("id");val value=timeEdit(a);val height=value.duration*scale
                 val previous=if(index==0)day.optInt("startMinute")else items[index-1].let{it.optInt("scheduledStart")+it.optInt("queueMinutes")+it.optInt("duration")}
                 val travel=a.optInt("travelMinutes");val travelEnd=previous+travel
-                if(travel>0)TimelineBand("步行 $travel 分",((previous-first)*scale),travel*scale,Color.Blue)
+                if(travel>0)TimelineBand("Walking $travel min",((previous-first)*scale),travel*scale,Color.Blue)
                 if(a.optInt("scheduledStart")>travelEnd){val gap=a.optInt("scheduledStart")-travelEnd
-                    Box(Modifier.offset(x=40.dp,y=((travelEnd-first)*scale).dp).fillMaxWidth().padding(end=40.dp).height((gap*scale).dp).background(Color.White.copy(alpha=.6f),RoundedCornerShape(10.dp)).drawBehind{drawRoundRect(Color.LightGray,cornerRadius=CornerRadius(10.dp.toPx()),style=Stroke(width=1.dp.toPx(),pathEffect=PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(),4.dp.toPx()))))}.clickable(onClick=onAdd),contentAlignment=Alignment.Center){Column(horizontalAlignment=Alignment.CenterHorizontally){Text("＋ 空檔 $gap 分",fontSize=11.sp,color=Green);if(gap>=20)Text("彈性時間",fontSize=10.sp,color=Color.Gray)}}
+                    Box(Modifier.offset(x=40.dp,y=((travelEnd-first)*scale).dp).fillMaxWidth().padding(end=40.dp).height((gap*scale).dp).background(Color.White.copy(alpha=.6f),RoundedCornerShape(10.dp)).drawBehind{drawRoundRect(Color.LightGray,cornerRadius=CornerRadius(10.dp.toPx()),style=Stroke(width=1.dp.toPx(),pathEffect=PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(),4.dp.toPx()))))}.clickable(onClick=onAdd),contentAlignment=Alignment.Center){Column(horizontalAlignment=Alignment.CenterHorizontally){Text("＋ Open slot $gap min",fontSize=11.sp,color=Green);if(gap>=20)Text("Flexible time",fontSize=10.sp,color=Color.Gray)}}
                 }
-                if(a.optInt("queueMinutes")>0)TimelineBand("排隊假設 ${a.optInt("queueMinutes")} 分",(a.optInt("scheduledStart")-first)*scale,a.optInt("queueMinutes")*scale,Color(0xffb36b00))
+                if(a.optInt("queueMinutes")>0)TimelineBand("Estimated queue ${a.optInt("queueMinutes")} min",(a.optInt("scheduledStart")-first)*scale,a.optInt("queueMinutes")*scale,Color(0xffb36b00))
                 val color=if(a.optString("kind")=="meal")Color(0xff287bd2)else Green
                 Box(Modifier.offset(x=40.dp,y=((value.start+a.optInt("queueMinutes")-first)*scale).dp).fillMaxWidth().padding(end=40.dp).height(height.dp).zIndex(if(dragging==id)10f else 1f)) {
                     Row(Modifier.fillMaxSize().background(color.copy(alpha=.17f),RoundedCornerShape(12.dp)).border(if(dragging==id)2.dp else 1.dp,color,RoundedCornerShape(12.dp)).padding(horizontal=6.dp),verticalAlignment=Alignment.CenterVertically){
                         Column(Modifier.weight(1f).testTag("schedule-edit-$id").clickable{onEdit(a)},verticalArrangement=Arrangement.spacedBy(5.dp)){
                             Text(a.optString("name"),fontWeight=FontWeight.Bold,fontSize=if(height<70)10.sp else 12.sp,maxLines=if(height<70)1 else 2)
-                            if(height>=70)Text("${timelineClock(value.start+a.optInt("queueMinutes"))}–${timelineClock(value.start+a.optInt("queueMinutes")+value.duration)} · ${value.duration} 分",fontSize=11.sp)
-                            if(height>=120&&a.optString("kind")=="attraction"&&a.isNull("queueMinutes"))Text("排隊時間未知，尚未計入",fontSize=10.sp)
+                            if(height>=70)Text("${timelineClock(value.start+a.optInt("queueMinutes"))}-${timelineClock(value.start+a.optInt("queueMinutes")+value.duration)} · ${value.duration} min",fontSize=11.sp)
+                            if(height>=120&&a.optString("kind")=="attraction"&&a.isNull("queueMinutes"))Text("Queue time unknown, not factored in",fontSize=10.sp)
                         }
                         Text(if(a.optBoolean("locked"))"🔒"else "☰",Modifier.width(24.dp).fillMaxHeight().then(gesture(a,0)).testTag("schedule-move-$id"),fontSize=10.sp)
                     }
@@ -89,7 +89,7 @@ private fun timelineClock(minute:Int)="%02d:%02d".format(minute/60,minute%60)
                 }
             }}
         }
-        Small("點卡片編輯 · 拖 ☰ 移動\n上下把手調整停留")
+        Small("Tap to edit · Drag ☰ Move\nAdjust stay with top/bottom handles")
     }
 }
 @Composable private fun TimelineBand(text:String,y:Float,height:Float,color:Color) {

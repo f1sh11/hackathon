@@ -13,7 +13,7 @@ public static class PetEndpoints
             if(input.Object("personalProfile") is JsonObject personal)s.PersonalProfile=(JsonObject)personal.DeepClone();
             PetQuestions.Apply(s,input.Object("fields")??new());
             KokoDialogue.Enable(s,input);
-            if(s.Dialogue is null)s.Messages.Add(new(Guid.NewGuid().ToString("N"),"assistant","嗨，我叫 Koko，是你的旅行向导。这次想过一段什么样的假期？随便说说就好。"));
+            if(s.Dialogue is null)s.Messages.Add(new(Guid.NewGuid().ToString("N"),"assistant","Hi, I’m Koko, your travel guide. What kind of getaway are you imagining? Tell me whatever comes to mind."));
             await store.Gate.WaitAsync(ctx.RequestAborted);try{store.Save(s);}finally{store.Gate.Release();}
             return Results.Json(PetQuestions.View(s));
         });
@@ -41,12 +41,12 @@ public static class PetEndpoints
                 if(input.Bool("consent"))
                 {
                     await preferences.SaveAsync(new JsonObject{["consent"]=true,["summary"]=suggestion,["profile"]=new JsonObject()},ctx.RequestAborted);
-                    s.Messages.Add(new(Guid.NewGuid().ToString("N"),"assistant","记好啦："+suggestion+"。随时可以在记忆页修改或撤回。"));
+                    s.Messages.Add(new(Guid.NewGuid().ToString("N"),"assistant","Remembered: "+suggestion+". You can edit or remove this on the Memories page anytime."));
                 }
                 else
                 {
                     s.Fields["notes"]=string.Join("；",new[]{s.Fields.GetValueOrDefault("notes",""),suggestion}.Where(x=>x.Length>0));
-                    s.Messages.Add(new(Guid.NewGuid().ToString("N"),"assistant","好呀，只放进这次旅行的小背包。"));
+                    s.Messages.Add(new(Guid.NewGuid().ToString("N"),"assistant","Sure, I’ll use that for this trip only."));
                 }
                 s.PendingMemory="";store.Save(s);return Results.Json(PetQuestions.View(s));
             }finally{store.Gate.Release();}
@@ -57,8 +57,8 @@ public static class PetEndpoints
             await store.Gate.WaitAsync(ctx.RequestAborted);
             try {
                 var session=store.Load(id);TravelProfiling.Refresh(session,await records.ListAsync(ctx.RequestAborted));
-                if(session.ConfirmedDna.Count==0)throw new ServiceException("先确认至少一项旅行偏好，再完成 Travel DNA。");
-                if(session.Preferences.Any(x=>x.Status=="awaiting_confirmation"))throw new ServiceException("还有待确认的信息，可以记住、仅限这次或忽略后再完成。");
+                if(session.ConfirmedDna.Count==0)throw new ServiceException("Confirm at least one travel preference before completing your Travel DNA.");
+                if(session.Preferences.Any(x=>x.Status=="awaiting_confirmation"))throw new ServiceException("Some preferences still need a decision. Choose Remember, This trip only or Ignore, then finish.");
                 session.DnaCompleted=true;store.Save(session);return Results.Json(PetQuestions.View(session));
             }finally{store.Gate.Release();}
         });
@@ -66,7 +66,7 @@ public static class PetEndpoints
     private static async Task Turn(string id,HttpContext ctx,PetSessionStore store,IPetModel model,MemoryRepository memories,IMemoryService memory)
     {
         var input=await RequestJson.ReadAsync(ctx);var message=input.Str("message").Trim();var requestId=input.Str("requestId");
-        if(message.Length is 0 or >2000||!Guid.TryParse(requestId,out _))throw new ServiceException("请输入 1–2000 字，并使用有效的请求编号。");
+        if(message.Length is 0 or >2000||!Guid.TryParse(requestId,out _))throw new ServiceException("Enter 1–2000 characters and use a valid request ID.");
         await store.Gate.WaitAsync(ctx.RequestAborted);
         try
         {
@@ -81,19 +81,19 @@ public static class PetEndpoints
                 var field=input.Str("field");string reply;var mood="curious";JsonObject dialogueResult=new();
                 if(field.Length>0)
                 {
-                    if(!PetQuestions.Keys.Contains(field))throw new ServiceException("未知的旅行字段。");
-                    var value=input.Str("value");if(value.Length is 0 or >600)throw new ServiceException("回答太长或为空。");
-                    if(field=="date"&&value is "今天" or "明天")value=TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTimeOffset.UtcNow,"Australia/Sydney").Date.AddDays(value=="明天"?1:0).ToString("yyyy-MM-dd");
+                    if(!PetQuestions.Keys.Contains(field))throw new ServiceException("Unknown trip field.");
+                    var value=input.Str("value");if(value.Length is 0 or >600)throw new ServiceException("The answer is empty or too long.");
+                    if(field=="date"&&value is "今天" or "明天" or "Today" or "Tomorrow")value=TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTimeOffset.UtcNow,"Australia/Sydney").Date.AddDays(value is "明天" or "Tomorrow" ? 1:0).ToString("yyyy-MM-dd");
                     // Changing currency never reuses an amount entered in a different currency.
                     if(field=="budgetCurrency" && s.Fields.TryGetValue(field,out var oldCurrency) && PetQuestions.Known(oldCurrency) && oldCurrency!=value)s.Fields.Remove("budget");
                     s.Fields[field]=value;
-                    if(field=="companions" && value is "一个人" or "两个人")s.Fields["travelers"]=value=="一个人"?"1":"2";
+                    if(field=="companions" && value is "一个人" or "两个人" or "Solo" or "Two people")s.Fields["travelers"]=value is "一个人" or "Solo" ? "1":"2";
                     if(PetQuestions.Required.Contains(field) && !PetQuestions.Known(value)) {
                         var repeated=s.Messages.LastOrDefault()?.Mood=="pouting";
-                        reply=repeated ? "没关系，我们慢慢来。我会留好背包，准备好再告诉我～\n"+PetQuestions.Question(field):PetQuestions.UncertainReply(field);mood=repeated ? "curious":"pouting";
-                    } else reply=PetQuestions.UnsupportedDestination(s) ? "小爪爪先停一下～目前还不能生成这个城市的路线。可以改选悉尼，或者保留这份需求，之后再继续。": "收到啦～"+PetQuestions.Question(PetQuestions.Next(s));
+                        reply=repeated ? "No rush. Your progress is here whenever you’re ready.\n"+PetQuestions.Question(field):PetQuestions.UncertainReply(field);mood=repeated ? "curious":"pouting";
+                    } else reply=PetQuestions.UnsupportedDestination(s) ? "I can’t generate routes for this city yet. You can choose Sydney or keep this draft for later.": "Noted. "+PetQuestions.Question(PetQuestions.Next(s));
 
-                    if(s.Dialogue is not null)reply="这次的旅行资料已更新，可以继续调整草案。";
+                    if(s.Dialogue is not null)reply="Your trip details are updated. We can keep refining the draft.";
                 }
                 else
                 {
@@ -107,7 +107,7 @@ public static class PetEndpoints
                             var ids=(recalled.Array("memories") ?? new JsonArray()).Select(x=>x?.Object("memory").Str("id")).ToArray();
                             var relevant=s.Dialogue is null ? records.AsEnumerable():records.Where(x=>ids.Contains(x.Str("id")));
                             confirmed=new JsonArray(relevant.OrderBy(x=>{var i=Array.IndexOf(ids,x.Str("id"));return i<0 ? int.MaxValue:i;}).Take(s.Dialogue is null ? 40:8).Select(x=>x?.DeepClone()).ToArray());
-                        } catch(ServiceException){s.MemoryWarning=s.Dialogue is null ? "长期偏好检索暂时不可用，本轮参考已确认的本机记录。":"长期偏好检索暂时不可用，先按这次对话继续准备。";}
+                        } catch(ServiceException){s.MemoryWarning=s.Dialogue is null ? "Long-term preference retrieval is temporarily unavailable. I’ll use the confirmed records stored locally for this turn.":"Long-term preference retrieval is temporarily unavailable. We can continue with this conversation.";}
                     }
                     var result=direct ?? await model.RespondAsync(s,message,confirmed,_=>Task.CompletedTask,ctx.RequestAborted);
                     dialogueResult=result;
@@ -118,7 +118,7 @@ public static class PetEndpoints
                     else if(s.Dialogue is not null)PetExplicitFacts.FilterUnsupportedHabits(message,changes);
                     // Do not let model-filled unknown placeholders skip unanswered questions.
                     foreach(var key in PetQuestions.Keys)
-                        if(changes.Str(key) is "未确定" or "未知" or "未提供" or "unknown") changes.Remove(key);
+                        if(changes.ContainsKey(key) && !PetQuestions.Known(changes.Str(key))) changes.Remove(key);
                     var explicitFacts=new JsonObject();PetExplicitFacts.Apply(message,explicitFacts);
                     foreach(var fact in explicitFacts)changes[fact.Key]=fact.Value?.DeepClone();
                     foreach(var uncertain in (s.CurrentChoice is null ? result.Array("needsClarification"):null) ?? new JsonArray()) {
@@ -128,9 +128,9 @@ public static class PetEndpoints
                     }
                     if(changes.ContainsKey("budgetCurrency") && s.Fields.TryGetValue("budgetCurrency",out var previousCurrency) && PetQuestions.Known(previousCurrency) && previousCurrency!=changes.Str("budgetCurrency") && !changes.ContainsKey("budget"))s.Fields.Remove("budget");
                     PetQuestions.Apply(s,changes);KokoCompanion.ApplyFeeling(s,message);reply=result.Str("reply");
-                    if(changes.ContainsKey("budget"))reply=PetExplicitFacts.BudgetReply(s) ?? "预算先收好啦，我们再确认金额、币种和范围。";
-                    if(PetQuestions.Known(s.Fields.GetValueOrDefault("budgetCurrency")) && s.Fields["budgetCurrency"]!="AUD" && (changes.ContainsKey("budget") || changes.ContainsKey("budgetCurrency")))reply="这笔预算先按原币种保留。生成路线前还需要一份澳元活动预算。";
-                    if(PetQuestions.UnsupportedDestination(s) && (changes.ContainsKey("destination") || message.Contains("生成") || reply.Contains("准备好"))){reply="可以先聊聊你想怎样玩，资料也会保留。目前能生成的路线是悉尼，其他城市还需要后续接入。";mood="confused";}
+                    if(changes.ContainsKey("budget"))reply=PetExplicitFacts.BudgetReply(s) ?? "I’ve noted the budget. Let’s confirm the amount, currency and scope.";
+                    if(PetQuestions.Known(s.Fields.GetValueOrDefault("budgetCurrency")) && s.Fields["budgetCurrency"]!="AUD" && (changes.ContainsKey("budget") || changes.ContainsKey("budgetCurrency")))reply="I’ll keep this budget in its original currency. Before generating a route, we’ll also need an activity budget in AUD.";
+                    if(PetQuestions.UnsupportedDestination(s) && (changes.ContainsKey("destination") || message.Contains("生成") || reply.Contains("准备好") || message.Contains("generate",StringComparison.OrdinalIgnoreCase) || reply.Contains("ready",StringComparison.OrdinalIgnoreCase))){reply="We can explore your ideas and keep the details. Route generation currently supports Sydney; other cities are still to come.";mood="confused";}
                     if(choice?.Intent is "skip" or "skip_name" or "use_alias" or "keep" or "draft")result.Remove("preferences");
                     var added=TravelProfiling.Apply(s,result,message,requestId);
                     if(added.Count>0)await SyncPending(s,memory,ctx.RequestAborted);
@@ -144,7 +144,7 @@ public static class PetEndpoints
                 store.Save(s);await Emit(new{type="done",session=PetQuestions.View(s)});
             }
             catch(ServiceException ex){await Emit(new{type="error",error=ex.Message});}
-            catch(Exception) when(!ctx.RequestAborted.IsCancellationRequested){await Emit(new{type="error",error="保存或连接失败，请重新加载对话确认进度后重试。"});}
+            catch(Exception) when(!ctx.RequestAborted.IsCancellationRequested){await Emit(new{type="error",error="Saving or connecting failed. Reload the conversation to check your progress, then retry."});}
         }finally{store.Gate.Release();}
     }
     private static async Task SyncPending(PetSession session,IMemoryService memory,CancellationToken ct)
@@ -152,12 +152,12 @@ public static class PetEndpoints
         try {
             await memory.RunAsync("stage",new JsonObject{["sessionId"]=session.Id,["candidates"]=JsonSerializer.SerializeToNode(session.Preferences.Where(x=>x.Status=="awaiting_confirmation"),JsonExtensions.Options)},ct);
             session.MemoryWarning="";
-        } catch(ServiceException){session.MemoryWarning="候选偏好已保留在本次对话，H-MEM 暂未同步；确认保存时会重试。";}
+        } catch(ServiceException){session.MemoryWarning="Your preference candidates are kept in this conversation. H-MEM hasn’t synced yet; we’ll retry when you confirm saving.";}
     }
     private static async Task DecidePreference(PetSession session,JsonObject input,PreferenceService preferences,MemoryRepository records,CancellationToken ct)
     {
         var candidate=session.Preferences.FirstOrDefault(x=>x.Id==input.Str("candidateId"));
-        if(candidate is null)throw new ServiceException("这条待确认信息已不存在，请刷新对话。");
+        if(candidate is null)throw new ServiceException("This preference candidate no longer exists. Refresh the conversation.");
         if(candidate.Status!="awaiting_confirmation")return; // repeated taps/retries are idempotent
         if(input.Bool("dismiss")){candidate.Status="rejected";return;}
         if(!input.Bool("consent")) {
@@ -170,8 +170,8 @@ public static class PetEndpoints
             return;
         }
         var expected=(input.Array("expectedConflicts") ?? new JsonArray()).Select(x=>x?.GetValue<string>() ?? "").Order().ToArray();
-        if(!expected.SequenceEqual(candidate.ConflictingMemoryIds))throw new ServiceException("长期偏好刚有变化，请刷新对话，查看旧值后再确认替换。");
-        if(candidate.ConflictingMemoryIds.Length>1)throw new ServiceException("这项偏好有多条旧记录，请先在记忆页整理，再确认更新。");
+        if(!expected.SequenceEqual(candidate.ConflictingMemoryIds))throw new ServiceException("Your saved preference has changed. Refresh the conversation and review the old value before confirming a replacement.");
+        if(candidate.ConflictingMemoryIds.Length>1)throw new ServiceException("This preference has several previous records. Review them on the Memories page before confirming an update.");
         var confirmed=JsonSerializer.SerializeToNode(candidate,JsonExtensions.Options)!.AsObject();
         confirmed["status"]="confirmed";confirmed["scope"]="long_term";
         var payload=new JsonObject{["consent"]=true,["summary"]=TravelProfiling.Label(candidate),["profile"]=new JsonObject{["travelDna"]=confirmed}};

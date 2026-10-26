@@ -33,22 +33,22 @@ internal fun tripLibraryMatches(trip:JSONObject,query:String,date:String?):Boole
     val date=trip.optJSONObject("profile")?.optString("date") ?: ""
     Column(Modifier.width(76.dp).background(Mint,RoundedCornerShape(16.dp)).padding(vertical=14.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(4.dp)){
         Text(date.drop(5).replace('-','/'),fontWeight=FontWeight.Bold,color=Green,fontSize=16.sp)
-        Text(ui("{0} 天",trip.array("days").length().toString()),color=Green,fontSize=12.sp)
+        Text(ui("{0} days",trip.array("days").length().toString()),color=Green,fontSize=12.sp)
         Text(date.take(4),color=Green,fontSize=11.sp)
     }
 }
 @Composable internal fun TripLibraryCalendar(selection:String?,marked:Set<String>,onSelect:(String)->Unit){
     var monthValue by rememberSaveable{mutableStateOf(YearMonth.now().toString())}
     val month=YearMonth.parse(monthValue)
-    val language=LocalAppLanguage.current ?: AppLanguage.TRADITIONAL
+    val language=LocalAppLanguage.current
     val locale=Locale.forLanguageTag(language.code)
     val first=month.atDay(1)
     val offset=first.dayOfWeek.value-1
     Surface(shape=RoundedCornerShape(20.dp),color=Color.White){Column(Modifier.padding(10.dp)){
         Row(verticalAlignment=Alignment.CenterVertically){
-            IconButton(onClick={monthValue=month.minusMonths(1).toString()},modifier=Modifier.testTag("trip-month-previous")){Icon(Icons.Outlined.ChevronLeft,ui("上個月"))}
+            IconButton(onClick={monthValue=month.minusMonths(1).toString()},modifier=Modifier.testTag("trip-month-previous")){Icon(Icons.Outlined.ChevronLeft,ui("Previous month"))}
             Text(month.format(DateTimeFormatter.ofPattern("yyyy MMMM",locale)),Modifier.weight(1f),fontWeight=FontWeight.Bold)
-            IconButton(onClick={monthValue=month.plusMonths(1).toString()}){Icon(Icons.Outlined.ChevronRight,ui("下個月"))}
+            IconButton(onClick={monthValue=month.plusMonths(1).toString()}){Icon(Icons.Outlined.ChevronRight,ui("Next month"))}
         }
         Row{(0..6).forEach{i->Box(Modifier.weight(1f),contentAlignment=Alignment.Center){Text(java.time.DayOfWeek.of(i+1).getDisplayName(java.time.format.TextStyle.SHORT,locale),fontSize=10.sp,color=Muted)}}}
         repeat((offset+month.lengthOfMonth()+6)/7){row->Row{repeat(7){col->

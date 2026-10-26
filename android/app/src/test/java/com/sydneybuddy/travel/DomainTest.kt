@@ -21,6 +21,12 @@ class DomainTest {
         assertFalse(profile.copy(endMinute=profile.startMinute).valid())
         assertFalse(profile.copy(days=4).valid())
     }
+    @Test fun savedChineseEndpointNamesKeepTheirSelectedLocation() {
+        val original=Endpoint("环形码头",-33.8611,151.2126)
+        assertTrue(original.sameLocation(Endpoint.quay))
+        assertFalse(original.sameLocation(Endpoint.central))
+        assertEquals("环形码头",original.json().getString("name"))
+    }
     @Test fun newTripDoesNotInheritServerIdentity() {
         val trip=JSONObject().put("id","generated-old-id").put("revision",17).put("title","new trip")
         val payload=savePayload(Proposal(trip,null,0))

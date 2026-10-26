@@ -23,14 +23,14 @@ public sealed class RemainingJourneyService(ScheduleEditorService editor,PlaceCa
                 var result=original.DeepClone().AsObject();result["profile"]=draft["profile"]!.DeepClone();if(draft["planningCandidates"] is {} candidates)result["planningCandidates"]=candidates.DeepClone();result.Array("days")![index]=updated.Array("days")![index]!.DeepClone();
                 result["schedule"]=draft["schedule"]!.DeepClone();result.Object("schedule")!.Array("days")![index]=updated.Object("schedule")!.Array("days")![index]!.DeepClone();
                 result["walkingRoutes"]=request["walkingRoutes"]!.DeepClone();result["transportRoutes"]=updated["transportRoutes"]!.DeepClone();
-                result["explanation"]="已保留已完成与跳过的活动，按"+(request["currentMinute"] is null?"该天计划的出发时间和位置":"当前时间和位置")+"重新比较步行、等车、接驳与公共交通；其他日期保持不变。票价未知。";
+                result["explanation"]="Kept completed and skipped activities and compared routes using "+(request["currentMinute"] is null?"the day's planned departure time and location":"the current time and location")+", including walking, waiting, connections and public transport. Other dates are unchanged. Fares are unknown.";
                 return result;
             }
             var list=draft.Object("schedule")!.Array("days")![index]!.Array("activities")!;
             var optional=list.OfType<JsonObject>().LastOrDefault(a=>!a.Bool("locked")&&a["fixedStart"] is null&&!required.Contains(a.Str("placeId"))&&a.Str("kind")=="attraction");
-            if(optional is null)throw new ServiceException("当前班次、剩余时间或步数无法满足固定安排，请调整需求。原行程已保留。");
+            if(optional is null)throw new ServiceException("Current services, remaining time or steps cannot meet the fixed schedule. Adjust your requirements. Your original trip is kept.");
             list.Remove(optional);
         }
-        throw new ServiceException("剩余安排暂时无法核实，原行程已保留。");
+        throw new ServiceException("The remaining schedule could not be verified. Your original trip is kept.");
     }
 }

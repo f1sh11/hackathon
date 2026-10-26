@@ -27,30 +27,30 @@ class MapProviderFlowTest {
         rule.activityRule.scenario.onActivity{activity->val store=ViewModelProvider(activity)[BuddyStore::class.java];assertEquals("direct",store.travelDataSource);store.chooseTravelDataSource(original)}
     }
     @Test fun providerSwitchPersistsAndDoesNotChangeSavedTrip() {
-        rule.waitUntil(30000) {rule.onAllNodesWithText("Buddy 正在处理",substring=true).fetchSemanticsNodes().isEmpty()}
+        rule.waitUntil(30000) {rule.onAllNodesWithText("Koko is on it",substring=true).fetchSemanticsNodes().isEmpty()}
         var before:String?=null
         rule.activityRule.scenario.onActivity { activity ->
             val store=ViewModelProvider(activity)[BuddyStore::class.java]
             store.resumeSaved();store.chooseMapProvider(MapProvider.SCHEMATIC)
         }
-        rule.waitUntil(30000) {rule.onAllNodesWithText("Buddy 正在处理",substring=true).fetchSemanticsNodes().isEmpty()}
+        rule.waitUntil(30000) {rule.onAllNodesWithText("Koko is on it",substring=true).fetchSemanticsNodes().isEmpty()}
         rule.activityRule.scenario.onActivity {activity -> before=ViewModelProvider(activity)[BuddyStore::class.java].trip?.toString()}
-        click("我的")
+        click("Me")
         click("OpenStreetMap",true)
-        click("地图")
+        click("Map")
         rule.onNodeWithText("© OpenStreetMap contributors").assertIsDisplayed()
-        rule.waitUntil(60000) {rule.onAllNodesWithText("地图已加载",substring=true).fetchSemanticsNodes().isNotEmpty()}
+        rule.waitUntil(60000) {rule.onAllNodesWithText("Map loaded",substring=true).fetchSemanticsNodes().isNotEmpty()}
         rule.waitForIdle()
         val context=InstrumentationRegistry.getInstrumentation().targetContext
         val screenshot=InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
         File(context.getExternalFilesDir(null),"map-provider-osm.png").outputStream().use {screenshot.compress(Bitmap.CompressFormat.PNG,100,it)}
         screenshot.recycle()
-        click("我的")
+        click("Me")
         click("Google Maps",true)
-        click("地图")
-        if(!BuildConfig.MAPS_CONFIGURED) rule.onNodeWithText("Google 地图未配置密钥\n请在“我的”切换到 OpenStreetMap").assertExists()
+        click("Map")
+        if(!BuildConfig.MAPS_CONFIGURED) rule.onNodeWithText("Google Maps is not configured.\nChoose OpenStreetMap in Settings.").assertExists()
         rule.activityRule.scenario.recreate()
-        rule.waitUntil(30000) {rule.onAllNodesWithText("Buddy 正在处理",substring=true).fetchSemanticsNodes().isEmpty()}
+        rule.waitUntil(30000) {rule.onAllNodesWithText("Koko is on it",substring=true).fetchSemanticsNodes().isEmpty()}
         rule.activityRule.scenario.onActivity {activity ->
             val store=ViewModelProvider(activity)[BuddyStore::class.java]
             assertEquals(MapProvider.GOOGLE,store.mapProvider)

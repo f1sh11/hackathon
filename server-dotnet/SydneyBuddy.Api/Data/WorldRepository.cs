@@ -20,7 +20,7 @@ public sealed class WorldRepository(BuddyDbContext database)
     public async Task<(JsonObject Trip, int Revision)> GetTripAsync(string tripId, CancellationToken ct = default)
     {
         var row = await database.Trips.AsNoTracking().SingleOrDefaultAsync(x => x.Id == tripId, ct)
-            ?? throw new ServiceException("请先保存行程，再启动数字分身模拟。");
+            ?? throw new ServiceException("Save your trip before starting the digital twin simulation.");
         return (ParseObject(row.DataJson), row.Revision);
     }
 
@@ -93,7 +93,7 @@ public sealed class WorldRepository(BuddyDbContext database)
     public async Task<JsonObject> GetRunAsync(string runId, CancellationToken ct = default)
     {
         var run = await database.WorldRuns.AsNoTracking().SingleOrDefaultAsync(x => x.Id == runId, ct)
-            ?? throw new ServiceException("找不到这次世界状态模拟。");
+            ?? throw new ServiceException("This world-state simulation was not found.");
         var world = await database.Worlds.AsNoTracking().SingleAsync(x => x.Id == run.WorldId, ct);
         var snapshots = await database.WorldSnapshots.AsNoTracking().Where(x => x.RunId == run.Id)
             .OrderBy(x => x.Sequence).ToListAsync(ct);

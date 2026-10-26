@@ -15,22 +15,22 @@ public sealed class TravelInsightService(HttpClient http,TravelDataContext selec
         else {
             var sources=JsonNode.Parse(File.ReadAllText(Path.Combine(paths.RepoRoot,"shared","travel-insight-sources.json")))!.AsObject();
             using var response=await http.GetAsync(sources.Object(kind)!.Str("endpoint"),token);response.EnsureSuccessStatusCode();
-            raw=await response.Content.ReadFromJsonAsync<JsonObject>(token)??throw new ServiceException("公開資料格式無效。");
+            raw=await response.Content.ReadFromJsonAsync<JsonObject>(token)??throw new ServiceException("The public data format is invalid.");
         }
-        if(raw.Array(kind=="traffic"?"features":"elements") is null)throw new ServiceException("公開資料集合不完整。");
+        if(raw.Array(kind=="traffic"?"features":"elements") is null)throw new ServiceException("The public dataset is incomplete.");
         raw["insightFetchedAt"]=DateTimeOffset.UtcNow.ToString("O");
         cache?.Set(key,raw.DeepClone().AsObject(),kind=="traffic"?TimeSpan.FromSeconds(30):TimeSpan.FromMinutes(10));
         return raw;
     }
 
     public static JsonArray Points(JsonObject input) {
-        var points=input.Array("places")??new();if(points.Count>30)throw new ServiceException("一次最多查詢 30 個行程地點。");
-        foreach(var p in points.OfType<JsonObject>())if(!OsmPoiProvider.ValidPoint(p.Number("lat",double.NaN),p.Number("lng",double.NaN))||p.Str("name").Length>160||p.Str("id").Length>200)throw new ServiceException("地點無效。");
-        if(points.Any(p=>p is not JsonObject))throw new ServiceException("地點格式無效。");
+        var points=input.Array("places")??new();if(points.Count>30)throw new ServiceException("You can query up to 30 itinerary places at once.");
+        foreach(var p in points.OfType<JsonObject>())if(!OsmPoiProvider.ValidPoint(p.Number("lat",double.NaN),p.Number("lng",double.NaN))||p.Str("name").Length>160||p.Str("id").Length>200)throw new ServiceException("The place is invalid.");
+        if(points.Any(p=>p is not JsonObject))throw new ServiceException("The place format is invalid.");
         return points;
     }
     public async Task<JsonObject> GetAsync(JsonObject input,CancellationToken token) {
-        var points=Points(input);var started=DateTimeOffset.UtcNow;var result=new JsonObject{["dataSource"]=selection.Mode,["fetchedAt"]=started.ToString("O"),["date"]=input.Str("date"),["scope"]="目前通報，不代表所選日期的未來交通；人潮未知不等於人少。"};
+        var points=Points(input);var started=DateTimeOffset.UtcNow;var result=new JsonObject{["dataSource"]=selection.Mode,["fetchedAt"]=started.ToString("O"),["date"]=input.Str("date"),["scope"]="These are current reports, not traffic predictions for your selected date. Unknown crowd levels do not mean a place is quiet."};
         async Task<JsonObject> Load(string kind){try{return await Feed(kind,token);}catch(Exception e)when(e is ServiceException or HttpRequestException or System.Text.Json.JsonException || e is OperationCanceledException&&!token.IsCancellationRequested){return new JsonObject{["unavailable"]=true};}}
         var trafficTask=Load("traffic");var feeTask=Load("prices");await Task.WhenAll(trafficTask,feeTask);
         result["traffic"]=Traffic(await trafficTask,points,started);var rawFees=await feeTask;
@@ -51,7 +51,7 @@ public sealed class TravelInsightService(HttpClient http,TravelDataContext selec
                 }
             }
             places.Add(new JsonObject{["id"]=p.Str("id"),["name"]=p.Str("name"),["lat"]=p["lat"]?.DeepClone(),["lng"]=p["lng"]?.DeepClone(),["price"]=price,["googleFallback"]=googleStatus,
-                ["crowd"]=new JsonObject{["status"]="unknown",["summary"]="人潮與排隊尚無可靠資料",["people"]=null,["waitMinutes"]=null,["forecast"]=false,["reason"]="OSM 不提供即時人流；Apple／Google 官方 Places API 未提供熱門時段。"}});
+                ["crowd"]=new JsonObject{["status"]="unknown",["summary"]="Reliable crowd and queue data is not available.",["people"]=null,["waitMinutes"]=null,["forecast"]=false,["reason"]="OSM does not provide live foot traffic, and the official Apple and Google Places APIs do not provide popular times."}});
         }
         result["places"]=places;result["priceDataFetchedAt"]=rawFees.Str("insightFetchedAt");result["priceFeedStatus"]=rawFees.Bool("unavailable")?"unavailable":"ok";result["partial"]=true;
         result["attribution"]="Live Traffic NSW / Transport for NSW · © OpenStreetMap contributors · ODbL";
@@ -87,10 +87,10 @@ public sealed class TravelInsightService(HttpClient http,TravelDataContext selec
             var g=item.Object("geometry");var xy=g.Array("coordinates");var p=item.Object("properties");if(g.Str("type")!="Point"||xy is null||xy.Count<2||p is null||p.Bool("ended"))continue;
             var lng=xy![0]!.GetValue<double>();var lat=xy[1]!.GetValue<double>();if(!OsmPoiProvider.ValidPoint(lat,lng))continue;
             if(!points.OfType<JsonObject>().Any(s=>Distance(s.Number("lat"),s.Number("lng"),lat,lng)<=2500))continue;
-            var title=p.Str("headline");if(string.IsNullOrWhiteSpace(title))title=p.Str("mainCategory","道路事故通報");
+            var title=p.Str("headline");if(string.IsNullOrWhiteSpace(title))title=p.Str("mainCategory","Road incident report");
             markers.Add(new JsonObject{["id"]=item["id"]?.ToString()??"",["lat"]=lat,["lng"]=lng,["title"]=title,["summary"]=p.Str("adviceA"),["updatedAt"]=p["lastUpdated"]?.DeepClone(),["source"]="Live Traffic NSW"});
         }
-        return new JsonObject{["status"]=available?"reported":"unavailable",["items"]=markers,["source"]="Live Traffic NSW",["summary"]=available?$"附近 {markers.Count} 則道路通報 · 非即時車速":"道路通報暫時無法取得",["fetchedAt"]=raw.Str("insightFetchedAt",fetched.ToString("O")),["appliesTo"]="now",["speedAvailable"]=false,["etaAvailable"]=false};
+        return new JsonObject{["status"]=available?"reported":"unavailable",["items"]=markers,["source"]="Live Traffic NSW",["summary"]=available?$"{markers.Count} nearby road reports · not live traffic speeds":"Road reports are temporarily unavailable.",["fetchedAt"]=raw.Str("insightFetchedAt",fetched.ToString("O")),["appliesTo"]="now",["speedAvailable"]=false,["etaAvailable"]=false};
     }
     public static JsonArray FeeMarkers(JsonObject raw,JsonArray points){
         var items=new JsonArray();
@@ -99,7 +99,7 @@ public sealed class TravelInsightService(HttpClient http,TravelDataContext selec
             if(!OsmPoiProvider.ValidPoint(lat,lng)||tags is null||tags.Str("name").Length==0||tags.Str("charge").Length==0)continue;
             if(tags.Str("tourism").Length==0&&tags.Str("leisure").Length==0&&tags.Str("historic").Length==0&&tags.Str("amenity") is not ("restaurant" or "cafe" or "fast_food" or "food_court" or "bar" or "pub"))continue;
             if(!points.OfType<JsonObject>().Any(p=>Distance(p.Number("lat"),p.Number("lng"),lat,lng)<=2500))continue;
-            items.Add(new JsonObject{["id"]="osm:"+e.Str("type")+":"+e["id"],["lat"]=lat,["lng"]=lng,["title"]=tags.Str("name"),["summary"]="參考收費："+tags.Str("charge")+" · 非即時報價",["source"]="OpenStreetMap",["kind"]="price"});
+            items.Add(new JsonObject{["id"]="osm:"+e.Str("type")+":"+e["id"],["lat"]=lat,["lng"]=lng,["title"]=tags.Str("name"),["summary"]="Reference charge: "+tags.Str("charge")+" · not a live quote",["source"]="OpenStreetMap",["kind"]="price"});
         }
         return items;
     }
@@ -108,12 +108,12 @@ public sealed class TravelInsightService(HttpClient http,TravelDataContext selec
             var center=e.Object("center")??e;var tags=e.Object("tags");if(tags is null||tags.Str("name").Trim().ToLowerInvariant()!=point.Str("name").Trim().ToLowerInvariant())continue;
             if(Distance(point.Number("lat"),point.Number("lng"),center.Number("lat",double.NaN),center.Number("lon",double.NaN)) is not <=50)continue;
             var charge=tags.Str("charge");if(charge.Length==0)continue;
-            return new JsonObject{["status"]="reported",["summary"]="參考收費："+charge,["amount"]=null,["currency"]=null,["source"]="OpenStreetMap",["sourceUrl"]="https://www.openstreetmap.org/"+e.Str("type")+"/"+e["id"],["scope"]="OSM 收費標註，不保證是人均餐費或當日票價；未自動計入預算。"};
+            return new JsonObject{["status"]="reported",["summary"]="Reference charge: "+charge,["amount"]=null,["currency"]=null,["source"]="OpenStreetMap",["sourceUrl"]="https://www.openstreetmap.org/"+e.Str("type")+"/"+e["id"],["scope"]="OSM fee tags may not represent a per-person meal cost or today's admission price. Not automatically added to your budget."};
         }
-        return new JsonObject{["status"]="unknown",["summary"]="費用未知 · 尚未計入預算",["amount"]=null,["currency"]=null,["source"]=raw.Bool("unavailable")?"開放費用來源暫不可用":"OpenStreetMap 未提供可配對收費"};
+        return new JsonObject{["status"]="unknown",["summary"]="Cost unknown · not added to your budget",["amount"]=null,["currency"]=null,["source"]=raw.Bool("unavailable")?"The open fee data source is temporarily unavailable.":"OpenStreetMap has no matching fee information."};
     }
     public static JsonObject GooglePrice(JsonObject raw) {
         var range=raw.Object("priceRange");var level=raw.Str("priceLevel");
-        return new JsonObject{["status"]=range is not null||level.Length>0?"reported":"unknown",["summary"]=range is not null?"Google 參考價格區間（詳情見下）":level.Length>0?"Google 價位："+level:"Google 未提供價格",["range"]=range?.DeepClone(),["level"]=level,["amount"]=null,["source"]="Google Maps",["attributions"]=raw.Array("attributions")?.DeepClone(),["mapsURL"]=raw.Str("googleMapsUri"),["scope"]="參考價，非本次消費報價；未自動計入預算。"};
+        return new JsonObject{["status"]=range is not null||level.Length>0?"reported":"unknown",["summary"]=range is not null?"Google reference price range (details below)":level.Length>0?"Google price level: "+level:"Google has not provided a price.",["range"]=range?.DeepClone(),["level"]=level,["amount"]=null,["source"]="Google Maps",["attributions"]=raw.Array("attributions")?.DeepClone(),["mapsURL"]=raw.Str("googleMapsUri"),["scope"]="Reference price, not a quote for your visit. Not automatically added to your budget."};
     }
 }

@@ -12,7 +12,7 @@ public sealed class RouteService(IExternalJsonClient external,TripTransportRoute
     public async Task<JsonObject> TimedLegAsync(JsonObject from,JsonObject to,JsonObject profile,int minute,PlanningContext context,CancellationToken ct) {
         var walk=await LegAsync(from,to,context,ct);
         if(!context.CompareTransit)return walk;
-        if(transport is null)throw new ServiceException("公共交通比较服务尚未启动。");
+        if(transport is null)throw new ServiceException("The public transport comparison service has not started.");
         return await transport.ChooseAsync(from,to,walk,profile,minute,context,ct);
     }
     public async Task<JsonObject> LegAsync(JsonObject from, JsonObject to, PlanningContext context, CancellationToken ct = default)
@@ -26,7 +26,7 @@ public sealed class RouteService(IExternalJsonClient external,TripTransportRoute
             var response = await external.FetchAsync("https://routes.googleapis.com/directions/v2:computeRoutes", new JsonObject
             {
                 ["origin"] = RouteCoordinate(from), ["destination"] = RouteCoordinate(to), ["travelMode"] = "WALK",
-                ["computeAlternativeRoutes"] = false, ["languageCode"] = "zh-CN"
+                ["computeAlternativeRoutes"] = false, ["languageCode"] = "en"
             }, new Dictionary<string, string>
             {
                 ["X-Goog-Api-Key"] = context.Config["GOOGLE_SERVER_KEY"],
@@ -44,12 +44,12 @@ public sealed class RouteService(IExternalJsonClient external,TripTransportRoute
                 {
                     ["meters"] = meters, ["minutes"] = Math.Ceiling(seconds / 60),
                     ["polyline"] = item.Object("polyline")?.Str("encodedPolyline") ?? "",
-                    ["source"] = "Google Routes 步行路线"
+                    ["source"] = "Google Routes walking directions"
                 };
             }
             catch (Exception ex) when (ex is FormatException or InvalidOperationException or OverflowException)
             {
-                throw new ServiceException("路线不可达或 Google Routes 数据不完整。");
+                throw new ServiceException("The route is unreachable or Google Routes data is incomplete.");
             }
         }
         else
@@ -58,7 +58,7 @@ public sealed class RouteService(IExternalJsonClient external,TripTransportRoute
             route = new JsonObject
             {
                 ["meters"] = meters, ["minutes"] = Math.Ceiling(meters / 65),
-                ["polyline"] = "", ["source"] = "直线距离×1.3 的演示估算"
+                ["polyline"] = "", ["source"] = "Demo estimate: straight-line distance × 1.3"
             };
         }
         context.RouteCache[cacheKey] = (JsonObject)route.DeepClone();
@@ -76,7 +76,7 @@ public sealed class RouteService(IExternalJsonClient external,TripTransportRoute
     public static JsonObject EstimateLeg(JsonObject from, JsonObject to) => new()
     {
         ["meters"] = Math.Ceiling(Distance(from, to) * 1.3),
-        ["minutes"] = Math.Ceiling(Distance(from, to) * 1.3 / 65), ["polyline"] = "", ["source"] = "初筛估算"
+        ["minutes"] = Math.Ceiling(Distance(from, to) * 1.3 / 65), ["polyline"] = "", ["source"] = "Shortlist estimate"
     };
 
     public static double Distance(JsonObject a, JsonObject b)

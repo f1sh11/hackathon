@@ -546,8 +546,8 @@ struct TripDraftEditor:View {
             Form{
                 Section(uiText("这次旅行")){
                     field("destination","目的地")
-                    DatePicker("出发日期",selection:Binding(get:{dateValue},set:{fields["date"]=TripProfile.dateString($0)}),displayedComponents:.date)
-                    Stepper("旅行天数：\(fields["days"] ?? "1") 天",value:Binding(get:{Int(fields["days"] ?? "1") ?? 1},set:{fields["days"]=String($0)}),in:1...15)
+                    DatePicker(uiText("出发日期"),selection:Binding(get:{dateValue},set:{fields["date"]=TripProfile.dateString($0)}),displayedComponents:.date)
+                    Stepper(uiText("旅行天数：\(fields["days"] ?? "1") 天"),value:Binding(get:{Int(fields["days"] ?? "1") ?? 1},set:{fields["days"]=String($0)}),in:1...15)
                     field("companions","同行伙伴")
                 }
                 Section(uiText("兴趣与节奏")){
@@ -824,10 +824,10 @@ enum TripCompanionIntent:String,CaseIterable,Identifiable {
     var id:String {rawValue}
     var label:String {switch self{case .checkPlan:return "帮我检查";case .tired:return "累了想歇歇";case .replace:return "换个地方";case .shortOnTime:return "时间不够了"}}
     var message:String {switch self {
-        case .checkPlan:return "请检查这份已保存行程中的风险，区分已知与未知。"
-        case .tired:return "这次有点累了，想减少步行、留出休息。请给我具体调整建议。"
-        case .replace:return "我想换一个地方。请先问我想换哪一站，再给出顺路的真实候选。"
-        case .shortOnTime:return "这一天时间不够了。请先问我还剩多久，再建议保留哪些安排。"
+        case .checkPlan:return "Please check the risks in this saved itinerary and distinguish known facts from unknowns."
+        case .tired:return "I’m feeling tired and would like less walking and more time to rest. Please suggest specific adjustments."
+        case .replace:return "I’d like to replace a place. First ask which stop I want to change, then suggest real alternatives along the route."
+        case .shortOnTime:return "There’s not enough time today. First ask how much time is left, then suggest which activities to keep."
     }}
 }
 enum TripHomeFocus {
@@ -844,9 +844,9 @@ enum TripCompanionContext {
         guard trip.days.indices.contains(suggestion.dayIndex) else{return suggestion.detail}
         let day=trip.days[suggestion.dayIndex]
         let places=day.stops.prefix(8).map { stop in
-            stop.name+"（"+stop.costLabel+"，"+stop.indoorLabel+"，"+(stop.hoursVerified ? "营业时间有记录":"营业时间待确认")+"）"
-        }.joined(separator:"；")
-        return request(trip:trip,dayIndex:suggestion.dayIndex,intent:nil)+" 检查发现："+suggestion.detail+" 已保存的当天地点："+places+"。我现在想知道如何确认这些未知资料，请针对上述地点给出一到两个具体的确认步骤，不要重复询问已知旅行资料，不要重新生成行程。区分已保存信息与待核实信息；没有实际查询结果时，不要声称已查到天气、票价或营业时间。"
+            stop.name+" ("+uiText(stop.costLabel)+", "+uiText(stop.indoorLabel)+", "+(stop.hoursVerified ? "opening hours recorded":"opening hours unverified")+")"
+        }.joined(separator:"; ")
+        return request(trip:trip,dayIndex:suggestion.dayIndex,intent:nil)+" Checks found: "+uiText(suggestion.detail)+". Saved places today: "+places+". Please give one or two specific steps to verify these unknowns for the places above. Do not ask again for known trip details or regenerate the itinerary. Distinguish saved facts from information that still needs verification; do not claim to have checked weather, fares or opening hours without actual lookup results."
     }
     static func speech(_ trip:Trip)->String {
         if trip.profile.transportPreference=="lessWalking"{return "这趟尽量少走路。想歇一会儿，随时叫我一起调整。"}
@@ -856,7 +856,7 @@ enum TripCompanionContext {
     static func request(trip:Trip,dayIndex:Int,intent:TripCompanionIntent?)->String {
         let index=max(0,min(dayIndex,max(0,trip.days.count-1)))
         let date=trip.days.indices.contains(index) ? trip.days[index].date:trip.profile.date
-        return "关于「\(trip.title)」第 \(index+1) 天（\(date)）。"+(intent?.message ?? "我想聊聊这一天的安排。")+"仅调整这一天，保留其余日期和已完成活动；先展示建议，确认后再保存。"
+        return "About ‘\(trip.title)’, day \(index+1) (\(date)). "+(intent?.message ?? "I’d like to discuss this day’s plans.")+" Adjust only this day and preserve other dates and completed activities. Show suggestions first and save only after confirmation."
     }
 }
 struct KokoTripActions:View {

@@ -17,20 +17,20 @@ public sealed class NavigationService(HttpClient client, IConfiguration configur
     {
         "walk" => RouteInternalAsync(input, "pedestrian", ct),
         "drive" => RouteInternalAsync(input, "auto", ct),
-        _ => throw new ServiceException("道路预览模式不合法。")
+        _ => throw new ServiceException("The road preview mode is invalid.")
     };
 
     private async Task<JsonObject> RouteInternalAsync(JsonObject input, string profile, CancellationToken ct)
     {
-        var endpoint = Endpoint ?? throw new ServiceException("尚未配置步行导航服务，请设置 Navigation__ValhallaUrl 后重启后端。");
+        var endpoint = Endpoint ?? throw new ServiceException("Walking navigation is not configured. Set Navigation__ValhallaUrl and restart the backend.");
         if (input["locations"] is not JsonArray locations || locations.Count is < 2 or > 30)
-            throw new ServiceException("导航需提供 2–30 个坐标点。");
+            throw new ServiceException("Navigation requires 2–30 coordinate points.");
         var points = new JsonArray();
         foreach (var item in locations)
         {
             if (item is not JsonObject point || !TryNumber(point, "lat", out var lat) || !TryNumber(point, "lon", out var lon)
                 || lat is < -90 or > 90 || lon is < -180 or > 180)
-                throw new ServiceException("导航坐标不合法。");
+                throw new ServiceException("Navigation coordinates are invalid.");
             points.Add(new JsonObject { ["lat"] = lat, ["lon"] = lon, ["type"] = "break" });
         }
         // Only coordinates are accepted from clients. Profiles, upstream URLs and API keys are server-owned.
@@ -45,18 +45,18 @@ public sealed class NavigationService(HttpClient client, IConfiguration configur
         try
         {
             using var response = await client.PostAsJsonAsync(endpoint, request, timeout.Token);
-            if (!response.IsSuccessStatusCode) throw new ServiceException("步行路线服务暂不可用或路线无法到达，请重试。");
+            if (!response.IsSuccessStatusCode) throw new ServiceException("The walking route service is unavailable or the destination cannot be reached. Please try again.");
             await using var stream = await response.Content.ReadAsStreamAsync(timeout.Token);
             var data = await JsonNode.ParseAsync(stream, cancellationToken: timeout.Token) as JsonObject;
             if (data?.Str("code") != "Ok" || data.Array("routes")?.FirstOrDefault() is not JsonObject route
                 || string.IsNullOrWhiteSpace(route.Str("geometry")) || route.Array("legs")?.Count != points.Count - 1)
-                throw new ServiceException("步行路线数据不完整，无法开始导航。");
+                throw new ServiceException("Walking route data is incomplete, so navigation cannot start.");
             return data;
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-        { throw new ServiceException("步行路线请求超时，请重试。导航进度未改变。"); }
-        catch (HttpRequestException) { throw new ServiceException("无法连接步行路线服务，请检查后端配置。"); }
-        catch (System.Text.Json.JsonException) { throw new ServiceException("步行路线服务返回了无效数据。"); }
+        { throw new ServiceException("The walking route request timed out. Please try again. Your navigation progress is unchanged."); }
+        catch (HttpRequestException) { throw new ServiceException("Could not connect to the walking route service. Check the backend configuration."); }
+        catch (System.Text.Json.JsonException) { throw new ServiceException("The walking route service returned invalid data."); }
     }
 
     private static bool TryNumber(JsonObject point, string key, out double number)

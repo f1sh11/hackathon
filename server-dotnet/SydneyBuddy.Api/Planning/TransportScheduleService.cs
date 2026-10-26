@@ -5,10 +5,10 @@ namespace SydneyBuddy.Api;
 public sealed class TransportScheduleService(ScheduleEditorService editor,TripTransportRouter router)
 {
     public async Task<JsonObject> BuildAsync(JsonObject request,CancellationToken ct) {
-        var trip=request.Object("trip")??throw new ServiceException("缺少行程。");
+        var trip=request.Object("trip")??throw new ServiceException("Trip is missing.");
         var profile=trip.Object("profile")!;
         if(profile.Str("transportPreference","walk")=="walk")return editor.Build(request);
-        if(!router.Configured)throw new ServiceException("公共交通服务尚未配置，草稿已保留。");
+        if(!router.Configured)throw new ServiceException("Public transport is not configured. Your draft has been kept.");
         var body=request.DeepClone().AsObject();
         var selected=request.Array("transportDays")?.Select(n=>n!.GetValue<int>()).ToHashSet();
         var untouchedDates=trip.Array("days")?.OfType<JsonObject>().Select((day,index)=>(day,index)).Where(x=>selected is not null&&!selected.Contains(x.index)).Select(x=>x.day.Str("date")).ToHashSet()??[];
@@ -16,7 +16,7 @@ public sealed class TransportScheduleService(ScheduleEditorService editor,TripTr
         body["transportRoutes"]=evidence.DeepClone();
         var working=editor.Build(body,allowHistoricalTransit:true);
         var context=new PlanningContext("demo",new Dictionary<string,string>());
-        var walks=new WalkingEvidence(body.Array("walkingRoutes")??trip.Array("walkingRoutes")??throw new ServiceException("缺少 Apple 步行资料。"));
+        var walks=new WalkingEvidence(body.Array("walkingRoutes")??trip.Array("walkingRoutes")??throw new ServiceException("Apple walking data is missing."));
         for(var d=0;d<working.Array("days")!.Count;d++) {
             if(selected is not null&&!selected.Contains(d))continue;
             for(var i=0;i<=working.Array("days")![d]!.Array("stops")!.Count;i++) {

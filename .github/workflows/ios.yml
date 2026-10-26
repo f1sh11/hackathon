@@ -1,0 +1,40 @@
+name: iOS checks
+on:
+  push:
+    paths: ['ios/**', 'shared/localization/**', 'assets/koala/**', '.github/workflows/ios.yml']
+  pull_request:
+    paths: ['ios/**', 'shared/localization/**', 'assets/koala/**', '.github/workflows/ios.yml']
+permissions:
+  contents: read
+jobs:
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select an available iPhone simulator
+        id: simulator
+        run: |
+          python3 - <<'PY'
+          import json, os, subprocess
+          devices = json.loads(subprocess.check_output(['xcrun', 'simctl', 'list', 'devices', 'available', '-j']))
+          device = next(d for group in devices['devices'].values() for d in group
+                        if d.get('isAvailable') and d['name'].startswith('iPhone'))
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              print('id=' + device['udid'], file=output)
+          print('Selected ' + device['name'])
+          PY
+      - name: Build and test the native iOS app
+        run: |
+          xcodebuild test -quiet \
+            -project ios/SydneyBuddy.xcodeproj \
+            -scheme SydneyBuddy \
+            -destination 'platform=iOS Simulator,id=${{ steps.simulator.outputs.id }}' \
+            -parallel-testing-enabled NO \
+            -resultBundlePath "$RUNNER_TEMP/SydneyBuddy.xcresult" \
+            CODE_SIGNING_ALLOWED=NO
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: SydneyBuddy-iOS-test-results
+          path: ${{ runner.temp }}/SydneyBuddy.xcresult

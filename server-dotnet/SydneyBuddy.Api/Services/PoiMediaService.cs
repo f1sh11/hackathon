@@ -40,11 +40,11 @@ public sealed class PoiMediaService(HttpClient http,IMemoryCache cache,HiddenGem
 
     public async Task<JsonObject> LoadAsync(JsonObject input,CancellationToken token) {
         if(input.Str("id").StartsWith("gem:")){
-            var gemMedia=gems?.Media(input.Str("id"))??throw new ServiceException("私房景點來源尚未設定。");
+            var gemMedia=gems?.Media(input.Str("id"))??throw new ServiceException("The hidden gem source is not configured.");
             if(gemMedia.Array("photos")?.Count>0||input.Str("name").Length==0)return gemMedia;
         }
         var lat=input.Number("lat",double.NaN);var lng=input.Number("lng",double.NaN);
-        if(!OsmPoiProvider.ValidPoint(lat,lng))throw new ServiceException("地點座標無效。");
+        if(!OsmPoiProvider.ValidPoint(lat,lng))throw new ServiceException("Place coordinates are invalid.");
         var rawName=input.Str("name").Trim();
         var point=FormattableString.Invariant($"{lat:F6}|{lng:F6}");
         var key=rawName.Length==0?"poi-media:"+point:"poi-media:"+point+":"+rawName.ToLowerInvariant();
@@ -122,7 +122,7 @@ public sealed class PoiMediaService(HttpClient http,IMemoryCache cache,HiddenGem
         request.Headers.UserAgent.ParseAdd("SydneyBuddy/1.0 (https://github.com/f1sh11/hackathon)");
         using var response=await http.SendAsync(request,token);response.EnsureSuccessStatusCode();
         var data=JsonNode.Parse(await response.Content.ReadAsStringAsync(token))?.AsObject();
-        if(data?.ContainsKey("error")==true)throw new ServiceException("照片服務暫時無法載入，請重試。");
+        if(data?.ContainsKey("error")==true)throw new ServiceException("Photos are temporarily unavailable. Please try again.");
         var scored=new List<(int Score,JsonObject Photo)>();
         foreach(var page in (data?["query"]?["pages"] as JsonObject ?? new JsonObject()).Select(p=>p.Value).OfType<JsonObject>()) {
             var info=page.Array("imageinfo")?.OfType<JsonObject>().FirstOrDefault();if(info is null)continue;

@@ -73,6 +73,6 @@ public static class TripContractValidator
         foreach (var name in names)
             if (value[name] is not JsonValue scalar || !scalar.TryGetValue<bool>(out _)) Invalid();
     }
-    private static JsonException Failure() => new("请求中的行程结构不完整");
+    private static JsonException Failure() => new("The trip structure in the request is incomplete");
     private static void Invalid() => throw Failure();
 }

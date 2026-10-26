@@ -1,7 +1,7 @@
 [
   {
     "id": "opera",
-    "name": "悉尼歌剧院",
+    "name": "Sydney Opera House",
     "query": "Sydney Opera House",
     "lat": -33.8568,
     "lng": 151.2153,
@@ -11,8 +11,8 @@
     "cost": 0,
     "openMinute": 540,
     "closeMinute": 1080,
-    "note": "外部游览示例；内部参观费用与预约另计",
-    "description": "雪梨港邊的代表性建築，可以沿海濱步道欣賞歌劇院的帆形外觀與港灣景色。適合拍照、散步，亦可另外安排需預約的室內導覽或表演。",
+    "note": "Example exterior visit; interior tours require separate booking and fees.",
+    "description": "An iconic building on Sydney Harbour. Follow the waterfront path for views of its sail-shaped exterior and the harbour. Ideal for photos and a stroll; indoor tours or performances can be booked separately.",
     "tags": [
       "文化",
       "风景"
@@ -20,7 +20,7 @@
   },
   {
     "id": "rocks",
-    "name": "岩石区",
+    "name": "The Rocks",
     "query": "The Rocks Sydney",
     "lat": -33.8599,
     "lng": 151.209,
@@ -30,8 +30,8 @@
     "cost": 0,
     "openMinute": 600,
     "closeMinute": 1140,
-    "note": "历史街区散步，不代表已安排用餐；具体餐厅单独排程。",
-    "description": "以歷史街道與砂岩建築為特色的港邊街區，可散步探索巷弄、商店與餐飲。適合把街區遊覽和用餐分開安排，保留自由探索的時間。",
+    "note": "A walk through the historic precinct. Meals are scheduled separately at specific restaurants.",
+    "description": "A harbourside precinct with historic streets and sandstone buildings. Explore its lanes, shops and dining, with time left for spontaneous discoveries.",
     "tags": [
       "文化",
       "城市"
@@ -39,7 +39,7 @@
   },
   {
     "id": "garden",
-    "name": "皇家植物园",
+    "name": "Royal Botanic Garden Sydney",
     "query": "Royal Botanic Garden Sydney",
     "lat": -33.8642,
     "lng": 151.2166,
@@ -49,8 +49,8 @@
     "cost": 0,
     "openMinute": 600,
     "closeMinute": 1020,
-    "note": "开放时段为演示假设，需核实当日信息",
-    "description": "鄰近雪梨港的綠地與植物園，適合沿步道觀察植物、散步和欣賞港灣景色。戶外步行較多，排程時可搭配休息並留意天氣。",
+    "note": "Opening hours are demo assumptions. Check the information for your visit date.",
+    "description": "Gardens and green space beside Sydney Harbour, with paths for discovering plants and harbour views. Allow breaks during outdoor walks and keep an eye on the weather.",
     "tags": [
       "自然",
       "风景"
@@ -58,7 +58,7 @@
   },
   {
     "id": "mca",
-    "name": "澳大利亚当代艺术博物馆",
+    "name": "Museum of Contemporary Art Australia",
     "query": "Museum of Contemporary Art Australia",
     "lat": -33.8599,
     "lng": 151.2091,
@@ -68,8 +68,8 @@
     "cost": 25,
     "openMinute": 600,
     "closeMinute": 1020,
-    "note": "门票预算为演示估算，非实际报价",
-    "description": "位於環形碼頭一帶的當代藝術博物館，適合喜歡視覺藝術與展覽的旅客。可依展覽內容調整停留時間，入館與特別展資訊需另行確認。",
+    "note": "The ticket budget is a demo estimate, not an actual quote.",
+    "description": "A contemporary art museum near Circular Quay for travellers who enjoy visual art and exhibitions. Adjust your visit to the exhibitions you choose, and check admission and special exhibition details.",
     "tags": [
       "文化",
       "艺术"
@@ -77,7 +77,7 @@
   },
   {
     "id": "qvb",
-    "name": "维多利亚女王大厦",
+    "name": "Queen Victoria Building",
     "query": "Queen Victoria Building Sydney",
     "lat": -33.8719,
     "lng": 151.2067,
@@ -87,8 +87,8 @@
     "cost": 0,
     "openMinute": 600,
     "closeMinute": 1020,
-    "note": "不含购物消费，开放时间待核实",
-    "description": "以歷史建築與購物空間為特色的市中心地標，可欣賞建築細節、逛街或安排咖啡休息。室內活動較多，購物與餐飲費用需另外預留。",
+    "note": "Shopping is not included. Opening hours need verification.",
+    "description": "A city-centre landmark combining historic architecture and shopping. Browse the architectural details, shops or cafés. Allow a separate budget for shopping and dining.",
     "tags": [
       "购物",
       "城市",
@@ -97,7 +97,7 @@
   },
   {
     "id": "gallery",
-    "name": "新南威尔士州美术馆",
+    "name": "Art Gallery of New South Wales",
     "query": "Art Gallery of New South Wales",
     "lat": -33.8688,
     "lng": 151.2173,
@@ -107,8 +107,8 @@
     "cost": 0,
     "openMinute": 600,
     "closeMinute": 1020,
-    "note": "免费常设展的演示预算，特别展另计",
-    "description": "可欣賞藝術收藏與展覽的文化景點，適合以室內參觀為主的行程。不同展區與特別展需要的時間不同，可依興趣調整停留長度。",
+    "note": "Demo budget assumes free permanent exhibitions. Special exhibitions cost extra.",
+    "description": "A cultural stop for art collections and exhibitions, suited to an indoor visit. Allow time for the galleries and special exhibitions that interest you.",
     "tags": [
       "文化",
       "艺术"
@@ -116,7 +116,7 @@
   },
   {
     "id": "museum",
-    "name": "澳大利亚博物馆",
+    "name": "Australian Museum",
     "query": "Australian Museum Sydney",
     "lat": -33.8749,
     "lng": 151.2133,
@@ -126,8 +126,8 @@
     "cost": 0,
     "openMinute": 600,
     "closeMinute": 1020,
-    "note": "费用和开放时间须核实，特别展另计",
-    "description": "以自然歷史與文化展示為特色的博物館，適合喜歡探索自然與知識的旅客。可選擇感興趣的展區參觀，特別展與當日開放資訊需確認。",
+    "note": "Verify admission and opening hours. Special exhibitions cost extra.",
+    "description": "A museum of natural history and culture for curious travellers. Choose the exhibitions that interest you and check special exhibitions and opening details for your visit.",
     "tags": [
       "文化",
       "自然"
@@ -135,7 +135,7 @@
   },
   {
     "id": "darling",
-    "name": "达令港",
+    "name": "Darling Harbour",
     "query": "Darling Harbour Sydney",
     "lat": -33.873,
     "lng": 151.2009,
@@ -145,8 +145,8 @@
     "cost": 0,
     "openMinute": 540,
     "closeMinute": 1200,
-    "note": "公共区域示例，不含收费活动",
-    "description": "結合水岸步道、公共空間與餐飲的港灣區域，適合散步、拍照或作為用餐前後的彈性安排。收費設施與活動需另外規劃時間與預算。",
+    "note": "Example public-area visit; paid attractions are not included.",
+    "description": "A harbourside area with waterfront paths, public spaces and dining. Good for a stroll, photos or flexible time around a meal. Paid attractions need their own time and budget.",
     "tags": [
       "风景",
       "城市"
@@ -154,7 +154,7 @@
   },
   {
     "id": "pancakes-rocks",
-    "name": "Pancakes on the Rocks · 岩石区",
+    "name": "Pancakes on the Rocks · The Rocks",
     "query": "Pancakes On The Rocks 22 Playfair St, The Rocks NSW 2000, Australia",
     "lat": -33.8588386,
     "lng": 151.2083477,
@@ -168,10 +168,10 @@
     "cost": 30,
     "openMinute": 450,
     "closeMinute": 1440,
-    "note": "美式餐点与松饼；每人餐费与营业窗口为规划预留，非实时报价；未订位，排队、过敏与当日营业请向店家确认。",
-    "description": "具体用餐地点，可与附近活动组合。美式餐点与松饼。",
+    "note": "American meals and pancakes. Per-person meal costs and opening windows are planning allowances, not live quotes. No reservation has been made. Confirm queues, allergies and current opening hours with the venue.",
+    "description": "A specific dining stop that can be combined with nearby activities. American meals and pancakes.",
     "sourceURL": "https://pancakesontherocks.au/locations/",
-    "locationSource": "Apple MapKit 地点搜索，名称与分店地址已人工核对",
+    "locationSource": "Apple MapKit place search; venue names and branch addresses manually checked",
     "address": "22 Playfair St, The Rocks NSW 2000, Australia",
     "sourceCheckedAt": "2026-10-25"
   },
@@ -191,10 +191,10 @@
     "cost": 30,
     "openMinute": 480,
     "closeMinute": 840,
-    "note": "咖啡与午餐；每人餐费与营业窗口为规划预留，非实时报价；未订位，排队、过敏与当日营业请向店家确认。",
-    "description": "具体用餐地点，可与附近活动组合。咖啡与午餐。",
+    "note": "Coffee and lunch. Per-person meal costs and opening windows are planning allowances, not live quotes. No reservation has been made. Confirm queues, allergies and current opening hours with the venue.",
+    "description": "A specific dining stop that can be combined with nearby activities. Coffee and lunch.",
     "sourceURL": "https://www.finefoodstore.com/contact-us",
-    "locationSource": "Apple MapKit 地点搜索，名称与分店地址已人工核对",
+    "locationSource": "Apple MapKit place search; venue names and branch addresses manually checked",
     "address": "9/Cnr Mill and Kendall Lane, The Rocks NSW 2000, Australia",
     "sourceCheckedAt": "2026-10-25"
   },
@@ -214,10 +214,10 @@
     "cost": 35,
     "openMinute": 660,
     "closeMinute": 1260,
-    "note": "泰式午餐；每人餐费与营业窗口为规划预留，非实时报价；未订位，排队、过敏与当日营业请向店家确认。",
-    "description": "具体用餐地点，可与附近活动组合。泰式午餐。",
+    "note": "Thai lunch. Per-person meal costs and opening windows are planning allowances, not live quotes. No reservation has been made. Confirm queues, allergies and current opening hours with the venue.",
+    "description": "A specific dining stop that can be combined with nearby activities. Thai lunch.",
     "sourceURL": "https://chatthai.com/locations/",
-    "locationSource": "Apple MapKit 地点搜索，名称与分店地址已人工核对",
+    "locationSource": "Apple MapKit place search; venue names and branch addresses manually checked",
     "address": "L05/1 Macquarie Pl, Sydney NSW 2000, Australia",
     "sourceCheckedAt": "2026-10-25"
   },
@@ -237,10 +237,10 @@
     "cost": 25,
     "openMinute": 660,
     "closeMinute": 1260,
-    "note": "日式拉面；每人餐费与营业窗口为规划预留，非实时报价；未订位，排队、过敏与当日营业请向店家确认。",
-    "description": "具体用餐地点，可与附近活动组合。日式拉面。",
+    "note": "Japanese ramen. Per-person meal costs and opening windows are planning allowances, not live quotes. No reservation has been made. Confirm queues, allergies and current opening hours with the venue.",
+    "description": "A specific dining stop that can be combined with nearby activities. Japanese ramen.",
     "sourceURL": "https://www.thegaleries.com/stores/ichi-ban-boshi-restaurant",
-    "locationSource": "Apple MapKit 地点搜索，名称与分店地址已人工核对",
+    "locationSource": "Apple MapKit place search; venue names and branch addresses manually checked",
     "address": "Level 2 The Galeries, 500 George Street, Sydney NSW 2000, Australia",
     "sourceCheckedAt": "2026-10-25"
   },
@@ -260,10 +260,10 @@
     "cost": 40,
     "openMinute": 480,
     "closeMinute": 1020,
-    "note": "咖啡馆餐点；每人餐费与营业窗口为规划预留，非实时报价；未订位，排队、过敏与当日营业请向店家确认。",
-    "description": "具体用餐地点，可与附近活动组合。咖啡馆餐点。",
+    "note": "Café meals. Per-person meal costs and opening windows are planning allowances, not live quotes. No reservation has been made. Confirm queues, allergies and current opening hours with the venue.",
+    "description": "A specific dining stop that can be combined with nearby activities. Café meals.",
     "sourceURL": "https://thegrounds.com.au/dine-in/the-city/",
-    "locationSource": "Apple MapKit 地点搜索，名称与分店地址已人工核对",
+    "locationSource": "Apple MapKit place search; venue names and branch addresses manually checked",
     "address": "RG12/500 George St\nSydney NSW 2000\nAustralia",
     "sourceCheckedAt": "2026-10-25"
   },
@@ -283,10 +283,10 @@
     "cost": 35,
     "openMinute": 690,
     "closeMinute": 1260,
-    "note": "泰式及老挝菜；每人餐费与营业窗口为规划预留，非实时报价；未订位，排队、过敏与当日营业请向店家确认。",
-    "description": "具体用餐地点，可与附近活动组合。泰式及老挝菜。",
+    "note": "Thai and Lao dishes. Per-person meal costs and opening windows are planning allowances, not live quotes. No reservation has been made. Confirm queues, allergies and current opening hours with the venue.",
+    "description": "A specific dining stop that can be combined with nearby activities. Thai and Lao dishes.",
     "sourceURL": "https://www.darlingsq.com/discover/steam-mill-lane/",
-    "locationSource": "Apple MapKit 地点搜索，名称与分店地址已人工核对",
+    "locationSource": "Apple MapKit place search; venue names and branch addresses manually checked",
     "address": "SW.08/51 Tumbalong Bvd, Haymarket NSW 2000, Australia",
     "sourceCheckedAt": "2026-10-25"
   }

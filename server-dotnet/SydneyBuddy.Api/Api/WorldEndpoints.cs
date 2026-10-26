@@ -13,7 +13,7 @@ public static class WorldEndpoints
         {
             var input = await RequestJson.ReadAsync(context);
             var requestId = input.Str("requestId");
-            if (requestId.Length == 0) throw new ServiceException("请提供模拟请求编号，以便安全重试。");
+            if (requestId.Length == 0) throw new ServiceException("Provide a simulation request ID for safe retries.");
             return Results.Json(await simulation.SimulateAsync(tripId, requestId, context.RequestAborted));
         });
         routes.MapGet("/simulation-runs/{runId}", async (string runId, WorldRepository worlds, CancellationToken ct) =>

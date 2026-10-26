@@ -94,7 +94,7 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     {
         var response=await fixture.Client.PostAsJsonAsync("/journey/plan",JsonNode.Parse("""{"departureTime":"2026-10-23T10:00:00+11:00","modes":["transit"],"points":[{"name":"Start","lat":-33.86,"lng":151.21},{"name":"End","lat":-33.85,"lng":151.22}]}"""));
         Assert.Equal(HttpStatusCode.UnprocessableEntity,response.StatusCode);
-        Assert.Contains("尚未启用",(await response.Content.ReadFromJsonAsync<JsonObject>())!.Str("error"));
+        Assert.Contains("not enabled",(await response.Content.ReadFromJsonAsync<JsonObject>())!.Str("error"));
         Assert.False((await fixture.Client.GetFromJsonAsync<JsonObject>("/health"))!.Bool("transitConfigured"));
     }
     [Fact]
@@ -133,7 +133,7 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
         var profile=TestSupport.Profile(); profile["mode"]=mode;
         var response=await fixture.Client.PostAsJsonAsync(path,profile);
         Assert.Equal(HttpStatusCode.UnprocessableEntity,response.StatusCode);
-        Assert.Contains("禁止付费",(await response.Content.ReadFromJsonAsync<JsonObject>())!.Str("error"));
+        Assert.Contains("Paid services are disabled",(await response.Content.ReadFromJsonAsync<JsonObject>())!.Str("error"));
         var health=await fixture.Client.GetFromJsonAsync<JsonObject>("/health");
         Assert.False(health!.Bool("paidServicesAllowed"));
     }

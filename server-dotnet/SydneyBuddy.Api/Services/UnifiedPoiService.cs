@@ -7,17 +7,17 @@ namespace SydneyBuddy.Api;
 public sealed class UnifiedPoiService(TravelDataContext travel,OverturePoiProvider overture,HiddenGemService gems,ProjectPaths paths,SocialImportStore? social=null,RestaurantStore? restaurants=null) {
     public JsonObject Search(double lat,double lng,int radius,string category,string text,CancellationToken token){
         JsonObject original;JsonArray osm,community;
-        if(travel.Warehouse){var snapshot=travel.Snapshot??throw new ServiceException("Zetaris 地圖資料尚未取得。");original=snapshot.Poi;osm=snapshot.Osm??throw new ServiceException("Zetaris OSM 地點尚未匯入。");community=snapshot.Gems??new();}
+        if(travel.Warehouse){var snapshot=travel.Snapshot??throw new ServiceException("Zetaris map data is not available yet.");original=snapshot.Poi;osm=snapshot.Osm??throw new ServiceException("Zetaris OSM places have not been imported.");community=snapshot.Gems??new();}
         else {original=overture.PublicSnapshot;community=gems.PublicPlaces;var path=Path.Combine(paths.RepoRoot,"infra","zetaris","data","osm-map-places.json");
-            if(!File.Exists(path))throw new ServiceException("整合地圖資料尚未匯入，請先執行 scripts/import_osm_map_places.py。");
-            osm=JsonNode.Parse(File.ReadAllText(path))!.AsObject().Array("places")??throw new ServiceException("OSM 地點資料無效。");}
+            if(!File.Exists(path))throw new ServiceException("Combined map data has not been imported. Run scripts/import_osm_map_places.py first.");
+            osm=JsonNode.Parse(File.ReadAllText(path))!.AsObject().Array("places")??throw new ServiceException("OSM place data is invalid.");}
         var socialPoints=travel.Warehouse ? travel.Snapshot?.Social ?? new JsonArray() : social?.Published() ?? new JsonArray();
         var restaurantPoints=travel.Warehouse ? travel.Snapshot?.Restaurants ?? new JsonArray() : restaurants?.Published() ?? new JsonArray();
         var result=Merge(original.Array("places")!.OfType<JsonObject>().Concat(osm.OfType<JsonObject>()).Concat(community.OfType<JsonObject>()).Concat(socialPoints.OfType<JsonObject>()).Concat(restaurantPoints.OfType<JsonObject>()),lat,lng,radius,category,text,token);
         result["source"]=travel.Warehouse?"Open travel data / Zetaris":"Open travel data / local";result["dataSource"]=travel.Mode;
         result["attribution"]="© OpenStreetMap contributors · ODbL; Overture Maps Foundation · CDLA/Apache; Wikivoyage contributors · CC BY-SA 4.0; social recommendations retain their source attribution";
         result["metadata"]=new JsonObject{["release"]=original.Str("release"),["readAt"]=travel.Snapshot?.ReadAt,["totalPlaces"]=original.Array("places")!.Count+osm.Count+community.Count+socialPoints.Count+restaurantPoints.Count};
-        result["message"]="整合已匯入的雪梨地點；底圖原生標記可能不同。探索候選不代表已確認冷門；房價、營業狀態與評論未即時核實；社群推薦為附原文證據的作者意見。";
+        result["message"]="Combines imported Sydney places; base map markers may differ. Discovery candidates are not verified as quiet. Room rates, opening status and reviews are not verified live. Community recommendations are the authors' opinions, with original evidence.";
         return result;
     }
     static string NameKey(string value)=>string.Concat(value.Normalize(NormalizationForm.FormD).Where(c=>char.IsLetterOrDigit(c)&&CharUnicodeInfo.GetUnicodeCategory(c)!=UnicodeCategory.NonSpacingMark)).ToLowerInvariant();

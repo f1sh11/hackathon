@@ -34,7 +34,7 @@ public sealed partial class SecretStore(ProjectPaths paths)
             {
                 var value = updates.GetValueOrDefault(key, "").Trim();
                 if (value.Length == 0) continue; // 留空保留已有值。 / Empty fields preserve existing settings.
-                if (!KeyFormat().IsMatch(value)) throw new ServiceException("密钥格式不合法");
+                if (!KeyFormat().IsMatch(value)) throw new ServiceException("Invalid key format");
                 current[key] = value;
             }
             WritePrivate(paths.SecretsFile, JsonSerializer.Serialize(current));

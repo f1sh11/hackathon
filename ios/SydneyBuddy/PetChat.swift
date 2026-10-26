@@ -322,7 +322,7 @@ struct PetChatView:View {
                         replyChoices
                         if !personalSetup,!canPlanDirectly,let session=chat.session,let inspiration=session.dialogue?.inspiration{KokoInspirationCard(session:session,inspiration:inspiration)}
                         ForEach(chat.session?.pendingPreferences ?? []){preference in
-                            TravelPreferenceCard(preference:preference,busy:chat.busy,decide:{consent,ignored in Task{await chat.decidePreference(preference,consent:consent,dismiss:ignored)}},correct:{message="关于"+preference.label+"，其实我";composing=true})
+                            TravelPreferenceCard(preference:preference,busy:chat.busy,decide:{consent,ignored in Task{await chat.decidePreference(preference,consent:consent,dismiss:ignored)}},correct:{message="About "+uiText(preference.label)+", actually I ";composing=true})
                         }
                         if let warning=chat.session?.memoryWarning,!warning.isEmpty{Text(uiText(warning)).font(.caption).foregroundStyle(Palette.muted)}
                         if !personalSetup,let session=chat.session,session.dnaCompleted != true,(session.pendingPreferences ?? []).isEmpty,(session.travelDna ?? []).contains(where:{$0.status=="confirmed"}) {
@@ -371,7 +371,7 @@ struct PetChatView:View {
             if !chat.busy,let session=chat.session,!session.contextualReplies.isEmpty,!canPlanDirectly {
                 KokoQuickReplies(replies:session.contextualReplies,busy:chat.busy,stacked:faceToFace,compact:composing){reply in
                     switch reply.intent {
-                    case "compose_name":message="叫我";composing=true
+                    case "compose_name":message="Call me ";composing=true
                     case "details":if personalSetup{store.finishPersonalConversation(chat.session,useClues:true)}else{composing=false;detailRoute=TripDetailRoute(id:-1)}
                     case "details_destination":composing=false;detailRoute=TripDetailRoute(id:0)
                     case "details_time":composing=false;detailRoute=TripDetailRoute(id:1)
@@ -473,9 +473,9 @@ struct PetChatView:View {
     }
     private func quickAnswers(_ session:PetSession)->some View {
         VStack(alignment:.leading,spacing:7){
-            HStack(alignment:.firstTextBaseline){Text(uiText(canPlanDirectly ? "可选补充："+session.question:session.question)).font(.caption).foregroundStyle(Palette.muted).lineLimit(2);Spacer();Button(uiText(TravelRequirements.requiredKeys.contains(session.nextField) ? "暂不确定":"稍后补充")){composing=false;Task{await chat.send("稍后补充",field:session.nextField,value:"未确定")}}.font(.caption).disabled(chat.busy)}
+            HStack(alignment:.firstTextBaseline){Text(uiText(canPlanDirectly ? "可选补充："+session.question:session.question)).font(.caption).foregroundStyle(Palette.muted).lineLimit(2);Spacer();Button(uiText(TravelRequirements.requiredKeys.contains(session.nextField) ? "暂不确定":"稍后补充")){composing=false;Task{await chat.send("I’ll add this later",field:session.nextField,value:"未确定")}}.font(.caption).disabled(chat.busy)}
             ScrollView(.horizontal,showsIndicators:false){HStack(spacing:8){ForEach(session.options,id:\.self){option in
-                Button{composing=false;let label=TravelRequirements.optionTitle(option,field:session.nextField);Task{await chat.send(label,field:session.nextField,value:option)}}label:{Text(uiText(TravelRequirements.optionTitle(option,field:session.nextField))).font(.subheadline.weight(.medium)).padding(.horizontal,14).padding(.vertical,10).background(.white,in:Capsule()).overlay(Capsule().stroke(Palette.green.opacity(0.2)))}.buttonStyle(.plain).disabled(chat.busy)
+                Button{composing=false;let label=uiText(TravelRequirements.optionTitle(option,field:session.nextField));Task{await chat.send(label,field:session.nextField,value:option)}}label:{Text(uiText(TravelRequirements.optionTitle(option,field:session.nextField))).font(.subheadline.weight(.medium)).padding(.horizontal,14).padding(.vertical,10).background(.white,in:Capsule()).overlay(Capsule().stroke(Palette.green.opacity(0.2)))}.buttonStyle(.plain).disabled(chat.busy)
             }}}
             if session.nextField=="destination" {Button(uiText("还没想好？让 Koko 帮我选"),systemImage:"sparkles"){choosingDestination=true}.font(.subheadline.bold()).disabled(chat.busy)}
         }.padding(.horizontal,20).padding(.top,8).accessibilityIdentifier("chat-quick-answers")
@@ -488,7 +488,7 @@ struct PetChatView:View {
                 if !store.pendingPersonalProfile.summary.isEmpty{Text(uiText("我记得你："+store.pendingPersonalProfile.summary)).font(.caption).foregroundStyle(Palette.green)}
                 ForEach([("海风与绿意","歌剧院外观、皇家植物园，适合喜欢自然与风景的你。"),("城市与美食","岩石区、城市街区，给逛吃留些时间。"),("艺术与故事","博物馆、美术馆，慢慢发现城市的另一面。")],id:\.0){title,detail in
                     VStack(alignment:.leading,spacing:10){Text(uiText(title)).font(.headline);Text(uiText(detail)).font(.subheadline).foregroundStyle(Palette.muted)
-                        Button(uiText("选悉尼，继续聊")){choosingDestination=false;Task{let interests=title=="海风与绿意" ? "自然、风景":title=="城市与美食" ? "城市、美食":"艺术、文化";await chat.update(["interests":interests]);if chat.error==nil{await chat.send("这次想体验"+title+"，我选悉尼",field:"destination",value:"悉尼")}}}.buttonStyle(.borderedProminent).tint(Palette.green)
+                        Button(uiText("选悉尼，继续聊")){choosingDestination=false;Task{let interests=title=="海风与绿意" ? "自然、风景":title=="城市与美食" ? "城市、美食":"艺术、文化";await chat.update(["interests":interests]);if chat.error==nil{await chat.send("I’d like "+uiText(title)+". I choose Sydney.",field:"destination",value:"Sydney")}}}.buttonStyle(.borderedProminent).tint(Palette.green)
                     }.padding(18).frame(maxWidth:.infinity,alignment:.leading).background(.white,in:RoundedRectangle(cornerRadius:18))
                 }
             }.padding(20)}.background(Palette.cream).navigationTitle(uiText("Koko 帮你选")).navigationBarTitleDisplayMode(.inline).toolbar{Button(uiText("关闭")){choosingDestination=false}}
@@ -728,7 +728,7 @@ struct PetWelcomeView: View {
                 VStack(spacing:2){Button{reaction=PetReaction(text:"嘿嘿，我在这儿！小短腿已经准备好啦～你慢慢选，我陪着你。",mood:.excited)}label:{PetAvatar(mood:sceneMood).scaleEffect(1.15).frame(width:122,height:137)}.buttonStyle(.plain).accessibilityLabel(uiText("摸摸 Koko"));Text(uiText("戳戳我呀")).font(.caption2).foregroundStyle(Palette.muted)}
                 PetSpeechBubble(text:speech)
             }.padding(.horizontal,18).padding(.vertical,12)
-            if !lastAnswer.isEmpty {HStack{Spacer(minLength:30);Text(verbatim:lastAnswer).font(.subheadline.bold()).padding(.horizontal,16).padding(.vertical,10).background(Palette.mint,in:RoundedRectangle(cornerRadius:18)).accessibilityLabel(uiText("你的回答："+lastAnswer))}.padding(.horizontal,24).padding(.bottom,10)}
+            if !lastAnswer.isEmpty {HStack{Spacer(minLength:30);Text(verbatim:uiText(lastAnswer)).font(.subheadline.bold()).padding(.horizontal,16).padding(.vertical,10).background(Palette.mint,in:RoundedRectangle(cornerRadius:18)).accessibilityLabel(uiText("你的回答："+lastAnswer))}.padding(.horizontal,24).padding(.bottom,10)}
             ScrollView {
                 VStack(spacing:14) {
                     if !chat.memories.isEmpty && (step==3 || step==4){Text(uiText("参考你同意保存的偏好，选项仍可修改。")).font(.caption).foregroundStyle(Palette.green)}
@@ -763,9 +763,9 @@ struct PetWelcomeView: View {
             option("好呀，一起去悉尼！",detail:"海港、花园，还有街角的小惊喜",icon:"sun.horizon.fill",selected:true){choose("destination","悉尼")}
             Text(uiText("这一版先陪你探索悉尼。其他城市还在准备中。")).font(.caption).foregroundStyle(Palette.muted)
         case 1:
-            DatePicker("出发日期",selection:day,displayedComponents:.date).datePickerStyle(.compact).padding(18).background(.white,in:RoundedRectangle(cornerRadius:20))
+            DatePicker(uiText("出发日期"),selection:day,displayedComponents:.date).datePickerStyle(.compact).padding(18).background(.white,in:RoundedRectangle(cornerRadius:20))
             VStack(spacing:14) {
-                Stepper("旅行天数：\(values["days"] ?? "1") 天",value:Binding(get:{Int(values["days"] ?? "1") ?? 1},set:{choose("days",String($0))}),in:1...15)
+                Stepper(uiText("旅行天数：\(values["days"] ?? "1") 天"),value:Binding(get:{Int(values["days"] ?? "1") ?? 1},set:{choose("days",String($0))}),in:1...15)
                 Slider(value:Binding(get:{Double(values["days"] ?? "1") ?? 1},set:{values["days"]=String(Int($0))}),in:1...15,step:1,onEditingChanged:{editing in if !editing{choose("days",values["days"] ?? "1")}}).tint(Palette.green).accessibilityLabel(uiText("旅行天数"))
                 HStack{Text(uiText("1 天"));Spacer();Text(uiText("15 天"))}.font(.caption).foregroundStyle(Palette.muted)
             }.padding(20).background(.white,in:RoundedRectangle(cornerRadius:20)).disabled(working)

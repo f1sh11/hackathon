@@ -17,8 +17,8 @@ public sealed class PetConversationTests(ApiFixture fixture):IClassFixture<ApiFi
         Assert.Equal("en",session.ResponseLanguage);
         Assert.Single(session.Fields);Assert.Empty(session.Preferences);Assert.Empty(session.PersonalProfile);
         PetResponseLanguage.Apply(session,new JsonObject{["language"]="zh-Hant"});
-        Assert.Contains("繁體中文",PetResponseLanguage.Prompt(session));
-        Assert.Equal("",PetResponseLanguage.Prompt(new PetSession()));
+        Assert.Equal("en",session.ResponseLanguage);Assert.Contains("English",PetResponseLanguage.Prompt(session));
+        Assert.Contains("English",PetResponseLanguage.Prompt(new PetSession()));
     }
     [Theory]
     [InlineData("2026-10-28去悉尼玩2天", "悉尼")]
@@ -155,10 +155,10 @@ public sealed class PetConversationTests(ApiFixture fixture):IClassFixture<ApiFi
         await client.PatchAsJsonAsync($"/pet/sessions/{id}",new{fields=new{destination="墨尔本",date="2026-11-01",days="2",budget="100",budgetCurrency="AUD",budgetBasis="perPersonPerDay",travelers="2",origin="稍后补充",companions="两个人",mustDo="无"}});
         var blocked=await Turn(client,id,new{message="无特别要求",field="avoid",value="无特别要求",requestId=Guid.NewGuid().ToString()});
         Assert.Equal("destination",blocked.Str("nextField"));Assert.Equal(6,blocked.Int("completed"));
-        Assert.DoesNotContain("准备好",blocked.Array("messages")!.Last()!.Str("text"));
+        Assert.DoesNotContain("ready",blocked.Array("messages")!.Last()!.Str("text"),StringComparison.OrdinalIgnoreCase);
         var repaired=await Turn(client,id,new{message="改为悉尼",field="destination",value="悉尼",requestId=Guid.NewGuid().ToString()});
         Assert.Equal("",repaired.Str("nextField"));Assert.Equal("2",repaired.Object("fields")!.Str("days"));
-        Assert.Contains("生成行程",repaired.Array("messages")!.Last()!.Str("text"));
+        Assert.Contains("Generate itinerary",repaired.Array("messages")!.Last()!.Str("text"));
     }
     [Fact]
     public async Task CurrencyRepairClearsTheOldAmountAndDoesNotClaimReadiness()
@@ -173,7 +173,7 @@ public sealed class PetConversationTests(ApiFixture fixture):IClassFixture<ApiFi
         var response=await client.PostAsJsonAsync($"/pet/sessions/{id}/turn",new{message="AUD",field="budgetCurrency",value="AUD",requestId=Guid.NewGuid().ToString()});
         var last=JsonNode.Parse((await response.Content.ReadAsStringAsync()).Split('\n',StringSplitOptions.RemoveEmptyEntries).Last())!.Object("session")!;
         Assert.Equal("budget",last.Str("nextField"));Assert.False(last.Object("fields")!.ContainsKey("budget"));
-        Assert.DoesNotContain("准备好",last.Array("messages")!.Last()!.Str("text"));
+        Assert.DoesNotContain("ready",last.Array("messages")!.Last()!.Str("text"),StringComparison.OrdinalIgnoreCase);
     }
     [Fact] public void ExplicitTripRhythmSurvivesModelOmissionWithoutOverwritingNegatedRequests() {
         var fields=new JsonObject();PetExplicitFacts.Apply("轻松随意，每天最多5000步。",fields);Assert.Equal("轻松随意",fields.Str("rhythm"));Assert.Equal("约5000步",fields.Str("pace"));

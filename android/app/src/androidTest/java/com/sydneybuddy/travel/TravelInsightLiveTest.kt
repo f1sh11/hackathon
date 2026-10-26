@@ -25,9 +25,9 @@ class TravelInsightLiveTest {
             rule.waitUntil(90000){var ready=false;rule.activityRule.scenario.onActivity{activity->val s=ViewModelProvider(activity)[BuddyStore::class.java];ready=!s.insightsBusy&&s.insights?.optString("dataSource")=="zetaris"};ready}
             rule.onNodeWithTag("travel-insights-open").performClick()
             rule.onNodeWithTag("travel-insights-sheet").assertExists()
-            rule.onNodeWithText("來源：zetaris",substring=true).assertExists()
-            rule.onNodeWithText("附近參考收費").assertExists()
-            rule.onAllNodesWithText("人潮與排隊尚無可靠資料").onFirst().assertExists()
+            rule.onNodeWithText("Source: zetaris",substring=true).assertExists()
+            rule.onNodeWithText("Nearby reference fares").assertExists()
+            rule.onAllNodesWithText("Crowd levels and queue times are unverified").onFirst().assertExists()
             rule.activityRule.scenario.onActivity{activity->val report=ViewModelProvider(activity)[BuddyStore::class.java].insights!!
                 assertEquals("reported",report.getJSONObject("traffic").getString("status"));assertTrue(report.array("pricePlaces").length()>0)
                 report.array("places").objects().forEach{assertEquals("unknown",it.getJSONObject("crowd").getString("status"));assertTrue(it.getJSONObject("crowd").isNull("people"))}

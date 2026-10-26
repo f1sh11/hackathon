@@ -337,7 +337,7 @@ struct ScheduleRadarView:View {
                         ForEach(day.activities){activity in
                             Button{editing=activity}label:{HStack(spacing:12){
                                 Text(uiText(activity.arrival.isEmpty ? "待安排":activity.arrival)).font(.subheadline.monospacedDigit()).foregroundStyle(Palette.green)
-                                VStack(alignment:.leading,spacing:5){Text(activity.name).font(.headline);Text(uiText("\(activity.duration) 分钟 · 每人约 A$"+String(format:"%.0f",activity.cost))).font(.caption).foregroundStyle(Palette.muted)}
+                                VStack(alignment:.leading,spacing:5){Text(uiText(activity.name)).font(.headline);Text(uiText("\(activity.duration) 分钟 · 每人约 A$"+String(format:"%.0f",activity.cost))).font(.caption).foregroundStyle(Palette.muted)}
                                 Spacer();Image(systemName:"pencil").foregroundStyle(Palette.green)
                             }.padding(16).background(.white,in:RoundedRectangle(cornerRadius:16))}.buttonStyle(.plain).foregroundStyle(Palette.ink).accessibilityLabel(uiText("编辑活动："+activity.name))
                         }
@@ -416,13 +416,13 @@ struct ScheduleSettingsView:View {
                     }
                 }
             }
-            Stepper("當日開始 \(windows[i][0]/60):\(String(format:"%02d",windows[i][0]%60))",value:$windows[i][0],in:0...1380,step:15)
-            Stepper("當日結束 \(windows[i][1]/60):\(String(format:"%02d",windows[i][1]%60))",value:$windows[i][1],in:15...1440,step:15)
+            Stepper(uiText("當日開始 \(windows[i][0]/60):\(String(format:"%02d",windows[i][0]%60))"),value:$windows[i][0],in:0...1380,step:15)
+            Stepper(uiText("當日結束 \(windows[i][1]/60):\(String(format:"%02d",windows[i][1]%60))"),value:$windows[i][1],in:15...1440,step:15)
             TextField(uiText("住宿名稱／暫定區域"),text:$stays[i].name)
             TextField(uiText("緯度"),value:$stays[i].lat,format:.number);TextField(uiText("經度"),value:$stays[i].lng,format:.number)
             TextField(uiText("每晚房費 A$（本機單人試算）"),value:$stays[i].cost,format:.number)
-            Stepper("最早入住 \(stays[i].checkIn/60):\(String(format:"%02d",stays[i].checkIn%60))",value:$stays[i].checkIn,in:0...1380,step:15)
-            Stepper("最晚退房 \(stays[i].checkOut/60):\(String(format:"%02d",stays[i].checkOut%60))",value:$stays[i].checkOut,in:0...1380,step:15)
+            Stepper(uiText("最早入住 \(stays[i].checkIn/60):\(String(format:"%02d",stays[i].checkIn%60))"),value:$stays[i].checkIn,in:0...1380,step:15)
+            Stepper(uiText("最晚退房 \(stays[i].checkOut/60):\(String(format:"%02d",stays[i].checkOut%60))"),value:$stays[i].checkOut,in:0...1380,step:15)
             Text(uiText("座標與價格由你確認；此頁不訂房，也不代表可寄放行李。")).font(.caption)
         }}
     }.navigationTitle(uiText("偏好與住宿")).toolbar{ToolbarItem(placement:.topBarLeading){Button(uiText("取消")){dismiss()}};ToolbarItem(placement:.topBarTrailing){Button(uiText("套用")){model.edit{value in value.settings=settings;for i in stays.indices where i<value.days.count{value.days[i].stay=stays[i];value.days[i].startMinute=windows[i][0];value.days[i].endMinute=windows[i][1]}};dismiss()}}}
@@ -441,17 +441,17 @@ struct ScheduleActivityView:View {
     var body:some View {let _=interfaceLocale
         NavigationStack{Form {
         Section(uiText("活動")) {
-            Text(activity.name)
+            Text(uiText(activity.name))
             Button(uiText("移除此活動"),role:.destructive){onDelete();dismiss()}
             if activity.kind != "attraction" {TextField(uiText("名稱"),text:$activity.name);TextField(uiText("緯度"),value:$activity.lat,format:.number);TextField(uiText("經度"),value:$activity.lng,format:.number);TextField(uiText("費用 A$"),value:$activity.cost,format:.number)}
-            Stepper("停留 \(activity.duration) 分",value:$activity.duration,in:5...240,step:5).disabled(activity.locked==true)
+            Stepper(uiText("停留 \(activity.duration) 分"),value:$activity.duration,in:5...240,step:5).disabled(activity.locked==true)
             Toggle(uiText("指定開始時間"),isOn:$useStart)
             if useStart {Stepper("\((activity.fixedStart ?? activity.scheduledStart)/60):\(String(format:"%02d",(activity.fixedStart ?? activity.scheduledStart)%60))",value:Binding(get:{activity.fixedStart ?? activity.scheduledStart},set:{activity.fixedStart=$0}),in:0...1439,step:15)}
             Toggle(uiText("鎖定時段與停留"),isOn:Binding(get:{activity.locked ?? false},set:{activity.locked=$0;if $0 {useStart=true;activity.fixedStart=activity.fixedStart ?? activity.scheduledStart;activity.fixedDuration=activity.duration}else{activity.fixedDuration=nil}}))
             Picker(uiText("日期"),selection:$targetDay){ForEach(0..<days,id:\.self){Text(uiText("第 \($0+1) 天")).tag($0)}}
         }
-        if activity.kind=="attraction" {Section(uiText("排隊假設 · 不是即時資料")) {Toggle(uiText("填入估算"),isOn:$assumedQueue);if assumedQueue{Stepper("排隊 \(activity.queueMinutes ?? 0) 分",value:Binding(get:{activity.queueMinutes ?? 0},set:{activity.queueMinutes=$0}),in:0...360,step:5)}}}
-        else {Section(uiText("服務窗口 · 請自行確認")) {Stepper("開放 \((activity.openMinute ?? 0)/60):\(String(format:"%02d",(activity.openMinute ?? 0)%60))",value:Binding(get:{activity.openMinute ?? 0},set:{activity.openMinute=$0}),in:0...1440,step:15);Stepper("結束 \((activity.closeMinute ?? 1440)/60):\(String(format:"%02d",(activity.closeMinute ?? 1440)%60))",value:Binding(get:{activity.closeMinute ?? 1440},set:{activity.closeMinute=$0}),in:0...1440,step:15)}}
+        if activity.kind=="attraction" {Section(uiText("排隊假設 · 不是即時資料")) {Toggle(uiText("填入估算"),isOn:$assumedQueue);if assumedQueue{Stepper(uiText("排隊 \(activity.queueMinutes ?? 0) 分"),value:Binding(get:{activity.queueMinutes ?? 0},set:{activity.queueMinutes=$0}),in:0...360,step:5)}}}
+        else {Section(uiText("服務窗口 · 請自行確認")) {Stepper(uiText("開放 \((activity.openMinute ?? 0)/60):\(String(format:"%02d",(activity.openMinute ?? 0)%60))"),value:Binding(get:{activity.openMinute ?? 0},set:{activity.openMinute=$0}),in:0...1440,step:15);Stepper(uiText("結束 \((activity.closeMinute ?? 1440)/60):\(String(format:"%02d",(activity.closeMinute ?? 1440)%60))"),value:Binding(get:{activity.closeMinute ?? 1440},set:{activity.closeMinute=$0}),in:0...1440,step:15)}}
     }.navigationTitle(uiText("活動時間")).toolbar{ToolbarItem(placement:.topBarLeading){Button(uiText("取消")){dismiss()}};ToolbarItem(placement:.topBarTrailing){Button(uiText("套用")){if !useStart {activity.fixedStart=nil;activity.locked=false};if !assumedQueue{activity.queueMinutes=nil};if targetDay==currentDay{onReplace(activity)}else{onSave(activity,targetDay)};dismiss()}}}.onAppear{targetDay=currentDay;assumedQueue=activity.queueMinutes != nil;useStart=activity.fixedStart != nil}}}
 }
 
@@ -648,7 +648,7 @@ struct InlineTripSchedule:View {
                 Text(uiText(activity.arrival.isEmpty ? "试算中":activity.arrival)).font(.caption.monospacedDigit()).foregroundStyle(Palette.muted).frame(width:46,alignment:.leading).background(timeChanged(activity) ? Palette.blush:.clear,in:RoundedRectangle(cornerRadius:6)).padding(.top,13)
                 Image(systemName:symbol(activity.kind)).font(.subheadline).foregroundStyle(Palette.berry).frame(width:30,height:34).background(activity.kind=="attraction" ? Palette.lavender:Palette.peach,in:RoundedRectangle(cornerRadius:10)).padding(.top,4).accessibilityHidden(true)
                 VStack(alignment:.leading,spacing:4){
-                    Button{withAnimation(reduceMotion ? nil:.easeInOut(duration:0.2)){expanded=expanded==activity.id ? nil:activity.id}}label:{HStack(alignment:.top){Text(activity.name).font(.system(.headline,design:.rounded)).multilineTextAlignment(.leading);Spacer(minLength:4);Image(systemName:expanded==activity.id ? "chevron.up":"chevron.down").font(.caption).padding(.top,4)}.frame(minHeight:40)}.buttonStyle(.plain).accessibilityIdentifier("schedule-stop-"+activity.id)
+                    Button{withAnimation(reduceMotion ? nil:.easeInOut(duration:0.2)){expanded=expanded==activity.id ? nil:activity.id}}label:{HStack(alignment:.top){Text(uiText(activity.name)).font(.system(.headline,design:.rounded)).multilineTextAlignment(.leading);Spacer(minLength:4);Image(systemName:expanded==activity.id ? "chevron.up":"chevron.down").font(.caption).padding(.top,4)}.frame(minHeight:40)}.buttonStyle(.plain).accessibilityIdentifier("schedule-stop-"+activity.id)
                     Button{durationActivity=activity}label:{HStack(spacing:5){Text(uiText("停留 \(activity.duration) 分钟"));Image(systemName:activity.locked==true ? "lock.fill":"chevron.down").font(.caption2)}.font(.caption).foregroundStyle(Palette.berry).padding(.horizontal,12).frame(minHeight:44).background(Palette.blush.opacity(0.65),in:Capsule())}.buttonStyle(BuddyPressStyle()).disabled(!editable || blocked || activity.locked==true).accessibilityIdentifier("schedule-duration-"+activity.id)
                 }
                 if editable {
@@ -727,7 +727,7 @@ struct InlineTripSchedule:View {
     private func symbol(_ kind:String)->String {switch kind{case "meal":return "fork.knife";case "rest","restroom":return "cup.and.saucer";default:return "mappin.and.ellipse"}}
     private func askKoko(_ activity:ScheduleActivity?){
         guard !changed else{return}
-        let context="关于「\(trip.title)」第 \(index+1) 天（\(day?.date ?? "")）"+(activity.map{"的「\($0.name)」"} ?? "的安排")+"，我想调整一下。请先给我建议，确认后再修改。"
+        let context="About ‘\(trip.title)’, day \(index+1) (\(day?.date ?? ""))"+(activity.map{", ‘\($0.name)’"} ?? "’s plans")+": I’d like to make an adjustment. Please suggest changes first and apply them only after confirmation."
         if let onCompanion{onCompanion(context)}else{chatRequest=ScheduleChatRequest(text:context)}
     }
     private func save(){
@@ -750,12 +750,12 @@ private struct InlineDurationSheet:View {
     var body:some View {
         let _=interfaceLocale
         NavigationStack{ScrollView{VStack(alignment:.leading,spacing:24){
-            Text(activity.name).font(.system(.title3,design:.rounded,weight:.bold))
+            Text(uiText(activity.name)).font(.system(.title3,design:.rounded,weight:.bold))
             Text(uiText("想在这里待多久？")).font(.subheadline).foregroundStyle(Palette.muted)
             Text(uiText("\(minutes) 分钟")).font(.system(size:38,weight:.bold,design:.rounded)).foregroundStyle(Palette.berry).frame(maxWidth:.infinity)
             Slider(value:Binding(get:{Double(minutes)},set:{minutes=Int($0)}),in:5...240,step:5).accessibilityLabel(uiText("停留分钟数"))
             HStack{ForEach([30,60,90,120],id:\.self){value in Button(uiText("\(value) 分")){minutes=value}.font(.caption.bold()).frame(maxWidth:.infinity,minHeight:44).background(minutes==value ? Palette.blush:Color.white,in:Capsule()).buttonStyle(BuddyPressStyle())}}
-            Stepper("自定义停留",value:$minutes,in:5...240,step:5)
+            Stepper(uiText("自定义停留"),value:$minutes,in:5...240,step:5)
             Text(uiText("应用后先预览当天变化，保存调整才会更新行程。")).font(.caption).foregroundStyle(Palette.muted)
             PrimaryButton(title:"预览调整",symbol:"clock"){apply(minutes);dismiss()}.disabled(minutes==activity.duration).accessibilityIdentifier("schedule-duration-apply")
         }.padding(24)}.background(Palette.cream).navigationTitle(uiText("留一点喜欢的时间")).navigationBarTitleDisplayMode(.inline).toolbar{Button(uiText("取消")){dismiss()}}}
@@ -817,7 +817,7 @@ private struct InlineAnchorSheet:View {
         NavigationStack{ScrollView{VStack(alignment:.leading,spacing:20){
             HStack(spacing:12){PetAvatar(mood:searching ? .thinking:.curious,size:64).frame(width:64,height:72);Text(uiText(request.kind == .start ? "几点、从哪里出发？\n改好后，我再核对这一天的路线。":"最后想回到哪里？\n也可以告诉我最晚几点收起小背包。")).font(.subheadline.weight(.medium))}
             VStack(alignment:.leading,spacing:12){
-                DatePicker(request.kind == .start ? "出发时间":"最晚结束时间",selection:Binding(get:{ScheduleClock.date(minute)},set:{minute=ScheduleClock.minute($0)}),displayedComponents:.hourAndMinute).environment(\.timeZone,TimeZone(identifier:"Australia/Sydney")!).accessibilityIdentifier("anchor-time-picker")
+                DatePicker(uiText(request.kind == .start ? "出发时间":"最晚结束时间"),selection:Binding(get:{ScheduleClock.date(minute)},set:{minute=ScheduleClock.minute($0)}),displayedComponents:.hourAndMinute).environment(\.timeZone,TimeZone(identifier:"Australia/Sydney")!).accessibilityIdentifier("anchor-time-picker")
                 if !valid{Text(uiText(request.kind == .start ? "出发时间需要早于最晚结束时间。":"结束时间需要晚于出发时间。")).font(.caption).foregroundStyle(.red)}
             }.padding(16).background(.white,in:RoundedRectangle(cornerRadius:18))
             VStack(alignment:.leading,spacing:12){

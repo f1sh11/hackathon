@@ -30,7 +30,7 @@ import org.json.JSONObject
     }
     if(provider==MapProvider.GOOGLE && !BuildConfig.MAPS_CONFIGURED) {
         Box(modifier.background(Mint),contentAlignment=androidx.compose.ui.Alignment.Center) {
-            Text("Google 地图未配置密钥\n请在“我的”切换到 OpenStreetMap",modifier=Modifier.padding(30.dp))
+            Text("Google Maps is not configured.\nChoose OpenStreetMap in Settings.",modifier=Modifier.padding(30.dp))
         }
         return
     }
@@ -100,10 +100,10 @@ import org.json.JSONObject
                 }
             }
         }
-        if(!fullBleed)Small(if(routes.any{it.isNotEmpty()}) "步行路线；来源见规划记录" else "仅显示站点；查询后显示沿道路路线")
+        if(!fullBleed)Small(if(routes.any{it.isNotEmpty()}) "Walking route; see planning notes for its source" else "Showing stops only. Load routes to see paths along roads.")
     } else {
         Column((if(fullBleed)modifier else modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp))).background(Mint).padding(16.dp)) {
-            Text("SYDNEY · 路线示意图")
+            Text("SYDNEY · Route overview")
             Canvas(if(fullBleed)Modifier.fillMaxWidth().weight(1f) else Modifier.fillMaxWidth().height(200.dp)) {
                 val water=androidx.compose.ui.graphics.Path().apply{
                     moveTo(size.width*.63f,0f);cubicTo(size.width*.30f,size.height*.25f,size.width*.9f,size.height*.28f,size.width,size.height*.62f);lineTo(size.width,0f);close()
@@ -118,7 +118,7 @@ import org.json.JSONObject
                 points.zipWithNext().forEach{(a,b)->drawLine(Green,pos(a),pos(b),4f,pathEffect=PathEffect.dashPathEffect(floatArrayOf(12f,10f)))}
                 points.forEach{drawCircle(Color.White,14f,pos(it));drawCircle(Green,9f,pos(it))}
             }
-            Small("离线示意图 · 不加载网络图砖。连线不是可导航路线。")
+            Small("Offline overview · no map tiles loaded. Lines are illustrative and cannot be used for navigation.")
         }
     }
 }

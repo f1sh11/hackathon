@@ -277,7 +277,7 @@ struct TravelPlanningTask:Codable {
     }
     var mapViewport: MapViewport?
     @Published var live = false
-    @Published var language = AppLanguage(rawValue:UserDefaults.standard.string(forKey:"appLanguage") ?? "") ?? .simplified {
+    @Published var language = AppLanguage.current {
         didSet {UserDefaults.standard.set(language.rawValue,forKey:"appLanguage")}
     }
     @Published var tab = 1

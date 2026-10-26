@@ -85,6 +85,14 @@ public sealed class TravelProfilingUnitTests
         var candidate=Assert.Single(session.Preferences,x=>x.Status=="awaiting_confirmation");
         Assert.Equal("long_term",candidate.Scope);Assert.Equal("habit-message",candidate.SourceMessageId);Assert.Empty(session.ConfirmedDna);
     }
+    [Fact]
+    public void LegacyChinesePreferenceNotesAreRemovedAfterMemoryRevocation()
+    {
+        var previous=new TravelPreference{Key="rhythm",Value="轻松随意",Status="confirmed",MemoryId="old"};
+        var session=new PetSession{Preferences=[previous]};session.Fields["notes"]="Keep my lunch break；旅行节奏：轻松随意";
+        TravelProfiling.Refresh(session,new JsonArray());
+        Assert.Equal("Keep my lunch break",session.Fields["notes"]);Assert.Equal("revoked",previous.Status);
+    }
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

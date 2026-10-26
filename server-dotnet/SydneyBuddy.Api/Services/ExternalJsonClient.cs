@@ -31,25 +31,25 @@ public sealed class ExternalJsonClient(HttpClient client, PaidServicePolicy? pai
         if (headers is not null)
             foreach (var (name, value) in headers)
                 if (!request.Headers.TryAddWithoutValidation(name, value))
-                    throw new ServiceException("外部服务请求配置无效。");
+                    throw new ServiceException("The external service request configuration is invalid.");
 
         try
         {
             using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, linked.Token);
             // 响应正文可能包含密钥或偏好；report only the status, never the provider body.
             if (!response.IsSuccessStatusCode)
-                throw new ServiceException($"外部服务返回 HTTP {(int)response.StatusCode}，请检查权限、额度和服务配置。");
+                throw new ServiceException($"The external service returned HTTP {(int)response.StatusCode}. Check permissions, quota and service configuration.");
             await using var stream = await response.Content.ReadAsStreamAsync(linked.Token);
             return await JsonNode.ParseAsync(stream, cancellationToken: linked.Token) as JsonObject
-                   ?? throw new ServiceException("外部服务连接失败或响应无效；未将其标记为实时数据。");
+                   ?? throw new ServiceException("The external service connection failed or returned an invalid response. It has not been marked as live data.");
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            throw new ServiceException("外部服务连接失败或响应无效；未将其标记为实时数据。");
+            throw new ServiceException("The external service connection failed or returned an invalid response. It has not been marked as live data.");
         }
         catch (Exception error) when (error is HttpRequestException or IOException or JsonException)
         {
-            throw new ServiceException("外部服务连接失败或响应无效；未将其标记为实时数据。");
+            throw new ServiceException("The external service connection failed or returned an invalid response. It has not been marked as live data.");
         }
     }
 }

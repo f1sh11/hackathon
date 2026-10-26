@@ -43,16 +43,16 @@ public static class PlanningEndpoints
         routes.MapGet("/data/status",(TravelDataContext travel,PlaceCatalog catalog)=>Results.Json(new {dataSource=travel.Mode,status="ok",catalogCount=catalog.Get().Count,readAt=travel.Snapshot?.ReadAt,poiCount=travel.Snapshot?.Poi.Array("places")?.Count,hiddenGemCount=travel.Snapshot?.Gems?.Count,osmCount=travel.Snapshot?.Osm?.Count}));
         routes.MapPost("/schedule/editor", async (HttpContext context, TransportScheduleService editor) => Results.Json(await editor.BuildAsync(await RequestJson.ReadAsync(context),context.RequestAborted)));
         routes.MapGet("/catalog", (Planner planner) => Results.Json(planner.Catalog));
-        routes.MapPost("/plan/remaining",async (HttpContext context,TripRepository trips,RemainingJourneyService remaining)=>{var input=await RequestJson.ReadAsync(context);var original=await trips.FindAsync(input.Str("tripId"),context.RequestAborted)??throw new ServiceException("行程不存在。");if(original.Int("revision")!=input.Int("expectedRevision"))throw new RevisionConflictException();return Results.Json(await remaining.BuildAsync(original,input,context.RequestAborted));});
+        routes.MapPost("/plan/remaining",async (HttpContext context,TripRepository trips,RemainingJourneyService remaining)=>{var input=await RequestJson.ReadAsync(context);var original=await trips.FindAsync(input.Str("tripId"),context.RequestAborted)??throw new ServiceException("Trip not found.");if(original.Int("revision")!=input.Int("expectedRevision"))throw new RevisionConflictException();return Results.Json(await remaining.BuildAsync(original,input,context.RequestAborted));});
         routes.MapPost("/plan/prepare",async (HttpContext context,Planner planner)=>Results.Json(await planner.PrepareWalkingAsync(await RequestJson.ReadAsync(context),context.RequestAborted)));
         routes.MapPost("/plan", async (HttpContext context, Planner planner, PaidServicePolicy paidServices) =>
         {
             var input = await RequestJson.ReadAsync(context);
             if (input.ContainsKey("mode") &&
                 (input["mode"] is not JsonValue value || !value.TryGetValue<string>(out _)))
-                throw new ServiceException("模式不合法");
+                throw new ServiceException("Invalid mode");
             var mode = input.Str("mode", "demo");
-            if (mode is not ("demo" or "assisted" or "live")) throw new ServiceException("模式不合法");
+            if (mode is not ("demo" or "assisted" or "live")) throw new ServiceException("Invalid mode");
             if (mode != "demo") paidServices.RequireAllowed();
             input.Remove("mode");
             return Results.Json(await planner.PlanAsync(input, mode, context.RequestAborted));

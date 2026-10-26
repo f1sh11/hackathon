@@ -45,7 +45,7 @@ val Muted = Color(0xFF6B7D73)
 }
 
 @Composable fun IosNavigation(store: BuddyStore) {
-    val items=listOf(Triple(1,"行程",Icons.Outlined.Luggage),Triple(0,"地图",Icons.Outlined.Map),Triple(3,"记账",Icons.Outlined.CreditCard),Triple(4,"我的",Icons.Outlined.AccountCircle))
+    val items=listOf(Triple(1,"Trips",Icons.Outlined.Luggage),Triple(0,"Map",Icons.Outlined.Map),Triple(3,"Expenses",Icons.Outlined.CreditCard),Triple(4,"Me",Icons.Outlined.AccountCircle))
     Surface(color=Color.White.copy(alpha=.98f),shadowElevation=2.dp) {
         Row(Modifier.fillMaxWidth().navigationBarsPadding().height(66.dp),verticalAlignment=Alignment.CenterVertically) {
             items.forEach { (index,label,icon) ->
@@ -59,7 +59,7 @@ val Muted = Color(0xFF6B7D73)
 }
 
 @Composable fun Buddy(size: Int) {
-    Canvas(Modifier.size(size.dp,(size*1.15f).dp).semantics{contentDescription="旅行机器人 Buddy"}) {
+    Canvas(Modifier.size(size.dp,(size*1.15f).dp).semantics{contentDescription="Koko travel companion"}) {
         val u=this.size.width
         fun point(x:Float,y:Float)=Offset(u*x,u*y)
         fun round(color:Color,x:Float,y:Float,w:Float,h:Float,r:Float)=drawRoundRect(color,point(x,y),Size(u*w,u*h),CornerRadius(u*r))
@@ -89,24 +89,24 @@ val Muted = Color(0xFF6B7D73)
 }
 
 fun choiceIcon(text:String):ImageVector = when {
-    "轻松" in text -> Icons.Outlined.Coffee
-    "步" in text || "活力" in text || "刚刚好" in text -> Icons.Outlined.DirectionsWalk
-    "天" in text -> Icons.Outlined.WbSunny
+    "轻松" in text || "Easy" in text -> Icons.Outlined.Coffee
+    "步" in text || "活力" in text || "刚刚好" in text || "steps" in text || "energy" in text || "Just right" in text -> Icons.Outlined.DirectionsWalk
+    "天" in text || "day" in text -> Icons.Outlined.WbSunny
     "A$" in text -> Icons.Outlined.AccountBalanceWallet
-    "车站" in text -> Icons.Outlined.Train
-    "码头" in text -> Icons.Outlined.DirectionsBoat
+    "车站" in text || "Station" in text -> Icons.Outlined.Train
+    "码头" in text || "Quay" in text -> Icons.Outlined.DirectionsBoat
     ":" in text -> Icons.Outlined.Schedule
-    "美食" in text -> Icons.Outlined.Restaurant
-    "自然" in text -> Icons.Outlined.Park
-    "艺术" in text -> Icons.Outlined.Palette
-    "文化" in text -> Icons.Outlined.AccountBalance
-    "城市" in text -> Icons.Outlined.LocationCity
+    "美食" in text || "Food" in text -> Icons.Outlined.Restaurant
+    "自然" in text || "Nature" in text -> Icons.Outlined.Park
+    "艺术" in text || "Art" in text -> Icons.Outlined.Palette
+    "文化" in text || "Culture" in text -> Icons.Outlined.AccountBalance
+    "城市" in text || "City" in text -> Icons.Outlined.LocationCity
     else -> Icons.Outlined.AutoAwesome
 }
 
 @Composable fun Choice(text:String,selected:Boolean,enabled:Boolean=true,onClick:()->Unit) {
     val parts=text.split(" · ",limit=2)
-    val detail=parts.getOrNull(1) ?: when(text){"1 天"->"一次轻巧的城市探索";"2 天"->"多留一点时间，慢慢发现";"3 天"->"给风景和休息都留些空间";"环形码头"->"从悉尼海港开始";"中央车站"->"从城市交通枢纽开始";else->""}
+    val detail=parts.getOrNull(1) ?: when(text){"1 day"->"A light city exploration";"2 days"->"Leave a little time to discover slowly";"3 days"->"Leave room for scenery and rest";"Circular Quay"->"Start from Sydney Harbour";"Central Station"->"Start from city transit hub";else->""}
     Column(Modifier.fillMaxWidth().padding(bottom=if(selected)4.dp else 0.dp).background(if(selected)Green.copy(alpha=.24f) else Color.Transparent,RoundedCornerShape(22.dp))) {
         Row(Modifier.fillMaxWidth().offset(y=if(selected)(-3).dp else 0.dp).clip(RoundedCornerShape(22.dp)).background(if(selected)Mint else Color.White)
             .border(if(selected)2.dp else 1.dp,if(selected)Green else Green.copy(alpha=.13f),RoundedCornerShape(22.dp))
@@ -125,7 +125,7 @@ fun timeLabel(minute: Int): String {
 
 fun durationLabel(startMinute: Int, endMinute: Int): String {
     val duration = (endMinute - startMinute).coerceAtLeast(0)
-    return if (duration % 60 == 0) "${duration / 60} 小时" else "${duration / 60} 小时 ${duration % 60} 分钟"
+    return if (duration % 60 == 0) "${duration / 60} hr" else "${duration / 60} hr ${duration % 60} min"
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -161,17 +161,17 @@ fun durationLabel(startMinute: Int, endMinute: Int): String {
                 Icon(Icons.Outlined.Tune, null, Modifier.size(22.dp), tint=Green)
                 Spacer(Modifier.width(9.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("自定义时间区间", fontWeight=FontWeight.Bold, fontSize=15.sp)
-                    Text("每次调整 30 分钟 · 至少保留 30 分钟", fontSize=11.sp, color=Muted)
+                    Text("Custom time range", fontWeight=FontWeight.Bold, fontSize=15.sp)
+                    Text("30-minute intervals · allow at least 30 minutes", fontSize=11.sp, color=Muted)
                 }
                 Text("${durationLabel(start, end)}", fontSize=12.sp, color=Green, fontWeight=FontWeight.Bold)
             }
             Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                TimeDropdown("出发时间",start,slots.filter{it<=end-interval},enabled,{newStart->onRangeChange(newStart,end)},Modifier.weight(1f))
+                TimeDropdown("Departure time",start,slots.filter{it<=end-interval},enabled,{newStart->onRangeChange(newStart,end)},Modifier.weight(1f))
                 Icon(Icons.Outlined.ArrowForward,null,Modifier.size(20.dp),tint=Green)
-                TimeDropdown("返回时间",end,slots.filter{it>=start+interval},enabled,{newEnd->onRangeChange(start,newEnd)},Modifier.weight(1f))
+                TimeDropdown("Return time",end,slots.filter{it>=start+interval},enabled,{newEnd->onRangeChange(start,newEnd)},Modifier.weight(1f))
             }
-            Text("可选择 06:00–22:00，每次间隔 30 分钟。",fontSize=11.sp,color=Muted)
+            Text("Choose from 06:00–22:00 in 30-minute intervals.",fontSize=11.sp,color=Muted)
         }
     }
 }
@@ -205,46 +205,46 @@ fun durationLabel(startMinute: Int, endMinute: Int): String {
         RouteMap(day,Modifier.fillMaxSize(),true,store.mapProvider,trip?.optString("mode")=="live",store.mapViewport,{store.mapViewport=it;nearby.move(it.lat,it.lng,it.zoom)},overview.route,sections=overview.plan?.sections ?: emptyList(),insightMarkers=(store.insights?.optJSONObject("traffic")?.array("items")?.objects() ?: emptyList())+(store.insights?.array("pricePlaces")?.objects() ?: emptyList()),nearbyPlaces=nearby.places,onPoiSelect={nearbyDetail=it})
         Column(Modifier.fillMaxSize().padding(horizontal=18.dp).padding(top=10.dp,bottom=10.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically){
-                TextButton(onClick={poiSearch=true},modifier=Modifier.weight(1f).background(Color.White,CircleShape),contentPadding=PaddingValues(horizontal=16.dp,vertical=12.dp)){Icon(Icons.Outlined.Search,null,Modifier.size(20.dp));Spacer(Modifier.width(8.dp));Text(ui("搜尋景點、餐廳與設施"),fontSize=13.sp);Spacer(Modifier.weight(1f))}
+                TextButton(onClick={poiSearch=true},modifier=Modifier.weight(1f).background(Color.White,CircleShape),contentPadding=PaddingValues(horizontal=16.dp,vertical=12.dp)){Icon(Icons.Outlined.Search,null,Modifier.size(20.dp));Spacer(Modifier.width(8.dp));Text(ui("Search places, food and facilities"),fontSize=13.sp);Spacer(Modifier.weight(1f))}
                 var layers by remember{mutableStateOf(false)}
-                Box{IconButton(onClick={layers=true},modifier=Modifier.size(46.dp).background(Color.White,CircleShape)){Icon(Icons.Outlined.Layers,"切換底圖",tint=Green)};DropdownMenu(expanded=layers,onDismissRequest={layers=false}){MapProvider.entries.forEach{provider->DropdownMenuItem(text={Text(ui(provider.label))},onClick={store.chooseMapProvider(provider);layers=false})}}}
+                Box{IconButton(onClick={layers=true},modifier=Modifier.size(46.dp).background(Color.White,CircleShape)){Icon(Icons.Outlined.Layers,"Change map",tint=Green)};DropdownMenu(expanded=layers,onDismissRequest={layers=false}){MapProvider.entries.forEach{provider->DropdownMenuItem(text={Text(ui(provider.label))},onClick={store.chooseMapProvider(provider);layers=false})}}}
             }
             if(trip!=null)MapDaySelector(trip.array("days").objects().map{it.optString("date")},store.dayIndex){store.dayIndex=it}
-            if(nearby.busy)Text("搜尋附近地點…",Modifier.background(Color.White,CircleShape).padding(8.dp),fontSize=11.sp)
-            nearby.error?.let{TextButton(onClick={poiSearch=true},modifier=Modifier.background(Color.White,CircleShape)){Text("附近地點未載入・開啟搜尋重試",fontSize=11.sp)}}
+            if(nearby.busy)Text("Searching nearby locations…",Modifier.background(Color.White,CircleShape).padding(8.dp),fontSize=11.sp)
+            nearby.error?.let{TextButton(onClick={poiSearch=true},modifier=Modifier.background(Color.White,CircleShape)){Text("Nearby places could not load · open search to retry",fontSize=11.sp)}}
             Spacer(Modifier.weight(1f))
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End,verticalAlignment=Alignment.CenterVertically){
-                if(trip!=null)IconButton(onClick={expandedMap=true},modifier=Modifier.size(42.dp).background(Color.White,CircleShape)){Icon(Icons.Outlined.OpenInFull,"展开地图",tint=Green)}
-                Spacer(Modifier.width(8.dp));TextButton(onClick={chat=true},modifier=Modifier.background(Color.White,CircleShape)){Icon(Icons.Outlined.AutoAwesome,null,Modifier.size(16.dp));Text(ui("问 AI"),fontSize=12.sp)}
+                if(trip!=null)IconButton(onClick={expandedMap=true},modifier=Modifier.size(42.dp).background(Color.White,CircleShape)){Icon(Icons.Outlined.OpenInFull,"Expand map",tint=Green)}
+                Spacer(Modifier.width(8.dp));TextButton(onClick={chat=true},modifier=Modifier.background(Color.White,CircleShape)){Icon(Icons.Outlined.AutoAwesome,null,Modifier.size(16.dp));Text(ui("Ask AI"),fontSize=12.sp)}
             }
             Surface(shape=RoundedCornerShape(24.dp),color=Color.White,shadowElevation=4.dp) {
                 Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
                     Row(verticalAlignment=Alignment.Top){Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(5.dp)){
-                        Text(trip?.optString("title") ?: "開始你的悉尼旅行",fontSize=17.sp,fontWeight=FontWeight.Bold)
-                        if(day!=null)Text(ui("{0} 站 · {1} 步 · A${2} · {3} 返回",day.array("stops").length().toString(),"%,d".format(day.optInt("estimatedSteps")),day.optDouble("estimatedCost").toInt().toString(),day.optString("finishTime")),fontSize=11.sp,color=Muted)
-                    };if(trip!=null)IconButton(onClick={expanded=!expanded},modifier=Modifier.size(28.dp).testTag("home-info-toggle")){Icon(if(expanded)Icons.Outlined.ExpandMore else Icons.Outlined.MoreHoriz,if(expanded)"收起行程資訊"else "展開行程資訊",tint=Green)}}
-                    TextButton(onClick={showInsights=true},contentPadding=PaddingValues(0.dp),modifier=Modifier.testTag("travel-insights-open")){Text(if(store.insightsBusy)"正在更新旅遊資訊…"else store.insights?.optJSONObject("traffic")?.optString("summary") ?: "交通・人潮・費用",fontSize=12.sp,maxLines=1)}
+                        Text(trip?.optString("title") ?: "Start your Sydney trip",fontSize=17.sp,fontWeight=FontWeight.Bold)
+                        if(day!=null)Text(ui("{0} stops · {1} steps · A\${2} · return {3}",day.array("stops").length().toString(),"%,d".format(day.optInt("estimatedSteps")),day.optDouble("estimatedCost").toInt().toString(),day.optString("finishTime")),fontSize=11.sp,color=Muted)
+                    };if(trip!=null)IconButton(onClick={expanded=!expanded},modifier=Modifier.size(28.dp).testTag("home-info-toggle")){Icon(if(expanded)Icons.Outlined.ExpandMore else Icons.Outlined.MoreHoriz,if(expanded)"Hide trip information"else "Show trip information",tint=Green)}}
+                    TextButton(onClick={showInsights=true},contentPadding=PaddingValues(0.dp),modifier=Modifier.testTag("travel-insights-open")){Text(if(store.insightsBusy)"Updating travel information…"else store.insights?.optJSONObject("traffic")?.optString("summary") ?: "Transportation・Crowds・Costs",fontSize=12.sp,maxLines=1)}
                     if(day!=null)HomeTransportStrip(day,overview,onPlan={journey=true},onRetry={overview.load(day,store.base)})
                     if(expanded&&trip!=null)Column(Modifier.fillMaxWidth().heightIn(max=220.dp).verticalScroll(rememberScrollState()).testTag("home-extra-info"),verticalArrangement=Arrangement.spacedBy(10.dp)) {
                         CompactWeather(store)
                         val count=listOf("route","weather","bag").count(store::prepared)
-                        Text("出发前的 3 个小任务 · $count/3",fontSize=13.sp,fontWeight=FontWeight.Bold,color=Green)
+                        Text("3 things before you go · $count/3",fontSize=13.sp,fontWeight=FontWeight.Bold,color=Green)
                         Row(horizontalArrangement=Arrangement.spacedBy(7.dp)){
-                            PreparationButton("看路线",Icons.Outlined.Map,store.prepared("route"),Modifier.weight(1f)){store.mark("route");detail=true}
-                            PreparationButton("看天气",Icons.Outlined.Cloud,store.prepared("weather"),Modifier.weight(1f),!store.busy,store::refreshWeather)
-                            PreparationButton("行李备好",Icons.Outlined.Backpack,store.prepared("bag"),Modifier.weight(1f)){store.mark("bag",true)}
+                            PreparationButton("Check route",Icons.Outlined.Map,store.prepared("route"),Modifier.weight(1f)){store.mark("route");detail=true}
+                            PreparationButton("Check weather",Icons.Outlined.Cloud,store.prepared("weather"),Modifier.weight(1f),!store.busy,store::refreshWeather)
+                            PreparationButton("Pack bags",Icons.Outlined.Backpack,store.prepared("bag"),Modifier.weight(1f)){store.mark("bag",true)}
                         }
-                        TextButton(onClick={journey=true},contentPadding=PaddingValues(0.dp)){Text(ui("交通路线规划"))}
+                        TextButton(onClick={journey=true},contentPadding=PaddingValues(0.dp)){Text(ui("Plan transport"))}
                         if(day!=null){
-                            Text("起 · ${day.getJSONObject("start").optString("name")}"+day.array("stops").objects().mapIndexed{i,s->" → ${i+1} · ${s.optString("name")} ${s.optString("arrival")}"}.joinToString("")+" → 终 · ${day.getJSONObject("end").optString("name")}",Modifier.horizontalScroll(rememberScrollState()).semantics{contentDescription="行程站点顺序"},fontSize=11.sp,color=Green)
-                            if(trip.optString("mode")!="live"&&store.mapProvider==MapProvider.OSM){TextButton(onClick={overview.load(day,store.base)},enabled=!overview.busy&&overview.route==null,contentPadding=PaddingValues(0.dp)){Text(if(overview.busy)"正在取得步行路线…"else overview.route?.let{"步行约 ${it.meters.toInt()} 米"} ?: "显示步行路线",fontSize=12.sp)};overview.message?.let{Small(it)}}
+                            Text("Start · ${day.getJSONObject("start").optString("name")}"+day.array("stops").objects().mapIndexed{i,s->" → ${i+1} · ${s.optString("name")} ${s.optString("arrival")}"}.joinToString("")+" → End · ${day.getJSONObject("end").optString("name")}",Modifier.horizontalScroll(rememberScrollState()).semantics{contentDescription="Stop order"},fontSize=11.sp,color=Green)
+                            if(trip.optString("mode")!="live"&&store.mapProvider==MapProvider.OSM){TextButton(onClick={overview.load(day,store.base)},enabled=!overview.busy&&overview.route==null,contentPadding=PaddingValues(0.dp)){Text(if(overview.busy)"Loading walking route…"else overview.route?.let{"Walk about ${it.meters.toInt()} m"} ?: "Show walking route",fontSize=12.sp)};overview.message?.let{Small(it)}}
                         }
                     }
                     Row(horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-                        if(trip!=null)OutlinedButton(onClick={store.mark("route");detail=true},modifier=Modifier.weight(1f),shape=RoundedCornerShape(13.dp)){Text(ui("查看路线"))}
-                        Button(onClick={if(trip==null)store.newTrip()else navigation=true},modifier=Modifier.weight(1f),shape=RoundedCornerShape(13.dp)){Icon(Icons.Outlined.Navigation,null,Modifier.size(16.dp));Text(ui(if(trip==null)"開始規劃"else "開始導航"))}
+                        if(trip!=null)OutlinedButton(onClick={store.mark("route");detail=true},modifier=Modifier.weight(1f),shape=RoundedCornerShape(13.dp)){Text(ui("View route"))}
+                        Button(onClick={if(trip==null)store.newTrip()else navigation=true},modifier=Modifier.weight(1f),shape=RoundedCornerShape(13.dp)){Icon(Icons.Outlined.Navigation,null,Modifier.size(16.dp));Text(ui(if(trip==null)"Plan a trip"else "Start navigation"))}
                     }
-                    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text(ui(store.mapProvider.label),fontSize=9.sp,color=Muted);if(store.mapProvider==MapProvider.OSM)Text(" · © OpenStreetMap contributors",Modifier.clickable{uri.openUri("https://www.openstreetmap.org/copyright")},fontSize=9.sp,color=Green);Spacer(Modifier.weight(1f));Text(ui(if(trip?.optString("mode")=="live")"Google 路線"else if(store.mapProvider==MapProvider.SCHEMATIC)"離線示意"else if(overview.route==null)"僅顯示站點"else "已規劃路線"),fontSize=9.sp,color=Muted)}
+                    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text(ui(store.mapProvider.label),fontSize=9.sp,color=Muted);if(store.mapProvider==MapProvider.OSM)Text(" · © OpenStreetMap contributors",Modifier.clickable{uri.openUri("https://www.openstreetmap.org/copyright")},fontSize=9.sp,color=Green);Spacer(Modifier.weight(1f));Text(ui(if(trip?.optString("mode")=="live")"Google route"else if(store.mapProvider==MapProvider.SCHEMATIC)"Offline overview"else if(overview.route==null)"Stops only"else "Route ready"),fontSize=9.sp,color=Muted)}
                 }
             }
         }
@@ -254,15 +254,15 @@ fun durationLabel(startMinute: Int, endMinute: Int): String {
             RouteMap(day,Modifier.fillMaxSize(),true,store.mapProvider,trip?.optString("mode")=="live",overview=overview.route,expanded=true,sections=overview.plan?.sections ?: emptyList())
             Column(Modifier.fillMaxSize().padding(18.dp),verticalArrangement=Arrangement.SpaceBetween) {
                 Surface(shape=RoundedCornerShape(18.dp),color=Color.White) {
-                    Row(Modifier.fillMaxWidth().padding(12.dp),verticalAlignment=Alignment.CenterVertically) {Text(ui("全天行程顺序"),modifier=Modifier.weight(1f),fontWeight=FontWeight.Bold);TextButton(onClick={expandedMap=false}){Text(ui("关闭地图"))}}
+                    Row(Modifier.fillMaxWidth().padding(12.dp),verticalAlignment=Alignment.CenterVertically) {Text(ui("Full-day itinerary"),modifier=Modifier.weight(1f),fontWeight=FontWeight.Bold);TextButton(onClick={expandedMap=false}){Text(ui("Close map"))}}
                 }
                 Surface(shape=RoundedCornerShape(18.dp),color=Color.White) {
                     Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-                        Text(ui(if(overview.route==null || store.mapProvider==MapProvider.SCHEMATIC)"尚未查询道路路线 · 仅显示站点" else "沿道路步行路线 · 不含景点停留时间"),fontSize=12.sp,color=Green)
+                        Text(ui(if(overview.route==null || store.mapProvider==MapProvider.SCHEMATIC)"Road route not loaded · showing stops" else "Walking route · excludes time at stops"),fontSize=12.sp,color=Green)
                         if(day!=null) {
-                            Text(walkingPoints(day).mapIndexed{i,p->"${if(i==0)"起" else if(i==walkingPoints(day).lastIndex)"终" else "$i"} · ${p.name}"}.joinToString(" → "),Modifier.horizontalScroll(rememberScrollState()),fontSize=12.sp)
+                            Text(walkingPoints(day).mapIndexed{i,p->"${if(i==0)"S" else if(i==walkingPoints(day).lastIndex)"E" else "$i"} · ${p.name}"}.joinToString(" → "),Modifier.horizontalScroll(rememberScrollState()),fontSize=12.sp)
                             if(trip?.optString("mode")!="live" && store.mapProvider==MapProvider.OSM) {
-                                TextButton(onClick={overview.load(day,store.base)},enabled=!overview.busy && overview.route==null){Text(if(overview.busy)"正在取得步行路线…" else overview.route?.let{"步行约 ${it.meters.toInt()} 米 · ${kotlin.math.ceil(it.seconds/60).toInt()} 分钟"} ?: "显示步行路线")}
+                                TextButton(onClick={overview.load(day,store.base)},enabled=!overview.busy && overview.route==null){Text(if(overview.busy)"Loading walking route…" else overview.route?.let{"Walk approx. ${it.meters.toInt()} meters · ${kotlin.math.ceil(it.seconds/60).toInt()} minutes"} ?: "Show walking route")}
                                 overview.route?.let{Text(it.segments,Modifier.horizontalScroll(rememberScrollState()),fontSize=11.sp,color=Muted)}
                                 overview.message?.let{Text(it,fontSize=12.sp)}
                             }
@@ -273,16 +273,16 @@ fun durationLabel(startMinute: Int, endMinute: Int): String {
         }
     }
     if(journey && day!=null) {
-        if(trip?.optString("mode")=="live" && store.mapProvider!=MapProvider.GOOGLE) AlertDialog(onDismissRequest={journey=false},title={Text("请切换 Google 地图")},text={Text("此行程的交通规划需搭配 Google 底图与 Google Routes。")},confirmButton={TextButton(onClick={journey=false}){Text(ui("关闭"))}})
+        if(trip?.optString("mode")=="live" && store.mapProvider!=MapProvider.GOOGLE) AlertDialog(onDismissRequest={journey=false},title={Text("Choose Google Maps")},text={Text("Transport planning for this trip requires Google Maps and Google Routes.")},confirmButton={TextButton(onClick={journey=false}){Text(ui("Close"))}})
         else JourneyPlannerDialog(day,store.base,store.mapProvider,{journey=false},{journey=false;navigation=true},contentSource=if(trip?.optString("mode")=="live")"google" else "open",onPlan=overview::accept)
     }
     if(navigation) {
-        if(trip?.optString("mode")=="live") AlertDialog(onDismissRequest={navigation=false},text={Text("此行程含 Google 地点资料。开源导航测试请先建立示例行程。")},confirmButton={TextButton(onClick={navigation=false}){Text(ui("关闭"))}})
+        if(trip?.optString("mode")=="live") AlertDialog(onDismissRequest={navigation=false},text={Text("This trip uses Google Places data. Create a demo trip to test open-source navigation.")},confirmButton={TextButton(onClick={navigation=false}){Text(ui("Close"))}})
         else WalkingNavigationDialog(store){navigation=false}
     }
     if(detail) ModalBottomSheet(onDismissRequest={detail=false},containerColor=Cream,sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true)) {
         Column(Modifier.fillMaxWidth().fillMaxHeight(.9f).verticalScroll(rememberScrollState()).padding(22.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
-            Row(verticalAlignment=Alignment.CenterVertically){Heading("这次的小冒险");Spacer(Modifier.weight(1f));TextButton(onClick={detail=false}){Text(ui("完成"))}}
+            Row(verticalAlignment=Alignment.CenterVertically){Heading("Your adventure");Spacer(Modifier.weight(1f));TextButton(onClick={detail=false}){Text(ui("Done"))}}
             trip?.let{Text(it.optString("explanation"));WeatherPanel(store.weather,!store.busy,store::refreshWeather);it.array("days").objects().forEach{d->DaySummary(d)};Evidence(it)}
         }
     }
@@ -305,10 +305,10 @@ fun durationLabel(startMinute: Int, endMinute: Int): String {
         Column(Modifier.fillMaxWidth().padding(horizontal=15.dp,vertical=12.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
             Row(verticalAlignment=Alignment.CenterVertically) {
                 Icon(if(weather?.optBoolean("rainy")==true)Icons.Outlined.Umbrella else Icons.Outlined.Cloud,null,Modifier.size(21.dp));Spacer(Modifier.width(7.dp))
-                Text(ui("悉尼天气"),fontWeight=FontWeight.Bold,fontSize=15.sp,modifier=Modifier.weight(1f))
-                IconButton(onClick=store::refreshWeather,enabled=!store.busy,modifier=Modifier.size(26.dp)){Icon(Icons.Outlined.Refresh,"刷新天气",tint=Green)}
+                Text(ui("Sydney weather"),fontWeight=FontWeight.Bold,fontSize=15.sp,modifier=Modifier.weight(1f))
+                IconButton(onClick=store::refreshWeather,enabled=!store.busy,modifier=Modifier.size(26.dp)){Icon(Icons.Outlined.Refresh,"Refresh weather",tint=Green)}
             }
-            Text(daily?.let{"${it.optString("date")} · ${it.optString("summary")}"} ?: weather?.optString("summary") ?: "天气尚未查询",fontSize=12.sp,maxLines=2)
+            Text(daily?.let{"${it.optString("date")} · ${it.optString("summary")}"} ?: weather?.optString("summary") ?: "Weather not checked yet",fontSize=12.sp,maxLines=2)
             Text(weather?.optString("source") ?: "",fontSize=10.sp,color=Muted,maxLines=1)
         }
     }
@@ -320,8 +320,8 @@ fun durationLabel(startMinute: Int, endMinute: Int): String {
     val today=LocalDate.now(ZoneId.of("Australia/Sydney"))
     Surface(shape=RoundedCornerShape(24.dp),color=Color.White) {
         Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(3.dp)) {
-            Row(verticalAlignment=Alignment.CenterVertically){Text("${month.year}年 ${month.monthValue}月",fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f));IconButton(onClick={month=month.minusMonths(1)}){Icon(Icons.Outlined.ChevronLeft,"上个月",tint=Green)};IconButton(onClick={month=month.plusMonths(1)}){Icon(Icons.Outlined.ChevronRight,"下个月",tint=Green)}}
-            Row {listOf("一","二","三","四","五","六","日").forEach{Box(Modifier.weight(1f),contentAlignment=Alignment.Center){Text(it,fontSize=11.sp,color=Muted)}}}
+            Row(verticalAlignment=Alignment.CenterVertically){Text("${month.year}-${month.monthValue}",fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f));IconButton(onClick={month=month.minusMonths(1)}){Icon(Icons.Outlined.ChevronLeft,"Previous month",tint=Green)};IconButton(onClick={month=month.plusMonths(1)}){Icon(Icons.Outlined.ChevronRight,"Next month",tint=Green)}}
+            Row {listOf("Mon","Tue","Wed","Thu","Fri","Sat","Sun").forEach{Box(Modifier.weight(1f),contentAlignment=Alignment.Center){Text(it,fontSize=11.sp,color=Muted)}}}
             val offset=month.atDay(1).dayOfWeek.value-1
             val rows=(offset+month.lengthOfMonth()+6)/7
             repeat(rows){row->Row {repeat(7){col->
@@ -338,12 +338,12 @@ fun durationLabel(startMinute: Int, endMinute: Int): String {
 @Composable fun Onboarding(store:BuddyStore) {
     var step by rememberSaveable {mutableIntStateOf(0)}
     val p=store.profile
-    val titles=listOf("哪天去悉尼玩？","这次玩几天？","想用什么节奏？","什么最让你心动？","每天准备花多少？","从哪里开始？","想几点出发返回？","一起出发吧！")
-    val subtitles=listOf("选个日子，其他的慢慢来。","先留出时间，不必一次想好所有事。","选舒服的，不用挑战步数纪录。","可以多选，也可以暂时不选。","先定个大概，随时可以修改。","选一个方便的起点。","给探索和休息都留一点空间。","看一眼你的选择，生成后还可以调整。")
-    val messages=listOf("每个选择都没有标准答案，适合你就好。","第一步完成！你想在悉尼留多久？","旅行不需要赶进度，按你的节奏来。","让我多了解一点你的喜好。","好体验，也要在舒服的预算里。","已经过半啦！选个出发点就好。","快好啦，最后留好出发和返程时间。","准备完成！我来检查天气、距离和营业时间。")
+    val titles=listOf("Which day to go to Sydney?","How many days for this trip?","What pace would you like?","What moves you most?","How much to prepare daily?","Where to start?","What time would you like to depart and return?","Let's set off!")
+    val subtitles=listOf("Pick a day, and we'll take it slow.","Leave time open—no need to plan everything at once.","Pick what's comfortable. No need to step-count challenge.","Can select multiple or temporarily not select.","Set a rough plan first, and you can always change it later.","Pick a convenient starting point.","Leave room for exploration and rest.","Glance at your choices; adjustments are possible after generation.")
+    val messages=listOf("Every choice has no standard answer; what suits you is good.","Step 1 complete! How long do you want to stay in Sydney?","No need to rush, go at your own pace.","Let me learn more about your preferences.","Good experience, but also within a comfortable budget.","Halfway there! Just pick a departure point.","Almost done! Please set your departure and return times.","All set! Let me check the weather, distance, and operating hours.")
     Column(Modifier.fillMaxSize().background(Cream)) {
         Row(Modifier.fillMaxWidth().padding(horizontal=18.dp,vertical=16.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(14.dp)) {
-            IconButton(onClick={if(step>0)step-- else if(store.saved.isNotEmpty())store.resumeSaved()},enabled=!store.busy,modifier=Modifier.size(24.dp)){Icon(Icons.Outlined.ChevronLeft,"返回上一步",tint=Muted)}
+            IconButton(onClick={if(step>0)step-- else if(store.saved.isNotEmpty())store.resumeSaved()},enabled=!store.busy,modifier=Modifier.size(24.dp)){Icon(Icons.Outlined.ChevronLeft,"Back one step",tint=Muted)}
             Box(Modifier.weight(1f).height(11.dp).clip(CircleShape).background(Green.copy(alpha=.12f))) {
                 Box(Modifier.fillMaxWidth(step/8f).fillMaxHeight().background(Green,CircleShape))
             }
@@ -359,7 +359,7 @@ fun durationLabel(startMinute: Int, endMinute: Int): String {
                 }
             }
             Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
-                Text("小冒险 · 出发准备",fontSize=12.sp,fontWeight=FontWeight.Bold,color=Green)
+                Text("Mini adventure · Departure prep",fontSize=12.sp,fontWeight=FontWeight.Bold,color=Green)
                 Text(titles[step],fontSize=29.sp,fontWeight=FontWeight.ExtraBold,color=Ink,lineHeight=37.sp)
                 Text(subtitles[step],fontSize=14.sp,color=Muted,lineHeight=21.sp)
             }
@@ -368,46 +368,46 @@ fun durationLabel(startMinute: Int, endMinute: Int): String {
                 Surface(shape=RoundedCornerShape(24.dp),color=Mint) {
                     Row(Modifier.fillMaxWidth().padding(22.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
                         Icon(Icons.Outlined.Sailing,null,Modifier.size(29.dp),tint=Green)
-                        Text("SYDNEY · 悉尼",fontWeight=FontWeight.Bold,fontSize=20.sp,color=Green)
+                        Text("SYDNEY · Sydney",fontWeight=FontWeight.Bold,fontSize=20.sp,color=Green)
                     }
                 }
                 TravelCalendar(p.date){store.profile=p.copy(date=it)}
             }
-            1 -> (1..3).forEach { n -> Choice("$n 天", p.days == n, !store.busy) { store.profile = p.copy(days = n) } }
-            2 -> listOf(5000 to "轻松逛逛",10000 to "刚刚好",18000 to "活力满满").forEach { (n,t) -> Choice("$t · 约 $n 步以内",p.maxSteps == n,!store.busy) { store.profile=p.copy(maxSteps=n) } }
+            1 -> (1..3).forEach { n -> Choice(if(n==1)"1 day" else "$n days", p.days == n, !store.busy) { store.profile = p.copy(days = n) } }
+            2 -> listOf(5000 to "Easy stroll",10000 to "Just right",18000 to "Full of energy").forEach { (n,t) -> Choice("$t · up to about $n steps",p.maxSteps == n,!store.busy) { store.profile=p.copy(maxSteps=n) } }
             3 -> {
                 listOf("风景","美食","自然","艺术","文化","城市").chunked(2).forEach{row ->
                     Row(horizontalArrangement=Arrangement.spacedBy(14.dp)) {row.forEach{t ->
                         val selected=t in p.interests
                         Column(Modifier.weight(1f).height(126.dp).clip(RoundedCornerShape(22.dp)).background(if(selected)Mint else Color.White).border(if(selected)2.dp else 1.dp,if(selected)Green else Green.copy(alpha=.12f),RoundedCornerShape(22.dp)).clickable(enabled=!store.busy){store.profile=p.copy(interests=if(selected)p.interests-t else p.interests+t)},horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center) {
-                            Icon(choiceIcon(t),null,Modifier.size(28.dp),tint=Green);Spacer(Modifier.height(10.dp));Text(t,fontWeight=FontWeight.Bold);Spacer(Modifier.height(8.dp));Icon(if(selected)Icons.Outlined.CheckCircle else Icons.Outlined.RadioButtonUnchecked,null,Modifier.size(17.dp),tint=Green)
+                            Icon(choiceIcon(t),null,Modifier.size(28.dp),tint=Green);Spacer(Modifier.height(10.dp));Text(ui(t),fontWeight=FontWeight.Bold);Spacer(Modifier.height(8.dp));Icon(if(selected)Icons.Outlined.CheckCircle else Icons.Outlined.RadioButtonUnchecked,null,Modifier.size(17.dp),tint=Green)
                         }
                     }}
                 }
             }
-            4 -> { listOf(50,100,150).forEach { n -> Choice("A$$n / 天",p.budget==n,!store.busy) {store.profile=p.copy(budget=n)} }
-                Text("自定：A$${p.budget}"); Slider(value=p.budget.toFloat(),onValueChange={store.profile=p.copy(budget=(it/10).toInt()*10)},valueRange=0f..300f,steps=29,enabled=!store.busy)
-                Small("活动费用估算，不含住宿、机票及全部餐饮。") }
-            5 -> { listOf(Endpoint.quay,Endpoint.central).forEach { e -> Choice(e.name,p.start==e,!store.busy){store.profile=p.copy(start=e,end=e)} }; Small("每天返回同一起点，可在“我的”设置下一次旅行的起终点。") }
+            4 -> { listOf(50,100,150).forEach { n -> Choice("A$$n / day",p.budget==n,!store.busy) {store.profile=p.copy(budget=n)} }
+                Text("Custom: A$${p.budget}"); Slider(value=p.budget.toFloat(),onValueChange={store.profile=p.copy(budget=(it/10).toInt()*10)},valueRange=0f..300f,steps=29,enabled=!store.busy)
+                Small("Estimated activity costs exclude accommodation, flights and some meals.") }
+            5 -> { listOf(Endpoint.quay,Endpoint.central).forEach { e -> Choice(e.name,p.start.sameLocation(e),!store.busy){store.profile=p.copy(start=e,end=e)} }; Small("Return to the same point each day. Set start and end points for your next trip in Settings.") }
             6 -> {
-                listOf(Triple(600,1080,"10:00–18:00 · 悠闲一天"),Triple(540,1020,"09:00–17:00 · 早一点出发"),Triple(780,1080,"13:00–18:00 · 午后小冒险")).forEach { (s,e,t) ->
+                listOf(Triple(600,1080,"10:00–18:00 · An easy day"),Triple(540,1020,"09:00–17:00 · An earlier start"),Triple(780,1080,"13:00–18:00 · Afternoon adventure")).forEach { (s,e,t) ->
                     Choice(t,p.startMinute==s && p.endMinute==e,!store.busy){store.profile=p.copy(startMinute=s,endMinute=e)}
                 }
                 CustomTimeRange(p.startMinute, p.endMinute, !store.busy) { start, end ->
                     store.profile = p.copy(startMinute=start, endMinute=end)
                 }
             }
-            else -> { Panel { Text("悉尼 · ${p.days} 天 · ${p.maxSteps} 步以内 / 天",fontWeight=FontWeight.Bold)
-                Text("${p.date} · 每日 A$${p.budget}"); Text("${p.start.name}出发 → ${p.end.name}返回"); Text(p.interests.joinToString(" · ").ifEmpty {"随心探索"}) }
+            else -> { Panel { Text("Sydney · ${p.days} days · up to ${p.maxSteps} steps/day",fontWeight=FontWeight.Bold)
+                Text("${p.date} · A$${p.budget}/day"); Text("Depart ${ui(p.start.name)} → return ${ui(p.end.name)}"); Text(p.interests.map{ui(it)}.joinToString(" · ").ifEmpty {"Explore freely"}) }
                 OnlineSwitch(store)
-                Small("生成后先展示草案，由你确认后才保存。") }
+                Small("Review your draft first. It is saved when you confirm.") }
         }
 
         }
         Column(Modifier.fillMaxWidth().padding(horizontal=24.dp).padding(top=10.dp,bottom=16.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(10.dp)) {
-            Text(if(step==7)"你做主，Buddy 来帮忙" else "随时可以返回修改",fontSize=11.sp,color=Muted)
-            Action(if(step==7)"让 Buddy 规划路线" else "选好了，继续",!store.busy){store.rememberProfile();if(step<7)step++ else store.generate()}
-            if(step==0 && store.saved.isNotEmpty())TextButton(onClick=store::resumeSaved,enabled=!store.busy){Text("回到已保存行程")}
+            Text(if(step==7)"You decide, Koko helps" else "Can return and edit anytime",fontSize=11.sp,color=Muted)
+            Action(if(step==7)"Let Koko plan the route" else "Selected. Let's continue.",!store.busy){store.rememberProfile();if(step<7)step++ else store.generate()}
+            if(step==0 && store.saved.isNotEmpty())TextButton(onClick=store::resumeSaved,enabled=!store.busy){Text("Back to saved trips")}
         }
     }
     BackHandler(enabled=step>0 && !store.busy){step--}
@@ -415,36 +415,36 @@ fun durationLabel(startMinute: Int, endMinute: Int): String {
 
 @Composable internal fun HomeTransportStrip(day:org.json.JSONObject,overview:ItineraryOverview,onPlan:()->Unit,onRetry:()->Unit) {
     Column(verticalArrangement=Arrangement.spacedBy(6.dp)) {
-        Row(verticalAlignment=Alignment.CenterVertically){TextButton(onClick=onPlan,contentPadding=PaddingValues(0.dp),modifier=Modifier.heightIn(min=28.dp)){Text(ui("交通方式"),fontSize=12.sp,fontWeight=FontWeight.Bold)};Spacer(Modifier.weight(1f));overview.route?.let{Text(ui("{0} 分 · 交通預估",kotlin.math.ceil(it.seconds/60).toInt().toString()),fontSize=10.sp,color=Muted)}}
+        Row(verticalAlignment=Alignment.CenterVertically){TextButton(onClick=onPlan,contentPadding=PaddingValues(0.dp),modifier=Modifier.heightIn(min=28.dp)){Text(ui("Transport"),fontSize=12.sp,fontWeight=FontWeight.Bold)};Spacer(Modifier.weight(1f));overview.route?.let{Text(ui("{0} min · travel estimate",kotlin.math.ceil(it.seconds/60).toInt().toString()),fontSize=10.sp,color=Muted)}}
         when {
-            overview.busy->Text(ui("正在載入道路路線…"),fontSize=11.sp,color=Muted)
+            overview.busy->Text(ui("Loading road route…"),fontSize=11.sp,color=Muted)
             overview.route!=null->Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).testTag("home-transport-legs"),horizontalArrangement=Arrangement.spacedBy(6.dp)){
-                overviewTransportLegs(day,overview.route,overview.plan).forEach{leg->Column(Modifier.widthIn(max=220.dp).background(Mint.copy(alpha=.65f),RoundedCornerShape(10.dp)).padding(8.dp),verticalArrangement=Arrangement.spacedBy(4.dp)){Text(ui("{0} · {1} {2} 分",leg.label,ui(leg.transport),leg.minutes.toString()),fontSize=11.sp,fontWeight=FontWeight.Bold,color=Green,maxLines=1);Text("${leg.from} → ${leg.to}",fontSize=10.sp,color=Muted,maxLines=1)}}
+                overviewTransportLegs(day,overview.route,overview.plan).forEach{leg->Column(Modifier.widthIn(max=220.dp).background(Mint.copy(alpha=.65f),RoundedCornerShape(10.dp)).padding(8.dp),verticalArrangement=Arrangement.spacedBy(4.dp)){Text(ui("{0} · {1} {2} min",leg.label,ui(leg.transport),leg.minutes.toString()),fontSize=11.sp,fontWeight=FontWeight.Bold,color=Green,maxLines=1);Text("${leg.from} → ${leg.to}",fontSize=10.sp,color=Muted,maxLines=1)}}
             }
-            overview.message!=null->Row(Modifier.fillMaxWidth().testTag("home-route-error"),verticalAlignment=Alignment.Top){Text(overview.message!!,Modifier.weight(1f),fontSize=11.sp,color=MaterialTheme.colorScheme.error);TextButton(onClick=onRetry,contentPadding=PaddingValues(4.dp)){Text(ui("重試"),fontSize=11.sp)}}
-            else->Text(ui("選擇交通方式以規劃路線"),fontSize=11.sp,color=Muted)
+            overview.message!=null->Row(Modifier.fillMaxWidth().testTag("home-route-error"),verticalAlignment=Alignment.Top){Text(overview.message!!,Modifier.weight(1f),fontSize=11.sp,color=MaterialTheme.colorScheme.error);TextButton(onClick=onRetry,contentPadding=PaddingValues(4.dp)){Text(ui("Retry"),fontSize=11.sp)}}
+            else->Text(ui("Choose transport to plan a route"),fontSize=11.sp,color=Muted)
         }
     }
 }
 
 @Composable fun TravelInsightsDialog(store:BuddyStore,requested:org.json.JSONArray?=null,onDismiss:()->Unit){
     Dialog(onDismissRequest=onDismiss){Surface(shape=RoundedCornerShape(24.dp),color=Color.White){Column(Modifier.fillMaxWidth().heightIn(max=620.dp).padding(18.dp).verticalScroll(rememberScrollState()).testTag("travel-insights-sheet"),verticalArrangement=Arrangement.spacedBy(12.dp)){
-        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text("交通・人潮・費用",fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f));TextButton(onClick=onDismiss){Text("完成")}}
-        TextButton(onClick={store.refreshInsights(requested)},enabled=!store.insightsBusy){Text(if(store.insightsBusy)"更新中…"else "重新查詢")}
+        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text("Transportation・Crowds・Costs",fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f));TextButton(onClick=onDismiss){Text("Done")}}
+        TextButton(onClick={store.refreshInsights(requested)},enabled=!store.insightsBusy){Text(if(store.insightsBusy)"Updating…"else "Retry")}
         store.insightsError?.let{Text(it,color=Color.Red)}
         store.insights?.let{report->
             val traffic=report.getJSONObject("traffic")
             Text(traffic.optString("summary"),fontWeight=FontWeight.Bold)
-            Small(report.optString("scope"));Small("來源：${report.optString("dataSource")} · ${report.optString("fetchedAt")}")
+            Small(report.optString("scope"));Small("Source: ${report.optString("dataSource")} · ${report.optString("fetchedAt")}")
             traffic.array("items").objects().forEach{item->Column(Modifier.fillMaxWidth().background(Color(0xFFFFF3E0),RoundedCornerShape(12.dp)).padding(12.dp)){Text("⚠️ "+item.optString("title"));Text(item.optString("summary"));Small(item.optString("source"))}}
-            if(report.array("pricePlaces").length()>0)Text("附近參考收費",fontWeight=FontWeight.Bold)
+            if(report.array("pricePlaces").length()>0)Text("Nearby reference fares",fontWeight=FontWeight.Bold)
             report.array("pricePlaces").objects().forEach{place->Column(Modifier.fillMaxWidth().background(Mint,RoundedCornerShape(12.dp)).padding(12.dp)){Text(place.optString("title"),fontWeight=FontWeight.Bold);Text(place.optString("summary"));Small(place.optString("source"))}}
             report.array("places").objects().forEach{p->Column(Modifier.fillMaxWidth().background(Mint,RoundedCornerShape(12.dp)).padding(12.dp),verticalArrangement=Arrangement.spacedBy(5.dp)){
                 Text(p.optString("name"),fontWeight=FontWeight.Bold);Text(p.getJSONObject("crowd").optString("summary"),color=Muted)
                 val price=p.getJSONObject("price");Text(price.optString("summary"));Small(price.optString("source"))
                 price.optJSONObject("range")?.let{range->
                     val low=range.optJSONObject("startPrice");val high=range.optJSONObject("endPrice")
-                    Text("${low?.optString("currencyCode") ?: ""} ${low?.optString("units") ?: "?"} – ${high?.optString("currencyCode") ?: ""} ${high?.optString("units") ?: "無上限"}")
+                    Text("${low?.optString("currencyCode") ?: ""} ${low?.optString("units") ?: "?"} – ${high?.optString("currencyCode") ?: ""} ${high?.optString("units") ?: "No limit"}")
                 }
                 if(price.has("scope"))Small(price.optString("scope"))
             }}
@@ -459,7 +459,7 @@ fun durationLabel(startMinute: Int, endMinute: Int): String {
     LazyRow(state=listState,modifier=Modifier.fillMaxWidth().testTag("map-day-selector"),horizontalArrangement=Arrangement.spacedBy(8.dp),contentPadding=PaddingValues(3.dp)) {
         itemsIndexed(dates){index,date->
             val active=index==selection
-            val dayLabel=ui("第 {0} 天",(index+1).toString())
+            val dayLabel=ui("Day {0}",(index+1).toString())
             Surface(onClick={onSelect(index)},shape=RoundedCornerShape(16.dp),color=if(active)Green else Color.White.copy(alpha=.96f),modifier=Modifier.widthIn(min=84.dp).testTag("map-day-$index").semantics{selected=active;contentDescription=dayLabel+", "+date}) {
                 Column(Modifier.padding(horizontal=12.dp,vertical=10.dp).heightIn(min=40.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(4.dp)) {
                     Text(dayLabel,fontSize=14.sp,fontWeight=FontWeight.Bold,color=if(active)Color.White else Ink,softWrap=false)

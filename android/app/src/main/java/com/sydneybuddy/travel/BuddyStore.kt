@@ -17,6 +17,7 @@ import java.util.UUID
 
 class BuddyStore(app: Application) : AndroidViewModel(app) {
     private val prefs = app.getSharedPreferences("buddy", 0)
+    private val uiCatalog by lazy {JSONObject(app.assets.open("ui-localizations.json").bufferedReader().use{it.readText()})}
     var profile by mutableStateOf(runCatching { Profile.from(JSONObject(prefs.getString("profile", "")!!)) }.getOrDefault(Profile()))
     var trip by mutableStateOf<JSONObject?>(null); private set
     var proposal by mutableStateOf<Proposal?>(null); private set
@@ -29,7 +30,7 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
     var weather by mutableStateOf<JSONObject?>(null); private set
     var online by mutableStateOf(false)
     var language by mutableStateOf(AppLanguage.fromStored(prefs.getString("appLanguage",null)));private set
-    fun chooseLanguage(value:AppLanguage){language=value;prefs.edit().putString("appLanguage",value.code).apply()}
+    fun chooseLanguage(value:AppLanguage){language=AppLanguage.fromStored(value.code);prefs.edit().putString("appLanguage",language.code).apply()}
     var tab by mutableStateOf(1)
     var dayIndex by mutableStateOf(0)
     var onboarding by mutableStateOf(!prefs.getBoolean("onboarded", false))
@@ -48,8 +49,8 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
     fun chooseTravelDataSource(value:String){require(value in listOf("direct","zetaris","zetaris-cloud"));travelDataSource=value;prefs.edit().putString("travelDataSource",value).apply();weather=null;insights=null;dataConnection=null;mapLayerIds=null;reloadTravelData()}
     fun reloadTravelData(){val selected=travelDataSource;viewModelScope.launch{try{
         val maps=JSONObject(request("data/map-layers"));val status=JSONObject(request("data/status"))
-        if(selected==travelDataSource){require(maps.optString("dataSource")==selected&&status.optString("dataSource")==selected);mapLayerIds=maps.array("layers").objects().map{it.getString("id")}.toSet();dataConnection=translated(JSONObject(getApplication<Application>().assets.open("ui-localizations.json").bufferedReader().use{it.readText()}),language,"資料來源已連線 · {0} 個行程景點",status.optInt("catalogCount").toString())}
-    }catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:Exception){if(selected==travelDataSource)dataConnection=e.message ?: "資料來源連線失敗"}}}
+        if(selected==travelDataSource){require(maps.optString("dataSource")==selected&&status.optString("dataSource")==selected);mapLayerIds=maps.array("layers").objects().map{it.getString("id")}.toSet();dataConnection=translated(uiCatalog,language,"Connected · {0} itinerary places",status.optInt("catalogCount").toString())}
+    }catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:Exception){if(selected==travelDataSource)dataConnection=e.message ?: "Could not connect to the data source."}}}
     var poiToolbox by mutableStateOf(runCatching{JSONArray(prefs.getString("poiToolbox","[]")).objects()}.getOrDefault(emptyList()));private set
     fun addPoi(p:JSONObject){if(poiToolbox.none{it.optString("id")==p.optString("id")}){poiToolbox=poiToolbox+p.copy();prefs.edit().putString("poiToolbox",JSONArray(poiToolbox).toString()).apply()}}
     fun removePoi(id:String){poiToolbox=poiToolbox.filterNot{it.optString("id")==id};prefs.edit().putString("poiToolbox",JSONArray(poiToolbox).toString()).apply()}
@@ -63,8 +64,8 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
     fun chooseBackend(mode:String,address:String,accessCode:String="") {
         if(busy)return
         val uri=BackendEndpoint.validated(address)
-        if(mode !in listOf("local","cloud") || uri==null){error="請填入 HTTPS 網址，或本機 127.0.0.1 的 HTTP 網址。";return}
-        if(mode=="cloud" && accessCode.isNotBlank()){try{BackendAccess.save(uri.toString().trimEnd('/'),accessCode)}catch(_:Exception){error="無法安全保存連線碼，設定未變更。";return}}
+        if(mode !in listOf("local","cloud") || uri==null){error="Please enter an HTTPS URL, or a local HTTP URL for 127.0.0.1.";return}
+        if(mode=="cloud" && accessCode.isNotBlank()){try{BackendAccess.save(uri.toString().trimEnd('/'),accessCode)}catch(_:Exception){error="Could not save connection code securely. Settings unchanged.";return}}
         base=uri.toString().trimEnd('/');backendMode=mode
         prefs.edit().putString("backendMode",mode).putString(if(mode=="cloud")"cloudBackendURL" else "localBackendURL",base).apply()
         backendRevision++;travelDataSource="direct";prefs.edit().putString("travelDataSource","direct").apply()
@@ -73,7 +74,7 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
     }
     val day: JSONObject? get() = trip?.array("days")?.objects()?.getOrNull(dayIndex)
 
-    init { BackendAccess.initialize(app);reload() }
+    init { prefs.edit().putString("appLanguage",language.code).apply();BackendAccess.initialize(app);reload() }
 
     private suspend fun request(path: String, method: String = "GET", body: JSONObject? = null): String = withContext(Dispatchers.IO) {
         val selectedSource=travelDataSource
@@ -87,14 +88,14 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
             conn.setRequestProperty("Content-Type", "application/json")
             if (body != null) { conn.doOutput = true; conn.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) } }
             val status = conn.responseCode
-            if(requestBase!=base || requestRevision!=backendRevision)throw kotlinx.coroutines.CancellationException("後端已切換")
+            if(requestBase!=base || requestRevision!=backendRevision)throw kotlinx.coroutines.CancellationException("Backend changed")
             val result = (if (status in 200..299) conn.inputStream else conn.errorStream)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() } ?: ""
-            if(requestBase!=base || requestRevision!=backendRevision)throw kotlinx.coroutines.CancellationException("後端已切換")
+            if(requestBase!=base || requestRevision!=backendRevision)throw kotlinx.coroutines.CancellationException("Backend changed")
             if (status !in 200..299) {
                 val message = runCatching { JSONObject(result).optString("error") }.getOrDefault("")
-                error(if (status == 409) "行程版本已变化。请取消草案，刷新行程后重新调整。" else message.ifBlank { "服务返回 HTTP $status" })
+                error(if (status == 409) "This trip has changed. Discard the draft, refresh the trip and try again." else message.ifBlank { "The service returned HTTP $status." })
             }
-            if(path in listOf("weather","plan","catalog","data/map-layers","data/status","data/insights")&&selectedSource!=travelDataSource)error("資料來源已變更，請重新查詢。")
+            if(path in listOf("weather","plan","catalog","data/map-layers","data/status","data/insights")&&selectedSource!=travelDataSource)error("The data source changed. Please search again.")
             result
         } finally { conn.disconnect() }
     }
@@ -105,9 +106,9 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             try { action() }
             catch (e: Exception) { error = when (e) {
-                is java.net.ConnectException -> "无法连接电脑服务。请启动后端，并执行 adb reverse tcp:8787 tcp:8787。"
-                is java.net.SocketTimeoutException -> "服务请求超时，请稍后重试。原行程未修改。"
-                else -> e.message ?: "操作未完成，请重试。"
+                is java.net.ConnectException -> "Could not connect to the local service. Start the backend and run adb reverse tcp:8787 tcp:8787."
+                is java.net.SocketTimeoutException -> "The request timed out. Please retry. Your original trip is unchanged."
+                else -> e.message ?: "Could not complete this action. Please retry."
             } }
             finally { busy = false }
         }
@@ -142,7 +143,7 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
     }
     fun generate(message: String = "", rain: Boolean = false) {
         val source = if (onboarding) profile.json() else trip?.getJSONObject("profile")?.copy() ?: profile.json()
-        if (!Profile.from(source).valid()) { error = "请检查日期、天数、预算、步数和出发返回时间。"; return }
+        if (!Profile.from(source).valid()) { error = "Check the date, trip length, budget, steps and departure/return times."; return }
         val target = if (onboarding) null else trip?.optString("id")
         val revision = if (onboarding) 0 else trip?.optInt("revision", 0) ?: 0
         operation {
@@ -179,7 +180,7 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
             saved=saved.map{if(it.optString("id")==accepted.optString("id"))accepted else it}
             if(trip?.optString("id")==accepted.optString("id"))trip=accepted
             return true
-        }catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:Exception){error=e.message ?: "名稱未儲存，請重試。";return false}finally{busy=false}
+        }catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:Exception){error=e.message ?: "Name was not saved. Please try again.";return false}finally{busy=false}
     }
     fun deleteTrip(value: JSONObject) = operation {
         request("trips/${value.getString("id")}", "DELETE")
@@ -210,18 +211,18 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch{try{
             val value=JSONObject(request("data/insights","POST",body))
             if(generation==insightGeneration&&selected==travelDataSource&&provider==mapProvider&&scene==day.toString())insights=value
-        }catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:Exception){if(generation==insightGeneration)insightsError="交通、人潮與費用暫時無法更新，請重試。"}finally{if(generation==insightGeneration)insightsBusy=false}}
+        }catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:Exception){if(generation==insightGeneration)insightsError="Transportation, Crowds & Costs Currently Unavailable, Please Try Again."}finally{if(generation==insightGeneration)insightsBusy=false}}
     }
     var weatherBusy by mutableStateOf(false);private set
     fun refreshWeather() {
         if(weatherBusy)return
         weatherBusy=true;val selected=travelDataSource
-        weather=JSONObject().put("summary","正在查詢即時天氣…").put("rainy",false).put("status","loading").put("source",if(selected!="direct")"Open-Meteo / Zetaris"else "Open-Meteo / direct")
+        weather=JSONObject().put("summary","Checking live weather…").put("rainy",false).put("status","loading").put("source",if(selected!="direct")"Open-Meteo / Zetaris"else "Open-Meteo / direct")
         val source=trip?.getJSONObject("profile") ?: profile.json()
         viewModelScope.launch{try {
             val result=JSONObject(request("weather","POST",source));if(selected==travelDataSource){weather=result;if(result.optString("status")=="ok")mark("weather")}
         }catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:Exception){
-            if(selected==travelDataSource){weather=JSONObject().put("summary","即時天氣查詢失敗，請重試。").put("status","unavailable").put("rainy",false);error=e.message}
+            if(selected==travelDataSource){weather=JSONObject().put("summary","Live weather unavailable. Please retry.").put("status","unavailable").put("rainy",false);error=e.message}
         }finally{weatherBusy=false}}
     }
     fun saveMemory(consent: Boolean) {
@@ -229,15 +230,15 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
         val source = trip?.getJSONObject("profile") ?: profile.json()
         operation {
             request("memories", "POST", JSONObject().put("consent", true).put("profile", source)
-                .put("summary", "喜欢${source.array("interests").strings().joinToString("、")}，每天步数偏好约 ${source.optInt("maxSteps")} 步"))
-            load(); notice = "偏好已保存到电脑本机"
+                .put("summary", "Interests: ${source.array("interests").strings().map{translated(uiCatalog,language,it)}.joinToString(", ")}; preferred daily walking limit: about ${source.optInt("maxSteps")} steps"))
+            load(); notice = "Preference saved locally."
         }
     }
     fun deleteMemory(value: JSONObject) = operation { request("memories/${value.getString("id")}", "DELETE"); load() }
     fun addExpense(title: String, amount: String, people: Int) {
         runCatching {
             val cents = Money.cents(amount); Money.shares(cents, people)
-            expenses = expenses + JSONObject().put("id", UUID.randomUUID().toString()).put("title", title.trim().ifBlank { "消费" }).put("cents", cents).put("people", people)
+            expenses = expenses + JSONObject().put("id", UUID.randomUUID().toString()).put("title", title.trim().ifBlank { "Expense" }).put("cents", cents).put("people", people)
             persistExpenses()
         }.onFailure { error = it.message }
     }

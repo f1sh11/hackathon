@@ -153,8 +153,8 @@ struct JourneyPlannerView:View {
                         if routingProvider == "apple" && modes.contains("transit") {
                             Text(uiText("步行使用 Apple，公共交通按所选出发时间查询 NSW 班次，路线仍在 App 内显示。")).font(.caption).foregroundStyle(Palette.muted)
                         }
-                        DatePicker("出发时间（悉尼）",selection:$departure).environment(\.timeZone,TimeZone(identifier:"Australia/Sydney")!).font(.caption)
-                        HStack {ForEach(["walk","drive","transit"],id:\.self){mode in Button {modes=Array(repeating:mode,count:modes.count)} label:{Label(uiText(transportLabel(mode)),systemImage:transportSymbol(mode)).font(.caption.bold()).padding(8).background(modes.allSatisfy{$0==mode} ? Palette.mint : Color.gray.opacity(0.08),in:Capsule())}.accessibilityValue(modes.allSatisfy{$0==mode} ? "已选择" : "未选择")}}
+                        DatePicker(uiText("出发时间（悉尼）"),selection:$departure).environment(\.timeZone,TimeZone(identifier:"Australia/Sydney")!).font(.caption)
+                        HStack {ForEach(["walk","drive","transit"],id:\.self){mode in Button {modes=Array(repeating:mode,count:modes.count)} label:{Label(uiText(transportLabel(mode)),systemImage:transportSymbol(mode)).font(.caption.bold()).padding(8).background(modes.allSatisfy{$0==mode} ? Palette.mint : Color.gray.opacity(0.08),in:Capsule())}.accessibilityValue(uiText(modes.allSatisfy{$0==mode} ? "已选择" : "未选择"))}}
                         } else {HStack {Text(uiText("出发 \(journeyTime(result!.departureTime)) · 悉尼")).font(.caption);Spacer();if fixture == nil {Button(uiText("调整交通")){model.invalidate()}.font(.caption)}}}
                         ForEach(points.indices,id:\.self){i in
                             HStack(alignment:.top,spacing:12){Text(uiText(points[i].0)).font(.caption.bold()).frame(width:26,height:26).background(Palette.mint,in:Circle());Text(uiText(points[i].1)).font(.subheadline.bold());Spacer()}

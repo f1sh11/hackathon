@@ -22,18 +22,18 @@ class JourneyPlannerTest {
     @Test fun busDetailsAndTrafficSheetCanCollapseWithoutStartingNavigation() {
         val result=JourneyPlan.parse(fixture());var started=false;var closed=false
         rule.setContent{MaterialTheme(colorScheme=lightColorScheme(primary=Green,onPrimary=Color.White,secondaryContainer=Mint)){JourneyPlannerDialog(day,"http://127.0.0.1:8787",MapProvider.OSM,{closed=true},{started=true},result)}}
-        rule.onNodeWithText("测试资料 · TEST 公车非真实班次").assertIsDisplayed()
-        rule.waitUntil(30000){rule.onAllNodesWithText("地图已加载",substring=true).fetchSemanticsNodes().isNotEmpty()}
-        rule.onNodeWithText("🚌 公车 · TEST-01").performScrollTo().assertIsDisplayed()
-        rule.onNodeWithText("往 测试目的地方向").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Test data · TEST Bus non-real schedule").assertIsDisplayed()
+        rule.waitUntil(30000){rule.onAllNodesWithText("Map loaded",substring=true).fetchSemanticsNodes().isNotEmpty()}
+        rule.onNodeWithText("🚌 Bus · TEST-01").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("To 测试目的地方向").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("测试上车站 A → 测试下车站 B").assertExists()
-        rule.onNodeWithText("10:10 上车 · 10:25 下车 · 4 站 · 站台 A").performScrollTo().assertIsDisplayed()
-        rule.onNodeWithText("时刻表班次 · 非实时").assertExists()
+        rule.onNodeWithText("10:10 Board · 10:25 Alight · 4 stops · Platform A").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Schedule · Non-real-time").assertExists()
         val inst=InstrumentationRegistry.getInstrumentation();val image=inst.uiAutomation.takeScreenshot()
         File(inst.targetContext.getExternalFilesDir(null),"journey-android-fixture.png").outputStream().use{image.compress(Bitmap.CompressFormat.PNG,100,it)};image.recycle()
-        rule.onNodeWithText("收起").performClick();rule.onNodeWithText("路线详情").assertIsDisplayed()
-        rule.onNodeWithText("开始步行导航").assertDoesNotExist();assertFalse(started)
-        rule.onNodeWithText("关闭").performClick();assertTrue(closed)
+        rule.onNodeWithText("Collapse").performClick();rule.onNodeWithText("Route details").assertIsDisplayed()
+        rule.onNodeWithText("Start walking navigation").assertDoesNotExist();assertFalse(started)
+        rule.onNodeWithText("Close").performClick();assertTrue(closed)
     }
     @Test fun actualClientSendsModesAndCancelsOldResultWhenInputsChange() {
         val response=fixture();var sent:JSONObject?=null
@@ -59,13 +59,13 @@ class JourneyPlannerTest {
         lateinit var model:JourneyModel
         rule.runOnIdle{model=JourneyModel(client)}
         rule.setContent{MaterialTheme(colorScheme=lightColorScheme(primary=Green,onPrimary=Color.White,secondaryContainer=Mint)){JourneyPlannerDialog(loop,"http://127.0.0.1:8787",MapProvider.OSM,{},{},suppliedModel=model)}}
-        rule.waitUntil(30000){rule.onAllNodesWithText("地图已加载",substring=true).fetchSemanticsNodes().isNotEmpty()}
-        rule.onNodeWithText("规划交通路线").performClick()
+        rule.waitUntil(30000){rule.onAllNodesWithText("Map loaded",substring=true).fetchSemanticsNodes().isNotEmpty()}
+        rule.onNodeWithText("Plan Transport Route").performClick()
         rule.waitUntil(10000){!model.busy && model.plan!=null}
         assertNull(model.error);assertEquals(5,model.plan!!.sections.size)
-        rule.onNodeWithText("收起").performClick()
-        rule.onNodeWithText("路线详情").assertIsDisplayed()
-        rule.waitUntil(30000){rule.onAllNodesWithText("分段交通路线",substring=true).fetchSemanticsNodes().isNotEmpty()}
+        rule.onNodeWithText("Collapse").performClick()
+        rule.onNodeWithText("Route details").assertIsDisplayed()
+        rule.waitUntil(30000){rule.onAllNodesWithText("transport routes by segment",substring=true).fetchSemanticsNodes().isNotEmpty()}
         fun visibleDotPixels():Int {
             val bitmap=inst.uiAutomation.takeScreenshot()
             var count=0
@@ -112,7 +112,7 @@ class JourneyPlannerTest {
         }
         rule.waitUntil(30000){renderedFrames.get()>beforeZoom}
         rule.waitUntil(15000){visibleDotPixels()>100}
-        rule.onNodeWithText("重新查询").performClick()
+        rule.onNodeWithText("Search again").performClick()
         rule.waitUntil(10000){!model.busy && model.plan!=null}
         rule.waitUntil(15000){visibleDotPixels()>100}
         rule.runOnIdle{model.close()}
@@ -123,7 +123,7 @@ class JourneyPlannerTest {
         rule.runOnIdle{model=JourneyModel(client)}
         rule.setContent{MaterialTheme{JourneyPlannerDialog(day,"http://127.0.0.1:8787",MapProvider.OSM,{},{},suppliedModel=model)}}
         rule.onNodeWithTag("journey-mode-0-transit").performScrollTo().performClick()
-        rule.onNodeWithText("规划交通路线").performClick()
+        rule.onNodeWithText("Plan Transport Route").performClick()
         rule.waitUntil(10000){!model.busy}
         assertNull(model.plan);assertTrue(model.error!!.contains("尚未启用"))
         rule.onNodeWithTag("journey-error").assertIsDisplayed()

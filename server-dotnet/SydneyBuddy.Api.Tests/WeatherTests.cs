@@ -17,7 +17,7 @@ public sealed class WeatherTests
     {
         ["weatherCondition"] = new JsonObject
         {
-            ["description"] = new JsonObject { ["text"] = "多云" }, ["type"] = type
+            ["description"] = new JsonObject { ["text"] = "Cloudy" }, ["type"] = type
         },
         ["precipitation"] = new JsonObject { ["probability"] = new JsonObject { ["percent"] = probability } }
     };
@@ -33,6 +33,8 @@ public sealed class WeatherTests
         var call = Assert.Single(external.Calls);
         Assert.Contains("days=10", call.Url);
         Assert.Contains("pageSize=10", call.Url);
+        Assert.Contains("languageCode=en&", call.Url);
+        Assert.Contains("chance of rain", actual.Str("summary"));
         Assert.DoesNotContain("test-weather-credential", call.Url);
         Assert.Equal("test-weather-credential", call.Headers["X-Goog-Api-Key"]);
         Assert.Equal(8, call.TimeoutSeconds);
@@ -65,7 +67,7 @@ public sealed class WeatherTests
         var external = new FakeExternal { Respond = _ => throw new ServiceException("provider failed") };
         var actual = await new WeatherService(external).GetAsync(TestSupport.Profile(2), "test-key");
         Assert.Equal("unavailable", actual.Str("status"));
-        Assert.Contains("未按晴天", actual.Str("summary"));
+        Assert.Contains("Clear skies have not been assumed", actual.Str("summary"));
         Assert.All(actual.Array("days")!, day => Assert.False(day!.Bool("available")));
     }
 
