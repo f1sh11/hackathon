@@ -836,7 +836,7 @@ private struct InlineAnchorSheet:View {
     @MainActor private func search() async {
         guard !searching else{return};searching=true;issue=nil;places=[]
         let value=query.trimmingCharacters(in:.whitespacesAndNewlines)
-        do {places=try await ApplePoiProvider.search(CLLocationCoordinate2D(latitude:point.lat,longitude:point.lng),"all",value).filter{(-34.2 ... -33.5).contains($0.lat) && (150.5 ... 151.5).contains($0.lng)};if places.isEmpty{issue="没找到悉尼范围内的地点，换个具体名称试试？原地点仍保留。"}}
+        do {places=try await ApplePoiProvider.search(CLLocationCoordinate2D(latitude:point.lat,longitude:point.lng),"all",value).filter{(-37.5 ... -28.0).contains($0.lat) && (141.0 ... 154.0).contains($0.lng)};if places.isEmpty{issue="没找到新南威尔士州 (NSW) 范围内的地点，换个具体名称试试？原地点仍保留。"}}
         catch{issue="地点暂时没查到，原地点还在。请重试。"}
         searching=false
     }

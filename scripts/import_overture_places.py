@@ -100,7 +100,7 @@ def main():
     args=parser.parse_args()
     try: bbox=tuple(float(x) for x in args.bbox.split(','))
     except ValueError: parser.error('bbox must contain four numeric coordinates')
-    if len(bbox)!=4 or not (150.5<=bbox[0]<bbox[2]<=151.5 and -34.2<=bbox[1]<bbox[3]<=-33.5): parser.error('Use a bounded Sydney area: west,south,east,north')
+    if len(bbox)!=4 or not (141.0<=bbox[0]<bbox[2]<=154.0 and -37.5<=bbox[1]<bbox[3]<=-28.0): parser.error('Use a bounded NSW area: west,south,east,north')
     if not 0<=args.minimum_confidence<=1: parser.error('confidence must be between 0 and 1')
     if args.input and not args.release: parser.error('--input requires the original --release version')
     if sys.platform=='darwin' and not os.getenv('SSL_CERT_FILE') and Path('/etc/ssl/cert.pem').exists(): os.environ['SSL_CERT_FILE']='/etc/ssl/cert.pem'

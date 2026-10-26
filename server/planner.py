@@ -64,11 +64,11 @@ def validate_input(raw):
         p['interests'] = [str(s)[:20] for s in p.get('interests', [])][:6]
         for endpoint in ['start', 'end']:
             v = p.get(endpoint, {'lat':-33.8611, 'lng':151.2126, 'name':'环形码头'})
-            if not -34.2 <= float(v['lat']) <= -33.5 or not 150.5 <= float(v['lng']) <= 151.5:
+            if not -37.5 <= float(v['lat']) <= -28.0 or not 141.0 <= float(v['lng']) <= 154.0:
                 raise ValueError()
             p[endpoint] = {'name':str(v.get('name','指定地点'))[:60], 'lat':float(v['lat']), 'lng':float(v['lng'])}
     except (ValueError, TypeError, KeyError):
-        raise ServiceError('请检查日期、时间、预算、步数和悉尼范围内的起终点。') from None
+        raise ServiceError('请检查日期、时间、预算、步数和新南威尔士州 (NSW) 范围内的起终点。') from None
     p['date'] = date.isoformat()
     return p
 

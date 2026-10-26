@@ -48,13 +48,13 @@ public sealed class OsmPoiProvider(HttpClient http,IConfiguration? configuration
         catch(HttpRequestException){throw new ServiceException("無法連線開源地點服務，請稍後重試。");}
         catch(System.Text.Json.JsonException){throw new ServiceException("開源地點回應無效，請稍後重試。");}
     }
-    internal static bool ValidPoint(double a,double b)=>double.IsFinite(a)&&double.IsFinite(b)&&a is >= -34.2 and <= -33.5&&b is >=150.5 and <=151.5;
+    internal static bool ValidPoint(double a,double b)=>double.IsFinite(a)&&double.IsFinite(b)&&a is >= -37.5 and <= -28.0&&b is >=141.0 and <=154.0;
 }
 public sealed class PoiService(IPoiProvider provider,IMemoryCache cache,GooglePoiProvider? google=null,TravelDataContext? travel=null,HiddenGemService? gems=null,UnifiedPoiService? unified=null) {
     static readonly SemaphoreSlim Gate=new(1,1);
     public async Task<JsonObject> SearchAsync(JsonObject input,CancellationToken token) {
         var lat=input.Number("lat",-33.865);var lng=input.Number("lng",151.212);var radius=input.Int("radius",1500);var text=input.Str("query").Trim();var category=input.Str("category","sights");
-        if(!OsmPoiProvider.ValidPoint(lat,lng)||radius is <100 or >5000||text.Length>80||!PoiCategories.Valid(category))throw new ServiceException("請使用悉尼範圍、100–5000 公尺及有效分類查詢。");
+        if(!OsmPoiProvider.ValidPoint(lat,lng)||radius is <100 or >5000||text.Length>80||!PoiCategories.Valid(category))throw new ServiceException("請使用新南威爾斯州 (NSW) 範圍、100–5000 公尺及有效分類查詢。");
         if(unified is not null&&(travel?.Warehouse==true||input.Str("provider","osm")=="osm"&&provider is OverturePoiProvider||category=="gems"))return unified.Search(lat,lng,radius,category,text,token);
         if(category=="gems")return gems?.Search(lat,lng,radius,text,token)??throw new ServiceException("私房景點來源尚未設定。");
         if(travel?.Warehouse==true){

@@ -73,7 +73,7 @@ public static class PlanValidator
                 var latitude = ReadNumber(point, "lat", double.NaN);
                 var longitude = ReadNumber(point, "lng", double.NaN);
                 if (!double.IsFinite(latitude) || !double.IsFinite(longitude) ||
-                    latitude is < -34.2 or > -33.5 || longitude is < 150.5 or > 151.5)
+                    latitude is < -37.5 or > -28.0 || longitude is < 141.0 or > 154.0)
                     throw new FormatException();
                 profile[endpoint] = new JsonObject
                 {

@@ -21,7 +21,7 @@ public sealed class ScheduleEditorService(PlaceCatalog catalog,RestaurantStore? 
     static JsonObject Point(JsonObject x)=>new(){["name"]=x.Str("name"),["lat"]=x.Number("lat"),["lng"]=x.Number("lng")};
     static void CheckPoint(JsonObject x) {
         var lat=x.Number("lat",double.NaN);var lng=x.Number("lng",double.NaN);
-        if(!double.IsFinite(lat)||!double.IsFinite(lng)||lat is < -34.2 or > -33.5||lng is <150.5 or >151.5||x.Str("name").Length>120)throw new ServiceException("請填入悉尼範圍的有效地點與座標。");
+        if(!double.IsFinite(lat)||!double.IsFinite(lng)||lat is < -37.5 or > -28.0||lng is <141.0 or >154.0||x.Str("name").Length>120)throw new ServiceException("請填入新南威爾斯州 (NSW) 範圍的有效地點與座標。");
     }
     public static JsonObject Attraction(JsonObject p,string pace)=>new(){["id"]=Guid.NewGuid().ToString("N"),["placeId"]=p.Str("id"),["kind"]=PoiService.IsImported(p)?PoiService.ActivityKind(p):RecommendationQuality.IsMeal(p)?"meal":"attraction",["name"]=p.Str("name"),["lat"]=p.Number("lat"),["lng"]=p.Number("lng"),["cost"]=p.Number("cost"),["openMinute"]=p.Int("openMinute"),["closeMinute"]=p.Int("closeMinute"),["duration"]=Math.Clamp(p.Int("visitMinutes")+(pace=="relaxed"?15:pace=="packed"?-10:0),15,180),["queueMinutes"]=null,["locked"]=false};
     static JsonObject Facility(string kind,string name,JsonObject p,int duration,double cost=0,int open=0,int close=1440)=>new(){["id"]=Guid.NewGuid().ToString("N"),["kind"]=kind,["name"]=name,["lat"]=p.Number("lat"),["lng"]=p.Number("lng"),["duration"]=duration,["cost"]=cost,["confirmed"]=false,["openMinute"]=open,["closeMinute"]=close,["locked"]=false};
@@ -100,9 +100,9 @@ public sealed class ScheduleEditorService(PlaceCatalog catalog,RestaurantStore? 
                     var begin=approximateClock+(int)RouteService.EstimateLeg(anchor,point).Number("minutes");
                     var open=a.Str("kind")=="attraction" ? point.Int("openMinute") : a.Int("openMinute");begin=Math.Max(begin,open);
                     var attempts=0;
-                    while(a.Str("kind")!="restroom" && begin+a.Int("duration")-last>settings.Int("restroomInterval") && attempts++<8) {
+                    while(a.Str("kind")!="restroom" && approximateClock<endM && begin+a.Int("duration")-last>settings.Int("restroomInterval") && attempts++<3) {
                         var bath=Facility("restroom","廁所停靠 · 設施待確認",anchor,10);
-                        var at=Math.Max(approximateClock,Math.Min(begin,last+settings.Int("restroomInterval")-10));
+                        var at=Math.Clamp(Math.Max(approximateClock,Math.Min(begin,last+settings.Int("restroomInterval")-10)),0,1439);
                         bath["fixedStart"]=at;expanded.Add(bath);last=at+10;approximateClock=last;
                         begin=Math.Max(approximateClock+(int)RouteService.EstimateLeg(anchor,point).Number("minutes"),open);
                         if(begin+a.Int("duration")-last>settings.Int("restroomInterval") && begin<=approximateClock)break;

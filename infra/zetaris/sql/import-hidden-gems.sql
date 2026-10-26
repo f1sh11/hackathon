@@ -3,8 +3,8 @@
 BEGIN;
 CREATE TABLE IF NOT EXISTS hidden_gem_records (
  id text PRIMARY KEY CHECK (id ~ '^gem:[a-f0-9]{24}$'),name text NOT NULL,
- lat double precision NOT NULL CHECK(lat BETWEEN -34.2 AND -33.5),
- lng double precision NOT NULL CHECK(lng BETWEEN 150.5 AND 151.5),
+ lat double precision NOT NULL CHECK(lat BETWEEN -37.5 AND -28.0),
+ lng double precision NOT NULL CHECK(lng BETWEEN 141.0 AND 154.0),
  payload text NOT NULL CHECK(jsonb_typeof(payload::jsonb)='object')
 );
 CREATE TEMP TABLE incoming_gems (LIKE hidden_gem_records INCLUDING ALL) ON COMMIT DROP;

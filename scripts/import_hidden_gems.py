@@ -87,7 +87,7 @@ def listings(data,page,now):
         if name not in NAMES:continue
         try:lat=float(fields.get('lat',''));lng=float(fields.get('long',''))
         except ValueError:continue
-        if not (math.isfinite(lat) and math.isfinite(lng) and -34.2<=lat<=-33.5 and 150.5<=lng<=151.5):continue
+        if not (math.isfinite(lat) and math.isfinite(lng) and -37.5<=lat<=-28.0 and 141.0<=lng<=154.0):continue
         content=plain(fields.get('content',''));directions=plain(fields.get('directions',''))
         identifier='gem:'+hashlib.sha256((page+'|'+name).encode()).hexdigest()[:24]
         yield {'id':identifier,'name':name,'category':'風景','indoor':False,'visitMinutes':60,'cost':0,'lat':lat,'lng':lng,
@@ -123,7 +123,7 @@ def match_nearby_photos(place,photos):
     if not tokens:return []
     clean=[p for p in photos if not any(bad in p['title'].lower() for bad in NOISE_TERMS)]
     scored=[(sum(t in photo['title'].lower() for t in tokens),photo) for photo in clean]
-    return [photo for score,photo in sorted(scored,key=lambda item:(-item[0],item[1]['title'])) if score>=min(1,len(tokens))]
+    return [photo for score,photo in sorted(scored,key=lambda item:(-item[0],item[1]['title'])) if score>=min(2,len(tokens))]
 
 def enrich(place):
     image=place.pop('_image','')

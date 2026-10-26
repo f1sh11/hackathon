@@ -73,11 +73,35 @@ public sealed class RouteService(IExternalJsonClient external,TripTransportRoute
         }
     };
 
-    public static JsonObject EstimateLeg(JsonObject from, JsonObject to) => new()
+    public static JsonObject EstimateLeg(JsonObject from, JsonObject to)
     {
-        ["meters"] = Math.Ceiling(Distance(from, to) * 1.3),
-        ["minutes"] = Math.Ceiling(Distance(from, to) * 1.3 / 65), ["polyline"] = "", ["source"] = "初筛估算"
-    };
+        var dist = Distance(from, to);
+        if (dist <= 2500)
+        {
+            var walkMeters = Math.Ceiling(dist * 1.3);
+            return new()
+            {
+                ["meters"] = walkMeters,
+                ["walkingMeters"] = walkMeters,
+                ["minutes"] = Math.Max(1, Math.Ceiling(walkMeters / 65)),
+                ["polyline"] = "",
+                ["source"] = "初筛估算"
+            };
+        }
+        else
+        {
+            var transitSpeed = dist > 50000 ? 800.0 : 500.0;
+            var minutes = Math.Clamp(12 + 8 + Math.Ceiling(dist / transitSpeed), 15, 360);
+            return new()
+            {
+                ["meters"] = Math.Ceiling(dist * 1.15),
+                ["walkingMeters"] = 800.0,
+                ["minutes"] = minutes,
+                ["polyline"] = "",
+                ["source"] = "初筛估算"
+            };
+        }
+    }
 
     public static double Distance(JsonObject a, JsonObject b)
     {
