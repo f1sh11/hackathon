@@ -4,6 +4,18 @@ import MapKit
 @testable import SydneyBuddy
 
 @MainActor final class ScheduleTests:XCTestCase {
+    func testProposalReviewDoesNotPresentUnknownZeroPriceAsFree() throws {
+        var plan=try fixture();plan.days[0].estimatedCost=0;plan.days[0].stops[0].costKnown=false
+        XCTAssertEqual(ProposalReviewPresentation.cost([plan.days[0]]),"Cost to confirm")
+        plan.recommendationStatus="partial"
+        XCTAssertTrue(ProposalReviewPresentation.checks(plan).contains("Some requested experiences couldn’t fit this draft yet."))
+        XCTAssertTrue(ProposalReviewPresentation.checks(plan).contains("Prices still to confirm."))
+        plan.days[0].stops[0].costKnown=nil
+        XCTAssertEqual(ProposalReviewPresentation.cost([plan.days[0]]),"Cost to confirm")
+        plan.days[0].stops=[]
+        XCTAssertEqual(ProposalReviewPresentation.cost([plan.days[0]]),"Cost to confirm")
+    }
+
     func testDiscoveryZoomUsesCurrentCameraAndDoesNotRepeatWhenResultsRefresh() throws {
         let center=CLLocationCoordinate2D(latitude:-33.865,longitude:151.212)
         let map=MKMapView(frame:CGRect(x:0,y:0,width:390,height:700))

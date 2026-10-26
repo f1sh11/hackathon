@@ -18663,5 +18663,210 @@
     "en": "Added to this trip",
     "zh-Hans": "已加入这次旅行",
     "zh-Hant": "已加入這次旅行"
+  },
+  "Let’s check what changed.": {
+    "en": "Let’s check what changed.",
+    "zh-Hans": "一起看看改动吧。",
+    "zh-Hant": "一起看看改動吧。"
+  },
+  "A little check before we go.": {
+    "en": "A little check before we go.",
+    "zh-Hans": "出发前，一起确认一下。",
+    "zh-Hant": "出發前，一起確認一下。"
+  },
+  "Your little adventure is ready.": {
+    "en": "Your little adventure is ready.",
+    "zh-Hans": "你的小冒险准备好啦。",
+    "zh-Hant": "你的小冒險準備好啦。"
+  },
+  "Nothing is saved until you confirm.": {
+    "en": "Nothing is saved until you confirm.",
+    "zh-Hans": "确认后才会保存到你的行程。",
+    "zh-Hant": "確認後才會儲存到你的行程。"
+  },
+  "Planned stops": {
+    "en": "Planned stops",
+    "zh-Hans": "已安排站点",
+    "zh-Hant": "已安排站點"
+  },
+  "Steps per day": {
+    "en": "Steps per day",
+    "zh-Hans": "每天预计步数",
+    "zh-Hant": "每天預計步數"
+  },
+  "Per person · estimate": {
+    "en": "Per person · estimate",
+    "zh-Hans": "每人 · 估算",
+    "zh-Hant": "每人 · 估算"
+  },
+  "Still to check": {
+    "en": "Still to check",
+    "zh-Hans": "还需要确认",
+    "zh-Hant": "還需要確認"
+  },
+  "Your days": {
+    "en": "Your days",
+    "zh-Hans": "每日安排",
+    "zh-Hant": "每日安排"
+  },
+  "Planned stops only. Unconfirmed costs, transport and stays are extra.": {
+    "en": "Planned stops only. Unconfirmed costs, transport and stays are extra.",
+    "zh-Hans": "仅估算已安排站点。未确认费用、交通和住宿另计。",
+    "zh-Hant": "僅估算已安排站點。未確認費用、交通和住宿另計。"
+  },
+  "Weather for your dates": {
+    "en": "Weather for your dates",
+    "zh-Hans": "旅行期间天气",
+    "zh-Hant": "旅行期間天氣"
+  },
+  "Planning notes & checks": {
+    "en": "Planning notes & checks",
+    "zh-Hans": "规划说明与核验",
+    "zh-Hant": "規劃說明與核驗"
+  },
+  "Source notes are kept in their original language.": {
+    "en": "Source notes are kept in their original language.",
+    "zh-Hans": "来源说明保留原始语言。",
+    "zh-Hant": "來源說明保留原始語言。"
+  },
+  "Review your trip": {
+    "en": "Review your trip",
+    "zh-Hans": "确认这次旅行",
+    "zh-Hant": "確認這次旅行"
+  },
+  "You’re saving a draft. Some requests are still open.": {
+    "en": "You’re saving a draft. Some requests are still open.",
+    "zh-Hans": "保存的是草案，部分需求仍待完善。",
+    "zh-Hant": "儲存的是草案，部分需求仍待完善。"
+  },
+  "Save this draft": {
+    "en": "Save this draft",
+    "zh-Hans": "保存这份草案",
+    "zh-Hant": "儲存這份草案"
+  },
+  "{0} added · {1} removed": {
+    "en": "{0} added · {1} removed",
+    "zh-Hans": "新增 {0} 处 · 移除 {1} 处",
+    "zh-Hant": "新增 {0} 處 · 移除 {1} 處"
+  },
+  "View changed places": {
+    "en": "View changed places",
+    "zh-Hans": "查看地点变化",
+    "zh-Hant": "查看地點變化"
+  },
+  "Day {0}": {
+    "en": "Day {0}",
+    "zh-Hans": "第 {0} 天",
+    "zh-Hant": "第 {0} 天"
+  },
+  "{0} stops · About {1} steps": {
+    "en": "{0} stops · About {1} steps",
+    "zh-Hans": "{0} 站 · 约 {1} 步",
+    "zh-Hant": "{0} 站 · 約 {1} 步"
+  },
+  "Free time — places still to add.": {
+    "en": "Free time — places still to add.",
+    "zh-Hans": "自由安排，地点待补充。",
+    "zh-Hant": "自由安排，地點待補充。"
+  },
+  "Hours still to check": {
+    "en": "Hours still to check",
+    "zh-Hans": "营业时间待核实",
+    "zh-Hant": "營業時間待核實"
+  },
+  "{0} · About {1} min": {
+    "en": "{0} · About {1} min",
+    "zh-Hans": "{0} · 约 {1} 分钟",
+    "zh-Hant": "{0} · 約 {1} 分鐘"
+  },
+  "Transit": {
+    "en": "Transit",
+    "zh-Hans": "公共交通",
+    "zh-Hant": "公共交通"
+  },
+  "Walk": {
+    "en": "Walk",
+    "zh-Hans": "步行",
+    "zh-Hant": "步行"
+  },
+  "Cost to confirm": {
+    "en": "Cost to confirm",
+    "zh-Hans": "费用待确认",
+    "zh-Hant": "費用待確認"
+  },
+  "Est. A${0} + unconfirmed costs": {
+    "en": "Est. A${0} + unconfirmed costs",
+    "zh-Hans": "估算 A${0}，另有待确认费用",
+    "zh-Hant": "估算 A${0}，另有待確認費用"
+  },
+  "Some requested experiences couldn’t fit this draft yet.": {
+    "en": "Some requested experiences couldn’t fit this draft yet.",
+    "zh-Hans": "部分想体验的活动还没能安排进草案。",
+    "zh-Hant": "部分想體驗的活動還沒能安排進草案。"
+  },
+  "Some days still have open time. You can add places later.": {
+    "en": "Some days still have open time. You can add places later.",
+    "zh-Hans": "部分日期仍有留白，可以稍后补充地点。",
+    "zh-Hant": "部分日期仍有留白，可以稍後補充地點。"
+  },
+  "Some stop prices are unconfirmed. The estimate is not a total trip price.": {
+    "en": "Some stop prices are unconfirmed. The estimate is not a total trip price.",
+    "zh-Hans": "部分站点费用待确认，当前估算不是旅行总价。",
+    "zh-Hant": "部分站點費用待確認，目前估算不是旅行總價。"
+  },
+  "Opening hours still need checking before you go.": {
+    "en": "Opening hours still need checking before you go.",
+    "zh-Hans": "出发前还需确认营业时间。",
+    "zh-Hant": "出發前還需確認營業時間。"
+  },
+  "Some days exceed your walking limit.": {
+    "en": "Some days exceed your walking limit.",
+    "zh-Hans": "部分日期超过步数上限。",
+    "zh-Hant": "部分日期超過步數上限。"
+  },
+  "Some days exceed your activity budget.": {
+    "en": "Some days exceed your activity budget.",
+    "zh-Hans": "部分日期超过活动预算。",
+    "zh-Hant": "部分日期超過活動預算。"
+  },
+  "Still missing: {0}": {
+    "en": "Still missing: {0}",
+    "zh-Hans": "尚未安排：{0}",
+    "zh-Hant": "尚未安排：{0}"
+  },
+  "Stop details": {
+    "en": "Stop details",
+    "zh-Hans": "站点详情",
+    "zh-Hant": "站點詳情"
+  },
+  "Per person · whole trip": {
+    "en": "Per person · whole trip",
+    "zh-Hans": "每人 · 全程",
+    "zh-Hant": "每人 · 全程"
+  },
+  "Price unconfirmed": {
+    "en": "Price unconfirmed",
+    "zh-Hans": "费用待确认",
+    "zh-Hant": "費用待確認"
+  },
+  "Keep planning with Koko": {
+    "en": "Keep planning with Koko",
+    "zh-Hans": "和 Koko 继续完善",
+    "zh-Hant": "和 Koko 繼續完善"
+  },
+  "Edit with Koko": {
+    "en": "Edit with Koko",
+    "zh-Hans": "和 Koko 完善",
+    "zh-Hant": "和 Koko 完善"
+  },
+  "Prices still to confirm.": {
+    "en": "Prices still to confirm.",
+    "zh-Hans": "费用仍待确认。",
+    "zh-Hant": "費用仍待確認。"
+  },
+  "Opening hours need checking.": {
+    "en": "Opening hours need checking.",
+    "zh-Hans": "营业时间待核实。",
+    "zh-Hant": "營業時間待核實。"
   }
 }
