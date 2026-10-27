@@ -140,7 +140,7 @@ public sealed class PlannerTests : IDisposable
         var result = await Create().PlanAsync(profile, "demo");
         var days = result.Array("days")!.OfType<JsonObject>().ToArray();
         Assert.Equal(7, days.Length);
-        Assert.Contains(days, day => day.Bool("freeTime"));
+        Assert.Contains(days,day=>day.Array("stops")!.Count<3);
         Assert.All(days, day => {
             Assert.InRange(day.Number("estimatedCost"), 0, 200d / 7);
             Assert.InRange(day.Int("estimatedSteps"), 0, 10000);
@@ -226,7 +226,7 @@ public sealed class PlannerTests : IDisposable
     [Fact]
     public async Task RainScenarioIsLabelledAndFiltersOutdoorStops()
     {
-        var profile = TestSupport.Profile(); profile["weatherOverride"] = "rain";
+        var profile = TestSupport.Profile(); profile["weatherOverride"] = "rain";profile["weatherTolerance"]="avoidRain";
         var result = await Create().PlanAsync(profile, "demo");
         Assert.Contains("非实时", result.Object("weather")!.Str("source"));
         Assert.All(result.Array("days")!.SelectMany(day => day!.Array("stops")!), stop => Assert.True(stop!.Bool("indoor")));
@@ -282,9 +282,9 @@ public sealed class PlannerTests : IDisposable
     {
         var profile = TestSupport.Profile(); profile["request"] = "今天累了，想少走一点";
         var result = await Create().PlanAsync(profile, "demo");
-        Assert.Equal(7000, result.Object("profile")!.Int("maxSteps"));
+        Assert.Equal(8000, result.Object("profile")!.Int("maxSteps"));
         Assert.Equal(10000, profile.Int("maxSteps"));
-        Assert.True(result.Array("days")![0]!.Int("estimatedSteps") <= 7000);
+        Assert.True(result.Array("days")![0]!.Int("estimatedSteps") <= 8000);
     }
 
     [Fact]

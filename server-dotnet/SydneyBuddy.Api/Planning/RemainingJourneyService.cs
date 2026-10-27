@@ -12,7 +12,7 @@ public sealed class RemainingJourneyService(ScheduleEditorService editor,PlaceCa
         var draft=RemainingJourney.Build(seed,request,editor,catalog,ct,transportPreflight:true);
         var index=request.Int("day");var target=draft.Object("schedule")!.Array("days")![index]!.AsObject();
         var limit=request.Object("constraints")?.Int("maxSteps",original.Object("profile")!.Int("maxSteps"))??original.Object("profile")!.Int("maxSteps");
-        if(TravelAdjustmentIntent.Lighter(request.Str("request")))limit=Math.Min(limit,7000);
+        if(TravelAdjustmentIntent.Lighter(request.Str("request")))limit=Math.Min(limit,8000);
         target["maxSteps"]=limit;
         var required=draft.Object("profile")!.Array("mustVisit")!.Select(n=>n!.GetValue<string>()).ToHashSet();
         for(var attempt=0;attempt<10;attempt++) {

@@ -4,6 +4,19 @@ import MapKit
 @testable import SydneyBuddy
 
 @MainActor final class ScheduleTests:XCTestCase {
+    func testWalkingEstimateAndHotelReturnMetadataSurviveSaving() throws {
+        var trip=try fixture()
+        XCTAssertNil(trip.days[0].stepEstimate)
+        trip.profile.walkingSpeedKmh=4.5;trip.profile.stepLengthMeters=0.75
+        trip.profile.hotel = .central;trip.profile.accommodationStatus="selected";trip.profile.energyFeedback="tired"
+        trip.days[0].stepEstimate=StepEstimate(routeSteps:1000,activitySteps:1800,estimatedSteps:2800,continuousWalkingSteps:7000,walkingSpeedKmh:4.5,stepLengthMeters:0.75)
+        trip.days[0].targetReturnTime="20:00";trip.days[0].returnLocationStatus="selected_unbooked_hotel"
+        let decoded=try JSONDecoder().decode(Trip.self,from:JSONEncoder().encode(trip))
+        XCTAssertEqual(decoded.days[0].stepEstimate?.activitySteps,1800)
+        XCTAssertEqual(decoded.days[0].stepEstimate?.continuousWalkingSteps,7000)
+        XCTAssertEqual(decoded.profile.hotel?.name,Coordinate.central.name)
+        XCTAssertEqual(decoded.profile.energyFeedback,"tired");XCTAssertEqual(decoded.days[0].targetReturnTime,"20:00")
+    }
     func testMeterlessCapabilityDoesNotRequireNvidiaOrLeakConfiguration() throws {
         let raw=Data(#"{"status":"ok","nvidiaConfigured":false,"googleConfigured":false,"iosMapConfigured":false,"model":"legacy","planningAgentProvider":"meterless","planningAgentConfigured":true}"#.utf8)
         let health=try JSONDecoder().decode(Health.self,from:raw)

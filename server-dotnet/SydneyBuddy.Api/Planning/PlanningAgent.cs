@@ -18,7 +18,7 @@ public sealed class PlanningAgent(HttpClient client,SecretStore secrets,Planning
         var activities=candidates.Select((p,i)=>(Alias:"p"+i,Place:p)).ToDictionary(x=>x.Alias,x=>x.Place);
         var stays=accommodations.Select((p,i)=>(Alias:"s"+i,Place:p)).ToDictionary(x=>x.Alias,x=>x.Place);
         var trip=new JsonObject();
-        foreach(var field in new[]{"date","days","budget","maxSteps","startMinute","endMinute","start","end","interests","request","mustDo","avoid","origin","energy","rhythm","transportPreference","weatherOverride","language","indoorPreference","weatherTolerance","companionNeeds","specialLimits","bookings","tickets","flights"})
+        foreach(var field in new[]{"date","days","budget","maxSteps","startMinute","endMinute","start","end","interests","request","mustDo","avoid","origin","energy","rhythm","transportPreference","weatherOverride","language","indoorPreference","weatherTolerance","companionNeeds","specialLimits","bookings","tickets","flights","hotel","accommodationStatus","targetReturnMinute","walkingSpeedKmh","stepLengthMeters","energyFeedback","dayStyle","heavyLuggage","luggageStorage","luggageStored","luggageNotes","luggageDays","luggageStoredDate","mealTimes","routePreference"})
             if(profile[field] is not null)trip[field]=profile[field]!.DeepClone();
         trip["language"]=profile.Str("language","zh-Hant");
         trip["mustVisit"]=new JsonArray(activities.Where(x=>profile.Array("mustVisit")?.Any(id=>id?.ToString()==x.Value.Str("id"))==true).Select(x=>(JsonNode)JsonValue.Create(x.Key)!).ToArray());

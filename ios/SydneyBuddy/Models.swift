@@ -42,7 +42,7 @@ struct TripProfile: Codable {
     var budget: Double = 100
     var maxSteps: Int = 10000
     var startMinute: Int = 600
-    var endMinute: Int = 1080
+    var endMinute: Int = 1200
     var interests: [String] = ["风景", "美食"]
     var budgetAmount:Double?=nil
     var budgetCurrency:String?=nil
@@ -63,8 +63,45 @@ struct TripProfile: Codable {
     var transportPreference:String? = nil
     var indoorPreference:String? = nil
     var weatherTolerance:String? = nil
+    var energyFeedback:String? = nil
+    var walkingSpeedKmh:Double? = nil
+    var stepLengthMeters:Double? = nil
+    var targetReturnMinute:Int? = nil
+    var hotel:Coordinate? = nil
+    var accommodationStatus:String? = nil
+    var bookings:String? = nil
+    var luggageNotes:String? = nil
+    var heavyLuggage:Bool? = nil
+    var luggageStored:Bool? = nil
+    var luggageStoredDate:String? = nil
+    var luggageDays:[String]? = nil
+    var luggageStorage:LuggageStoragePoint? = nil
+    var startIsExplicit:Bool? = nil
+    var endIsExplicit:Bool? = nil
     static func dateString(_ date: Date) -> String {
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; f.timeZone = TimeZone(identifier: "Australia/Sydney"); return f.string(from: date)
+    }
+}
+struct LuggageStoragePoint:Codable {
+    var name:String;var lat:Double;var lng:Double
+    var storageConfirmed:Bool? = nil;var openMinute:Int? = nil;var closeMinute:Int? = nil
+    var cost:Double? = nil;var costKnown:Bool? = nil
+    var coordinate:Coordinate{Coordinate(name:name,lat:lat,lng:lng)}
+}
+enum BookingTextHints {
+    static func mayUseHotel(_ point:Coordinate,explicit:Bool?)->Bool {
+        if let explicit{return !explicit}
+        return CLLocation(latitude:point.lat,longitude:point.lng).distance(from:CLLocation(latitude:Coordinate.quay.lat,longitude:Coordinate.quay.lng))<5
+    }
+    static func bookedHotel(_ text:String?)->String? {
+        guard let text,!text.isEmpty,
+              text.range(of:#"未(?:訂|订|預訂|预订)|還沒(?:訂|订)|还没(?:订|訂)|not booked|haven.t booked|unbooked"#,options:[.regularExpression,.caseInsensitive])==nil,
+              text.range(of:#"酒店|飯店|饭店|旅館|旅馆|hotel|hilton|hyatt|sheraton|marriott|ibis|sofitel|mercure|novotel|four seasons|^W Sydney$"#,options:[.regularExpression,.caseInsensitive]) != nil,
+              let marker=text.range(of:#"已(?:經|经)?(?:預訂|预订|訂好|订好|訂了|订了|訂房|订房|訂|订)|booked(?: the| a)?(?: hotel)?(?: at)?"#,options:[.regularExpression,.caseInsensitive]) else{return nil}
+        var name=String(text[marker.upperBound...]).trimmingCharacters(in:.whitespacesAndNewlines)
+        name=name.replacingOccurrences(of:#"^[:：\s]*(?:了|在)?[:：\s]*"#,with:"",options:.regularExpression)
+        name=String(name.split(whereSeparator:{"，,；;\n".contains($0)}).first ?? "").trimmingCharacters(in:.whitespacesAndNewlines)
+        return name.count>=3 && name.count<=120 ? name:nil
     }
 }
 struct Stop: Codable, Identifiable {
@@ -76,11 +113,13 @@ struct Stop: Codable, Identifiable {
     var activityType:String? = nil
     var tags:[String]? = nil
     var sourceURL:String? = nil
+    var storageConfirmed:Bool? = nil;var openMinute:Int? = nil;var closeMinute:Int? = nil
     var costKnown:Bool? = nil;var indoorKnown:Bool? = nil
     var costLabel:String {costKnown == false ? (cost>0 ? "每人预留 A$\(Int(cost))":"费用待确认"):"每人约 A$\(Int(cost))"}
     var indoorLabel:String {indoorKnown == false ? "室内外待确认":(indoor ? "室内":"室外")}
     var coordinate: CLLocationCoordinate2D { .init(latitude: lat, longitude: lng) }
     var symbol: String {
+        if activityType=="bag-drop"{return "suitcase.rolling.fill"};if activityType=="bag-pickup"{return "suitcase.fill"}
         switch category { case "美食": return "fork.knife"; case "自然": return "leaf.fill"; case "艺术", "文化": return "building.columns.fill"; case "城市": return "building.2.fill"; default: return "sparkles" }
     }
 }
@@ -91,6 +130,10 @@ struct RouteLeg: Codable {
     var departureTime:String? = nil;var arrivalTime:String? = nil;var fetchedAt:String? = nil
     var label:String {mode=="transit" ? (steps?.filter{$0.mode != "walk"}.map{transportLabel($0.mode)+($0.line.map{" "+$0} ?? "")}.joined(separator:" → ") ?? "公共交通"):"步行"}
 }
+struct StepEstimate:Codable {
+    var routeSteps:Int;var activitySteps:Int;var estimatedSteps:Int
+    var continuousWalkingSteps:Int;var walkingSpeedKmh:Double;var stepLengthMeters:Double
+}
 struct DayPlan: Codable, Identifiable {
     var date: String; var stops: [Stop]; var legs: [RouteLeg]; var estimatedCost: Double
     var estimatedSteps: Int; var finishTime: String; var warnings: [String]
@@ -99,6 +142,9 @@ struct DayPlan: Codable, Identifiable {
     var skippedStops:[Stop]? = nil
     var planningStartMinute:Int? = nil
     var executionStarted:Bool? = nil
+    var stepEstimate:StepEstimate? = nil
+    var targetReturnTime:String? = nil
+    var returnLocationStatus:String? = nil
     var freeTime: Bool? = nil
     var hasTransit:Bool {legs.contains{$0.mode=="transit"}}
     var transportModes:[String] {legs.count==stops.count+1 ? legs.map{$0.mode ?? "walk"}:Array(repeating:"walk",count:stops.count+1)}
@@ -471,6 +517,19 @@ struct TravelPlanningTask:Codable {
             profile.start=Coordinate(name:first.name,lat:first.lat,lng:first.lng);profile.end=profile.start
             payload["start"]=try JSONSerialization.jsonObject(with:JSONEncoder().encode(profile.start));payload["end"]=try JSONSerialization.jsonObject(with:JSONEncoder().encode(profile.end))
         }
+        if (!replanExisting || trip==nil),let query=BookingTextHints.bookedHotel(profile.bookings),profile.hotel==nil {
+            report("正在确认已订饭店的位置…")
+            let found=try await ApplePoiProvider.search(profile.start.location,"all",query)
+            let matches=found.filter{$0.name.localizedCaseInsensitiveContains(query)||query.localizedCaseInsensitiveContains($0.name)}
+            guard let first=matches.first,matches.count==1 || matches.dropFirst().allSatisfy({CLLocation(latitude:$0.lat,longitude:$0.lng).distance(from:CLLocation(latitude:first.lat,longitude:first.lng))<50}) else{throw NSError(domain:"Plan",code:5,userInfo:[NSLocalizedDescriptionKey:"已訂飯店的分店或位置仍不明確，請提供飯店全名與地址；不會猜測訂房地點。"])}
+            profile.hotel=Coordinate(name:first.name,lat:first.lat,lng:first.lng);profile.accommodationStatus="booked"
+        }
+        if let hotel=profile.hotel,profile.accommodationStatus=="booked" {
+            if BookingTextHints.mayUseHotel(profile.start,explicit:profile.startIsExplicit){profile.start=hotel}
+            if BookingTextHints.mayUseHotel(profile.end,explicit:profile.endIsExplicit){profile.end=hotel}
+            payload["hotel"]=try JSONSerialization.jsonObject(with:JSONEncoder().encode(hotel));payload["accommodationStatus"]="booked"
+            payload["start"]=try JSONSerialization.jsonObject(with:JSONEncoder().encode(profile.start));payload["end"]=try JSONSerialization.jsonObject(with:JSONEncoder().encode(profile.end))
+        }
         if !background{remainingRequest=nil}
         let existing=replanExisting ? trip.flatMap{ $0.id != nil && $0.mode != "live" && $0.profile.date==profile.date && $0.days.count==profile.days ? $0:nil }:nil
         var origin:Coordinate?
@@ -505,7 +564,7 @@ struct TravelPlanningTask:Codable {
                 let points=[day.start,day.end]+day.stops.map{Coordinate(name:$0.name,lat:$0.lat,lng:$0.lng)}+(origin.map{[$0]} ?? [])+extra.map{Coordinate(name:$0.name,lat:$0.lat,lng:$0.lng)}
                 observations=try await AppleWalkingRoads.shared.matrix(points){done,total in report("正在核对步行路段 \(done)/\(total)…",.roads,done,total)}
             }else {
-                struct Shortlist:Decodable {var candidateDays:[[String]];var candidates:[ScheduleCandidate]?}
+                struct Shortlist:Decodable {var candidateDays:[[String]];var candidates:[ScheduleCandidate]?;var logisticsPoints:[Coordinate]?;var profile:TripProfile?}
                 if requestSource.warehouse || health?.itineraryAgentAvailable==true {
                     report(requestSource.warehouse ? "正在从所选 Zetaris 来源查找地点…":"正在搜索符合你兴趣的真实地点…",.places)
                     let discovered=try await discoverPlanningCandidates(profile,source:requestSource)
@@ -517,11 +576,15 @@ struct TravelPlanningTask:Codable {
                 let shortlist:Shortlist=try await api("plan/prepare",method:"POST",body:JSONSerialization.data(withJSONObject:payload),source:requestSource)
                 if let candidates=shortlist.candidates{catalog+=candidates.filter{p in !catalog.contains{$0.id==p.id}}}
                 guard shortlist.candidateDays.count==profile.days else {throw NSError(domain:"Plan",code:1,userInfo:[NSLocalizedDescriptionKey:"每天的地点候选不完整，请重试。"])}
+                if let normalized=shortlist.profile {
+                    profile.start=normalized.start;profile.end=normalized.end;profile.heavyLuggage=normalized.heavyLuggage;profile.luggageStorage=normalized.luggageStorage
+                    for key in ["start","end","heavyLuggage","luggageStorage"]{payload[key]=(try JSONSerialization.jsonObject(with:JSONEncoder().encode(profile)) as? [String:Any])?[key]}
+                }
                 var seen=Set<String>()
                 for (index,ids) in shortlist.candidateDays.enumerated() {
                     let picks=catalog.filter{ids.contains($0.id)}
                     guard picks.count==ids.count else {throw NSError(domain:"Plan",code:2,userInfo:[NSLocalizedDescriptionKey:"地点目录已更新，请重新生成。"])}
-                    let points=[profile.start,profile.end]+picks.map{Coordinate(name:$0.name,lat:$0.lat,lng:$0.lng)}
+                    let points=[profile.start,profile.end]+(shortlist.logisticsPoints ?? [])+picks.map{Coordinate(name:$0.name,lat:$0.lat,lng:$0.lng)}
                     let values=try await AppleWalkingRoads.shared.matrix(points){done,total in report("第 \(index+1)/\(profile.days) 天：核对步行路段 \(done)/\(total)…",.roads,done,total)}
                     observations+=values.filter{seen.insert(AppleWalkingRoads.key($0.from,$0.to)).inserted}
                 }

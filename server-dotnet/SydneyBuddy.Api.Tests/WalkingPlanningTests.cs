@@ -22,7 +22,7 @@ public sealed class WalkingPlanningTests:IDisposable
         var places=Enumerable.Range(0,6).Select(i=>Place("gallery-"+i,"艺术")).Append(Place("park","自然")).ToArray();
         var ranks=places.Select((p,i)=>(p,i)).ToDictionary(x=>x.p.Str("id"),x=>x.i);
         var pool=RecommendationQuality.DailyPool(places,profile,new HashSet<string>(),ranks);
-        Assert.Equal(5,pool.Length);Assert.Contains(pool,p=>p.Str("id")=="park");Assert.Contains(pool,p=>p.Str("category")=="艺术");
+        Assert.Equal(7,pool.Length);Assert.Contains(pool,p=>p.Str("id")=="park");Assert.Contains(pool,p=>p.Str("category")=="艺术");
         Assert.Equal(pool.Select(p=>p.Str("id")),RecommendationQuality.DailyPool(places.Reverse(),profile,new HashSet<string>(),ranks).Select(p=>p.Str("id")));
         var required=RecommendationQuality.DailyPool(places,profile,new HashSet<string>{"gallery-5"},ranks);
         Assert.Contains(required,p=>p.Str("id")=="gallery-5");Assert.Contains(required,p=>p.Str("id")=="park");
@@ -60,20 +60,22 @@ public sealed class WalkingPlanningTests:IDisposable
     [Fact]public async Task NewMustVisitIsIncludedInRemainingProposal(){var trip=await Planner().PlanAsync(Profile(),"demo");var used=trip.Array("days")![0]!.Array("stops")!.OfType<JsonObject>().Select(s=>s.Str("id")).ToHashSet();var extra=catalog.Get().First(p=>!used.Contains(p.Str("id")));var request=new JsonObject{["day"]=0,["constraints"]=new JsonObject{["mustDo"]=extra.Str("name")},["walkingRoutes"]=Matrix(catalog.Get().Append(trip.Object("profile")!.Object("start")!))};var result=RemainingJourney.Build(trip,request,new ScheduleEditorService(catalog),catalog);Assert.Contains(result.Object("schedule")!.Array("days")![0]!.Array("activities")!.OfType<JsonObject>(),a=>a.Str("placeId")==extra.Str("id"));}
     [Fact]public async Task SkippedStopIsArchivedWithoutBecomingVisited(){var trip=await Planner().PlanAsync(Profile(),"demo");var stops=trip.Array("days")![0]!.Array("stops")!;var first=stops[0]!.AsObject();var request=new JsonObject{["day"]=0,["skippedIds"]=new JsonArray(first.Str("id")),["currentMinute"]=720,["origin"]=trip.Object("profile")!["start"]!.DeepClone(),["walkingRoutes"]=Matrix(catalog.Get().Append(trip.Object("profile")!.Object("start")!))};var result=RemainingJourney.Build(trip,request,new ScheduleEditorService(catalog),catalog);Assert.Empty(result.Array("days")![0]!.Array("completedStops")!);Assert.Equal(first.Str("id"),result.Array("days")![0]!.Array("skippedStops")![0]!.Str("id"));}
     [Fact]public async Task CustomDepartureTimeTravelsWithEveryDayForNativeMapPreview(){var p=Profile(2);p["startMinute"]=780;var trip=await Planner().PlanAsync(p,"demo");Assert.All(trip.Array("days")!.OfType<JsonObject>(),d=>Assert.Equal(780,d.Int("planningStartMinute")));}
-    [Fact]public async Task FatigueLimitOnlyAppliesToSelectedDay(){var trip=await Planner().PlanAsync(Profile(2),"demo");var request=new JsonObject{["day"]=0,["request"]="轻松一点，明天不要改",["walkingRoutes"]=Matrix(catalog.Get().Append(trip.Object("profile")!.Object("start")!))};var result=RemainingJourney.Build(trip,request,new ScheduleEditorService(catalog),catalog);Assert.Equal(7000,result.Object("schedule")!.Array("days")![0]!.Int("maxSteps"));Assert.Equal(trip.Object("profile")!.Int("maxSteps"),result.Object("schedule")!.Object("settings")!.Int("maxSteps"));Assert.Equal(trip.Array("days")![1]!.ToJsonString(),result.Array("days")![1]!.ToJsonString());}
+    [Fact]public async Task FatigueLimitOnlyAppliesToSelectedDay(){var trip=await Planner().PlanAsync(Profile(2),"demo");var request=new JsonObject{["day"]=0,["request"]="轻松一点，明天不要改",["walkingRoutes"]=Matrix(catalog.Get().Append(trip.Object("profile")!.Object("start")!))};var result=RemainingJourney.Build(trip,request,new ScheduleEditorService(catalog),catalog);Assert.Equal(8000,result.Object("schedule")!.Array("days")![0]!.Int("maxSteps"));Assert.Equal(trip.Object("profile")!.Int("maxSteps"),result.Object("schedule")!.Object("settings")!.Int("maxSteps"));Assert.Equal(trip.Array("days")![1]!.ToJsonString(),result.Array("days")![1]!.ToJsonString());}
     [Fact] public async Task ThreeDayRainyFoodTripHasDistinctRealLunchesAndNearbyVisits() {
         var p=Profile(3);p["interests"]=new JsonArray("美食");p["maxSteps"]=5000;p["energy"]="低精力";p["rhythm"]="轻松随意";p["budget"]=120;p["weatherOverride"]="rain";
         p["walkingRoutes"]=Matrix(catalog.Get().Append(p.Object("start")!));
         var trip=await Planner().PlanAsync(p,"demo");var all=trip.Array("days")!.OfType<JsonObject>().ToArray();
         Assert.Equal("ready",trip.Str("recommendationStatus"));
         Assert.All(all,d=> {
-            var stops=d.Array("stops")!.OfType<JsonObject>().ToArray();Assert.InRange(stops.Length,2,3);
-            var meal=Assert.Single(stops,RecommendationQuality.IsMeal);Assert.StartsWith("https://",meal.Str("sourceURL"));
-            Assert.InRange(string.CompareOrdinal(meal.Str("arrival"),"11:30"),0,int.MaxValue);
-            Assert.InRange(string.CompareOrdinal(meal.Str("departure"),"14:30"),int.MinValue,0);
+            var stops=d.Array("stops")!.OfType<JsonObject>().ToArray();Assert.InRange(stops.Length,2,30);
+            var meals=stops.Where(RecommendationQuality.IsMeal).ToArray();Assert.InRange(meals.Length,1,2);
+            Assert.All(meals,meal=>Assert.StartsWith("https://",meal.Str("sourceURL")));
+            var lunch=Assert.Single(meals,meal=>string.CompareOrdinal(meal.Str("arrival"),"14:30")<0);
+            Assert.True(string.CompareOrdinal(lunch.Str("arrival"),"11:30")>=0);Assert.True(string.CompareOrdinal(lunch.Str("departure"),"14:30")<=0);
+            Assert.All(meals.Where(meal=>meal!=lunch),meal=>Assert.True(string.CompareOrdinal(meal.Str("arrival"),"17:00")>=0));
             Assert.Contains(stops,s=>!RecommendationQuality.IsMeal(s));Assert.InRange(d.Int("estimatedSteps"),0,5000);
         });
-        Assert.Contains(all,d=>d.Array("stops")!.Count==3);
+        Assert.All(all,d=>Assert.True(string.CompareOrdinal(d.Str("finishTime"),"23:59")<=0));
         var ids=all.SelectMany(d=>d.Array("stops")!.OfType<JsonObject>()).Select(s=>s.Str("id")).ToArray();Assert.Equal(ids.Length,ids.Distinct().Count());
     }
     [Fact] public async Task FoodCannotBeClaimedSatisfiedByAnAreaOrAnUnaffordableRestaurant() {
@@ -86,7 +88,7 @@ public sealed class WalkingPlanningTests:IDisposable
     [Fact] public async Task PreparationKeepsDailySearchBoundedAndRoadGroupsAreValidated() {
         var p=Profile(3);p["energy"]="低精力";p["interests"]=new JsonArray("美食");
         var shortlist=await Planner().PrepareWalkingAsync(p);var groups=shortlist.Array("candidateDays")!;
-        Assert.Equal(3,groups.Count);Assert.All(groups,g=>Assert.InRange(g!.AsArray().Count,2,4));
+        Assert.Equal(3,groups.Count);Assert.All(groups,g=>Assert.InRange(g!.AsArray().Count,2,30));
         p["walkingDayCandidateIds"]=new JsonArray(new JsonArray("unknown"));p["walkingRoutes"]=Matrix(catalog.Get().Append(p.Object("start")!));
         await Assert.ThrowsAsync<ServiceException>(()=>Planner().PlanAsync(p,"demo"));
     }
@@ -96,7 +98,7 @@ public sealed class WalkingPlanningTests:IDisposable
         var input=new JsonObject{["date"]=planDay.Str("date"),["startMinute"]=p.Int("startMinute"),["endMinute"]=p.Int("endMinute"),["activities"]=new JsonArray(planDay.Array("stops")!.OfType<JsonObject>().Select(s=>(JsonNode)new JsonObject{["id"]=s.Str("id"),["placeId"]=s.Str("id"),["kind"]=RecommendationQuality.IsMeal(s)?"meal":"attraction",["duration"]=s.Int("visitMinutes")}).ToArray())};
         var edited=new ScheduleEditorService(catalog).Build(new JsonObject{["trip"]=trip,["days"]=new JsonArray(input),["walkingRoutes"]=p["walkingRoutes"]!.DeepClone()});
         Assert.DoesNotContain(edited.Object("schedule")!.Array("issues")!.OfType<JsonObject>(),i=>i.Bool("blocking"));
-        var meal=Assert.Single(edited.Array("days")![0]!.Array("stops")!.OfType<JsonObject>(),RecommendationQuality.IsMeal);Assert.Equal("美食",meal.Str("category"));Assert.DoesNotContain("佔位",meal.Str("note"));Assert.InRange(edited.Array("days")![0]!.Int("estimatedSteps"),0,5000);
+        var meals=edited.Array("days")![0]!.Array("stops")!.OfType<JsonObject>().Where(RecommendationQuality.IsMeal).ToArray();Assert.NotEmpty(meals);Assert.All(meals,meal=>{Assert.Equal("美食",meal.Str("category"));Assert.DoesNotContain("佔位",meal.Str("note"));});Assert.InRange(edited.Array("days")![0]!.Int("estimatedSteps"),0,5000);
     }
     [Fact] public async Task GeneralFoodWishBecomesTripInterestRatherThanAnUnknownMandatoryPlace() {
         var p=Profile();p["interests"]=new JsonArray("文化");p["mustDo"]="想吃当地美食";
@@ -110,7 +112,11 @@ public sealed class WalkingPlanningTests:IDisposable
     [Fact] public async Task CoreInterestWinsOverAnUnrelatedExtraActivityAndMeal() {
         var p=Profile();p["maxSteps"]=6500;p["budget"]=120;p["weatherOverride"]="rain";p["energy"]="低精力";p["interests"]=new JsonArray("自然");
         var trip=await Planner().PlanAsync(p,"demo");
-        Assert.Contains(trip.Array("days")![0]!.Array("stops")!.OfType<JsonObject>(),s=>RecommendationQuality.Matches(s,"自然"));
+        Assert.True(trip.Array("days")![0]!.Array("stops")!.OfType<JsonObject>().Any(s=>RecommendationQuality.Matches(s,"自然")),trip.Array("days")![0]!.ToJsonString());
+    }
+    [Fact] public async Task NatureAloneIsFeasibleWithinUpdatedWalkingLimit(){
+        var p=Profile();p["maxSteps"]=6500;p["budget"]=120;p["weatherOverride"]="rain";p["energy"]="低精力";p["interests"]=new JsonArray("自然");p["mustVisit"]=new JsonArray("garden");
+        var trip=await Planner().PlanAsync(p,"demo");Assert.Contains(trip.Array("days")![0]!.Array("stops")!.OfType<JsonObject>(),s=>s.Str("id")=="garden");
     }
     public void Dispose()=>Directory.Delete(root,true);
 }

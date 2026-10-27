@@ -51,6 +51,10 @@ public sealed class Planner(PlaceService places, RecommendationService recommend
         if(evidence is not null)context.Walking=new WalkingEvidence(evidence);
         context.CompareTransit=evidence is not null && raw.Str("transportPreference","walk")!="walk";
         var profile = PlanValidator.Validate(raw, planningCatalog);
+        if(DailyPacing.Tired(profile)){
+            profile["energyFeedback"]="tired";
+            if(!shortlist)profile["maxSteps"]=Math.Min(profile.Int("maxSteps"),8000);
+        }else if(DailyPacing.Energized(profile))profile["energyFeedback"]="energized";
         var candidates = TravelConstraints.Apply(profile, imported is null ? await places.GetCandidatesAsync(context, ct):planningCatalog.Where(p=>autoInventory||PoiService.IsImported(p)||profile.Array("mustVisit")!.Any(id=>id!.GetValue<string>()==p.Str("id"))||profile.Str("mustDo").Contains(p.Str("name"))).ToArray());
         var locationConflictCount=planningCatalog.Count(PlanningLocationGuard.HasKnownConflict);
         if(locationConflictCount>0)context.Record("核对地点位置",$"发现 {locationConflictCount} 个已确认的来源地点身份与坐标冲突，已从自动规划中排除，未更改来源数据或推测正确坐标。","来源地点冲突：待修正");
@@ -61,7 +65,7 @@ public sealed class Planner(PlaceService places, RecommendationService recommend
             if(context.Walking is null || candidateDays.Count!=profile.Int("days"))throw new ServiceException("逐日步行候选不完整，请重新生成。");
             var groups=new List<HashSet<string>>();
             foreach(var value in candidateDays) {
-                if(value is not JsonArray ids || ids.Count>10)throw new ServiceException("逐日步行候选不合法。");
+                if(value is not JsonArray ids || ids.Count>30)throw new ServiceException("逐日步行候选不合法。");
                 var group=new HashSet<string>(StringComparer.Ordinal);
                 foreach(var node in ids) {
                     if(node is not JsonValue v || !v.TryGetValue<string>(out var id)||!known.Contains(id)||!group.Add(id))throw new ServiceException("逐日步行候选包含无效地点。");
@@ -82,7 +86,7 @@ public sealed class Planner(PlaceService places, RecommendationService recommend
         profile.Remove("walkingCandidateIds");
         profile.Remove("useAgent");
         var forecast = await WeatherForProfileAsync(profile, context, ct);
-        var stays=lists?.Array("accommodations")?.OfType<JsonObject>().ToArray()??[];
+        var stays=profile.Str("accommodationStatus")=="booked"?[]:lists?.Array("accommodations")?.OfType<JsonObject>().ToArray()??[];
         var choice = useAgent ? await (agent??throw new ServiceException("旅行 Agent 尚未启动。")).ProposeAsync(profile,candidates,forecast,stays,ct):await recommendations.SelectAsync(profile, candidates, forecast, context, ct);
         if(useAgent) {
             context.Record("Koko Agent 推荐",choice.Str("explanation"),agent!.Provider=="meterless-cloud"?"Meterless H-MEM + NVIDIA / Skill "+ItinerarySkill.Version:agent.Provider=="meterless"?"Meterless Runtime / Skill "+ItinerarySkill.Version:"NVIDIA NIM / "+secrets.Read().GetValueOrDefault("NVIDIA_MODEL",SecretStore.DefaultModel));
@@ -92,14 +96,14 @@ public sealed class Planner(PlaceService places, RecommendationService recommend
         var ranks = choice.Array("preferredIds")!.Select((id, index) => (id: id!.GetValue<string>(), index))
             .ToDictionary(x => x.id, x => x.index, StringComparer.Ordinal);
         if (!shortlist && TravelAdjustmentIntent.Lighter(profile.Str("request")))
-            profile["maxSteps"] = Math.Min(profile.Int("maxSteps"), 7000);
+            profile["maxSteps"] = Math.Min(profile.Int("maxSteps"), 8000);
         var days = await scheduler.ScheduleDaysAsync(profile, candidates, forecast, ranks, context, ct);
         context.Record("交通方式比较",context.CompareTransit ? "在候选道路上比较 TfNSW 班次、等候、接驳步行和换乘。票价未知。":"用户选择只步行或兼容旧请求。","交通规划器");
         var draft=BuildDraft(profile, days, forecast, context);
         if(useAgent) {
             draft["planningAgent"]=new JsonObject{["provider"]=agent!.Provider,["status"]="draft_pending_verification",["skillVersion"]=agent.UsesSkill?ItinerarySkill.Version:null,["explanation"]=choice.Str("explanation"),["outstandingChecks"]=choice.Array("outstandingChecks")?.DeepClone()??new JsonArray(),["memoryEngine"]=choice["memoryEngine"]?.DeepClone(),["confirmedMemoryCount"]=choice.Int("confirmedMemoryCount")};
             if(agent.UsesSkill) {
-                draft["accommodationSuggestions"]=new JsonArray((choice.Array("accommodationIds")??new JsonArray()).Select(id=>stays.Single(s=>s.Str("id")==id!.GetValue<string>()).DeepClone()).ToArray());
+                draft["accommodationSuggestions"]=AccommodationSuggestions.Select(profile,stays,choice.Array("accommodationIds"),days);
                 draft.Array("warnings")!.Add("住宿僅為未預訂候選，未確認空房或實際房價；未變更行程起訖點，亦未計入活動預算。天氣警報、無障礙、營業與預約仍須確認。");
             }
         }
@@ -129,10 +133,10 @@ public sealed class Planner(PlaceService places, RecommendationService recommend
         var profile=seed.Object("profile")!;var eligible=TravelConstraints.Apply((JsonObject)profile.DeepClone(),PlanningCandidates.Merge(Catalog,seed.Array("planningCandidates")??raw.Array("planningCandidates"))).Where(p=>!PlanningInventory.IsAccommodation(p)).ToArray();
         var days=seed.Array("days")!.OfType<JsonObject>().ToArray();
         if(raw.Array("planningCandidates") is not null)eligible=eligible.Where(PoiService.IsImported).ToArray();
-        var assigned=days.SelectMany(d=>d.Array("stops")!.OfType<JsonObject>()).Select(p=>p.Str("id")).ToHashSet();
+        var assigned=days.SelectMany(d=>d.Array("stops")!.OfType<JsonObject>().Where(p=>!RouteLogistics.IsTask(p))).Select(p=>p.Str("id")).ToHashSet();
         var groups=new JsonArray();var interests=profile.Array("interests")!.Select(i=>i!.GetValue<string>()).ToArray();
         foreach(var day in days) {
-            var picks=day.Array("stops")!.OfType<JsonObject>().ToArray();var ids=picks.Select(p=>p.Str("id")).ToList();
+            var picks=day.Array("stops")!.OfType<JsonObject>().Where(p=>!RouteLogistics.IsTask(p)).ToArray();var ids=picks.Select(p=>p.Str("id")).ToList();
             if(picks.Length>0) {
                 var backup=eligible.Where(p=>!assigned.Contains(p.Str("id")))
                     .OrderByDescending(p=>RecommendationQuality.InterestScore(p,interests)-picks.Min(s=>RouteService.Distance(s,p))/100)
@@ -141,7 +145,7 @@ public sealed class Planner(PlaceService places, RecommendationService recommend
             }
             groups.Add(new JsonArray(ids.Select(id=>JsonValue.Create(id)).ToArray()));
         }
-        return new JsonObject{["candidates"]=seed["planningCandidates"]?.DeepClone(),["candidateDays"]=groups,["planningAgent"]=seed["planningAgent"]?.DeepClone(),["accommodationSuggestions"]=seed["accommodationSuggestions"]?.DeepClone(),["source"]=seed["planningAgent"] is not null?"Koko Agent 从真实搜索候选初筛，尚未完成道路与班次校验":"本地主题与片区初筛，尚未完成道路校验"};
+        return new JsonObject{["logisticsPoints"]=RouteLogistics.Points(profile),["profile"]=profile.DeepClone(),["candidates"]=seed["planningCandidates"]?.DeepClone(),["candidateDays"]=groups,["planningAgent"]=seed["planningAgent"]?.DeepClone(),["accommodationSuggestions"]=seed["accommodationSuggestions"]?.DeepClone(),["source"]=seed["planningAgent"] is not null?"Koko Agent 从真实搜索候选初筛，尚未完成道路与班次校验":"本地主题与片区初筛，尚未完成道路校验"};
     }
 
     private static JsonObject BuildDraft(JsonObject profile, JsonArray days, JsonObject weather, PlanningContext context)
@@ -170,7 +174,7 @@ public sealed class Planner(PlaceService places, RecommendationService recommend
         var unmet=profile.Array("interests")!.Select(i=>i!.GetValue<string>()).Where(i=>!allStops.Any(p=>RecommendationQuality.Matches(p,i))).ToArray();
         foreach(var interest in unmet)warnings.Add("未满足「"+interest+"」偏好：当前候选或出行限制不足，没有用其他活动冒充。");
         foreach(var day in days.OfType<JsonObject>())foreach(var w in day.Array("warnings")?.OfType<JsonValue>()??[]) {
-            var text=w.GetValue<string>();if(text.Contains("未覆盖")||text.Contains("未安排具体餐厅")||text.Contains("半日活动"))warnings.Add(day.Str("date")+"："+text);
+            var text=w.GetValue<string>();if(text.Contains("未覆盖")||text.Contains("未安排具体餐厅")||text.Contains("半日活动")||text.Contains("未能填滿")||text.Contains("準時用餐")||text.Contains("行李寄放服務"))warnings.Add(day.Str("date")+"："+text);
         }
         var partial=unmet.Length>0||days.OfType<JsonObject>().Any(d=>d.Bool("freeTime")||d.Str("recommendationStatus")=="partial");
         if(allStops.Any(RecommendationQuality.IsMeal))warnings.Add("具体餐厅已安排；餐费为每人估算并计入本日预算，不代表菜单报价、订位或有空位。营业时间出发前仍需确认。");

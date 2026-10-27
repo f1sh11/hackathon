@@ -13,7 +13,7 @@ public static class RemainingJourney
         var evidence=request.Array("walkingRoutes")??throw new ServiceException("请先查询真实步行时间。");
         var planningCatalog=PlanningCandidates.Merge(catalog.Get(),request.Array("planningCandidates")??original.Array("planningCandidates")).ToList();foreach(var point in original.Object("schedule")?.Array("candidates")?.OfType<JsonObject>().Where(PoiService.IsImported)??[]){if(planningCatalog.All(p=>p.Str("id")!=point.Str("id")))planningCatalog.Add(PoiService.Import(point));}
         var day=days[index]!.AsObject();var profile=(JsonObject)original.Object("profile")!.DeepClone();
-        if(request.Object("constraints") is {} changes){foreach(var key in new[]{"budget","maxSteps","endMinute","mustDo","avoid","interests","transportPreference"})if(changes[key] is not null)profile[key]=changes[key]!.DeepClone();profile=PlanValidator.Validate(profile,planningCatalog);}
+        if(request.Object("constraints") is {} changes){foreach(var key in new[]{"budget","maxSteps","endMinute","mustDo","avoid","interests","transportPreference","energyFeedback","walkingSpeedKmh","stepLengthMeters"})if(changes[key] is not null)profile[key]=changes[key]!.DeepClone();profile=PlanValidator.Validate(profile,planningCatalog);}
         var stops=day.Array("stops")!.OfType<JsonObject>().ToArray();
         var ids=request.Array("completedIds")?.Select(x=>x?.GetValue<string>()??"").ToHashSet()??[];
         var skipped=request.Array("skippedIds")?.Select(x=>x?.GetValue<string>()??"").ToHashSet()??[];
@@ -56,6 +56,28 @@ public static class RemainingJourney
             var food=allowed.FirstOrDefault(p=>p.Str("category")=="美食"&&!currentPlaces.Contains(p.Str("id"))&&!visited.Contains(p.Str("id")));
             if(food is not null)activities.Add(ScheduleEditorService.Attraction(food,"balanced"));
         }
+        // Fatigue changes optional load, not completed visits, locked bookings or other dates.
+        var feedback=request.Str("energyFeedback",profile.Str("energyFeedback"));
+        var tired=feedback=="tired"||TravelAdjustmentIntent.Lighter(message);
+        var energized=!tired&&(feedback=="energized"||TravelAdjustmentIntent.MoreEnergy(message));
+        var protectedIds=profile.Array("mustVisit")!.Select(x=>x!.ToString()).ToHashSet();
+        if(tired){
+            foreach(var a in activities.OfType<JsonObject>().Where(a=>a.Str("kind")=="attraction"&&!a.Bool("locked")&&a["fixedStart"] is null&&!protectedIds.Contains(a.Str("placeId"))).Reverse().Take(2).ToArray())activities.Remove(a);
+        }
+        if(energized){
+            var usedElsewhere=days.OfType<JsonObject>().Where((_,i)=>i!=index).SelectMany(d=>d.Array("stops")!.OfType<JsonObject>()).Select(s=>s.Str("placeId",s.Str("id"))).Concat(currentPlaces).Concat(visited).Concat(skipped).ToHashSet();
+            var extra=allowed.Where(p=>!usedElsewhere.Contains(p.Str("id"))&&!PlanningInventory.IsAccommodation(p))
+                .OrderByDescending(p=>RecommendationQuality.InterestScore(p,profile.Array("interests")!.Select(x=>x!.ToString()))-RouteService.Distance(origin,p)/250).FirstOrDefault();
+            // Only add a candidate when this request supplied both access and return road evidence.
+            if(extra is not null){
+                var roads=new WalkingEvidence(evidence);
+                try{
+                    var anchor=activities.OfType<JsonObject>().LastOrDefault()??origin;
+                    _=roads.Get(anchor,extra);_=roads.Get(extra,day.Object("end")!);
+                    activities.Add(ScheduleEditorService.Attraction(extra,"balanced"));
+                }catch(ServiceException){ /* Existing constraints remain valid; do not invent an extra road. */ }
+            }
+        }
         var beforeCount=activities.Count;
         var rainy=request.Bool("rain") || TravelAdjustmentIntent.Rain(message);
         var must=profile.Array("mustVisit")!.Select(x=>x!.GetValue<string>()).ToHashSet();
@@ -67,7 +89,7 @@ public static class RemainingJourney
         var settings=(JsonObject)state.Object("settings")!.DeepClone();
         var archived=day.Array("completedStops")?.OfType<JsonObject>().ToArray()??[];
         var completedSteps=completed.Concat(archived).Sum(s=>s.Int("steps"));var completedCost=completed.Concat(archived).Sum(s=>s.Number("cost"));
-        var steps=profile.Int("maxSteps");if(TravelAdjustmentIntent.Lighter(message))steps=Math.Min(steps,7000);
+        var steps=profile.Int("maxSteps");if(tired)steps=Math.Min(steps,8000);
         if(!transportPreflight&&completedSteps>=steps)throw new ServiceException("今天已达到步数上限，请直接安排休息或返程，或提高步数上限。");
         daily["maxSteps"]=transportPreflight?60000:steps;daily["dailyBudget"]=profile.Number("budget");
         var allPast=(JsonArray)(day.Array("completedStops")?.DeepClone()??new JsonArray());
@@ -82,7 +104,7 @@ public static class RemainingJourney
         JsonObject? best=null;var bestMinutes=int.MaxValue;
         for(var removal=0;removal<=beforeCount;removal++) {
             var flexible=activities.OfType<JsonObject>().Select((a,i)=>(a,i)).Where(x=>!x.a.Bool("locked")&&x.a["fixedStart"] is null).Select(x=>x.i).ToArray();
-            var permutations=flexible.Length<=7 ? Orders(flexible):new[]{flexible};
+            var permutations=flexible.Length<=5 ? Orders(flexible):new[]{flexible};
             foreach(var order in permutations) {
                 ct.ThrowIfCancellationRequested();
                 var arranged=(JsonArray)activities.DeepClone();for(var i=0;i<flexible.Length;i++)arranged[flexible[i]]=activities[order[i]]!.DeepClone();
@@ -90,7 +112,7 @@ public static class RemainingJourney
                 catch(ServiceException ex) when(ex.Message.StartsWith("无法步行")){ }
             }
             if(best is not null)break;
-            var optional=activities.OfType<JsonObject>().LastOrDefault(a=>!a.Bool("locked")&&a["fixedStart"] is null&&(a.Str("kind") is "attraction" or "rest")&&!must.Contains(a.Str("placeId")));
+            var optional=activities.OfType<JsonObject>().LastOrDefault(a=>!a.Bool("locked")&&a["fixedStart"] is null&&(a.Str("kind") is "attraction" or "rest" or "meal")&&!must.Contains(a.Str("placeId")));
             if(optional is null)break;activities.Remove(optional);
         }
         if(best is null)throw new ServiceException("剩余时间、步数或固定预约无法同时满足。请延长结束时间、调整必去地点，或直接查看返程路线。原行程已保留。");
@@ -107,13 +129,15 @@ public static class RemainingJourney
         result.Object("schedule")!["totalCost"]=result.Array("days")!.OfType<JsonObject>().Sum(d=>d.Number("estimatedCost"));
         result["explanation"]=$"已保留 {past.Count} 个已完成地点，只调整第 {index+1} 天剩余安排。道路步行预计 {bestMinutes} 分钟；营业、休息和返程已重新校验。";
         if(accepted.Array("stops")!.Count==0){accepted["freeTime"]=true;result["explanation"]=result.Str("explanation")+"剩余活动无法在当前限制内安排，已保留返程，可选择休息或放宽限制。";}
+        accepted["energyFeedback"]=tired?"tired":energized?"energized":"normal";
+        if(energized&&accepted.Array("stops")!.Count<=stops.Length-consumed.Count)accepted.Array("warnings")!.Add("精力充足但尚無可行新增活動：保留步數、營業、返程、必去與預約限制，沒有提高步數上限或捏造道路證據。");
         result["profile"]=profile.DeepClone();return result;
     }
     public static JsonObject AdaptDay(JsonObject d,JsonObject profile) {
         int Minute(string s){var x=s.Split(':');return int.Parse(x[0])*60+int.Parse(x[1]);}
-        var activities=new JsonArray(d.Array("stops")!.OfType<JsonObject>().Select((s,i)=>(JsonNode)new JsonObject{["id"]=s.Str("id"),["placeId"]=s.Str("id"),["name"]=s.Str("name"),["kind"]=s.Str("activityType")=="meal"?"meal":"attraction",["lat"]=s.Number("lat"),["lng"]=s.Number("lng"),["duration"]=s.Int("visitMinutes"),["cost"]=s.Number("cost"),["indoor"]=s.Bool("indoor"),["arrival"]=s.Str("arrival"),["departure"]=s.Str("departure"),["scheduledStart"]=Minute(s.Str("arrival")),["travelMinutes"]=d.Array("legs")![i]!.Int("minutes"),["hoursVerified"]=s.Bool("hoursVerified")}).ToArray());
+        var activities=new JsonArray(d.Array("stops")!.OfType<JsonObject>().Select((s,i)=>(JsonNode)new JsonObject{["id"]=s.Str("id"),["placeId"]=s.Str("id"),["name"]=s.Str("name"),["kind"]=RouteLogistics.IsTask(s)?s.Str("activityType"):s.Str("activityType")=="meal"?"meal":"attraction",["confirmed"]=s.Bool("storageConfirmed"),["openMinute"]=s["openMinute"]?.DeepClone(),["closeMinute"]=s["closeMinute"]?.DeepClone(),["locked"]=RouteLogistics.IsTask(s),["lat"]=s.Number("lat"),["lng"]=s.Number("lng"),["duration"]=s.Int("visitMinutes"),["cost"]=s.Number("cost"),["indoor"]=s.Bool("indoor"),["arrival"]=s.Str("arrival"),["departure"]=s.Str("departure"),["scheduledStart"]=Minute(s.Str("arrival")),["travelMinutes"]=d.Array("legs")![i]!.Int("minutes"),["hoursVerified"]=s.Bool("hoursVerified")}).ToArray());
         var travel=d.Array("legs")!.OfType<JsonObject>().Sum(l=>l.Int("minutes"));
-        return new(){["date"]=d.Str("date"),["start"]=d["start"]!.DeepClone(),["end"]=d["end"]!.DeepClone(),["startMinute"]=profile.Int("startMinute"),["endMinute"]=profile.Int("endMinute"),["activities"]=activities,["transportMinutes"]=travel,["queueMinutes"]=0,["timeUsed"]=travel,["timeRemaining"]=1440-travel,["unknownQueue"]=activities.Count>0,["estimatedSteps"]=d.Int("estimatedSteps"),["estimatedCost"]=d.Number("estimatedCost"),["finishTime"]=d.Str("finishTime"),["stay"]=new JsonObject{["name"]=d.Object("end")!.Str("name"),["lat"]=d.Object("end")!.Number("lat"),["lng"]=d.Object("end")!.Number("lng"),["cost"]=0,["confirmed"]=true,["checkIn"]=900,["checkOut"]=660}};
+        return new(){["date"]=d.Str("date"),["start"]=d["start"]!.DeepClone(),["end"]=d["end"]!.DeepClone(),["startMinute"]=profile.Int("startMinute"),["endMinute"]=profile.Int("endMinute"),["activities"]=activities,["transportMinutes"]=travel,["queueMinutes"]=0,["timeUsed"]=travel,["timeRemaining"]=1440-travel,["unknownQueue"]=activities.Count>0,["estimatedSteps"]=d.Int("estimatedSteps"),["estimatedCost"]=d.Number("estimatedCost"),["finishTime"]=d.Str("finishTime"),["stay"]=new JsonObject{["name"]=d.Object("end")!.Str("name"),["lat"]=d.Object("end")!.Number("lat"),["lng"]=d.Object("end")!.Number("lng"),["cost"]=0,["confirmed"]=profile.Str("accommodationStatus")=="booked"&&profile.Object("hotel") is {} hotel&&RouteService.Distance(d.Object("end")!,hotel)<50,["checkIn"]=900,["checkOut"]=660}};
     }
     static IEnumerable<int[]> Orders(int[] items) {
         if(items.Length==0){yield return [];yield break;}

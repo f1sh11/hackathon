@@ -31,7 +31,7 @@ public sealed class TripTransportRouter(NswJourneyProvider nsw,SecretStore secre
             var transfers=Math.Max(0,steps.Count(s=>s.Mode!="walk")-1);
             var walkSeconds=walk.Number("minutes")*60;
             var worthwhile=walk.Bool("unreachable")||seconds+transfers*240<walkSeconds-120||
-                ((policy=="lessWalking"||profile.Int("maxSteps")<=6000)&&walking+300<walk.Number("meters")&&seconds<walkSeconds+600);
+                ((policy=="lessWalking"||profile.Str("routePreference","lessWalking")=="lessWalking"||profile.Int("maxSteps")<=8000)&&walking+300<walk.Number("meters")&&seconds<walkSeconds+600);
             if(!worthwhile){context.TransitCache[key]=(JsonObject)walk.DeepClone();return walk;}
             var result=new JsonObject{["meters"]=(int)Math.Ceiling(steps.Sum(s=>s.Meters)),["walkingMeters"]=(int)Math.Ceiling(walking),["minutes"]=(int)Math.Ceiling(seconds/60),["source"]=UseWarehouse?(travel!.Mode=="zetaris-cloud"?"Transport for NSW / Zetaris Cloud":"Transport for NSW / Zetaris"):"Transport for NSW / Trip Planner",["mode"]="transit",["polyline"]="",["departureTime"]=departure.ToString("O"),["arrivalTime"]=steps[^1].ArrivalTime.ToString("O"),["fetchedAt"]=DateTimeOffset.UtcNow.ToString("O"),["steps"]=JsonSerializer.SerializeToNode(steps,JsonExtensions.Options),["fareKnown"]=false,["transfers"]=transfers,["reason"]="比较了步行、等车、接驳与换乘；公交票价未知，未包含在预算。"};
             context.TransitCache[key]=(JsonObject)result.DeepClone();return result;

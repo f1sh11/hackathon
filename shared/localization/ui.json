@@ -19953,5 +19953,50 @@
     "en": "The NVIDIA planning API key is not configured. Your requirements are retained; no example itinerary was substituted.",
     "zh-Hant": "尚未設定 NVIDIA 行程模型金鑰，需求已保留；沒有改用示例行程。",
     "zh-Hans": "尚未设置 NVIDIA 行程模型密钥，需求已保留；没有改用示例行程。"
+  },
+  "Assumed speed {0} km/h; step length {1} m. Seated meals, rest, waiting and transit rides are not counted as walking. Not measured steps.": {
+    "en": "Assumed speed {0} km/h; step length {1} m. Seated meals, rest, waiting and transit rides are not counted as walking. Not measured steps.",
+    "zh-Hant": "假設步速 {0} 公里／小時、單步 {1} 公尺。坐著用餐、休息、候車及搭車不算步行；非實測步數。",
+    "zh-Hans": "假设步速 {0} 公里／小时、单步 {1} 米。坐着用餐、休息、候车及搭车不算步行；非实测步数。"
+  },
+  "Hotel not selected — return endpoint is provisional.": {
+    "en": "Hotel not selected — return endpoint is provisional.",
+    "zh-Hant": "尚未選定飯店，返程終點仍為暫定。",
+    "zh-Hans": "尚未选定酒店，返程终点仍为暂定。"
+  },
+  "If all visit time were spent walking continuously: about {0} steps. This is a hypothetical scenario.": {
+    "en": "If all visit time were spent walking continuously: about {0} steps. This is a hypothetical scenario.",
+    "zh-Hant": "若停留時間全程持續走路：約 {0} 步。這是假設情境。",
+    "zh-Hans": "若停留时间全程持续走路：约 {0} 步。这是假设情境。"
+  },
+  "Return at {0} · Target {1}": {
+    "en": "Return at {0} · Target {1}",
+    "zh-Hant": "預計 {0} 返回 · 目標 {1}",
+    "zh-Hans": "预计 {0} 返回 · 目标 {1}"
+  },
+  "Route {0} + on-site {1} ≈ {2} steps": {
+    "en": "Route {0} + on-site {1} ≈ {2} steps",
+    "zh-Hant": "道路 {0}＋場內 {1} ≈ {2} 步",
+    "zh-Hans": "道路 {0}＋场内 {1} ≈ {2} 步"
+  },
+  "Step estimate details": {
+    "en": "Step estimate details",
+    "zh-Hant": "步數估算明細",
+    "zh-Hans": "步数估算明细"
+  },
+  "行李與寄放需求": {
+    "en": "Luggage and storage needs",
+    "zh-Hans": "行李与寄放需求",
+    "zh-Hant": "行李與寄放需求"
+  },
+  "正在确认已订饭店的位置…": {
+    "en": "Locating your booked hotel…",
+    "zh-Hans": "正在确认已订饭店的位置…",
+    "zh-Hant": "正在確認已訂飯店的位置…"
+  },
+  "已訂飯店的分店或位置仍不明確，請提供飯店全名與地址；不會猜測訂房地點。": {
+    "en": "Your booked hotel location is unclear. Please provide the full hotel name and address.",
+    "zh-Hans": "已订饭店的分店或位置仍不明确，请提供饭店全名与地址；不会猜测订房地点。",
+    "zh-Hant": "已訂飯店的分店或位置仍不明確，請提供飯店全名與地址；不會猜測訂房地點。"
   }
 }

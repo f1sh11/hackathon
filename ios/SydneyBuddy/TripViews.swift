@@ -139,6 +139,17 @@ struct ProposalView:View {
             if expandedDays.contains(day.id){
                 VStack(alignment:.leading,spacing:14){
                     HStack{Label(uiText(day.start.name),systemImage:"location.fill").font(.caption);Spacer();Text(uiText(ProposalReviewPresentation.cost([day]))).font(.caption.weight(.semibold))}.foregroundStyle(.secondary)
+                    if let target=day.targetReturnTime{Text(store.language.text("Return at {0} · Target {1}",day.finishTime,target)).font(.caption)}
+                    if day.returnLocationStatus=="provisional_endpoint"{Text(uiText("Hotel not selected — return endpoint is provisional.")).font(.caption).foregroundStyle(.secondary)}
+                    if let estimate=day.stepEstimate {
+                        DisclosureGroup(uiText("Step estimate details")){
+                            VStack(alignment:.leading,spacing:8){
+                                Text(store.language.text("Route {0} + on-site {1} ≈ {2} steps",estimate.routeSteps.formatted(),estimate.activitySteps.formatted(),estimate.estimatedSteps.formatted()))
+                                Text(store.language.text("If all visit time were spent walking continuously: about {0} steps. This is a hypothetical scenario.",estimate.continuousWalkingSteps.formatted()))
+                                Text(store.language.text("Assumed speed {0} km/h; step length {1} m. Seated meals, rest, waiting and transit rides are not counted as walking. Not measured steps.",String(estimate.walkingSpeedKmh),String(estimate.stepLengthMeters)))
+                            }.font(.caption).foregroundStyle(.secondary)
+                        }.font(.caption).accessibilityIdentifier("proposal-step-estimate-"+String(index))
+                    }
                     if day.stops.isEmpty{Text(uiText("Free time — places still to add.")).font(.subheadline).foregroundStyle(.secondary)}
                     ForEach(Array(day.stops.enumerated()),id:\.element.id){i,stop in
                         if day.legs.indices.contains(i){reviewLeg(day.legs[i])}

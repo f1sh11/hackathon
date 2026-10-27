@@ -92,7 +92,7 @@ public static class PetResponseLanguage
 
 public static class PetQuestions
 {
-    public static readonly string[] Keys=["destination","date","days","companions","budget","interests","pace","notes","budgetCurrency","budgetBasis","travelers","origin","mustDo","avoid","energy","rhythm","queueTolerance","budgetCoverage","flights","bookings","tickets","companionNeeds","specialLimits","dayStyle","transportPreference"];
+    public static readonly string[] Keys=["destination","date","days","companions","budget","interests","pace","notes","budgetCurrency","budgetBasis","travelers","origin","mustDo","avoid","energy","rhythm","queueTolerance","budgetCoverage","flights","bookings","tickets","companionNeeds","specialLimits","dayStyle","transportPreference","luggageNotes"];
     public static readonly Dictionary<string,string> Labels=new()
     {
         ["destination"]="目的地",["date"]="出发日期",["days"]="天数",["companions"]="同行伙伴",

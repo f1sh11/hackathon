@@ -2,7 +2,8 @@ using System.Text.RegularExpressions;
 namespace SydneyBuddy.Api;
 public static class TravelAdjustmentIntent
 {
-    public static bool Lighter(string text)=>!Regex.IsMatch(text,@"不累|并不累|不想休息|不用少走|不需要少走|不想轻松|not tired|don't.*(?:rest|less walking)",RegexOptions.IgnoreCase)&&Regex.IsMatch(text,@"少走|有点累|好累|太累|走累|轻松|休息|\btired\b|less walking|take it easy",RegexOptions.IgnoreCase);
+    public static bool Lighter(string text)=>!Regex.IsMatch(text,@"不累|並不累|并不累|不想休息|不用少走|不需要少走|不想轻松|not tired|don't.*(?:rest|less walking)",RegexOptions.IgnoreCase)&&Regex.IsMatch(text,@"少走|有點累|有点累|好累|太累|走累|輕鬆|轻松|休息|\btired\b|less walking|take it easy",RegexOptions.IgnoreCase);
+    public static bool MoreEnergy(string text)=>!Regex.IsMatch(text,@"不想.*(?:增加|加景点|加景點)|不要.*(?:增加|加景点|加景點)|don't.*(?:add|more)|do not.*(?:add|more)",RegexOptions.IgnoreCase)&&Regex.IsMatch(text,@"精力充沛|還有體力|还有体力|多排(?:一點|一点)|增加行程|add (?:a |another |more )?(?:stop|activities|activity)|more activities|feel(?:ing)? energetic",RegexOptions.IgnoreCase);
     public static bool Rain(string text)=>!Regex.IsMatch(text,@"不下雨|没有下雨|不用避雨|not raining",RegexOptions.IgnoreCase)&&Regex.IsMatch(text,@"下雨|避雨|\brain(?:ing)?\b|indoors",RegexOptions.IgnoreCase);
     public static int? RemainingMinutes(string text) {
         var match=Regex.Match(text,@"(?:只剩|只有|剩下?|还有)\s*([0-9]+|一|两|二|三|四)\s*(小时|分钟)|([0-9]+)\s*(hours?|minutes?)\s*(?:left|remaining)",RegexOptions.IgnoreCase);

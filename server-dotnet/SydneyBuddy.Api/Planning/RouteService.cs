@@ -57,7 +57,7 @@ public sealed class RouteService(IExternalJsonClient external,TripTransportRoute
             var meters = Math.Ceiling(Distance(from, to) * 1.3);
             route = new JsonObject
             {
-                ["meters"] = meters, ["minutes"] = Math.Ceiling(meters / 65),
+                ["meters"] = meters, ["minutes"] = Math.Ceiling(meters / 75),
                 ["polyline"] = "", ["source"] = "直线距离×1.3 的演示估算"
             };
         }
@@ -83,7 +83,7 @@ public sealed class RouteService(IExternalJsonClient external,TripTransportRoute
             {
                 ["meters"] = walkMeters,
                 ["walkingMeters"] = walkMeters,
-                ["minutes"] = Math.Max(1, Math.Ceiling(walkMeters / 65)),
+                ["minutes"] = Math.Max(1, Math.Ceiling(walkMeters / 75)),
                 ["polyline"] = "",
                 ["source"] = "初筛估算"
             };

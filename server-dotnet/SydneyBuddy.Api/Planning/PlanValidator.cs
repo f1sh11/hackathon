@@ -28,10 +28,23 @@ public static class PlanValidator
 
             if(profile.Str("transportPreference","walk") is not ("walk" or "balanced" or "lessWalking"))throw new FormatException();
             var budget = ReadNumber(profile, "budget", 100);
-            var maxSteps = ReadInteger(profile, "maxSteps", 10000);
+            var maxSteps = ReadInteger(profile, "maxSteps", DailyPacing.ReferenceSteps(profile));
             var startMinute = ReadInteger(profile, "startMinute", 600);
-            var endMinute = ReadInteger(profile, "endMinute", 1080);
+            var endMinute = ReadInteger(profile, "endMinute", 1200);
             var days = ReadInteger(profile, "days", 1);
+            var speed=ReadNumber(profile,"walkingSpeedKmh",4.5);var stride=ReadNumber(profile,"stepLengthMeters",.75);
+            var target=Math.Min(endMinute,ReadInteger(profile,"targetReturnMinute",startMinute>=1200?endMinute:Math.Min(1200,endMinute)));
+            if(!double.IsFinite(speed)||speed is <1 or >7||!double.IsFinite(stride)||stride is <.3 or >1.2||target<=startMinute||target>endMinute)throw new FormatException();
+            if(profile["energyFeedback"] is not null&&profile.Str("energyFeedback") is not ("tired" or "normal" or "energized"))throw new FormatException();
+            if(profile["accommodationStatus"] is not null&&profile.Str("accommodationStatus") is not ("unknown" or "unbooked" or "selected" or "booked"))throw new FormatException();
+            if(profile["hotel"] is not null){
+                var hotel=profile.Object("hotel")??throw new FormatException();
+                if(profile.Str("accommodationStatus") is not ("selected" or "booked"))throw new FormatException();
+                if(!profile.ContainsKey("end"))profile["end"]=hotel.DeepClone();
+                if(!profile.ContainsKey("start"))profile["start"]=hotel.DeepClone();
+            }
+            profile["walkingSpeedKmh"]=speed;profile["stepLengthMeters"]=stride;profile["targetReturnMinute"]=target;
+
             if (!double.IsFinite(budget) || budget is < 0 or > 100000 || maxSteps is < 500 or > 60000 ||
                 startMinute < 0 || startMinute >= endMinute || endMinute > 1440 || days is < 1 or > 15)
                 throw new FormatException();
@@ -85,6 +98,13 @@ public static class PlanValidator
                 };
             }
 
+            if(profile["hotel"] is JsonObject selectedHotel){
+                var lat=ReadNumber(selectedHotel,"lat",double.NaN);var lng=ReadNumber(selectedHotel,"lng",double.NaN);
+                if(!double.IsFinite(lat)||!double.IsFinite(lng)||lat is < -37.5 or > -28||lng is <141 or >154)throw new FormatException();
+                profile["hotel"]=new JsonObject{["name"]=Truncate(Text(selectedHotel["name"]),60),["lat"]=lat,["lng"]=lng};
+            }
+            RouteLogistics.Normalize(profile);
+            MealTiming.Validate(profile);
             profile["date"] = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
             profile["budget"] = budget;
             profile["maxSteps"] = maxSteps;

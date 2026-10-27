@@ -4,7 +4,7 @@ namespace SydneyBuddy.Api;
 
 public static class ItinerarySkill
 {
-    public const string Version = "2026-10-27.1";
+    public const string Version = "2026-10-27.3";
     public static string Read(string language)
     {
         var name = language.StartsWith("en", StringComparison.OrdinalIgnoreCase) ? "en" : "zh-Hant";

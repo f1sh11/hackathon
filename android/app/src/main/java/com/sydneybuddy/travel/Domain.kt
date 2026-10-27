@@ -27,7 +27,7 @@ data class Profile(
     val budget: Int = 100,
     val maxSteps: Int = 10000,
     val startMinute: Int = 600,
-    val endMinute: Int = 1080,
+    val endMinute: Int = 1200,
     val interests: List<String> = listOf("风景", "美食"),
     val start: Endpoint = Endpoint.quay,
     val end: Endpoint = Endpoint.quay

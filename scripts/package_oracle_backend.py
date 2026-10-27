@@ -22,7 +22,7 @@ def public_files(snapshot):
 def package(output,snapshot=None):
     paths=subprocess.check_output(['git','ls-files','-z'],cwd=ROOT).decode().split('\0')
     def allowed(name):
-        return (name.startswith('server-dotnet/SydneyBuddy.Api/') and name.endswith(('.cs','.csproj'))) or name in ('server/places.json','server/hmem_bridge.ts') or name.startswith(('server/vendor/hmem/','shared/'))
+        return (name.startswith('server-dotnet/SydneyBuddy.Api/') and (name.endswith(('.cs','.csproj')) or name.startswith('server-dotnet/SydneyBuddy.Api/Planning/Skills/') and name.endswith('.md'))) or name in ('server/places.json','server/hmem_bridge.ts') or name.startswith(('server/vendor/hmem/','shared/'))
     selected={n:(ROOT/n).read_bytes() for n in paths if n and allowed(n)}
     for name in ['.dockerignore','infra/oracle/Dockerfile','infra/oracle/compose.yaml','infra/oracle/healthcheck.mjs','infra/oracle/cloud-init.yaml','infra/oracle/.env.example','infra/oracle/README.md','scripts/oracle_backend.py','scripts/oracle_micro.py','scripts/oracle_cloud.py','infra/oracle/install-micro.py','infra/oracle/Caddyfile','infra/oracle/caddy.container']:
         selected[name]=(ROOT/name).read_bytes()

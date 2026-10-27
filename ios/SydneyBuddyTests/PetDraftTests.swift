@@ -80,7 +80,7 @@ final class PetDraftTests:XCTestCase {
         XCTAssertEqual(half.endMinute,900);XCTAssertEqual(half.budget,100)
         XCTAssertTrue(half.activityBudgetSummary.contains("全体全程"));XCTAssertTrue(half.activityBudgetSummary.contains("600"))
         fields["dayStyle"]="fullDay"
-        XCTAssertEqual(try TravelRequirements.readyProfile(fields,personal:personal).endMinute,1080)
+        XCTAssertEqual(try TravelRequirements.readyProfile(fields,personal:personal).endMinute,1200)
         XCTAssertEqual(personal.dailySteps,5000)
     }
 
@@ -346,6 +346,26 @@ final class PetDraftTests:XCTestCase {
         XCTAssertEqual(try TripConversationSeed.profile(fields,base:base).endMinute,840)
         fields["adjustmentEndMinute"]="540"
         XCTAssertThrowsError(try TripConversationSeed.profile(fields,base:base))
+    }
+
+    func testBookedHotelHintsRequireActualBookingAndPreserveFixedEndpoints() {
+        XCTAssertEqual(BookingTextHints.bookedHotel("已訂 Hilton Sydney"),"Hilton Sydney")
+        XCTAssertEqual(BookingTextHints.bookedHotel("Booked hotel at Hilton Sydney"),"Hilton Sydney")
+        XCTAssertNil(BookingTextHints.bookedHotel("還沒訂 Hilton Sydney"))
+        XCTAssertNil(BookingTextHints.bookedHotel("booked train to Sydney"))
+        XCTAssertTrue(BookingTextHints.mayUseHotel(.quay,explicit:nil))
+        XCTAssertFalse(BookingTextHints.mayUseHotel(.airport,explicit:nil))
+        XCTAssertFalse(BookingTextHints.mayUseHotel(.quay,explicit:true))
+    }
+    func testLuggageProfileRoundTripPreservesEvidenceAndDate() throws {
+        var profile=TripProfile();profile.heavyLuggage=true;profile.luggageStored=true
+        profile.luggageStoredDate="2026-10-28";profile.luggageDays=["2026-10-28"]
+        profile.luggageStorage=LuggageStoragePoint(name:"Hotel storage",lat:-33.86,lng:151.21,storageConfirmed:false,openMinute:480,closeMinute:1200)
+        let saved=try JSONDecoder().decode(TripProfile.self,from:JSONEncoder().encode(profile))
+        XCTAssertEqual(saved.luggageStorage?.storageConfirmed,false)
+        XCTAssertEqual(saved.luggageStorage?.openMinute,480)
+        XCTAssertEqual(saved.luggageStoredDate,"2026-10-28")
+        XCTAssertEqual(saved.luggageDays,["2026-10-28"])
     }
 
 }

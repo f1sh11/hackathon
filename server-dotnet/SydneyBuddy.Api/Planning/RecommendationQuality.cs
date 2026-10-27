@@ -29,18 +29,18 @@ public static class RecommendationQuality
         var visits=all.Where(p=>!IsMeal(p)).ToArray();
         var selectedVisits=new List<JsonObject>();
         var uncovered=interests.Where(i=>i!="美食" && !result.Any(p=>Matches(p,i))).ToHashSet(StringComparer.Ordinal);
-        while(selectedVisits.Count<5 && uncovered.Count>0) {
+        while(selectedVisits.Count<(DailyPacing.LongDay(profile)?16:12) && uncovered.Count>0) {
             var next=visits.Where(p=>selectedVisits.All(x=>x.Str("id")!=p.Str("id")))
                 .OrderByDescending(p=>uncovered.Count(i=>Matches(p,i))).FirstOrDefault();
             if(next is null || !uncovered.Any(i=>Matches(next,i)))break;
             selectedVisits.Add(next);uncovered.RemoveWhere(i=>Matches(next,i));
         }
         foreach(var p in visits) {
-            if(selectedVisits.Count==5)break;
+            if(selectedVisits.Count==(DailyPacing.LongDay(profile)?16:12))break;
             if(selectedVisits.All(x=>x.Str("id")!=p.Str("id")))selectedVisits.Add(p);
         }
         // Meals stay separate: a scenic district cannot stand in for an actual restaurant.
-        foreach(var p in all.Where(IsMeal).Take(3).Concat(selectedVisits))
+        foreach(var p in all.Where(IsMeal).Take(DailyPacing.LongDay(profile)?6:4).Concat(selectedVisits))
             if(result.All(x=>x.Str("id")!=p.Str("id")))result.Add(p);
         return result.ToArray();
     }
@@ -56,7 +56,7 @@ public static class RecommendationQuality
     {
         var interests=profile.Array("interests")!.Select(x=>x!.GetValue<string>()).ToArray();
         foreach(var day in days.OfType<JsonObject>()) {
-            var stops=day.Array("stops")!.OfType<JsonObject>().ToArray();var warnings=day.Array("warnings")!;
+            var stops=day.Array("stops")!.OfType<JsonObject>().Where(p=>!RouteLogistics.IsTask(p)).ToArray();var warnings=day.Array("warnings")!;
             if(stops.Length==0)continue;
             if(interests.Length>0&&!stops.Any(p=>interests.Any(i=>Matches(p,i))))
                 warnings.Add("当天未覆盖你的核心兴趣：当前地点、步数或预算不足，不能视为已满足偏好。");
@@ -64,7 +64,7 @@ public static class RecommendationQuality
             var finish=day.Str("finishTime");var shortDay=profile.Int("endMinute")-profile.Int("startMinute")>=360 && string.CompareOrdinal(finish,"14:00")<0;
             if(shortDay)warnings.Add("当前仅安排了半日活动，余下时间留白；按轻松节奏及现有地点、步数和预算限制，没有凑满全天。");
             var incompleteDay=shortDay&&(profile.Str("dayStyle")=="fullDay" || (profile.Str("energy")!="低精力"&&profile.Str("rhythm")!="轻松随意"));
-            day["recommendationStatus"]=incompleteDay||warnings.OfType<JsonValue>().Any(w=>w.GetValue<string>().Contains("未覆盖")||w.GetValue<string>().Contains("未安排具体餐厅"))?"partial":"ready";
+            day["recommendationStatus"]=day.Array("mealSlots")?.Any(s=>s!.Str("status")=="time_slot_unselected")==true||day.Array("stops")!.OfType<JsonObject>().Any(p=>RouteLogistics.IsTask(p)&&(!p.Bool("storageConfirmed")||!p.Bool("hoursVerified")))||incompleteDay||(DailyPacing.LongDay(profile)&&day.Str("returnTargetStatus")=="early_constraints")||warnings.OfType<JsonValue>().Any(w=>w.GetValue<string>().Contains("未覆盖")||w.GetValue<string>().Contains("未安排具体餐厅"))?"partial":"ready";
         }
     }
 }

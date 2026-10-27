@@ -119,9 +119,11 @@ public sealed class ScheduleEditorService(PlaceCatalog catalog,RestaurantStore? 
             }
             if(activities.Count>30||activities.Any(a=>a is not JsonObject))throw new ServiceException("每天最多 30 項有效活動。");
             var history=previousDays?[d]?.Array("completedStops")?.OfType<JsonObject>().ToArray()??[];
-            var ids=new HashSet<string>();var stops=new JsonArray();var legs=new JsonArray();var clock=startM;var travel=0;var queueTotal=0;var unknown=false;var steps=history.Sum(s=>s.Int("steps"));var previous=start;var lastBathroom=startM;var bag=false;JsonObject? bagPoint=null;var facilityUnknown=false;
+            var ids=new HashSet<string>();var stops=new JsonArray();var legs=new JsonArray();var clock=startM;var travel=0;var queueTotal=0;var unknown=false;var steps=history.Sum(s=>s.Int("steps"));var previous=start;var lastBathroom=startM;var bag=profile.Bool("heavyLuggage")&&profile.Bool("luggageStored")&&profile.Str("luggageStoredDate",date)==date;JsonObject? bagPoint=bag?profile.Object("luggageStorage"):null;
+            foreach(var past in history){if(past.Str("activityType")=="bag-drop"){bag=true;bagPoint=past;}else if(past.Str("activityType")=="bag-pickup"){bag=false;bagPoint=null;}}var facilityUnknown=false;
             long cents=(d<count-1?(long)Math.Round(stay.Number("cost")*100):0)+(long)Math.Round(history.Sum(s=>s.Number("cost"))*100);
             void Issue(string code,string text,string? id=null,bool blocking=false)=>issues.Add(new JsonObject{["code"]=code,["message"]=$"第 {d+1} 天：{text}",["day"]=d,["activityId"]=id,["blocking"]=blocking});
+            var mealSlotsUsed=new HashSet<string>();
             foreach(var a in activities.OfType<JsonObject>()){
                 var id=a.Str("id");if(id.Length is <1 or >120||!ids.Add(id))throw new ServiceException("活動 ID 無效或重複。");
                 var kind=a.Str("kind");if(kind is not("attraction" or "meal" or "restroom" or "rest" or "bag-drop" or "bag-pickup" or "stay" or "checkout"))throw new ServiceException("活動類型不合法。");
@@ -150,10 +152,18 @@ public sealed class ScheduleEditorService(PlaceCatalog catalog,RestaurantStore? 
                 if(kind=="attraction" || (kind=="meal" && (RecommendationQuality.IsMeal(point)||PoiService.IsImported(point)))){
                     if(a["queueMinutes"] is null)unknown=true;else queue=N(a,"queueMinutes",0,0,360);
                     var windows=RouteScheduler.OpeningWindows(point,date,out var verified);
-                    if(kind=="meal" && RecommendationQuality.MealWindow(new JsonObject{["startMinute"]=startM,["endMinute"]=endM}) is {} meal)windows=windows.Select(w=>(Open:Math.Max(w.Open,meal.Open),Close:Math.Min(w.Close,meal.Close))).ToArray();
-                    if(PoiService.IsImported(point)) {windows=new[]{(Open:0,Close:1440)};verified=false;}var fits=windows.Where(w=>Math.Max(begin,w.Open)+queue+duration<=w.Close).OrderBy(w=>w.Open).ToArray();
+                    if(PoiService.IsImported(point)) {windows=new[]{(Open:0,Close:1440)};verified=false;}
+                    if(kind=="meal"){
+                        var mealProfile=(JsonObject)profile.DeepClone();mealProfile["startMinute"]=startM;mealProfile["endMinute"]=endM;
+                        windows=windows.SelectMany(w=>MealTiming.Slots(mealProfile).Where(m=>!mealSlotsUsed.Contains(m.Name)).Select(m=>(Open:Math.Max(w.Open,m.Open),Close:Math.Min(w.Close,m.Close)))).ToArray();
+                    }var fits=windows.Where(w=>Math.Max(begin,w.Open)+queue+duration<=w.Close).OrderBy(w=>w.Open).ToArray();
                     if(fits.Length==0)Issue("hours",a.Str("name")+"無法在營業時間內完成等待與遊覽。",id,true);
                     else if(fixedStart.HasValue&&begin<fits[0].Open)Issue("hours",a.Str("name")+"指定時段尚未開門。",id,true);else begin=Math.Max(begin,fits[0].Open);
+                    if(kind=="meal"){
+                        var mealProfile=(JsonObject)profile.DeepClone();mealProfile["startMinute"]=startM;mealProfile["endMinute"]=endM;
+                        var slot=MealTiming.Slots(mealProfile).FirstOrDefault(m=>begin>=m.Open&&begin+queue+duration<=m.Close&&!mealSlotsUsed.Contains(m.Name));
+                        if(slot is not null)mealSlotsUsed.Add(slot.Name);
+                    }
                     a["hoursVerified"]=verified;if(rainy&&!point.Bool("indoor")&&(point["indoorKnown"] is null||point.Bool("indoorKnown")))Issue("weather",a.Str("name")+"为户外活动；有降雨风险，请出发前确认天气。",id);
                 }else{
                     var open=N(a,"openMinute",0,0,1440);var close=N(a,"closeMinute",1440,open,1440);
@@ -166,11 +176,12 @@ public sealed class ScheduleEditorService(PlaceCatalog catalog,RestaurantStore? 
                 if(kind=="bag-pickup"){if(!bag)Issue("luggage","取件必須在寄放之後。",id,true);else if(bagPoint is not null && RouteService.Distance(bagPoint,point)>20)Issue("luggage","取件位置與寄放點不同，請確認。",id,true);bag=false;}
                 a["arrival"]=Time(begin);a["departure"]=Time(begin+queue+duration);a["scheduledStart"]=begin;a["travelMinutes"]=minutes;a["transportLabel"]=leg.Str("mode")=="transit"?"公共交通（含接驳与等候）":"步行";a["duration"]=duration;a["cost"]=cost;
                 a["queueSource"]=kind=="attraction"?(a["queueMinutes"] is null?"未知":"使用者規劃假設，非即時排隊"):"不適用";
-                travel+=minutes;queueTotal+=queue;steps+=(int)Math.Ceiling(leg.Number("walkingMeters",leg.Number("meters"))/.75)+(kind=="attraction"?(RecommendationQuality.IsMeal(point)?duration*2:duration*12):kind=="meal"&&RecommendationQuality.IsMeal(point)?duration*2:0);cents+=(long)Math.Round(cost*100);
-                stops.Add(new JsonObject{["id"]=id,["name"]=a.Str("name"),["lat"]=point.Number("lat"),["lng"]=point.Number("lng"),["tags"]=point["tags"]?.DeepClone(),["sourceURL"]=point["sourceURL"]?.DeepClone(),["costKnown"]=point["costKnown"]?.DeepClone(),["indoorKnown"]=point["indoorKnown"]?.DeepClone(),["activityType"]=RecommendationQuality.IsMeal(point)?"meal":null,["placeId"]=a["placeId"]?.DeepClone(),["category"]=kind=="attraction"||RecommendationQuality.IsMeal(point)?point.Str("category"):KindLabel(kind),["indoor"]=kind!="attraction"||point.Bool("indoor"),["visitMinutes"]=duration,["cost"]=cost,["note"]=kind=="attraction"||RecommendationQuality.IsMeal(point)?point.Str("note"):"待確認設施／規劃佔位，非預約",["arrival"]=a.Str("arrival"),["departure"]=a.Str("departure"),["hoursVerified"]=a.Bool("hoursVerified"),["mapsURL"]="",["steps"]=(int)Math.Ceiling(leg.Number("walkingMeters",leg.Number("meters"))/.75)});
+                var routeSteps=WalkingLoad.DistanceSteps(leg.Number("walkingMeters",leg.Number("meters")),profile);var activitySteps=WalkingLoad.VisitSteps(point,duration,profile,kind);
+                travel+=minutes;queueTotal+=queue;steps+=routeSteps+activitySteps;cents+=(long)Math.Round(cost*100);
+                stops.Add(new JsonObject{["id"]=id,["name"]=a.Str("name"),["lat"]=point.Number("lat"),["lng"]=point.Number("lng"),["tags"]=point["tags"]?.DeepClone(),["sourceURL"]=point["sourceURL"]?.DeepClone(),["costKnown"]=point["costKnown"]?.DeepClone(),["indoorKnown"]=point["indoorKnown"]?.DeepClone(),["activityType"]=kind is "bag-drop" or "bag-pickup"?kind:RecommendationQuality.IsMeal(point)?"meal":null,["storageConfirmed"]=kind is "bag-drop" or "bag-pickup"?a.Bool("confirmed"):false,["openMinute"]=a["openMinute"]?.DeepClone(),["closeMinute"]=a["closeMinute"]?.DeepClone(),["placeId"]=a["placeId"]?.DeepClone(),["category"]=kind=="attraction"||RecommendationQuality.IsMeal(point)?point.Str("category"):KindLabel(kind),["indoor"]=kind!="attraction"||point.Bool("indoor"),["visitMinutes"]=duration,["cost"]=cost,["note"]=kind=="attraction"||RecommendationQuality.IsMeal(point)?point.Str("note"):"待確認設施／規劃佔位，非預約",["arrival"]=a.Str("arrival"),["departure"]=a.Str("departure"),["hoursVerified"]=a.Bool("hoursVerified"),["mapsURL"]="",["steps"]=routeSteps+activitySteps,["routeSteps"]=routeSteps,["activitySteps"]=activitySteps,["activityWalkingMinutes"]=WalkingLoad.VisitMinutes(point,duration,kind),["stepEstimateVersion"]=WalkingLoad.Version});
                 legs.Add(leg);previous=point;clock=begin+queue+duration+(walking is null?0:15);
             }
-            var back=transit.Get(previous,end,date,clock)??walking?.Get(previous,end)??RouteService.EstimateLeg(previous,end);if(walking is null)back["source"]="示例距離估算，非道路導航";if(back.Bool("unreachable"))throw new ServiceException("无法步行返回终点，请修改安排。");legs.Add(back);travel+=(int)back.Number("minutes");steps+=(int)Math.Ceiling(back.Number("walkingMeters",back.Number("meters"))/.75);clock+=(int)back.Number("minutes")+(walking is null?0:10);
+            var back=transit.Get(previous,end,date,clock)??walking?.Get(previous,end)??RouteService.EstimateLeg(previous,end);if(walking is null)back["source"]="示例距離估算，非道路導航";if(back.Bool("unreachable"))throw new ServiceException("无法步行返回终点，请修改安排。");legs.Add(back);travel+=(int)back.Number("minutes");steps+=WalkingLoad.DistanceSteps(back.Number("walkingMeters",back.Number("meters")),profile);clock+=(int)back.Number("minutes")+(walking is null?0:10);
             if(clock-lastBathroom>settings.Int("restroomInterval"))Issue("restroom-gap","返程前廁所安排有缺口。");
             if(bag)Issue("luggage","寄放後尚未安排取件。",blocking:true);
             if(clock>endM)Issue("end-time",$"預估 {Time(clock)} 結束，超過 {Time(endM)}。",blocking:true);
@@ -182,7 +193,7 @@ public sealed class ScheduleEditorService(PlaceCatalog catalog,RestaurantStore? 
             days.Add(new JsonObject{["date"]=date,["startMinute"]=startM,["endMinute"]=endM,["startOverride"]=input?.Bool("startOverride")==true,["endOverride"]=input?.Bool("endOverride")==true,["start"]=start.DeepClone(),["end"]=end.DeepClone(),["stay"]=stay,["activities"]=activities,["transportMinutes"]=travel,["queueMinutes"]=queueTotal,["timeUsed"]=travel+queueTotal,["timeRemaining"]=settings.Int("timeLimit")-travel-queueTotal,["unknownQueue"]=unknown,["estimatedSteps"]=steps,["estimatedCost"]=costTotal,["finishTime"]=Time(clock)});
             if(input?["maxSteps"] is not null)days[days.Count-1]!["maxSteps"]=dailySteps;
             if(input?["dailyBudget"] is not null)days[days.Count-1]!["dailyBudget"]=dailyBudget;
-            legacy.Add(new JsonObject{["date"]=date,["planningStartMinute"]=startM,["executionStarted"]=previousDays?[d]?.Bool("executionStarted")??false,["stops"]=stops,["legs"]=legs,["estimatedCost"]=costTotal,["estimatedSteps"]=steps,["finishTime"]=Time(clock),["warnings"]=new JsonArray(walking is null ? "時間軸示例：設施待確認，交通為估算，不是導航路線。":"交通按 Apple 步行查询安排，设施、费用和排队仍需确认。"),["start"]=start.DeepClone(),["end"]=end.DeepClone()});
+            legacy.Add(new JsonObject{["date"]=date,["planningStartMinute"]=startM,["executionStarted"]=previousDays?[d]?.Bool("executionStarted")??false,["stops"]=stops,["legs"]=legs,["estimatedCost"]=costTotal,["estimatedSteps"]=steps,["stepEstimate"]=WalkingLoad.Breakdown(profile,stops,legs,steps,history.Sum(s=>s.Int("steps"))),["finishTime"]=Time(clock),["warnings"]=new JsonArray(walking is null ? "時間軸示例：設施待確認，交通為估算，不是導航路線。":"交通按 Apple 步行查询安排，设施、费用和排队仍需确认。"),["start"]=start.DeepClone(),["end"]=end.DeepClone()});
             previousStay=Copy(stay);totalCost+=costTotal;
         }
         foreach(var old in previousDays?.OfType<JsonObject>()??[])foreach(var past in old.Array("completedStops")?.OfType<JsonObject>()??[])selected.Add(past.Str("placeId",past.Str("id")));

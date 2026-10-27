@@ -26,7 +26,7 @@ public static class TripContractValidator
             Strings(day, "date", "finishTime"); Numbers(day, "estimatedCost", "estimatedSteps");
             StringArray(day, "warnings"); Point(Object(day, "start")); Point(Object(day, "end"));
             var stops = Array(day, "stops");
-            if (trip.Object("schedule") is null ? stops.Count > 4 || (stops.Count == 0 && !day.Bool("freeTime")) : stops.Count > 30) Invalid();
+            if (stops.Count > 30 || (trip.Object("schedule") is null && stops.Count == 0 && !day.Bool("freeTime"))) Invalid();
             foreach (var item in stops)
             {
                 var stop = item as JsonObject ?? throw Failure();

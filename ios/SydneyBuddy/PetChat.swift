@@ -18,7 +18,7 @@ struct PetSession: Codable {
 }
 struct PetEvent: Decodable { var type: String; var text: String?; var error: String?; var session: PetSession? }
 let petFields: [(String,String)] = [("destination","目的地"),("date","出发日期 YYYY-MM-DD"),("days","旅行天数"),("companions","同行伙伴"),("budget","预算金额"),("interests","这次想玩什么"),("pace","旅行节奏"),("notes","补充要求")]
-let travelExtraFields:[(String,String)]=[("budgetCoverage","预算包含范围"),("budgetCurrency","预算币种"),("travelers","同行总人数"),("origin","出发地点或住宿"),("mustDo","特别想去或想做的"),("avoid","必须避开的安排"),("energy","本次精力"),("rhythm","本次节奏"),("queueTolerance","本次排队偏好"),("flights","航班"),("bookings","住宿与交通预订"),("tickets","固定门票"),("companionNeeds","同行者需要"),("specialLimits","特殊限制")]
+let travelExtraFields:[(String,String)]=[("budgetCoverage","预算包含范围"),("budgetCurrency","预算币种"),("travelers","同行总人数"),("origin","出发地点或住宿"),("mustDo","特别想去或想做的"),("avoid","必须避开的安排"),("energy","本次精力"),("rhythm","本次节奏"),("queueTolerance","本次排队偏好"),("flights","航班"),("bookings","住宿与交通预订"),("tickets","固定门票"),("companionNeeds","同行者需要"),("specialLimits","特殊限制"),("luggageNotes","行李與寄放需求")]
 
 
 @MainActor final class PetChatStore: ObservableObject {
@@ -1122,8 +1122,10 @@ struct TravelRequirements {
         var normalized=fields
         if fields["budgetCoverage"]=="totalTravel"{throw fail("这笔预算包含住宿或交通等费用。请先单独确认活动预算，再将预算包含范围改为 activities。")}
         if !known(fields["interests"]){normalized["interests"]=personal.interests?.joined(separator:"、") ?? "风景、美食"}
-        if !known(fields["pace"]){normalized["pace"]="约\(personal.dailySteps ?? 10000)步"}
-        else if fields["pace"]?.range(of:"[0-9]",options:.regularExpression)==nil,["轻松","慢","少走"].contains(where:{fields["pace"]!.contains($0)}){normalized["pace"]="约\(min(personal.dailySteps ?? 6000,6000))步"}
+        let energy=known(fields["energy"]) ? fields["energy"]:personal.energy
+        let energySteps=energy=="低精力" ? 8000:energy=="高精力" ? 15000:10000
+        if !known(fields["pace"]){normalized["pace"]="约\(personal.dailySteps ?? energySteps)步"}
+        else if fields["pace"]?.range(of:"[0-9]",options:.regularExpression)==nil,["轻松","慢","少走"].contains(where:{fields["pace"]!.contains($0)}){normalized["pace"]="约\(min(personal.dailySteps ?? 8000,8000))步"}
         if let currency=fields["budgetCurrency"],!currency.isEmpty,currency.uppercased() != "AUD"{throw fail("需求可以保留。当前路线费用以 AUD 计算，请先提供确认过的澳元活动预算；不会自动猜测汇率。")}
         if fields["budgetCurrency"] != nil || fields["budgetBasis"] != nil {
             guard fields["budgetCurrency"]?.uppercased()=="AUD",let basis=fields["budgetBasis"],budgetBases.contains(where:{$0.0==basis}) else{throw fail("请确认预算币种，以及是每人还是全体、每天还是全程。")}
@@ -1136,6 +1138,8 @@ struct TravelRequirements {
         result.budgetAmount=Double(fields["budget"] ?? "")
         result.budgetCurrency=fields["budgetCurrency"];result.budgetBasis=fields["budgetBasis"]
         result.travelers=Int(fields["travelers"] ?? "");result.origin=fields["origin"]
+        result.bookings=fields["bookings"];result.luggageNotes=fields["luggageNotes"]
+        result.startIsExplicit=known(fields["origin"]);result.endIsExplicit=false
         result.mustDo=fields["mustDo"];result.avoid=fields["avoid"]
         result.energy=known(fields["energy"]) ? fields["energy"]:personal.energy
         result.rhythm=known(fields["rhythm"]) ? fields["rhythm"]:personal.rhythm
@@ -1256,6 +1260,11 @@ enum TripConversationSeed {
         var result=try TravelRequirements.profile(fields,personal:UserTravelProfile())
         result.start=base.start;result.end=base.end
         result.startMinute=base.startMinute;result.endMinute=base.endMinute
+        result.hotel=base.hotel;result.accommodationStatus=base.accommodationStatus
+        result.walkingSpeedKmh=base.walkingSpeedKmh;result.stepLengthMeters=base.stepLengthMeters
+        result.targetReturnMinute=base.targetReturnMinute;result.energyFeedback=base.energyFeedback
+        result.heavyLuggage=base.heavyLuggage;result.luggageStorage=base.luggageStorage;result.luggageStored=base.luggageStored
+        result.startIsExplicit=base.startIsExplicit;result.endIsExplicit=base.endIsExplicit
         result.mustVisit=base.mustVisit;result.weatherOverride=base.weatherOverride
         // Changing an origin requires coordinate resolution; the saved-trip editor owns that flow.
         guard !TravelRequirements.known(fields["origin"]) || fields["origin"]==base.origin || fields["origin"]==base.start.name else {

@@ -154,6 +154,17 @@ fun modeLabel(mode:String) = when(mode) {"live"->"在线规划 · 以各项来�
         Text(day.optString("date"),fontWeight=FontWeight.Bold)
         Text("约 ${day.optInt("estimatedSteps")} 步 · A$${day.optDouble("estimatedCost")} · ${day.optString("finishTime")} 返回")
         Small("${day.optJSONObject("start")?.optString("name")} → ${day.optJSONObject("end")?.optString("name")}")
+        day.optJSONObject("stepEstimate")?.let { estimate ->
+            var showSteps by remember { mutableStateOf(false) }
+            TextButton(onClick={showSteps=!showSteps}){Text(ui("Step estimate details"))}
+            if(showSteps){
+                Small(ui("Route {0} + on-site {1} ≈ {2} steps",estimate.optInt("routeSteps").toString(),estimate.optInt("activitySteps").toString(),estimate.optInt("estimatedSteps").toString()))
+                Small(ui("If all visit time were spent walking continuously: about {0} steps. This is a hypothetical scenario.",estimate.optInt("continuousWalkingSteps").toString()))
+                Small(ui("Assumed speed {0} km/h; step length {1} m. Seated meals, rest, waiting and transit rides are not counted as walking. Not measured steps.",estimate.optDouble("walkingSpeedKmh").toString(),estimate.optDouble("stepLengthMeters").toString()))
+            }
+        }
+        if(day.has("targetReturnTime"))Small(ui("Return at {0} · Target {1}",day.optString("finishTime"),day.optString("targetReturnTime")))
+        if(day.optString("returnLocationStatus")=="provisional_endpoint")Small(ui("Hotel not selected — return endpoint is provisional."))
         day.array("stops").objects().forEachIndexed { i,s ->
             HorizontalDivider(color=Mint)
             Text("${i+1}. ${s.optString("name")}",fontWeight=FontWeight.Bold)
