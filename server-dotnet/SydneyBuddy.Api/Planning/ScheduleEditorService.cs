@@ -141,7 +141,7 @@ public sealed class ScheduleEditorService(PlaceCatalog catalog,RestaurantStore? 
                         }
                     }
                 }else{point=a;CheckPoint(point);facilityUnknown|=!a.Bool("confirmed");}
-                var duration=N(a,"duration",30,5,240);var cost=Cost(a,"cost");var leg=transit.Get(previous,point,date,clock)??walking?.Get(previous,point)??RouteService.EstimateLeg(previous,point);if(walking is null)leg["source"]="示例距離估算，非道路導航";
+                var duration=N(a,"duration",30,5,240);var cost=Cost(a,"cost");var leg=transit.Get(previous,point,date,clock)??walking?.Get(previous,point)??RouteService.EstimateLeg(previous,point);if(walking is null&&leg.Str("mode")!="transit")leg["source"]="示例距離估算，非道路導航";
                 if(leg.Bool("unreachable"))throw new ServiceException("无法步行到达"+a.Str("name")+"，请更换地点。");
                 var minutes=(int)leg.Number("minutes");var arrival=clock+minutes+(walking is null?0:10);var fixedStart=a["fixedStart"] is null?(int?)null:N(a,"fixedStart",0,0,1439);
                 if(fixedStart.HasValue&&arrival>fixedStart.Value)Issue("appointment",a.Str("name")+"趕不上固定時段。",id,true);
@@ -170,7 +170,7 @@ public sealed class ScheduleEditorService(PlaceCatalog catalog,RestaurantStore? 
                 stops.Add(new JsonObject{["id"]=id,["name"]=a.Str("name"),["lat"]=point.Number("lat"),["lng"]=point.Number("lng"),["tags"]=point["tags"]?.DeepClone(),["sourceURL"]=point["sourceURL"]?.DeepClone(),["costKnown"]=point["costKnown"]?.DeepClone(),["indoorKnown"]=point["indoorKnown"]?.DeepClone(),["activityType"]=RecommendationQuality.IsMeal(point)?"meal":null,["placeId"]=a["placeId"]?.DeepClone(),["category"]=kind=="attraction"||RecommendationQuality.IsMeal(point)?point.Str("category"):KindLabel(kind),["indoor"]=kind!="attraction"||point.Bool("indoor"),["visitMinutes"]=duration,["cost"]=cost,["note"]=kind=="attraction"||RecommendationQuality.IsMeal(point)?point.Str("note"):"待確認設施／規劃佔位，非預約",["arrival"]=a.Str("arrival"),["departure"]=a.Str("departure"),["hoursVerified"]=a.Bool("hoursVerified"),["mapsURL"]="",["steps"]=(int)Math.Ceiling(leg.Number("walkingMeters",leg.Number("meters"))/.75)});
                 legs.Add(leg);previous=point;clock=begin+queue+duration+(walking is null?0:15);
             }
-            var back=transit.Get(previous,end,date,clock)??walking?.Get(previous,end)??RouteService.EstimateLeg(previous,end);if(walking is null)back["source"]="示例距離估算，非道路導航";if(back.Bool("unreachable"))throw new ServiceException("无法步行返回终点，请修改安排。");legs.Add(back);travel+=(int)back.Number("minutes");steps+=(int)Math.Ceiling(back.Number("walkingMeters",back.Number("meters"))/.75);clock+=(int)back.Number("minutes")+(walking is null?0:10);
+            var back=transit.Get(previous,end,date,clock)??walking?.Get(previous,end)??RouteService.EstimateLeg(previous,end);if(walking is null&&back.Str("mode")!="transit")back["source"]="示例距離估算，非道路導航";if(back.Bool("unreachable"))throw new ServiceException("无法步行返回终点，请修改安排。");legs.Add(back);travel+=(int)back.Number("minutes");steps+=(int)Math.Ceiling(back.Number("walkingMeters",back.Number("meters"))/.75);clock+=(int)back.Number("minutes")+(walking is null?0:10);
             if(clock-lastBathroom>settings.Int("restroomInterval"))Issue("restroom-gap","返程前廁所安排有缺口。");
             if(bag)Issue("luggage","寄放後尚未安排取件。",blocking:true);
             if(clock>endM)Issue("end-time",$"預估 {Time(clock)} 結束，超過 {Time(endM)}。",blocking:true);

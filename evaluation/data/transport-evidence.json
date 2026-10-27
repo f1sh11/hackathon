@@ -1,5 +1,616 @@
 {
-  "mode": "apple-mapkit-historical-walking-replay-only",
-  "note": "E08 consumes evaluation/data/apple-mapkit-walking-replay.json: six dated Apple Maps / MapKit walking legs captured against fixed public landmarks, including a direct Garden-to-Rocks reroute leg. The snapshot is not live navigation. There is still no TfNSW/public-transit replay. Other default cases use the demo estimator and are labelled as estimates.",
-  "routes": []
+  "schemaVersion": 1,
+  "mode": "historical-tfnsw-transit-replay",
+  "provider": "Transport for NSW / Trip Planner",
+  "captureClient": "SydneyBuddy.Evaluation --capture-tfnsw-replay",
+  "capturedAt": "2026-10-27T00:32:35.5412310\u002B00:00",
+  "timeZone": "Australia/Sydney",
+  "notLiveNavigation": true,
+  "usesDeviceLocation": false,
+  "endpointBinding": "Fixed public Central Station and Circular Quay coordinates; no account, device location, request header, or credential is stored.",
+  "requestedDeparture": {
+    "date": "2026-10-27",
+    "minute": 780,
+    "iso": "2026-10-27T13:00:00.0000000\u002B11:00"
+  },
+  "note": "A fixed historical TfNSW Trip Planner snapshot for evaluator T01. It is not a live timetable or navigation query, and fares remain unavailable.",
+  "routes": [
+    {
+      "id": "T01",
+      "from": {
+        "name": "Central Station",
+        "lat": -33.8827,
+        "lng": 151.2069
+      },
+      "to": {
+        "name": "Circular Quay",
+        "lat": -33.861,
+        "lng": 151.2127
+      },
+      "date": "2026-10-27",
+      "minute": 780,
+      "leg": {
+        "meters": 454,
+        "walkingMeters": 454,
+        "minutes": 18,
+        "source": "Transport for NSW / Trip Planner",
+        "mode": "transit",
+        "polyline": "",
+        "departureTime": "2026-10-27T13:00:00.0000000\u002B11:00",
+        "arrivalTime": "2026-10-27T02:18:00.0000000\u002B00:00",
+        "fetchedAt": "2026-10-27T00:32:35.5412310\u002B00:00",
+        "steps": [
+          {
+            "mode": "walk",
+            "line": null,
+            "headsign": null,
+            "from": "Central, Haymarket",
+            "to": "Central Station, Sydney",
+            "departureTime": "2026-10-27T02:01:30\u002B00:00",
+            "arrivalTime": "2026-10-27T02:05:30\u002B00:00",
+            "realtime": false,
+            "stopCount": null,
+            "meters": 193,
+            "seconds": 240,
+            "waitSeconds": 90,
+            "platform": null,
+            "agency": null,
+            "geometry": [
+              {
+                "lat": -33.882752,
+                "lng": 151.207003
+              },
+              {
+                "lat": -33.882822,
+                "lng": 151.206948
+              },
+              {
+                "lat": -33.882933,
+                "lng": 151.206853
+              },
+              {
+                "lat": -33.883247,
+                "lng": 151.206604
+              },
+              {
+                "lat": -33.883256,
+                "lng": 151.206715
+              },
+              {
+                "lat": -33.883314,
+                "lng": 151.206821
+              },
+              {
+                "lat": -33.883471,
+                "lng": 151.207114
+              },
+              {
+                "lat": -33.883507,
+                "lng": 151.207087
+              },
+              {
+                "lat": -33.883557,
+                "lng": 151.207093
+              },
+              {
+                "lat": -33.883667,
+                "lng": 151.207147
+              },
+              {
+                "lat": -33.883681,
+                "lng": 151.207136
+              },
+              {
+                "lat": -33.88377,
+                "lng": 151.207067
+              },
+              {
+                "lat": -33.883789,
+                "lng": 151.207051
+              },
+              {
+                "lat": -33.883802,
+                "lng": 151.207077
+              },
+              {
+                "lat": -33.884017,
+                "lng": 151.2069
+              },
+              {
+                "lat": -33.884011,
+                "lng": 151.206888
+              },
+              {
+                "lat": -33.884021,
+                "lng": 151.206943
+              }
+            ]
+          },
+          {
+            "mode": "rail",
+            "line": "T8",
+            "headsign": "City Circle via Town Hall",
+            "from": "Central Station, Platform 17, Sydney",
+            "to": "Circular Quay, Platform 2, Sydney",
+            "departureTime": "2026-10-27T02:05:30\u002B00:00",
+            "arrivalTime": "2026-10-27T02:14:00\u002B00:00",
+            "realtime": false,
+            "stopCount": null,
+            "meters": 0,
+            "seconds": 510,
+            "waitSeconds": 0,
+            "platform": null,
+            "agency": "Sydney Trains",
+            "geometry": [
+              {
+                "lat": -33.884021,
+                "lng": 151.206943
+              },
+              {
+                "lat": -33.883831,
+                "lng": 151.207094
+              },
+              {
+                "lat": -33.883667,
+                "lng": 151.207245
+              },
+              {
+                "lat": -33.883435,
+                "lng": 151.207439
+              },
+              {
+                "lat": -33.883228,
+                "lng": 151.207591
+              },
+              {
+                "lat": -33.883091,
+                "lng": 151.207676
+              },
+              {
+                "lat": -33.882953,
+                "lng": 151.207745
+              },
+              {
+                "lat": -33.882532,
+                "lng": 151.207928
+              },
+              {
+                "lat": -33.882391,
+                "lng": 151.207983
+              },
+              {
+                "lat": -33.882171,
+                "lng": 151.208057
+              },
+              {
+                "lat": -33.881832,
+                "lng": 151.208154
+              },
+              {
+                "lat": -33.881613,
+                "lng": 151.208212
+              },
+              {
+                "lat": -33.880167,
+                "lng": 151.208584
+              },
+              {
+                "lat": -33.879753,
+                "lng": 151.208676
+              },
+              {
+                "lat": -33.879593,
+                "lng": 151.208693
+              },
+              {
+                "lat": -33.879287,
+                "lng": 151.208731
+              },
+              {
+                "lat": -33.878738,
+                "lng": 151.20879
+              },
+              {
+                "lat": -33.878566,
+                "lng": 151.208788
+              },
+              {
+                "lat": -33.878517,
+                "lng": 151.208785
+              },
+              {
+                "lat": -33.878363,
+                "lng": 151.208763
+              },
+              {
+                "lat": -33.878246,
+                "lng": 151.208734
+              },
+              {
+                "lat": -33.878087,
+                "lng": 151.208682
+              },
+              {
+                "lat": -33.877945,
+                "lng": 151.208615
+              },
+              {
+                "lat": -33.877795,
+                "lng": 151.208524
+              },
+              {
+                "lat": -33.877639,
+                "lng": 151.208418
+              },
+              {
+                "lat": -33.877459,
+                "lng": 151.208273
+              },
+              {
+                "lat": -33.877271,
+                "lng": 151.208082
+              },
+              {
+                "lat": -33.877078,
+                "lng": 151.207862
+              },
+              {
+                "lat": -33.876903,
+                "lng": 151.207625
+              },
+              {
+                "lat": -33.876715,
+                "lng": 151.207366
+              },
+              {
+                "lat": -33.876573,
+                "lng": 151.207198
+              },
+              {
+                "lat": -33.876423,
+                "lng": 151.207051
+              },
+              {
+                "lat": -33.876275,
+                "lng": 151.206926
+              },
+              {
+                "lat": -33.876115,
+                "lng": 151.206824
+              },
+              {
+                "lat": -33.875863,
+                "lng": 151.206707
+              },
+              {
+                "lat": -33.875695,
+                "lng": 151.206651
+              },
+              {
+                "lat": -33.875447,
+                "lng": 151.206603
+              },
+              {
+                "lat": -33.875155,
+                "lng": 151.206574
+              },
+              {
+                "lat": -33.875056,
+                "lng": 151.206572
+              },
+              {
+                "lat": -33.874885,
+                "lng": 151.206602
+              },
+              {
+                "lat": -33.874729,
+                "lng": 151.20664
+              },
+              {
+                "lat": -33.874621,
+                "lng": 151.206656
+              },
+              {
+                "lat": -33.874523,
+                "lng": 151.206664
+              },
+              {
+                "lat": -33.874424,
+                "lng": 151.206659
+              },
+              {
+                "lat": -33.874312,
+                "lng": 151.206672
+              },
+              {
+                "lat": -33.873612,
+                "lng": 151.206762
+              },
+              {
+                "lat": -33.872818,
+                "lng": 151.206863
+              },
+              {
+                "lat": -33.872586,
+                "lng": 151.206863
+              },
+              {
+                "lat": -33.872272,
+                "lng": 151.206841
+              },
+              {
+                "lat": -33.872073,
+                "lng": 151.206821
+              },
+              {
+                "lat": -33.871517,
+                "lng": 151.206652
+              },
+              {
+                "lat": -33.871201,
+                "lng": 151.206537
+              },
+              {
+                "lat": -33.870843,
+                "lng": 151.20643
+              },
+              {
+                "lat": -33.870548,
+                "lng": 151.206338
+              },
+              {
+                "lat": -33.870066,
+                "lng": 151.206242
+              },
+              {
+                "lat": -33.869481,
+                "lng": 151.206176
+              },
+              {
+                "lat": -33.868844,
+                "lng": 151.206089
+              },
+              {
+                "lat": -33.867552,
+                "lng": 151.205947
+              },
+              {
+                "lat": -33.866841,
+                "lng": 151.205935
+              },
+              {
+                "lat": -33.866756,
+                "lng": 151.205927
+              },
+              {
+                "lat": -33.865889,
+                "lng": 151.205805
+              },
+              {
+                "lat": -33.864173,
+                "lng": 151.205563
+              },
+              {
+                "lat": -33.86331,
+                "lng": 151.205432
+              },
+              {
+                "lat": -33.863183,
+                "lng": 151.205423
+              },
+              {
+                "lat": -33.863025,
+                "lng": 151.205429
+              },
+              {
+                "lat": -33.862966,
+                "lng": 151.205434
+              },
+              {
+                "lat": -33.862808,
+                "lng": 151.205456
+              },
+              {
+                "lat": -33.862618,
+                "lng": 151.205499
+              },
+              {
+                "lat": -33.862431,
+                "lng": 151.205567
+              },
+              {
+                "lat": -33.862266,
+                "lng": 151.205644
+              },
+              {
+                "lat": -33.862099,
+                "lng": 151.205741
+              },
+              {
+                "lat": -33.861957,
+                "lng": 151.205862
+              },
+              {
+                "lat": -33.861827,
+                "lng": 151.205984
+              },
+              {
+                "lat": -33.861721,
+                "lng": 151.206097
+              },
+              {
+                "lat": -33.861599,
+                "lng": 151.206244
+              },
+              {
+                "lat": -33.861495,
+                "lng": 151.206401
+              },
+              {
+                "lat": -33.861392,
+                "lng": 151.206576
+              },
+              {
+                "lat": -33.861302,
+                "lng": 151.206764
+              },
+              {
+                "lat": -33.861233,
+                "lng": 151.206954
+              },
+              {
+                "lat": -33.861173,
+                "lng": 151.207153
+              },
+              {
+                "lat": -33.861131,
+                "lng": 151.20738
+              },
+              {
+                "lat": -33.861093,
+                "lng": 151.207656
+              },
+              {
+                "lat": -33.861079,
+                "lng": 151.207864
+              },
+              {
+                "lat": -33.861074,
+                "lng": 151.208032
+              },
+              {
+                "lat": -33.861074,
+                "lng": 151.208103
+              },
+              {
+                "lat": -33.861285,
+                "lng": 151.210305
+              }
+            ]
+          },
+          {
+            "mode": "walk",
+            "line": null,
+            "headsign": null,
+            "from": "Circular Quay, Sydney",
+            "to": "4 Circular Quay East, Sydney",
+            "departureTime": "2026-10-27T02:14:00\u002B00:00",
+            "arrivalTime": "2026-10-27T02:18:00\u002B00:00",
+            "realtime": false,
+            "stopCount": null,
+            "meters": 261,
+            "seconds": 240,
+            "waitSeconds": 0,
+            "platform": null,
+            "agency": null,
+            "geometry": [
+              {
+                "lat": -33.861272,
+                "lng": 151.210311
+              },
+              {
+                "lat": -33.861283,
+                "lng": 151.210429
+              },
+              {
+                "lat": -33.861268,
+                "lng": 151.210431
+              },
+              {
+                "lat": -33.861269,
+                "lng": 151.21044
+              },
+              {
+                "lat": -33.861276,
+                "lng": 151.21044
+              },
+              {
+                "lat": -33.861286,
+                "lng": 151.210546
+              },
+              {
+                "lat": -33.861279,
+                "lng": 151.210547
+              },
+              {
+                "lat": -33.861281,
+                "lng": 151.210563
+              },
+              {
+                "lat": -33.861338,
+                "lng": 151.210555
+              },
+              {
+                "lat": -33.86137,
+                "lng": 151.210894
+              },
+              {
+                "lat": -33.861248,
+                "lng": 151.210908
+              },
+              {
+                "lat": -33.861194,
+                "lng": 151.210911
+              },
+              {
+                "lat": -33.861201,
+                "lng": 151.210993
+              },
+              {
+                "lat": -33.861246,
+                "lng": 151.211491
+              },
+              {
+                "lat": -33.861296,
+                "lng": 151.211986
+              },
+              {
+                "lat": -33.861335,
+                "lng": 151.212116
+              },
+              {
+                "lat": -33.861298,
+                "lng": 151.212217
+              },
+              {
+                "lat": -33.861254,
+                "lng": 151.212329
+              },
+              {
+                "lat": -33.861202,
+                "lng": 151.212419
+              },
+              {
+                "lat": -33.861146,
+                "lng": 151.212496
+              },
+              {
+                "lat": -33.861105,
+                "lng": 151.212548
+              },
+              {
+                "lat": -33.861046,
+                "lng": 151.212598
+              },
+              {
+                "lat": -33.860979,
+                "lng": 151.212639
+              },
+              {
+                "lat": -33.860974,
+                "lng": 151.21264
+              },
+              {
+                "lat": -33.860982,
+                "lng": 151.212642
+              }
+            ]
+          }
+        ],
+        "fareKnown": false,
+        "transfers": 0,
+        "reason": "Fixed TfNSW historical replay; the request compared no synthetic transit substitute and fares are unavailable."
+      }
+    }
+  ]
 }

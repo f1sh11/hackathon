@@ -27,8 +27,6 @@ internal static class EvaluationProgram
         if (cases.Count != 10) throw new InvalidDataException("The evaluation suite must contain exactly 10 cases.");
         ValidateHabits(habitsPath, cases);
         ValidateExpectationChecks(expectationsPath, cases);
-        var transportFixture = JsonNode.Parse(await File.ReadAllTextAsync(transportPath)) as JsonObject
-            ?? throw new InvalidDataException("evaluation/data/transport-evidence.json must be a JSON object.");
         var recordedWalkingReplay = JsonNode.Parse(await File.ReadAllTextAsync(recordedWalkingReplayPath)) as JsonObject
             ?? throw new InvalidDataException("The selected walking replay must be a JSON object.");
         ValidateRecordedWalkingReplay(root, recordedWalkingReplay);
@@ -41,6 +39,10 @@ internal static class EvaluationProgram
         using var catalogCache = new CatalogCache();
         var paths = new ProjectPaths(root);
         var secrets = new SecretStore(paths);
+        var transportFixture = options.CaptureTfNswReplay
+            ? await TfNswTransitReplay.CaptureAsync(transportPath, secrets, options.TransitDate, options.TransitMinute)
+            : JsonNode.Parse(await File.ReadAllTextAsync(transportPath)) as JsonObject
+                ?? throw new InvalidDataException("evaluation/data/transport-evidence.json must be a JSON object.");
         var catalog = new PlaceCatalog(catalogCache, paths);
         var localPlanner = CreatePlanner(catalog, paths, new BlockedExternalClient());
         var aiConfigured = options.WithAi && !string.IsNullOrWhiteSpace(secrets.Read()["NVIDIA_API_KEY"]);
@@ -49,6 +51,8 @@ internal static class EvaluationProgram
             ? CreatePlanner(catalog, paths, new ExternalJsonClient(aiHttp!))
             : null;
         var editor = new ScheduleEditorService(catalog);
+        var transitReplay = TfNswTransitReplay.Verify(transportFixture, editor);
+        await WriteJsonAsync(Path.Combine(output, "tfnsw-transit-replay.json"), transitReplay.Artifact);
 
         var results = new List<CaseResult>();
         foreach (var node in cases)
@@ -98,8 +102,15 @@ internal static class EvaluationProgram
                 ["notRunCaseCount"] = aiResults.Count(result => result.Status == "not_run"),
                 ["comparisonBoundary"] = "The same fixed catalog, input profile, demo weather and empty evaluation memory are used; the model ranks known IDs while deterministic rules validate the itinerary."
             },
-            ["transportFixture"] = transportFixture["mode"]?.DeepClone(),
-            ["transportFixtureNote"] = transportFixture["note"]?.DeepClone(),
+            ["transportFixture"] = new JsonObject
+            {
+                ["mode"] = transportFixture["mode"]?.DeepClone(),
+                ["provider"] = transportFixture["provider"]?.DeepClone(),
+                ["capturedAt"] = transportFixture["capturedAt"]?.DeepClone(),
+                ["routeCount"] = transportFixture.Array("routes")?.Count,
+                ["note"] = transportFixture["note"]?.DeepClone()
+            },
+            ["transitReplay"] = transitReplay.Artifact.DeepClone(),
             ["recordedWalkingReplay"] = new JsonObject
             {
                 ["provider"] = recordedWalkingReplay["provider"]?.DeepClone(),
@@ -113,8 +124,8 @@ internal static class EvaluationProgram
             }
         });
         await File.WriteAllTextAsync(Path.Combine(output, "results.csv"), RenderCsv(results), new UTF8Encoding(false));
-        await File.WriteAllTextAsync(Path.Combine(output, "report.html"), RenderHtml(results, aiConfigured, recordedWalkingReplay), new UTF8Encoding(false));
-        await File.WriteAllTextAsync(Path.Combine(output, "issues.md"), RenderIssues(results, recordedWalkingReplay), new UTF8Encoding(false));
+        await File.WriteAllTextAsync(Path.Combine(output, "report.html"), RenderHtml(results, aiConfigured, recordedWalkingReplay, transitReplay), new UTF8Encoding(false));
+        await File.WriteAllTextAsync(Path.Combine(output, "issues.md"), RenderIssues(results, recordedWalkingReplay, transitReplay), new UTF8Encoding(false));
 
         var localResults = results.Where(x => x.Strategy == "local_rule").ToArray();
         var localFailures = localResults.Where(x => !x.Passed).ToArray();
@@ -126,7 +137,10 @@ internal static class EvaluationProgram
         Console.WriteLine(aiConfigured
             ? $"AI + rule assertions: {aiResults.Count(x => x.Passed)}/{aiResults.Length} passed; NVIDIA was actually called for {aiExecuted}/{aiResults.Length} cases ({ruleRejectedBeforeModel} safely rejected by rules before a model call)."
             : "AI + rule cases: not run (no model result was fabricated).");
-        return localFailures.Length == 0 && (!options.WithAi || aiFailures.Length == 0) ? 0 : 1;
+        Console.WriteLine(transitReplay.Passed
+            ? "TfNSW fixed transit replay: T01 passed; the schedule editor consumed the recorded transit evidence."
+            : "TfNSW fixed transit replay: T01 failed; see tfnsw-transit-replay.json.");
+        return localFailures.Length == 0 && transitReplay.Passed && (!options.WithAi || aiFailures.Length == 0) ? 0 : 1;
     }
 
     private static Planner CreatePlanner(PlaceCatalog catalog, ProjectPaths paths, IExternalJsonClient external) => new(
@@ -586,7 +600,7 @@ internal static class EvaluationProgram
         return rows.ToString();
     }
 
-    private static string RenderHtml(IReadOnlyList<CaseResult> results, bool aiConfigured, JsonObject replay)
+    private static string RenderHtml(IReadOnlyList<CaseResult> results, bool aiConfigured, JsonObject replay, TransitReplayResult transitReplay)
     {
         var local = results.Where(result => result.Strategy == "local_rule").ToArray();
         var rows = new StringBuilder();
@@ -667,7 +681,10 @@ internal static class EvaluationProgram
         var replayEvidence = replay.Str("rerouteEvidence") == "direct_provider_recorded_leg"
             ? "疲劳后使用一段独立录制的植物园→岩石区路段"
             : "疲劳后使用由两段原始路段透明拼接的植物园→岩石区连接段";
-        var replayNote = $"E08 仅使用有日期和来源的 {replay.Str("provider")} 历史道路回放（录制日期 {replay.Str("recordedDate")}）；{replayEvidence}。它验证途中重算的证据门槛、已完成活动保留和疲劳步数导致的可选站点移除；它不是实时导航或 TfNSW 公交回放。其余路线仍是本地演示估算；只有实际执行的 AI 结果才能被称为模型策略验证。";
+        var transitNote = transitReplay.Passed
+            ? $"T01 已用固定的 {transitReplay.Artifact.Str("provider")} 历史快照验证 Central Station→Circular Quay 的公共交通步骤、时刻连续性和排程器实际使用该路段；它不是实时班次、实时导航或票价验证。"
+            : "T01 TfNSW 固定公交回放未通过；本轮不能把公共交通算法称为已验证。";
+        var replayNote = $"E08 仅使用有日期和来源的 {replay.Str("provider")} 历史道路回放（录制日期 {replay.Str("recordedDate")}）；{replayEvidence}。它验证途中重算的证据门槛、已完成活动保留和疲劳步数导致的可选站点移除；它不是实时导航。{transitNote} 其余路线仍是本地演示估算；只有实际执行的 AI 结果才能被称为模型策略验证。";
         return "<!doctype html><html lang=\"zh-CN\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
             + "<title>SydneyBuddy 推荐与路线评测</title><style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin:32px;color:#173642;background:#f6fbfa}main{max-width:1800px;margin:auto}h1{margin-bottom:4px}.note{background:#e6f3f0;padding:14px;border-radius:10px}table{width:100%;border-collapse:collapse;background:#fff;margin-top:20px;font-size:13px}th,td{text-align:left;vertical-align:top;padding:10px;border-bottom:1px solid #d9e4e1;line-height:1.5}th{background:#0f6d69;color:#fff;position:sticky;top:0}.pass{color:#167242;font-weight:700}.expected,.skip{color:#8a5a00;font-weight:700}.fail{color:#b42318;font-weight:700}.detail{font-weight:400;color:#35545b}code{font-size:12px}</style>"
             + "<main><h1>推荐与路线算法独立评测</h1><p>本地：" + localRoutes.ToString(CultureInfo.InvariantCulture) + " 个路线案例通过；" + localExpectedRejections.ToString(CultureInfo.InvariantCulture) + " 个案例按预期明确拒绝；" + localFailures.ToString(CultureInfo.InvariantCulture) + " 个真实失败。AI + 规则：" + Html(aiNote) + "</p>"
@@ -700,10 +717,19 @@ internal static class EvaluationProgram
         _ => id
     };
 
-    private static string RenderIssues(IReadOnlyList<CaseResult> results, JsonObject replay)
+    private static string RenderIssues(IReadOnlyList<CaseResult> results, JsonObject replay, TransitReplayResult transitReplay)
     {
         var issueCases = results.Where(result => result.Status == "failed").Take(3).ToArray();
         var report = new StringBuilder("# 实际失败的评测发现\n\n");
+        if (issueCases.Length == 0 && !transitReplay.Passed)
+        {
+            report.Append("## T01 - TfNSW 固定公交回放\n\n")
+                .Append("- 对应模块：`TransportEvidence` / `ScheduleEditorService`\n")
+                .Append("- 实际输出：").Append(transitReplay.Summary).Append("\n")
+                .Append("- 期望行为：固定 TfNSW 快照必须含真实公共交通步骤，并被排程器按相同起终点、日期和分钟消费。\n")
+                .Append("- 评测结论：这是实际公交回放失败，不能宣称 TfNSW 已验证。\n");
+            return report.ToString();
+        }
         if (issueCases.Length == 0)
         {
             var expectedRejections = results.Where(result => result.Status == "expected_rejection")
@@ -717,7 +743,7 @@ internal static class EvaluationProgram
                 ? "AI + 规则未运行；没有模拟模型结果。"
                 : "AI + 规则已按本轮配置执行；结果仍应结合每案输出和模型非确定性解读。");
             var reroute = replay.Str("rerouteEvidence") == "direct_provider_recorded_leg" ? "一段独立录制的植物园→岩石区路线" : "一段明确标为原始路段拼接的连接";
-            report.Append("E08 已用固定 ").Append(replay.Str("provider")).Append(" 道路回放验证疲劳后的成功重算、已完成活动保留、可选站点移除及缺证据时拒绝；疲劳后使用 ").Append(reroute).Append("。它不是实时导航或 TfNSW 公交数据。其余路线仍是本地演示估算；本轮不能据此宣称真实公交或未执行的模型策略已经验证完成。\n");
+            report.Append("E08 已用固定 ").Append(replay.Str("provider")).Append(" 道路回放验证疲劳后的成功重算、已完成活动保留、可选站点移除及缺证据时拒绝；疲劳后使用 ").Append(reroute).Append("。它不是实时导航。T01 已通过固定 TfNSW 公交快照的步骤、时刻和排程消费验证；它仍不是实时班次、票价或全图公交验证。其余路线仍是本地演示估算；未执行的模型策略不能被称为已验证。\n");
             return report.ToString();
         }
         foreach (var result in issueCases)
@@ -729,6 +755,9 @@ internal static class EvaluationProgram
                 .Append("- 期望行为：").Append(result.TestCase.Object("expected")!.Str("expectedBehavior", RenderExpectation(result.TestCase.Object("expected")!))).Append("\n")
                 .Append("- 评测结论：这是实际断言失败，需要修复或调整预期后再提交。\n\n");
         }
+        if (!transitReplay.Passed)
+            report.Append("## T01 - TfNSW 固定公交回放\n\n- 对应模块：`TransportEvidence` / `ScheduleEditorService`\n- 实际输出：")
+                .Append(transitReplay.Summary).Append("\n- 期望行为：固定 TfNSW 快照必须被排程器消费。\n\n");
         return report.ToString();
     }
 
@@ -761,7 +790,8 @@ internal static class EvaluationProgram
             Task.FromException<JsonObject>(new ServiceException("评测默认禁止外部请求；此策略只能运行本地确定性规则。"));
     }
 
-    private sealed record Options(string? Root, string? Output, bool WithAi, string? WalkingReplay)
+    private sealed record Options(string? Root, string? Output, bool WithAi, string? WalkingReplay,
+        bool CaptureTfNswReplay, DateOnly? TransitDate, int? TransitMinute)
     {
         public static Options Parse(IReadOnlyList<string> args)
         {
@@ -769,6 +799,9 @@ internal static class EvaluationProgram
             string? output = null;
             string? walkingReplay = null;
             var withAi = false;
+            var captureTfNswReplay = false;
+            DateOnly? transitDate = null;
+            int? transitMinute = null;
             for (var index = 0; index < args.Count; index++)
             {
                 switch (args[index])
@@ -777,10 +810,23 @@ internal static class EvaluationProgram
                     case "--output" when index + 1 < args.Count: output = Path.GetFullPath(args[++index]); break;
                     case "--walking-replay" when index + 1 < args.Count: walkingReplay = Path.GetFullPath(args[++index]); break;
                     case "--with-ai": withAi = true; break;
-                    default: throw new ArgumentException("Usage: dotnet run --project server-dotnet/SydneyBuddy.Evaluation -- [--root path] [--output path] [--walking-replay path] [--with-ai]");
+                    case "--capture-tfnsw-replay": captureTfNswReplay = true; break;
+                    case "--transit-date" when index + 1 < args.Count:
+                        if (!DateOnly.TryParseExact(args[++index], "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+                            throw new ArgumentException("--transit-date must use yyyy-MM-dd.");
+                        transitDate = date;
+                        break;
+                    case "--transit-minute" when index + 1 < args.Count:
+                        if (!int.TryParse(args[++index], NumberStyles.Integer, CultureInfo.InvariantCulture, out var minute))
+                            throw new ArgumentException("--transit-minute must be an integer from 0 to 1439.");
+                        transitMinute = minute;
+                        break;
+                    default: throw new ArgumentException("Usage: dotnet run --project server-dotnet/SydneyBuddy.Evaluation -- [--root path] [--output path] [--walking-replay path] [--with-ai] [--capture-tfnsw-replay [--transit-date yyyy-MM-dd] [--transit-minute 0..1439]]");
                 }
             }
-            return new Options(root, output, withAi, walkingReplay);
+            if ((transitDate is not null || transitMinute is not null) && !captureTfNswReplay)
+                throw new ArgumentException("--transit-date and --transit-minute require --capture-tfnsw-replay.");
+            return new Options(root, output, withAi, walkingReplay, captureTfNswReplay, transitDate, transitMinute);
         }
     }
 }

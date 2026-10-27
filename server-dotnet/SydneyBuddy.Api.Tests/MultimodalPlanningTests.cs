@@ -45,6 +45,16 @@ public sealed class MultimodalPlanningTests:IDisposable
         var saved=editor.Build(new JsonObject{["trip"]=updated.DeepClone(),["days"]=updated.Object("schedule")!["days"]!.DeepClone(),["settings"]=updated.Object("schedule")!["settings"]!.DeepClone()});
         Assert.Equal("transit",saved.Array("days")![0]!.Array("legs")![0]!.Str("mode"));
     }
+    [Fact]public async Task HistoricalTransitEvidenceKeepsItsProviderWhenNoWalkingEvidenceIsSupplied() {
+        using var cache=new CatalogCache();var paths=new ProjectPaths(TestSupport.RepositoryRoot());var catalog=new PlaceCatalog(cache,paths);var editor=new ScheduleEditorService(catalog);
+        var profile=TestSupport.Profile();profile["start"]=From();profile["end"]=To();profile["transportPreference"]="lessWalking";profile["date"]="2026-10-23";
+        var leg=await Router(new Handler()).ChooseAsync(From(),To(),Walk(),Profile(),600,new("demo",new Dictionary<string,string>()),default);
+        var route=new JsonObject{["from"]=From(),["to"]=To(),["date"]="2026-10-23",["minute"]=600,["leg"]=leg};
+        var trip=new JsonObject{["mode"]="demo",["title"]="test",["profile"]=profile,["weather"]=new JsonObject(),["warnings"]=new JsonArray(),["trace"]=new JsonArray(),["createdAt"]=DateTimeOffset.UtcNow.ToString("O")};
+        var updated=editor.Build(new JsonObject{["trip"]=trip,["transportRoutes"]=new JsonArray(route),["days"]=new JsonArray(new JsonObject{["date"]="2026-10-23",["startMinute"]=600,["endMinute"]=1080,["activities"]=new JsonArray()})},allowHistoricalTransit:true);
+        var used=updated.Array("days")![0]!.Array("legs")![0]!.AsObject();
+        Assert.Equal("transit",used.Str("mode"));Assert.Equal("Transport for NSW / Trip Planner",used.Str("source"));
+    }
     [Fact]public async Task EditingOneDayRetainsOtherDatesTransitEvidence() {
         var paths=new ProjectPaths(TestSupport.RepositoryRoot());var catalog=new PlaceCatalog(new CatalogCache(),paths);var editor=new ScheduleEditorService(catalog);
         var profile=PlanValidator.Validate(TestSupport.Profile(2),catalog.Get());profile["start"]=From();profile["end"]=To();profile["transportPreference"]="lessWalking";profile["date"]="2026-10-23";profile["maxSteps"]=5000;
