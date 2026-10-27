@@ -7,6 +7,7 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddBuddyServices(this IServiceCollection services)
     {
+        services.AddSingleton<SkillAdministration>();
         services.AddSingleton(provider => {
             var configuration = provider.GetRequiredService<IConfiguration>();
             return new ProjectPaths(configuration["SYDNEYBUDDY_ROOT"] ?? ProjectPaths.DiscoverRoot(), configuration["SYDNEYBUDDY_DATA"]);

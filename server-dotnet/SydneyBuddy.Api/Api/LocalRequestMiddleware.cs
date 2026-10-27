@@ -27,7 +27,7 @@ public sealed class LocalRequestMiddleware(RequestDelegate next, ILogger<LocalRe
             await ErrorAsync(context, 403, "仅支持本机请求");
             return;
         }
-        try { await next(context); }
+        try { using var skill=context.Request.Path.StartsWithSegments("/admin/planning/skills") ? ItinerarySkill.Use(ItinerarySkill.Load(null)) : ItinerarySkill.BeginRequest(context.RequestServices.GetRequiredService<SkillAdministration>().ActivePath); await next(context); }
         catch (RevisionConflictException exception) { await ErrorAsync(context, 409, exception.Message); }
         catch (ServiceException exception) { await ErrorAsync(context, 422, exception.Message); }
         catch (JsonException) { await ErrorAsync(context, 400, "请求格式不合法"); }

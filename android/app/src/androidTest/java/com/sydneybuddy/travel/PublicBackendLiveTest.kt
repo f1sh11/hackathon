@@ -17,6 +17,21 @@ import java.net.URL
 /** Opt-in: credentials arrive through a private app file, never test arguments. */
 class PublicBackendLiveTest {
     @get:Rule val rule=createAndroidComposeRule<MainActivity>()
+    @Test fun cloudColocationUsesManagedDataThroughPathPrefix(){
+        assumeTrue(InstrumentationRegistry.getArguments().getString("cloudColocationSmoke")=="true")
+        val context=InstrumentationRegistry.getInstrumentation().targetContext
+        val file=File(context.filesDir,"backend-public-smoke.json")
+        val config=JSONObject(file.readText());file.delete()
+        val base=config.getString("url");val code=config.getString("accessCode")
+        assertTrue(base.startsWith("https://") && base.endsWith("/sydneybuddy"))
+        val anonymous=URL("$base/health").openConnection() as HttpURLConnection
+        try{anonymous.connectTimeout=15000;anonymous.readTimeout=15000;assertEquals(401,anonymous.responseCode)}finally{anonymous.disconnect()}
+        rule.waitUntil(45000){var idle=false;rule.activityRule.scenario.onActivity{idle=!ViewModelProvider(it)[BuddyStore::class.java].busy};idle}
+        rule.activityRule.scenario.onActivity{val store=ViewModelProvider(it)[BuddyStore::class.java];store.onboarding=false;store.tab=4;store.chooseBackend("cloud",base,code)}
+        rule.waitUntil(120000){var ready=false;rule.activityRule.scenario.onActivity{val store=ViewModelProvider(it)[BuddyStore::class.java];ready=store.base==base&&!store.busy&&store.health?.optString("status")=="ok"&&store.travelDataSource=="zetaris-cloud"&&!store.mapLayerIds.isNullOrEmpty()};ready}
+        rule.activityRule.scenario.onActivity{val store=ViewModelProvider(it)[BuddyStore::class.java];assertTrue(store.health!!.optBoolean("nvidiaConfigured"));assertNull(store.error)}
+    }
+
     @Test fun publicHttpsAutomaticallyUsesManagedCloudData(){
         assumeTrue(InstrumentationRegistry.getArguments().getString("publicBackendSmoke")=="true")
         val context=InstrumentationRegistry.getInstrumentation().targetContext

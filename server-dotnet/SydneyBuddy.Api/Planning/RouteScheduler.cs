@@ -16,6 +16,7 @@ public sealed class RouteScheduler(RouteService routes)
         var mustVisit = profile.Array("mustVisit")!.Select(x => x!.GetValue<string>()).ToHashSet(StringComparer.Ordinal);
         var days = new JsonArray();
         var used = new HashSet<string>(StringComparer.Ordinal);
+        var visitedPlaces = new List<JsonObject>();
         var firstDate = DateOnly.ParseExact(profile.Str("date"), "yyyy-MM-dd", CultureInfo.InvariantCulture);
         for (var day = 0; day < profile.Int("days"); day++)
         {
@@ -27,7 +28,7 @@ public sealed class RouteScheduler(RouteService routes)
             // Apply rain filtering per date, rather than excluding outdoor places for the entire trip.
             var forecast = weather.Array("days")?.OfType<JsonObject>().FirstOrDefault(x => x.Str("date") == daily.Str("date"));
             var rainy = forecast?.Bool("rainy") ?? weather.Bool("rainy");
-            var available = places.Where(x => !used.Contains(x.Str("id")) &&
+            var available = places.Where(x => !used.Contains(x.Str("id")) && !visitedPlaces.Any(p=>PlaceIdentity.Same(p,x)) &&
                 (context.DayCandidateIds is null || context.DayCandidateIds[day].Contains(x.Str("id"))) &&
                 (!rainy || profile.Str("weatherTolerance")!="avoidRain" || x.Bool("indoor")&&(x["indoorKnown"] is null||x.Bool("indoorKnown")))).ToArray();
             // Forecast rain changes preference and outdoor duration, not the entire purpose of a trip.
@@ -54,7 +55,7 @@ public sealed class RouteScheduler(RouteService routes)
             for (var length = 1; length <= dailyLimit; length++)
             {
                 var level=new List<(double Score,JsonObject[] Order)>();
-                var orders=beam.SelectMany(previous=>pool.Where(p=>previous.All(q=>q.Str("id")!=p.Str("id"))).Select(p=>previous.Append(p).ToArray()));
+                var orders=beam.SelectMany(previous=>pool.Where(p=>previous.All(q=>!PlaceIdentity.Same(q,p))).Select(p=>previous.Append(p).ToArray()));
                 foreach (var order in orders)
                 {
                     ct.ThrowIfCancellationRequested();
@@ -126,6 +127,7 @@ public sealed class RouteScheduler(RouteService routes)
             DailyPacing.Annotate(selected,daily);
             selected["date"] = daily.Str("date");
             days.Add(selected);
+            visitedPlaces.AddRange(selected.Array("stops")!.OfType<JsonObject>().Where(p=>!RouteLogistics.IsTask(p)));
             used.UnionWith(selected.Array("stops")!.OfType<JsonObject>().Select(x => x.Str("id")));
         }
 
@@ -143,7 +145,7 @@ public sealed class RouteScheduler(RouteService routes)
         }
         if(context.MeterlessPlanning || proposal["dayPlans"] is not JsonArray plans){Issue("proposal_missing");return(null,issues);}
         if(plans.Count!=profile.Int("days")){Issue("day_count");return(null,issues);}
-        var used=new HashSet<string>(StringComparer.Ordinal);var result=new JsonArray();
+        var used=new HashSet<string>(StringComparer.Ordinal);var physicalPlaces=new List<JsonObject>();var result=new JsonArray();
         var date=DateOnly.ParseExact(profile.Str("date"),"yyyy-MM-dd",CultureInfo.InvariantCulture);
         var known=candidates.ToDictionary(x=>x.Str("id"),StringComparer.Ordinal);
         for(var day=0;day<plans.Count;day++) {
@@ -152,7 +154,8 @@ public sealed class RouteScheduler(RouteService routes)
             var order=new List<JsonObject>();
             foreach(var node in ids) {
                 if(node is not JsonValue value || !value.TryGetValue<string>(out var id) || !known.TryGetValue(id,out var point)){Issue("unknown_place",day);continue;}
-                if(!used.Add(id)){Issue("duplicate_place",day);continue;}
+                if(!used.Add(id) || physicalPlaces.Any(p=>PlaceIdentity.Same(p,point))){Issue("duplicate_place",day);continue;}
+                physicalPlaces.Add(point);
                 if(context.DayCandidateIds is not null && !context.DayCandidateIds[day].Contains(id)){Issue("road_evidence_missing",day);continue;}
                 order.Add(point);
             }
@@ -221,7 +224,7 @@ public sealed class RouteScheduler(RouteService routes)
             totalCost += point.Number("cost");
             if(totalCost>profile.Number("budget"))return Reject("budget",totalCost,profile.Number("budget"));
             if((exact||!context.CompareTransit)&&totalSteps>profile.Int("maxSteps"))return Reject("steps",totalSteps,profile.Int("maxSteps"));
-            var stop = CopyFields(point, "id", "name", "lat", "lng", "category", "indoor", "visitMinutes", "cost", "note", "activityType", "tags", "sourceURL", "source", "website", "costKnown", "indoorKnown", "openingHoursText", "storageConfirmed", "openMinute", "closeMinute");
+            var stop = CopyFields(point, "id", "nameEn", "query", "aliases", "sourceIds", "matchedPlaceId", "wikidata", "address", "poiKind", "name", "lat", "lng", "category", "indoor", "visitMinutes", "cost", "note", "activityType", "tags", "sourceURL", "source", "website", "costKnown", "indoorKnown", "openingHoursText", "storageConfirmed", "openMinute", "closeMinute");
             stop["arrival"] = TimeLabel(start);
             stop["departure"] = TimeLabel(start + point.Int("visitMinutes"));
             stop["hoursVerified"] = RouteLogistics.IsTask(point)?point.Bool("hoursVerified"):verified;

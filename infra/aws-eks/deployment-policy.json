@@ -1,0 +1,19 @@
+{
+  "cluster": "zetaris-sydneybuddy-demo-a6c43f1d",
+  "region": "ap-southeast-2",
+  "namespace": "zetaris",
+  "node": "ip-10-0-11-101.ap-southeast-2.compute.internal",
+  "maximumAdditionalStorageGiB": 7,
+  "maximumAdditionalMonthlyStorageUSD": 2,
+  "gp2USDPerGiBMonth": 0.12,
+  "ecrUSDPerGBMonth": 0.1,
+  "maximumPrivateImageGB": 1,
+  "allowedExistingIngress": "zetaris-ndp-api",
+  "publicHost": "api.a6c43f1d-2765-487d-89af-99b612b39de9.cloud.zetaris.com",
+  "pathPrefix": "/sydneybuddy/",
+  "replicas": 1,
+  "newComputeHostsAllowed": false,
+  "newLoadBalancersAllowed": false,
+  "oracleMustRemainAvailableForRollback": true,
+  "storageClass": "sydneybuddy-gp2-encrypted"
+}

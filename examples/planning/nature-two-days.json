@@ -1,0 +1,28 @@
+{
+  "date": "2026-10-28",
+  "days": 2,
+  "mode": "assisted",
+  "language": "en",
+  "budget": 180,
+  "maxSteps": 15000,
+  "startMinute": 600,
+  "endMinute": 1200,
+  "interests": [
+    "自然"
+  ],
+  "mustVisit": [],
+  "transportPreference": "walk",
+  "energy": "高精力",
+  "accommodationStatus": "unknown",
+  "start": {
+    "name": "Circular Quay",
+    "lat": -33.8611,
+    "lng": 151.2126
+  },
+  "end": {
+    "name": "Circular Quay",
+    "lat": -33.8611,
+    "lng": 151.2126
+  },
+  "request": "Prefer parks, gardens and nature experiences. Fill available time without repeating attractions across days. Keep timely meals."
+}

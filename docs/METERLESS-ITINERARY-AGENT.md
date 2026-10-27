@@ -139,3 +139,17 @@ Validation: backend 538 tests passed, including 14 route-logistics regression ca
 Reconciled main's personal-profile agent, model-provider selection, planning journal and feasibility evaluator with Meterless configuration, inventory, hotel logistics and walking-load calculations. Meterless date-based `dayPlans` remain soft preferences and enter the bounded deterministic optimizer; the journal explicitly records this optimizer fallback rather than claiming the model supplied an approved fixed-order itinerary. Non-Skill agent proposals retain main's feedback/revision flow, without fixed four-stop or low-energy three-stop restrictions. Both paths use the same final steps, meal windows and route constraints. Embedded Skill and personal-profile prompt files are now included by the Oracle source packager, with a package regression test.
 
 Validation after reconciliation: 595 backend tests, 160 iOS Schedule/PetDraft/KokoDialogue tests, 10 feasibility collaboration tests (including the new five-stop low-energy regression), packaging test and four English localization checks passed. Cloud deployment verification is recorded separately after the VM update.
+
+
+## Skill-only preference update — 2026-10-27.4
+
+Both embedded language versions retain their complete prior text and append a precedence-scoped update: feasible transit first, personal transport preferences, walking as fallback; default energy steps are soft references; qualifying seated meals/tea/rest separate continuous walking segments around the 6,000-step reminder without erasing daily totals. Fuller usable days toward the existing 20:00 hotel-return objective take priority over minimizing default step references. Explicit hard caps, health, bookings, hours, weather, budget, luggage, and existing output schema remain binding. Rest durations are labeled planning assumptions, not medical recovery claims.
+
+This change updates the model Skill only. Deterministic planner step caps, transport selection, and live rest-progress counters have not been changed by this update. The model must report any resulting backend limitation; this is not evidence that those runtime behaviors are implemented or deployed.
+
+
+## Physical-place uniqueness — 2026-10-27.5
+
+Both Skills retain prior text and add physical-place uniqueness across days and source IDs. Discovery matches translated names/query aliases, stable IDs, and close coordinates with conservative branch/address checks, including OSM node/building duplicates. Matched rows are suppressed in query results while source IDs and attribution remain available. Source snapshots are retained for provenance and existing-trip references, not destructively rewritten. Planning beam expansion, cross-day selection, proposal validation, and final feasibility checks reject repeated physical attractions; logistics tasks are excluded from physical sightseeing comparisons. Scheduled stops now retain identity metadata.
+
+The public local catalog/OSM audit is recorded in `PLACE-DUPLICATE-AUDIT.json`; ambiguous pairs remain separate. This audit does not inspect live cloud-only or private imported records. The shared matching code applies to local and Zetaris snapshots once this backend build is deployed. Cloud deployment and warehouse writes are outside this update. Targeted identity, discovery memory, feasibility, collaboration, walking and luggage regression tests: 89 passed.

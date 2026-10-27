@@ -1,0 +1,2863 @@
+{
+  "info": {
+    "name": "SydneyBuddy — 完整 API 測試",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "全路由請求範例。先在本機 Postman Vault 設定 sydneybuddy-app-access-code（App 連線碼，不是 NVIDIA 或 Zetaris 密碼），再開 01 健康檢查。02 可測 JSON 規劃與下載。預設 allow_writes=no；⚠ 請求需確認後改 yes 並逐一傳送，不要對整組執行 Runner。請勿分享含連線碼或個人資料的匯出檔。雲端固定使用 zetaris-cloud；本機可改 base_url 與 data_source=local。"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{vault:sydneybuddy-app-access-code}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://api.a6c43f1d-2765-487d-89af-99b612b39de9.cloud.zetaris.com/sydneybuddy",
+      "type": "string"
+    },
+    {
+      "key": "local_base_url",
+      "value": "http://127.0.0.1:8787",
+      "type": "string"
+    },
+    {
+      "key": "app_access_code",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "data_source",
+      "value": "zetaris-cloud",
+      "type": "string"
+    },
+    {
+      "key": "language",
+      "value": "en",
+      "type": "string"
+    },
+    {
+      "key": "travel_date",
+      "value": "2026-10-28",
+      "type": "string"
+    },
+    {
+      "key": "days",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "budget",
+      "value": "180",
+      "type": "string"
+    },
+    {
+      "key": "max_steps",
+      "value": "10000",
+      "type": "string"
+    },
+    {
+      "key": "transport",
+      "value": "walk",
+      "type": "string"
+    },
+    {
+      "key": "allow_writes",
+      "value": "no",
+      "type": "string"
+    },
+    {
+      "key": "run_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "draft_json",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "trip_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "trip_revision",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "walking_routes_json",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "review_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "plan_revision",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "requirements_revision",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "simulation_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "suggestion_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "place_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "place_name",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "place_lat",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "place_lng",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "source_url",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "source_author",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "observed_at",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "source_permission",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "source_text",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "review_quote",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "restaurant_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "menu_item_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "social_post_url",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "social_text",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "mentions_json",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "social_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "memory_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "session_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "candidate_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "setup_csrf_token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 連線與資料狀態",
+      "item": [
+        {
+          "name": "健康檢查",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              }
+            ],
+            "url": "{{base_url}}/health",
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Agent 與 Skill 狀態",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              }
+            ],
+            "url": "{{base_url}}/planning/agent/status",
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "資料來源狀態",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              }
+            ],
+            "url": "{{base_url}}/data/status",
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "地圖資料圖層",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              }
+            ],
+            "url": "{{base_url}}/data/map-layers",
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "規劃景點目錄",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              }
+            ],
+            "url": "{{base_url}}/catalog",
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 行程 JSON 測試（先從這裡）",
+      "item": [
+        {
+          "name": "下載範例 JSON",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              }
+            ],
+            "url": "{{base_url}}/planning/test/example",
+            "description": "Send and Download 可另存 JSON。"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "不同參數產生行程（JSON）",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/planning/test",
+            "description": "可調 days、budget、max_steps、transport 與 Body 偏好。會使用雲端模型額度；不儲存行程，但保留診斷記錄。",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"{{travel_date}}\",\n  \"days\": {{days}},\n  \"mode\": \"assisted\",\n  \"language\": \"{{language}}\",\n  \"budget\": {{budget}},\n  \"maxSteps\": {{max_steps}},\n  \"startMinute\": 600,\n  \"endMinute\": 1200,\n  \"interests\": [\n    \"文化\",\n    \"自然\"\n  ],\n  \"mustVisit\": [],\n  \"transportPreference\": \"{{transport}}\",\n  \"energy\": \"中精力\",\n  \"accommodationStatus\": \"unknown\",\n  \"start\": {\n    \"name\": \"Circular Quay\",\n    \"lat\": -33.8611,\n    \"lng\": 151.2126\n  },\n  \"end\": {\n    \"name\": \"Circular Quay\",\n    \"lat\": -33.8611,\n    \"lng\": 151.2126\n  },\n  \"request\": \"測試行程規劃；景點不重複，準時用餐。住宿尚未選定，不宣稱已訂房。\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) { const d = pm.response.json(); const t=d.draft || d; pm.collectionVariables.set('draft_json',JSON.stringify(t)); if(d.runId) pm.collectionVariables.set('run_id',d.runId); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "上傳 JSON 檔並下載結果",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              }
+            ],
+            "url": "{{base_url}}/planning/test?download=true",
+            "description": "Body → form-data → file 選擇 JSON；上限 200000 bytes。Send and Download 下載結果。不儲存行程。",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) { const d = pm.response.json(); const t=d.draft || d; pm.collectionVariables.set('draft_json',JSON.stringify(t)); if(d.runId) pm.collectionVariables.set('run_id',d.runId); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "JSON 參數並下載結果",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/planning/test?download=true",
+            "description": "Send and Download 另存結果；會使用模型額度，不儲存行程。",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"{{travel_date}}\",\n  \"days\": {{days}},\n  \"mode\": \"assisted\",\n  \"language\": \"{{language}}\",\n  \"budget\": {{budget}},\n  \"maxSteps\": {{max_steps}},\n  \"startMinute\": 600,\n  \"endMinute\": 1200,\n  \"interests\": [\n    \"文化\",\n    \"自然\"\n  ],\n  \"mustVisit\": [],\n  \"transportPreference\": \"{{transport}}\",\n  \"energy\": \"中精力\",\n  \"accommodationStatus\": \"unknown\",\n  \"start\": {\n    \"name\": \"Circular Quay\",\n    \"lat\": -33.8611,\n    \"lng\": 151.2126\n  },\n  \"end\": {\n    \"name\": \"Circular Quay\",\n    \"lat\": -33.8611,\n    \"lng\": 151.2126\n  },\n  \"request\": \"測試行程規劃；景點不重複，準時用餐。住宿尚未選定，不宣稱已訂房。\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) { const d = pm.response.json(); const t=d.draft || d; pm.collectionVariables.set('draft_json',JSON.stringify(t)); if(d.runId) pm.collectionVariables.set('run_id',d.runId); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "讀取規劃診斷",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              }
+            ],
+            "url": "{{base_url}}/planning/runs/{{run_id}}",
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('run_id')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 run_id'); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "有效 Skill 中文版",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              }
+            ],
+            "url": "{{base_url}}/planning/skills?language=zh-Hant",
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "有效 Skill 英文下載",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              }
+            ],
+            "url": "{{base_url}}/planning/skills?language=en&download=true",
+            "description": "唯讀；更新 Skill 請使用操作員流程，App 連線碼沒有寫入 Skill 的權限。"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 景點、住宿與天氣",
+      "item": [
+        {
+          "name": "附近景點搜尋",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/poi/search",
+            "description": "category 可用 all / sights / gems / food / lodging。來源不同可能回傳不同數量。",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lat\": -33.8611,\n  \"lng\": 151.2126,\n  \"radius\": 3000,\n  \"category\": \"all\",\n  \"query\": \"\",\n  \"provider\": \"osm\",\n  \"language\": \"{{language}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "景點照片與介紹",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/poi/media",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"opera\",\n  \"name\": \"Sydney Opera House\",\n  \"lat\": -33.8568,\n  \"lng\": 151.2153\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "景點與住宿候選清單",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/planning/inventory",
+            "description": "住宿為候選；不代表空房、已訂房或價格已核實。",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"start\": {\n    \"name\": \"Circular Quay\",\n    \"lat\": -33.8611,\n    \"lng\": 151.2126\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "逐日天氣",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/weather",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"{{travel_date}}\",\n  \"days\": {{days}},\n  \"mode\": \"assisted\",\n  \"language\": \"{{language}}\",\n  \"budget\": {{budget}},\n  \"maxSteps\": {{max_steps}},\n  \"startMinute\": 600,\n  \"endMinute\": 1200,\n  \"interests\": [\n    \"文化\",\n    \"自然\"\n  ],\n  \"mustVisit\": [],\n  \"transportPreference\": \"{{transport}}\",\n  \"energy\": \"中精力\",\n  \"accommodationStatus\": \"unknown\",\n  \"start\": {\n    \"name\": \"Circular Quay\",\n    \"lat\": -33.8611,\n    \"lng\": 151.2126\n  },\n  \"end\": {\n    \"name\": \"Circular Quay\",\n    \"lat\": -33.8611,\n    \"lng\": 151.2126\n  },\n  \"request\": \"測試行程規劃；景點不重複，準時用餐。住宿尚未選定，不宣稱已訂房。\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "交通、人潮與費用資訊",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/data/insights",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"{{travel_date}}\",\n  \"places\": [\n    {\n      \"id\": \"opera\",\n      \"name\": \"Sydney Opera House\",\n      \"lat\": -33.8568,\n      \"lng\": 151.2153\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 行程規劃與調整",
+      "item": [
+        {
+          "name": "App 行程規劃",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/plan",
+            "description": "與測試 API 共用規劃邏輯；不自動儲存。可能呼叫模型。",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"{{travel_date}}\",\n  \"days\": {{days}},\n  \"mode\": \"assisted\",\n  \"language\": \"{{language}}\",\n  \"budget\": {{budget}},\n  \"maxSteps\": {{max_steps}},\n  \"startMinute\": 600,\n  \"endMinute\": 1200,\n  \"interests\": [\n    \"文化\",\n    \"自然\"\n  ],\n  \"mustVisit\": [],\n  \"transportPreference\": \"{{transport}}\",\n  \"energy\": \"中精力\",\n  \"accommodationStatus\": \"unknown\",\n  \"start\": {\n    \"name\": \"Circular Quay\",\n    \"lat\": -33.8611,\n    \"lng\": 151.2126\n  },\n  \"end\": {\n    \"name\": \"Circular Quay\",\n    \"lat\": -33.8611,\n    \"lng\": 151.2126\n  },\n  \"request\": \"測試行程規劃；景點不重複，準時用餐。住宿尚未選定，不宣稱已訂房。\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) { const d = pm.response.json(); const t=d.draft || d; pm.collectionVariables.set('draft_json',JSON.stringify(t)); if(d.runId) pm.collectionVariables.set('run_id',d.runId); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "步行候選預處理",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/plan/prepare",
+            "description": "初篩候選，不代表已驗證所有道路時間。可能呼叫模型。",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"{{travel_date}}\",\n  \"days\": {{days}},\n  \"mode\": \"assisted\",\n  \"language\": \"{{language}}\",\n  \"budget\": {{budget}},\n  \"maxSteps\": {{max_steps}},\n  \"startMinute\": 600,\n  \"endMinute\": 1200,\n  \"interests\": [\n    \"文化\",\n    \"自然\"\n  ],\n  \"mustVisit\": [],\n  \"transportPreference\": \"{{transport}}\",\n  \"energy\": \"中精力\",\n  \"accommodationStatus\": \"unknown\",\n  \"start\": {\n    \"name\": \"Circular Quay\",\n    \"lat\": -33.8611,\n    \"lng\": 151.2126\n  },\n  \"end\": {\n    \"name\": \"Circular Quay\",\n    \"lat\": -33.8611,\n    \"lng\": 151.2126\n  },\n  \"request\": \"測試行程規劃；景點不重複，準時用餐。住宿尚未選定，不宣稱已訂房。\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "時間軸試算",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/schedule/editor",
+            "description": "先產生草案。未提供 days 時由編輯器安排活動；此請求不儲存，但非步行偏好可能查詢正式交通。",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"trip\": {{draft_json}}, \"settings\": {\"pace\":\"balanced\",\"timeLimit\":600}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('draft_json')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 draft_json'); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) { const d = pm.response.json(); const t=d.draft || d; pm.collectionVariables.set('draft_json',JSON.stringify(t)); if(d.runId) pm.collectionVariables.set('run_id',d.runId); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "剩餘行程重新安排",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/plan/remaining",
+            "description": "需要已儲存行程、最新版本與真實 walkingRoutes 證據；不是 navigation 回傳原文直接貼上。請按 App walkingRoutes 格式提供。",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"tripId\":\"{{trip_id}}\",\"expectedRevision\":{{trip_revision}},\"day\":0,\"currentMinute\":840,\"origin\":{\"name\": \"Circular Quay\", \"lat\": -33.8611, \"lng\": 151.2126},\"completedIds\":[],\"skippedIds\":[],\"walkingRoutes\":{{walking_routes_json}},\"request\":\"下午有點累，減少步行，保留晚餐及回飯店時間。\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('trip_id')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 trip_id'); }",
+                  "if (!pm.variables.get('trip_revision')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 trip_revision'); }",
+                  "if (!pm.variables.get('walking_routes_json')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 walking_routes_json'); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) { const d = pm.response.json(); const t=d.draft || d; pm.collectionVariables.set('draft_json',JSON.stringify(t)); if(d.runId) pm.collectionVariables.set('run_id',d.runId); }"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 步行與公共運輸",
+      "item": [
+        {
+          "name": "步行導航",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/navigation/route",
+            "description": "注意本接口使用 lon；需後端配置 Valhalla。",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"locations\": [\n    {\n      \"lat\": -33.8611,\n      \"lon\": 151.2126\n    },\n    {\n      \"lat\": -33.8568,\n      \"lon\": 151.2153\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "公共運輸路線",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/journey/plan",
+            "description": "需 TfNSW 後端設定；日期請選可查詢範圍，時間需含時區，夏令時間注意 +11:00。",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"routingProvider\": \"nsw\",\n  \"points\": [\n    {\n      \"name\": \"Circular Quay\",\n      \"lat\": -33.8611,\n      \"lng\": 151.2126\n    },\n    {\n      \"id\": \"opera\",\n      \"name\": \"Sydney Opera House\",\n      \"lat\": -33.8568,\n      \"lng\": 151.2153\n    }\n  ],\n  \"modes\": [\n    \"transit\"\n  ],\n  \"departureTime\": \"{{travel_date}}T10:00:00+11:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "06 已儲存行程（寫入需確認）",
+      "item": [
+        {
+          "name": "列出已儲存行程",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              }
+            ],
+            "url": "{{base_url}}/trips",
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ 儲存草案為行程",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/trips",
+            "description": "寫入團隊共用資料。新草案 expectedRevision=0；若草案已有 id，請用其目前 revision。",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"trip\": {{draft_json}}, \"expectedRevision\":0}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('draft_json')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 draft_json'); }",
+                  "if (pm.variables.get('allow_writes') !== 'yes') { pm.execution.skipRequest(); throw new Error('此請求會修改資料；確認後將 allow_writes 設為 yes，再單獨傳送。'); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) { const d = pm.response.json(); if(d.id){pm.collectionVariables.set('trip_id',d.id);pm.collectionVariables.set('trip_revision',String(d.revision));} }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ 修改行程名稱",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/trips",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"trip\":{\"id\":\"{{trip_id}}\",\"title\":\"Postman 測試行程\"},\"renameOnly\":true,\"expectedRevision\":{{trip_revision}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('trip_id')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 trip_id'); }",
+                  "if (!pm.variables.get('trip_revision')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 trip_revision'); }",
+                  "if (pm.variables.get('allow_writes') !== 'yes') { pm.execution.skipRequest(); throw new Error('此請求會修改資料；確認後將 allow_writes 設為 yes，再單獨傳送。'); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) { const d = pm.response.json(); if(d.revision) pm.collectionVariables.set('trip_revision',String(d.revision)); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ 刪除指定行程",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              }
+            ],
+            "url": "{{base_url}}/trips/{{trip_id}}",
+            "description": "只刪除你指定的測試行程；不可復原，不要使用夥伴行程 ID。"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('trip_id')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 trip_id'); }",
+                  "if (pm.variables.get('allow_writes') !== 'yes') { pm.execution.skipRequest(); throw new Error('此請求會修改資料；確認後將 allow_writes 設為 yes，再單獨傳送。'); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "07 可行性審查",
+      "item": [
+        {
+          "name": "建立草案審查",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/agents/feasibility/reviews",
+            "description": "建立審查記錄，可能呼叫模型與交通服務；不等於確認儲存。",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"trip\":{{draft_json}},\"planId\":\"postman-draft\",\"planRevision\":1,\"requirementsRevision\":1}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('draft_json')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 draft_json'); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) { const d = pm.response.json(); pm.collectionVariables.set('review_id',d.reviewId);pm.collectionVariables.set('plan_revision',String(d.planRevision));pm.collectionVariables.set('requirements_revision',String(d.requirementsRevision)); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "取得審查結果",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              }
+            ],
+            "url": "{{base_url}}/agents/feasibility/reviews/{{review_id}}",
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('review_id')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 review_id'); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ 確認已通過審查並儲存",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/agents/feasibility/reviews/{{review_id}}/confirm",
+            "description": "只有可確認且未過期的審查可用；既有行程需填目前 saved revision。",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"planRevision\":{{plan_revision}},\"requirementsRevision\":{{requirements_revision}},\"expectedSavedRevision\":0}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('review_id')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 review_id'); }",
+                  "if (!pm.variables.get('plan_revision')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 plan_revision'); }",
+                  "if (!pm.variables.get('requirements_revision')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 requirements_revision'); }",
+                  "if (pm.variables.get('allow_writes') !== 'yes') { pm.execution.skipRequest(); throw new Error('此請求會修改資料；確認後將 allow_writes 設為 yes，再單獨傳送。'); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "08 World Model 與模擬",
+      "item": [
+        {
+          "name": "行程最新世界狀態",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              }
+            ],
+            "url": "{{base_url}}/trips/{{trip_id}}/world",
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('trip_id')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 trip_id'); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "行程最新規劃狀態",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              }
+            ],
+            "url": "{{base_url}}/trips/{{trip_id}}/planning-state",
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('trip_id')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 trip_id'); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ 建立模擬記錄",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/trips/{{trip_id}}/simulation-runs",
+            "description": "寫入模擬狀態；重試同一操作時保留相同 requestId。",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"requestId\": \"{{$guid}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('trip_id')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 trip_id'); }",
+                  "if (pm.variables.get('allow_writes') !== 'yes') { pm.execution.skipRequest(); throw new Error('此請求會修改資料；確認後將 allow_writes 設為 yes，再單獨傳送。'); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) { const d = pm.response.json(); if(d.id || d.runId || d.run?.id) pm.collectionVariables.set('simulation_id',d.id || d.runId || d.run.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "取得模擬結果",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              }
+            ],
+            "url": "{{base_url}}/simulation-runs/{{simulation_id}}",
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('simulation_id')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 simulation_id'); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ 記錄模擬建議決定",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/simulation-runs/{{simulation_id}}/decisions",
+            "description": "decision 為 accepted 或 rejected。先從模擬結果選擇 suggestionId。",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"suggestionId\": \"{{suggestion_id}}\",\n  \"decision\": \"accepted\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('simulation_id')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 simulation_id'); }",
+                  "if (!pm.variables.get('suggestion_id')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 suggestion_id'); }",
+                  "if (pm.variables.get('allow_writes') !== 'yes') { pm.execution.skipRequest(); throw new Error('此請求會修改資料；確認後將 allow_writes 設為 yes，再單獨傳送。'); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "09 餐廳證據與估價",
+      "item": [
+        {
+          "name": "解析貼上的 JSON-LD 菜單",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/restaurants/parse-menu",
+            "description": "純解析範例，不抓取官網、不儲存；示例菜價不是店家真實價格。",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channel\": \"dine_in\",\n  \"content\": \"{\\\"@context\\\": \\\"https://schema.org\\\", \\\"@type\\\": \\\"MenuItem\\\", \\\"name\\\": \\\"Demo pasta (sample only)\\\", \\\"offers\\\": {\\\"@type\\\": \\\"Offer\\\", \\\"price\\\": 28, \\\"priceCurrency\\\": \\\"AUD\\\"}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "餐廳已發布資料",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              }
+            ],
+            "url": "{{base_url}}/restaurants/published",
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ 匯入餐廳資料",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/restaurants/import",
+            "description": "先以 poi/search 選實際餐廳；填真實來源、授權與逐字引句。user_import 不能變成官方菜單價格。",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"placeId\": \"{{place_id}}\",\n  \"placeName\": \"{{place_name}}\",\n  \"lat\": {{place_lat}},\n  \"lng\": {{place_lng}},\n  \"sourceType\": \"user_import\",\n  \"sourceUrl\": \"{{source_url}}\",\n  \"sourceName\": \"User supplied content\",\n  \"author\": \"{{source_author}}\",\n  \"observedAt\": \"{{observed_at}}\",\n  \"license\": \"{{source_permission}}\",\n  \"sourceText\": \"{{source_text}}\",\n  \"reviews\": [\n    {\n      \"quote\": \"{{review_quote}}\",\n      \"author\": \"{{source_author}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('place_id')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 place_id'); }",
+                  "if (!pm.variables.get('place_name')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 place_name'); }",
+                  "if (!pm.variables.get('place_lat')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 place_lat'); }",
+                  "if (!pm.variables.get('place_lng')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 place_lng'); }",
+                  "if (!pm.variables.get('source_url')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 source_url'); }",
+                  "if (!pm.variables.get('source_author')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 source_author'); }",
+                  "if (!pm.variables.get('observed_at')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 observed_at'); }",
+                  "if (!pm.variables.get('source_permission')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 source_permission'); }",
+                  "if (!pm.variables.get('source_text')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 source_text'); }",
+                  "if (!pm.variables.get('review_quote')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 review_quote'); }",
+                  "if (pm.variables.get('allow_writes') !== 'yes') { pm.execution.skipRequest(); throw new Error('此請求會修改資料；確認後將 allow_writes 設為 yes，再單獨傳送。'); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) { const d = pm.response.json(); if(d.id) pm.collectionVariables.set('restaurant_id',d.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ 餐點每人預算估算並保存",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/restaurants/estimate",
+            "description": "需先匯入有授權的官方或授權菜單；menu_item_id 取 restaurantData.menuItems[].id。不是地圖原始 placeId。",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"placeId\": \"{{restaurant_id}}\",\n  \"people\": 2,\n  \"channel\": \"dine_in\",\n  \"currency\": \"AUD\",\n  \"items\": [\n    {\n      \"id\": \"{{menu_item_id}}\",\n      \"quantity\": 2\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('restaurant_id')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 restaurant_id'); }",
+                  "if (!pm.variables.get('menu_item_id')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 menu_item_id'); }",
+                  "if (pm.variables.get('allow_writes') !== 'yes') { pm.execution.skipRequest(); throw new Error('此請求會修改資料；確認後將 allow_writes 設為 yes，再單獨傳送。'); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "10 活動與參考票價",
+      "item": [
+        {
+          "name": "指定景點票價搜尋",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/activities/search",
+            "description": "只回傳已比對此景點的活動；沒有資料會是空陣列，不代表免費。",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"placeId\": \"opera\",\n  \"placeName\": \"Sydney Opera House\",\n  \"lat\": -33.8568,\n  \"lng\": 151.2153,\n  \"radius\": 1000,\n  \"query\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "批次最低可比較票價摘要",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/activities/summaries",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"places\": [\n    {\n      \"id\": \"opera\",\n      \"name\": \"Sydney Opera House\",\n      \"lat\": -33.8568,\n      \"lng\": 151.2153\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "11 社群內容匯入",
+      "item": [
+        {
+          "name": "AI 萃取已取得貼文",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/social/extract",
+            "description": "貼上自己已取得的內容；不會自動抓 Instagram。會呼叫模型。",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"platform\": \"instagram\",\n  \"postUrl\": \"{{social_post_url}}\",\n  \"text\": \"{{social_text}}\",\n  \"comments\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('social_post_url')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 social_post_url'); }",
+                  "if (!pm.variables.get('social_text')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 social_text'); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) { const d = pm.response.json(); if(d.mentions) pm.collectionVariables.set('mentions_json',JSON.stringify(d.mentions)); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ 匯入貼文及證據草稿",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/social/import",
+            "description": "先萃取或自行提供可對照引句的 mentions。含換行或引號的貼文，請在 Body 正確 JSON 跳脫。",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"platform\":\"instagram\",\"postUrl\":\"{{social_post_url}}\",\"author\":\"{{source_author}}\",\"text\":\"{{social_text}}\",\"comments\":[],\"photos\":[],\"mentions\":{{mentions_json}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('social_post_url')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 social_post_url'); }",
+                  "if (!pm.variables.get('social_text')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 social_text'); }",
+                  "if (!pm.variables.get('source_author')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 source_author'); }",
+                  "if (!pm.variables.get('mentions_json')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 mentions_json'); }",
+                  "if (pm.variables.get('allow_writes') !== 'yes') { pm.execution.skipRequest(); throw new Error('此請求會修改資料；確認後將 allow_writes 設為 yes，再單獨傳送。'); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) { const d = pm.response.json(); if(d.id) pm.collectionVariables.set('social_id',d.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "列出匯入記錄",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              }
+            ],
+            "url": "{{base_url}}/social/imports",
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "列出已發布社群景點",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              }
+            ],
+            "url": "{{base_url}}/social/published",
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ 配對地點並發布",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/social/{{social_id}}/publish",
+            "description": "需先從 poi/search 選擇實際地點；公開至此 App 的共用候選資料。",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"mentionIndex\":0,\"placeId\":\"{{place_id}}\",\"placeName\":\"{{place_name}}\",\"lat\":{{place_lat}},\"lng\":{{place_lng}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('social_id')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 social_id'); }",
+                  "if (!pm.variables.get('place_id')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 place_id'); }",
+                  "if (!pm.variables.get('place_name')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 place_name'); }",
+                  "if (!pm.variables.get('place_lat')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 place_lat'); }",
+                  "if (!pm.variables.get('place_lng')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 place_lng'); }",
+                  "if (pm.variables.get('allow_writes') !== 'yes') { pm.execution.skipRequest(); throw new Error('此請求會修改資料；確認後將 allow_writes 設為 yes，再單獨傳送。'); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "12 偏好記憶（寫入需同意）",
+      "item": [
+        {
+          "name": "列出已保存偏好",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              }
+            ],
+            "url": "{{base_url}}/memories",
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ 保存測試偏好",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/memories",
+            "description": "實際使用者同意才能保存；此請求寫入長期記憶。",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"consent\": true,\n  \"summary\": \"Postman test: prefer museums and public transport\",\n  \"profile\": {\n    \"interests\": [\n      \"文化\"\n    ],\n    \"maxSteps\": 10000\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.variables.get('allow_writes') !== 'yes') { pm.execution.skipRequest(); throw new Error('此請求會修改資料；確認後將 allow_writes 設為 yes，再單獨傳送。'); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) { const d = pm.response.json(); if(d.id) pm.collectionVariables.set('memory_id',d.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ 更新指定偏好",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/memories/{{memory_id}}",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"consent\": true,\n  \"summary\": \"Postman test: prefer museums and public transport\",\n  \"profile\": {\n    \"interests\": [\n      \"文化\"\n    ],\n    \"maxSteps\": 10000\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('memory_id')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 memory_id'); }",
+                  "if (pm.variables.get('allow_writes') !== 'yes') { pm.execution.skipRequest(); throw new Error('此請求會修改資料；確認後將 allow_writes 設為 yes，再單獨傳送。'); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) { const d = pm.response.json(); if(d.id) pm.collectionVariables.set('memory_id',d.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ 刪除指定偏好",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              }
+            ],
+            "url": "{{base_url}}/memories/{{memory_id}}",
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('memory_id')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 memory_id'); }",
+                  "if (pm.variables.get('allow_writes') !== 'yes') { pm.execution.skipRequest(); throw new Error('此請求會修改資料；確認後將 allow_writes 設為 yes，再單獨傳送。'); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "13 Koko 對話",
+      "item": [
+        {
+          "name": "⚠ 建立對話",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/pet/sessions",
+            "description": "建立會話；回傳 id 可供後續對話使用。",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"language\": \"{{language}}\",\n  \"fields\": {}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.variables.get('allow_writes') !== 'yes') { pm.execution.skipRequest(); throw new Error('此請求會修改資料；確認後將 allow_writes 設為 yes，再單獨傳送。'); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) { const d = pm.response.json(); if(d.id) pm.collectionVariables.set('session_id',d.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "讀取對話",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              }
+            ],
+            "url": "{{base_url}}/pet/sessions/{{session_id}}",
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('session_id')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 session_id'); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ 更新對話旅行欄位",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/pet/sessions/{{session_id}}",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"language\": \"{{language}}\",\n  \"fields\": {\n    \"destination\": \"悉尼\",\n    \"date\": \"{{travel_date}}\",\n    \"days\": \"1\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('session_id')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 session_id'); }",
+                  "if (pm.variables.get('allow_writes') !== 'yes') { pm.execution.skipRequest(); throw new Error('此請求會修改資料；確認後將 allow_writes 設為 yes，再單獨傳送。'); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ 傳送對話訊息（NDJSON）",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/pet/sessions/{{session_id}}/turn",
+            "description": "回應為逐行 JSON，查看 Response → Raw。會使用模型並保存對話；同一輪重試需沿用 requestId。",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"language\": \"{{language}}\",\n  \"requestId\": \"{{$guid}}\",\n  \"message\": \"I like museums and would prefer public transport.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('session_id')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 session_id'); }",
+                  "if (pm.variables.get('allow_writes') !== 'yes') { pm.execution.skipRequest(); throw new Error('此請求會修改資料；確認後將 allow_writes 設為 yes，再單獨傳送。'); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ 決定候選偏好只用於本次旅行",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/pet/sessions/{{session_id}}/memory",
+            "description": "candidate_id 取對話待確認偏好；consent=false 為本次旅行，true 才是長期保存。",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"candidateId\": \"{{candidate_id}}\",\n  \"consent\": false,\n  \"expectedConflicts\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('session_id')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 session_id'); }",
+                  "if (!pm.variables.get('candidate_id')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 candidate_id'); }",
+                  "if (pm.variables.get('allow_writes') !== 'yes') { pm.execution.skipRequest(); throw new Error('此請求會修改資料；確認後將 allow_writes 設為 yes，再單獨傳送。'); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ 完成 Travel DNA",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/pet/sessions/{{session_id}}/profile/complete",
+            "description": "需要至少一項已確認偏好，且沒有待確認資料。",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('session_id')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 session_id'); }",
+                  "if (pm.variables.get('allow_writes') !== 'yes') { pm.execution.skipRequest(); throw new Error('此請求會修改資料；確認後將 allow_writes 設為 yes，再單獨傳送。'); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ 刪除對話",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              }
+            ],
+            "url": "{{base_url}}/pet/sessions/{{session_id}}",
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('session_id')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 session_id'); }",
+                  "if (pm.variables.get('allow_writes') !== 'yes') { pm.execution.skipRequest(); throw new Error('此請求會修改資料；確認後將 allow_writes 設為 yes，再單獨傳送。'); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "14 僅本機設定（AWS 禁止）",
+      "item": [
+        {
+          "name": "本機設定頁",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              }
+            ],
+            "url": "{{local_base_url}}/setup",
+            "description": "僅本機可用；AWS gateway 回 404。不要把頁面中的 token 或任何服務密鑰存進共用 Postman。",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "⚠ 提交本機設定表單",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Travel-Data-Source",
+                "value": "{{data_source}}"
+              },
+              {
+                "key": "X-App-Language",
+                "value": "{{language}}"
+              }
+            ],
+            "url": "{{local_base_url}}/setup",
+            "description": "只建立路由範例；使用瀏覽器本機設定頁較合適。CSRF token 取 GET /setup，服務金鑰由本人在本機頁面設定；不要匯出到 Collection。",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "token",
+                  "value": "{{setup_csrf_token}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('setup_csrf_token')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 setup_csrf_token'); }",
+                  "if (pm.variables.get('allow_writes') !== 'yes') { pm.execution.skipRequest(); throw new Error('此請求會修改資料；確認後將 allow_writes 設為 yes，再單獨傳送。'); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

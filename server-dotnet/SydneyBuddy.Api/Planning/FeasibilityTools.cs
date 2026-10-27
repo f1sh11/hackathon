@@ -25,7 +25,7 @@ public sealed class FeasibilityTools(PlaceCatalog catalog,PoiService pois,TripTr
     }
     public static JsonObject Result(JsonArray issues,JsonObject? observations=null)=>new(){["issues"]=issues,["observations"]=observations ?? new()};
     public static JsonObject Constraints(JsonObject trip,JsonObject profile) {
-        var issues=new JsonArray();var days=trip.Array("days")!;var all=new HashSet<string>();
+        var issues=new JsonArray();var days=trip.Array("days")!;var all=new HashSet<string>();var physicalPlaces=new List<JsonObject>();
         var needs=profile.Str("companionNeeds")+" "+profile.Str("avoid")+" "+profile.Str("specialLimits");
         if(System.Text.RegularExpressions.Regex.IsMatch(needs,"wheelchair|step.free|无障碍|轮椅|輪椅",System.Text.RegularExpressions.RegexOptions.IgnoreCase))issues.Add(Issue("accessibility_needs_unverified",severity:"needs_info"));
         if(System.Text.RegularExpressions.Regex.IsMatch(needs,"allerg|celiac|coeliac|过敏|過敏",System.Text.RegularExpressions.RegexOptions.IgnoreCase))issues.Add(Issue("dietary_needs_unverified",severity:"needs_info"));
@@ -50,7 +50,8 @@ public sealed class FeasibilityTools(PlaceCatalog catalog,PoiService pois,TripTr
             var clock=Math.Max(start,day.Int("planningStartMinute",start));
             for(var i=0;i<stops.Length;i++) {
                 var stop=stops[i];var id=Identity(stop);
-                if(!all.Add(id))issues.Add(Issue("duplicate_place",d));
+                if(!all.Add(id) || (!RouteLogistics.IsTask(stop) && physicalPlaces.Any(p=>PlaceIdentity.Same(p,stop))))issues.Add(Issue("duplicate_place",d));
+                if(!RouteLogistics.IsTask(stop))physicalPlaces.Add(stop);
                 if(avoid.Contains(id))issues.Add(Issue("avoided_place",d));
                 var arrival=Minute(stop.Str("arrival"));var departure=Minute(stop.Str("departure"));
                 if(arrival<clock+(int)Math.Ceiling(legs[i].Number("minutes")) || departure<arrival+stop.Int("visitMinutes"))issues.Add(Issue("time_overlap_or_travel_gap",d));

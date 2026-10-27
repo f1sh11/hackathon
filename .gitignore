@@ -58,3 +58,8 @@ infra/zetaris/migration/*.local.*
 
 # Private feasibility snapshots and review receipts
 **/.feasibility-reviews/
+
+# Generated itinerary results, deployment probes and private test artifacts
+outputs/
+agent-skills/bundle.json
+*.private.json
