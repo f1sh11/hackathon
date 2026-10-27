@@ -133,3 +133,9 @@ The complete v2 Chinese and English Skill files remain verbatim prefixes of v3. 
 - Meal slots default to 09:00/12:00/18:00 or optional `mealTimes` (local minutes after midnight). Real meals must fit separate windows; missing restaurant slots are reported rather than fabricated. Lodging recommendations do not become selected endpoints or storage confirmations.
 
 Validation: backend 538 tests passed, including 14 route-logistics regression cases; iOS 141 tests and Android 37 tests passed, with both native builds successful. Both previous Skills were checked as exact prefixes; three-language resources and four English guard checks passed. This revision has not been deployed, pushed or merged, and no new live model, hotel-booking or storage-service verification is claimed.
+
+### Integration with main — 2026-10-27
+
+Reconciled main's personal-profile agent, model-provider selection, planning journal and feasibility evaluator with Meterless configuration, inventory, hotel logistics and walking-load calculations. Meterless date-based `dayPlans` remain soft preferences and enter the bounded deterministic optimizer; the journal explicitly records this optimizer fallback rather than claiming the model supplied an approved fixed-order itinerary. Non-Skill agent proposals retain main's feedback/revision flow, without fixed four-stop or low-energy three-stop restrictions. Both paths use the same final steps, meal windows and route constraints. Embedded Skill and personal-profile prompt files are now included by the Oracle source packager, with a package regression test.
+
+Validation after reconciliation: 595 backend tests, 160 iOS Schedule/PetDraft/KokoDialogue tests, 10 feasibility collaboration tests (including the new five-stop low-energy regression), packaging test and four English localization checks passed. Cloud deployment verification is recorded separately after the VM update.

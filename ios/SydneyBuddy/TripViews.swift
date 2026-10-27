@@ -728,97 +728,7 @@ struct SavedTripWorkspace:View {
     @State private var worldAction:WorldSuggestion?
     var body:some View {
         let _=interfaceLocale
-        GeometryReader { geometry in
-            VStack(spacing:0) {
-                HStack(spacing:12){
-                    ScrollView(.horizontal,showsIndicators:false){HStack(spacing:8){ForEach(Array(trip.days.enumerated()),id:\.offset){index,day in
-                        Button{guard !savingSchedule,navigator==nil else{return};store.dayIndex=index}label:{Text(workspaceDate(day.date)).font(.subheadline.weight(.semibold)).padding(.horizontal,14).frame(height:38).foregroundStyle(store.dayIndex==index ? .white:workspaceBlue).background(store.dayIndex==index ? workspaceBlue:workspaceBlue.opacity(0.07),in:RoundedRectangle(cornerRadius:12))}.buttonStyle(BuddyPressStyle()).accessibilityIdentifier("trip-day-"+String(index)).accessibilityAddTraits(store.dayIndex==index ? .isSelected:[])
-                    }}}
-                    Text(store.language.text("Day {0} of {1}",String(store.dayIndex+1),String(trip.days.count))).font(.caption2).foregroundStyle(Palette.muted).fixedSize()
-                }.padding(.horizontal,16).padding(.bottom,8)
-                ZStack(alignment:.topLeading) {
-                    ProviderRouteMap(overview:route.route,sections:route.plan?.sections ?? [],overviewIsGoogle:trip.mode=="live",showsNearby:showsNearby,expanded:true,bottomInset:20,cameraAction:workspaceCameraAction,dayOverride:displayDay,navigation:navigator)
-                    if hasScheduleDraft || workspaceProposal != nil {Text(uiText("修改预览 · 原行程仍保留")).font(.caption.bold()).padding(10).background(.regularMaterial,in:Capsule()).padding(12)}
-                    if route.busy && (navigator==nil || navigator?.geometry.isEmpty==true) {ProgressView().padding(12).background(.regularMaterial,in:Circle()).padding(12)}
-                    if !route.busy,route.route==nil,navigator?.geometry.isEmpty != false,let message=route.message {
-                        VStack(alignment:.leading,spacing:8){Text(uiText(message)).font(.caption);Button(uiText("Retry route")){if let day=displayDay{route.clear();route.load(day,provider:store.mapProvider)}}}.padding(12).background(.regularMaterial,in:RoundedRectangle(cornerRadius:14)).padding(12)
-                    }
-                }.overlay(alignment:.topTrailing){
-                    Button{store.selectedStopID=nil;workspaceCameraAction=RouteMapCameraAction(kind:.fit)}label:{Image(systemName:"arrow.up.left.and.arrow.down.right").font(.body.weight(.semibold)).frame(width:44,height:44).background(.regularMaterial,in:RoundedRectangle(cornerRadius:12))}.accessibilityLabel(uiText("全日路線")).padding(12)
-                }.frame(height:mapHeight(geometry.size.height))
-                    .clipped()
-                    .animation(reduceMotion ? nil:.easeInOut(duration:0.22),value:goMode)
-                    .accessibilityIdentifier("trip-unified-map")
-                if let navigator,goMode {
-                    UnifiedWalkingControls(navigator:navigator){navigator.pause();self.navigator=nil;goMode=false;transportExpanded=false}
-                }
-                VStack(spacing:0){
-                Capsule().fill(Palette.muted.opacity(0.35)).frame(width:38,height:4).frame(maxWidth:.infinity).frame(height:22).contentShape(Rectangle())
-                    .onTapGesture{resizeMap()}
-                    .accessibilityElement().accessibilityAddTraits(.isButton)
-                    .accessibilityAction{resizeMap()}
-                    .accessibilityLabel(uiText("Resize map and day plan"))
-                    .accessibilityValue(uiText(mapFraction>0.35 ? "More map":"More day plan"))
-                    .gesture(DragGesture(minimumDistance:6,coordinateSpace:.named("trip-workspace")).onChanged{value in
-                        if mapDragStart==nil{mapDragStart=mapFraction}
-                        mapFraction=min(0.55,max(0.18,(mapDragStart ?? mapFraction)+value.translation.height/max(1,geometry.size.height)))
-                    }.onEnded{_ in mapDragStart=nil;withAnimation(reduceMotion ? nil:.easeInOut(duration:0.2)){mapFraction=mapFraction>0.33 ? 0.48:0.18};workspaceCameraAction=RouteMapCameraAction(kind:.fit)})
-                HStack{Text(uiText("Today’s plan")).font(.system(.title3,design:.rounded,weight:.bold));Spacer();Button{resizeMap()}label:{Image(systemName:mapFraction>0.35 ? "chevron.up":"chevron.down").frame(width:44,height:36)}.accessibilityLabel(uiText("Resize map and day plan"))}.padding(.horizontal,20)
-                HStack(spacing:10) {
-                    Button {companionRequest=TripCompanionRequest(text:TripCompanionContext.request(trip:trip,dayIndex:store.dayIndex,intent:nil),autoSend:false)} label:{
-                        HStack(spacing:10){
-                            PetAvatar(mood:savingSchedule || route.busy ? .thinking:hasScheduleDraft ? .listening:.relaxed,size:44).frame(width:44,height:44)
-                            Text(uiText(companionLine)).font(.caption).multilineTextAlignment(.leading).foregroundStyle(Palette.ink)
-                            Image(systemName:"bubble.left").font(.caption).foregroundStyle(Palette.muted)
-                        }.frame(maxWidth:.infinity,alignment:.leading)
-                    }.buttonStyle(BuddyPressStyle()).disabled(hasScheduleDraft || workspaceProposal != nil || savingSchedule || navigator != nil).accessibilityIdentifier("trip-companion-chat")
-                    if goMode {Button {navigator?.pause();navigator=nil;goMode=false;transportExpanded=false} label:{Image(systemName:"xmark").frame(width:44,height:44)}.accessibilityLabel(uiText("Back to our day")).accessibilityIdentifier("trip-plan-go")}
-                }.padding(.horizontal,20).padding(.vertical,4)
-                }.background(.white,in:UnevenRoundedRectangle(topLeadingRadius:20,topTrailingRadius:20)).padding(.top,-18)
-                if transportExpanded {
-                    ScrollView {VStack(alignment:.leading,spacing:12){
-                        HStack{Text(uiText("当天交通")).font(.headline);Spacer();Button(uiText("收起")){transportExpanded=false}}
-                        if displayDay?.hasTransit==true{
-                            Text(uiText(transportRefreshed ? "这是按新出发时间查询的路线预览；尚未修改已保存日程，票价未知。":"已保存的计划班次，不能保证现在仍能赶上。出发前请刷新交通；票价未知。")).font(.caption2).foregroundStyle(Palette.muted)
-                            Button(uiText(refreshedTransport.busy ? "正在查询最新班次…":"刷新交通路线")){refreshTransport()}.disabled(refreshedTransport.busy || workspaceProposal != nil).accessibilityIdentifier("refresh-transit-route")
-                            if let error=refreshedTransport.error{Text(uiText(error)).font(.caption).foregroundStyle(.red)}
-                            if transportRefreshed{Button(uiText("按最新班次重新安排")){Task{await store.generate("重新核对第 \(store.dayIndex+1) 天剩余行程的公共交通和时间，保留已完成活动与固定安排。",profileOverride:trip.profile)}}.disabled(store.busy || workspaceProposal != nil)}
-                        }
-                        if let plan=route.plan{ForEach(plan.legs.filter{!goMode || focusedLeg==nil || $0.index==focusedLeg}){leg in DisclosureGroup(isExpanded:Binding(get:{focusedLeg==leg.index},set:{focusedLeg=$0 ? leg.index:nil})) {ForEach(leg.steps){step in VStack(alignment:.leading,spacing:4){Text(uiText(step.title));Text(uiText(step.from+" → "+step.to)).font(.caption);ForEach(Array((step.walkingDirections ?? []).enumerated()),id:\.offset){_,direction in Text(uiText(direction.text)).font(.caption).foregroundStyle(Palette.muted)};if step.mode != "walk"{Text(uiText(journeyTime(step.departureTime)+"–"+journeyTime(step.arrivalTime)+(step.realtime ? " · 实时预估":" · 时刻表"))).font(.caption)}}} }label:{Text(uiText(leg.from+" → "+leg.to+" · "+leg.walkingSummary)).font(.caption)}}}
-                        else if route.busy{ProgressView(uiText("正在查询路线…"))}
-                        else{Text(uiText(route.message ?? "路线暂时无法确认，请重试。")).font(.caption);Button(uiText("重新查询路线")){if let day=displayDay{route.clear();route.load(day,provider:store.mapProvider)}}}
-                        if goMode,let plan=route.plan{HStack{if (focusedLeg ?? 0)>0{Button(uiText("Previous leg")){focusedLeg=max(0,(focusedLeg ?? 0)-1)}};Spacer();if (focusedLeg ?? 0)<plan.legs.count-1{Button(uiText("Next leg")){focusedLeg=(focusedLeg ?? 0)+1}}}}
-                        Button(uiText("选择出发时间与交通方式")){transportOptions=true}
-                    }.padding(16)}.frame(maxHeight:180)
-                }
-                InlineTripSchedule(trip:trip,onMap:{withAnimation{mapFraction=0.48;goMode=false}},onAdvanced:openEditor,showsDayPicker:false,sharedCompanion:true,compactMapPreview:mapFraction>0.35,onCompanion:{text in companionRequest=TripCompanionRequest(text:text,autoSend:false)},onDraftChange:{hasScheduleDraft=$0;if !$0{preview=nil}},onSavingChange:{savingSchedule=$0},unified:true,canDepart:!goMode && navigator==nil,onPreviewChange:{preview=$0},onTravel:{position in focusedLeg=position;transportExpanded=true},onDepart:{if navigator != nil{goMode=true}else{startJourney()}},reviewingProposal:workspaceProposal != nil)
-
-                    .disabled(navigator != nil || workspaceProposal != nil)
-
-                if let proposal=workspaceProposal {
-                    VStack(spacing:8){
-                        if !TripAdjustmentComparison.hasVisibleChanges(trip,proposal,includeConstraints:false){Text(uiText("这次试算没有改变安排")).font(.caption).foregroundStyle(Palette.muted)}
-                        HStack{Button(uiText("保留原行程")){store.proposal=nil};Spacer();if TripAdjustmentComparison.hasVisibleChanges(trip,proposal){Button(uiText(TripAdjustmentComparison.hasVisibleChanges(trip,proposal,includeConstraints:false) ? "确认并保存":"保存需求，保留路线")){Task{await store.acceptProposal()}}.buttonStyle(.borderedProminent)}}
-                    }.padding(16).background(.white).accessibilityIdentifier("trip-proposal-actions")
-                }
-            }.coordinateSpace(name:"trip-workspace")
-        }.background(.white).tint(workspaceBlue).navigationTitle(TripHomePresentation.title(trip,language:store.language)).navigationBarTitleDisplayMode(.inline)
-        .task(id:mapFraction){do{try await Task.sleep(nanoseconds:280_000_000);workspaceCameraAction=RouteMapCameraAction(kind:.fit)}catch{}}
-        .task(id:mapSceneKey(displayDay)+"|"+store.mapProvider.rawValue){refreshedTransport.invalidate();transportRefreshed=false;if let day=displayDay{route.loadHome(day,provider:store.mapProvider,contentSource:trip.mode=="live" ? "google":"open")}}
-        .onDisappear{route.cancel();refreshedTransport.invalidate();navigator?.pause();if store.workspaceTripID==trip.id{store.workspaceTripID=nil}}
-        .onReceive(refreshedTransport.$plan){value in if let value,let day=displayDay{transportRefreshed=true;route.accept(value,day:day)}}
-        .onReceive(store.$proposal){value in if let value,store.proposalIsSuggestion,value.id==trip.id{companionRequest=nil;panelSize=1}}
-        .onChange(of:scenePhase){_,phase in if phase == .background{navigator?.pause()}}
-        .onChange(of:store.dayIndex){_,_ in preview=nil;transportExpanded=false;transportRefreshed=false;refreshedTransport.invalidate();store.selectedStopID=nil}
-        .onChange(of:store.selectedStopID){_,id in if id != nil,navigator==nil{withAnimation{mapFraction=max(0.28,mapFraction)}}}
-        .toolbar(.hidden,for:.tabBar)
-        .sheet(isPresented:$transportOptions){if let day=displayDay{JourneyPlannerView(day:day,tripID:trip.id ?? "draft",provider:store.mapProvider,onPlan:{plan in if let day=displayDay{route.accept(plan,day:day)}})}}
-        .sheet(isPresented:$preparation){TripDetailView()}
-        .sheet(isPresented:$insights){TravelInsightsSheet()}
-        .sheet(isPresented:$nearby){PoiDiscoveryView()}
-        .navigationBarBackButtonHidden(true)
-        .toolbar{ToolbarItem(placement:.topBarLeading){Button{if hasScheduleDraft || workspaceProposal != nil{leaving=true}else{dismiss()}}label:{Image(systemName:"chevron.left").frame(width:44,height:44)}.accessibilityLabel(uiText("返回我的行程")).disabled(savingSchedule)}}
-        .alert(uiText("还有未保存的调整"),isPresented:$leaving){Button(uiText("继续调整"),role:.cancel){};Button(uiText("放弃修改并返回"),role:.destructive){if workspaceProposal != nil{store.proposal=nil};dismiss()}}message:{Text(uiText("已保存的行程不会改变。你也可以留在日程页，保存这次调整。"))}
+        workspaceDialogs
         .toolbar{ToolbarItem(placement:.topBarTrailing){Menu{
             Menu(uiText("Travel tools")){
                         Button(uiText("调整当天安排")){adjustingDay=true}
@@ -854,6 +764,121 @@ struct SavedTripWorkspace:View {
 
         .onChange(of:trip.revision){_,_ in store.trip=trip}
     }
+    private var workspaceDialogs:some View {
+        workspaceBase
+        .sheet(isPresented:$transportOptions){if let day=displayDay{JourneyPlannerView(day:day,tripID:trip.id ?? "draft",provider:store.mapProvider,onPlan:{plan in if let day=displayDay{route.accept(plan,day:day)}})}}
+        .sheet(isPresented:$preparation){TripDetailView()}
+        .sheet(isPresented:$insights){TravelInsightsSheet()}
+        .sheet(isPresented:$nearby){PoiDiscoveryView()}
+        .navigationBarBackButtonHidden(true)
+        .toolbar{ToolbarItem(placement:.topBarLeading){Button{if hasScheduleDraft || workspaceProposal != nil{leaving=true}else{dismiss()}}label:{Image(systemName:"chevron.left").frame(width:44,height:44)}.accessibilityLabel(uiText("返回我的行程")).disabled(savingSchedule)}}
+        .alert(uiText("还有未保存的调整"),isPresented:$leaving){Button(uiText("继续调整"),role:.cancel){};Button(uiText("放弃修改并返回"),role:.destructive){if workspaceProposal != nil{store.proposal=nil};dismiss()}}message:{Text(uiText("已保存的行程不会改变。你也可以留在日程页，保存这次调整。"))}
+    }
+
+    private var workspaceBase:some View {
+        GeometryReader { geometry in
+            VStack(spacing:0) {
+                workspaceDayTabs
+                workspaceMap(height:geometry.size.height)
+                if let navigator,goMode {
+                    UnifiedWalkingControls(navigator:navigator){navigator.pause();self.navigator=nil;goMode=false;transportExpanded=false}
+                }
+                workspaceDayHeader(height:geometry.size.height)
+                workspaceTransport
+                workspaceSchedule
+                workspaceProposalActions
+            }.coordinateSpace(name:"trip-workspace")
+        }.background(.white).tint(workspaceBlue).navigationTitle(TripHomePresentation.title(trip,language:store.language)).navigationBarTitleDisplayMode(.inline)
+        .task(id:mapFraction){do{try await Task.sleep(nanoseconds:280_000_000);workspaceCameraAction=RouteMapCameraAction(kind:.fit)}catch{}}
+        .task(id:mapSceneKey(displayDay)+"|"+store.mapProvider.rawValue){refreshedTransport.invalidate();transportRefreshed=false;if let day=displayDay{route.loadHome(day,provider:store.mapProvider,contentSource:trip.mode=="live" ? "google":"open")}}
+        .onDisappear{route.cancel();refreshedTransport.invalidate();navigator?.pause();if store.workspaceTripID==trip.id{store.workspaceTripID=nil}}
+        .onReceive(refreshedTransport.$plan){value in if let value,let day=displayDay{transportRefreshed=true;route.accept(value,day:day)}}
+        .onReceive(store.$proposal){value in if let value,store.proposalIsSuggestion,value.id==trip.id{companionRequest=nil;panelSize=1}}
+        .onChange(of:scenePhase){_,phase in if phase == .background{navigator?.pause()}}
+        .onChange(of:store.dayIndex){_,_ in preview=nil;transportExpanded=false;transportRefreshed=false;refreshedTransport.invalidate();store.selectedStopID=nil}
+        .onChange(of:store.selectedStopID){_,id in if id != nil,navigator==nil{withAnimation{mapFraction=max(0.28,mapFraction)}}}
+        .toolbar(.hidden,for:.tabBar)
+    }
+    private var workspaceDayTabs:some View {
+        HStack(spacing:12){
+                    ScrollView(.horizontal,showsIndicators:false){HStack(spacing:8){ForEach(Array(trip.days.enumerated()),id:\.offset){index,day in
+                        Button{guard !savingSchedule,navigator==nil else{return};store.dayIndex=index}label:{Text(workspaceDate(day.date)).font(.subheadline.weight(.semibold)).padding(.horizontal,14).frame(height:38).foregroundStyle(store.dayIndex==index ? .white:workspaceBlue).background(store.dayIndex==index ? workspaceBlue:workspaceBlue.opacity(0.07),in:RoundedRectangle(cornerRadius:12))}.buttonStyle(BuddyPressStyle()).accessibilityIdentifier("trip-day-"+String(index)).accessibilityAddTraits(store.dayIndex==index ? .isSelected:[])
+                    }}}
+                    Text(store.language.text("Day {0} of {1}",String(store.dayIndex+1),String(trip.days.count))).font(.caption2).foregroundStyle(Palette.muted).fixedSize()
+                }.padding(.horizontal,16).padding(.bottom,8)
+    }
+    private func workspaceMap(height:CGFloat)->some View {
+        ZStack(alignment:.topLeading) {
+                    ProviderRouteMap(overview:route.route,sections:route.plan?.sections ?? [],overviewIsGoogle:trip.mode=="live",showsNearby:showsNearby,expanded:true,bottomInset:20,cameraAction:workspaceCameraAction,dayOverride:displayDay,navigation:navigator)
+                    if hasScheduleDraft || workspaceProposal != nil {Text(uiText("修改预览 · 原行程仍保留")).font(.caption.bold()).padding(10).background(.regularMaterial,in:Capsule()).padding(12)}
+                    if route.busy && (navigator==nil || navigator?.geometry.isEmpty==true) {ProgressView().padding(12).background(.regularMaterial,in:Circle()).padding(12)}
+                    if !route.busy,route.route==nil,navigator?.geometry.isEmpty != false,let message=route.message {
+                        VStack(alignment:.leading,spacing:8){Text(uiText(message)).font(.caption);Button(uiText("Retry route")){if let day=displayDay{route.clear();route.load(day,provider:store.mapProvider)}}}.padding(12).background(.regularMaterial,in:RoundedRectangle(cornerRadius:14)).padding(12)
+                    }
+                }.overlay(alignment:.topTrailing){
+                    Button{store.selectedStopID=nil;workspaceCameraAction=RouteMapCameraAction(kind:.fit)}label:{Image(systemName:"arrow.up.left.and.arrow.down.right").font(.body.weight(.semibold)).frame(width:44,height:44).background(.regularMaterial,in:RoundedRectangle(cornerRadius:12))}.accessibilityLabel(uiText("全日路線")).padding(12)
+                }.frame(height:mapHeight(height))
+                    .clipped()
+                    .animation(reduceMotion ? nil:.easeInOut(duration:0.22),value:goMode)
+                    .accessibilityIdentifier("trip-unified-map")
+    }
+    private func workspaceDayHeader(height:CGFloat)->some View {
+        VStack(spacing:0){
+                Capsule().fill(Palette.muted.opacity(0.35)).frame(width:38,height:4).frame(maxWidth:.infinity).frame(height:22).contentShape(Rectangle())
+                    .onTapGesture{resizeMap()}
+                    .accessibilityElement().accessibilityAddTraits(.isButton)
+                    .accessibilityAction{resizeMap()}
+                    .accessibilityLabel(uiText("Resize map and day plan"))
+                    .accessibilityValue(uiText(mapFraction>0.35 ? "More map":"More day plan"))
+                    .gesture(DragGesture(minimumDistance:6,coordinateSpace:.named("trip-workspace")).onChanged{value in
+                        if mapDragStart==nil{mapDragStart=mapFraction}
+                        mapFraction=min(0.55,max(0.18,(mapDragStart ?? mapFraction)+value.translation.height/max(1,height)))
+                    }.onEnded{_ in mapDragStart=nil;withAnimation(reduceMotion ? nil:.easeInOut(duration:0.2)){mapFraction=mapFraction>0.33 ? 0.48:0.18};workspaceCameraAction=RouteMapCameraAction(kind:.fit)})
+                HStack{Text(uiText("Today’s plan")).font(.system(.title3,design:.rounded,weight:.bold));Spacer();Button{resizeMap()}label:{Image(systemName:mapFraction>0.35 ? "chevron.up":"chevron.down").frame(width:44,height:36)}.accessibilityLabel(uiText("Resize map and day plan"))}.padding(.horizontal,20)
+                HStack(spacing:10) {
+                    Button {companionRequest=TripCompanionRequest(text:TripCompanionContext.request(trip:trip,dayIndex:store.dayIndex,intent:nil),autoSend:false)} label:{
+                        HStack(spacing:10){
+                            PetAvatar(mood:savingSchedule || route.busy ? .thinking:hasScheduleDraft ? .listening:.relaxed,size:44).frame(width:44,height:44)
+                            Text(uiText(companionLine)).font(.caption).multilineTextAlignment(.leading).foregroundStyle(Palette.ink)
+                            Image(systemName:"bubble.left").font(.caption).foregroundStyle(Palette.muted)
+                        }.frame(maxWidth:.infinity,alignment:.leading)
+                    }.buttonStyle(BuddyPressStyle()).disabled(hasScheduleDraft || workspaceProposal != nil || savingSchedule || navigator != nil).accessibilityIdentifier("trip-companion-chat")
+                    if goMode {Button {navigator?.pause();navigator=nil;goMode=false;transportExpanded=false} label:{Image(systemName:"xmark").frame(width:44,height:44)}.accessibilityLabel(uiText("Back to our day")).accessibilityIdentifier("trip-plan-go")}
+                }.padding(.horizontal,20).padding(.vertical,4)
+                }.background(.white,in:UnevenRoundedRectangle(topLeadingRadius:20,topTrailingRadius:20)).padding(.top,-18)
+    }
+    @ViewBuilder private var workspaceTransport:some View {
+        if transportExpanded {
+                    ScrollView {VStack(alignment:.leading,spacing:12){
+                        HStack{Text(uiText("当天交通")).font(.headline);Spacer();Button(uiText("收起")){transportExpanded=false}}
+                        if displayDay?.hasTransit==true{
+                            Text(uiText(transportRefreshed ? "这是按新出发时间查询的路线预览；尚未修改已保存日程，票价未知。":"已保存的计划班次，不能保证现在仍能赶上。出发前请刷新交通；票价未知。")).font(.caption2).foregroundStyle(Palette.muted)
+                            Button(uiText(refreshedTransport.busy ? "正在查询最新班次…":"刷新交通路线")){refreshTransport()}.disabled(refreshedTransport.busy || workspaceProposal != nil).accessibilityIdentifier("refresh-transit-route")
+                            if let error=refreshedTransport.error{Text(uiText(error)).font(.caption).foregroundStyle(.red)}
+                            if transportRefreshed{Button(uiText("按最新班次重新安排")){Task{await store.generate("重新核对第 \(store.dayIndex+1) 天剩余行程的公共交通和时间，保留已完成活动与固定安排。",profileOverride:trip.profile)}}.disabled(store.busy || workspaceProposal != nil)}
+                        }
+                        if let plan=route.plan{ForEach(plan.legs.filter{!goMode || focusedLeg==nil || $0.index==focusedLeg}){leg in DisclosureGroup(isExpanded:Binding(get:{focusedLeg==leg.index},set:{focusedLeg=$0 ? leg.index:nil})) {ForEach(leg.steps){step in VStack(alignment:.leading,spacing:4){Text(uiText(step.title));Text(uiText(step.from+" → "+step.to)).font(.caption);ForEach(Array((step.walkingDirections ?? []).enumerated()),id:\.offset){_,direction in Text(uiText(direction.text)).font(.caption).foregroundStyle(Palette.muted)};if step.mode != "walk"{Text(uiText(journeyTime(step.departureTime)+"–"+journeyTime(step.arrivalTime)+(step.realtime ? " · 实时预估":" · 时刻表"))).font(.caption)}}} }label:{Text(uiText(leg.from+" → "+leg.to+" · "+leg.walkingSummary)).font(.caption)}}}
+                        else if route.busy{ProgressView(uiText("正在查询路线…"))}
+                        else{Text(uiText(route.message ?? "路线暂时无法确认，请重试。")).font(.caption);Button(uiText("重新查询路线")){if let day=displayDay{route.clear();route.load(day,provider:store.mapProvider)}}}
+                        if goMode,let plan=route.plan{HStack{if (focusedLeg ?? 0)>0{Button(uiText("Previous leg")){focusedLeg=max(0,(focusedLeg ?? 0)-1)}};Spacer();if (focusedLeg ?? 0)<plan.legs.count-1{Button(uiText("Next leg")){focusedLeg=(focusedLeg ?? 0)+1}}}}
+                        Button(uiText("选择出发时间与交通方式")){transportOptions=true}
+                    }.padding(16)}.frame(maxHeight:180)
+                }
+    }
+    private var workspaceSchedule:some View {
+        InlineTripSchedule(trip:trip,onMap:{withAnimation{mapFraction=0.48;goMode=false}},onAdvanced:openEditor,showsDayPicker:false,sharedCompanion:true,compactMapPreview:mapFraction>0.35,onCompanion:{text in companionRequest=TripCompanionRequest(text:text,autoSend:false)},onDraftChange:{hasScheduleDraft=$0;if !$0{preview=nil}},onSavingChange:{savingSchedule=$0},unified:true,canDepart:!goMode && navigator==nil,onPreviewChange:{preview=$0},onTravel:{position in focusedLeg=position;transportExpanded=true},onDepart:{if navigator != nil{goMode=true}else{startJourney()}},reviewingProposal:workspaceProposal != nil)
+
+                    .disabled(navigator != nil || workspaceProposal != nil)
+    }
+    @ViewBuilder private var workspaceProposalActions:some View {
+        if let proposal=workspaceProposal {
+                    VStack(spacing:8){
+                        if !TripAdjustmentComparison.hasVisibleChanges(trip,proposal,includeConstraints:false){Text(uiText("这次试算没有改变安排")).font(.caption).foregroundStyle(Palette.muted)}
+                        HStack{Button(uiText("保留原行程")){store.proposal=nil};Spacer();if TripAdjustmentComparison.hasVisibleChanges(trip,proposal){Button(uiText(TripAdjustmentComparison.hasVisibleChanges(trip,proposal,includeConstraints:false) ? "确认并保存":"保存需求，保留路线")){Task{await store.acceptProposal()}}.buttonStyle(.borderedProminent)}}
+                    }.padding(16).background(.white).accessibilityIdentifier("trip-proposal-actions")
+                }
+    }
+
     private let workspaceBlue=Color(red:0.20,green:0.36,blue:0.79)
     private func workspaceDate(_ value:String)->String {
         let parser=DateFormatter();parser.locale=Locale(identifier:"en_US_POSIX");parser.dateFormat="yyyy-MM-dd";parser.timeZone=TimeZone(identifier:"Australia/Sydney")

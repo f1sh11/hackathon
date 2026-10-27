@@ -49,7 +49,16 @@ public sealed class LocalRequestMiddleware(RequestDelegate next, ILogger<LocalRe
 
     private static Task ErrorAsync(HttpContext context, int statusCode, string message)
     {
+        if(context.Request.Path.StartsWithSegments("/agents/feasibility"))message=statusCode switch {
+            400=>"The review request is incomplete or invalid.",
+            403=>"This endpoint accepts local requests only.",
+            409=>"This trip or its requirements changed. Check the latest version before saving.",
+            413=>"This draft is too large. Send its trip ID or remove adjustment history.",
+            500=>"The review couldn't be completed. Your saved trip is unchanged.",
+            _ when message.Any(c=>c is >= '\u3400' and <= '\u9fff')=>"This draft couldn't be checked or confirmed. Review its details and try again.",
+            _=>message
+        };
         context.Response.StatusCode = statusCode;
-        return context.Response.WriteAsJsonAsync(new { error = message });
+        return context.Response.WriteAsJsonAsync(new { error = message, runId = context.Items[typeof(PlanningRunJournal)] as string });
     }
 }

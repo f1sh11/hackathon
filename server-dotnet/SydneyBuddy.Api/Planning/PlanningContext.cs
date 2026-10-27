@@ -10,6 +10,7 @@ namespace SydneyBuddy.Api;
 public sealed class PlanningContext(string mode, IReadOnlyDictionary<string, string> config)
 {
     public string Mode { get; } = mode;
+    public PlanningRunJournal? Journal {get;init;}
     public WalkingEvidence? Walking {get;set;}
     public bool CompareTransit {get;set;}
     public int TransitQueries {get;set;}
@@ -22,8 +23,8 @@ public sealed class PlanningContext(string mode, IReadOnlyDictionary<string, str
     public JsonArray Trace { get; } = [];
     internal Dictionary<(double, double, double, double), JsonObject> RouteCache { get; } = [];
 
-    public void Record(string title, string detail, string source) => Trace.Add(new JsonObject
-    {
-        ["title"] = title, ["detail"] = detail, ["source"] = source, ["fetchedAt"] = Now
-    });
+    public void Record(string title, string detail, string source) {
+        Trace.Add(new JsonObject { ["title"]=title,["detail"]=detail,["source"]=source,["fetchedAt"]=DateTimeOffset.UtcNow.ToString("O") });
+        Journal?.Record("Planner","application","planning_stage","success",new(){["stage"]=title});
+    }
 }

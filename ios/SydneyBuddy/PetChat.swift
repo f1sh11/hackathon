@@ -10,6 +10,7 @@ struct PetSession: Codable {
     var id: String; var messages: [PetMessage]; var fields: [String:String]; var pendingMemory: String
     var nextField: String; var question: String; var options: [String]; var completed: Int; var total: Int
     var presentationWarning:String? = nil
+    var purpose:String? = nil
     var dnaCompleted:Bool? = nil;var planningFields:[String:String]? = nil;var travelDna:[TravelPreference]? = nil;var pendingPreferences:[TravelPreference]? = nil;var tripPreferences:[TravelPreference]? = nil;var memoryWarning:String? = nil
     var dialogue:ProfilingDialogueState? = nil
     var effectiveFields:[String:String] {planningFields ?? fields}
@@ -39,6 +40,7 @@ let travelExtraFields:[(String,String)]=[("budgetCoverage","预算包含范围")
     private var base:URL {BackendConnection.base}
     private var pendingRequest: (String,String)?
     private var storageKey: String { "petSession." + scope }
+    private var personalProfileAgent:Bool {scope=="personalProfileAgent"}
     private func request<T:Decodable>(_ path:String, method:String="GET", body:[String:Any]?=nil) async throws -> T {
         var req=URLRequest(url:base.appendingPathComponent(path));req.httpMethod=method;TravelDataSource.current.apply(to:&req);req.timeoutInterval=120
         req.setValue("application/json",forHTTPHeaderField:"Content-Type");req.setValue(AppLanguage.current.rawValue,forHTTPHeaderField:"X-App-Language")
@@ -56,7 +58,9 @@ let travelExtraFields:[(String,String)]=[("budgetCoverage","预算包含范围")
         do{try await action()}catch{self.error=error.localizedDescription}
     }
     private var dialogueInput:[String:Any] {
-        ["profilingVersion":2,"companionVersion":scope=="personalProfile" ? 0:1,"nickname":UserDefaults.standard.string(forKey:"koko.nickname") ?? "","hasMetKoko":UserDefaults.standard.bool(forKey:"koko.hasMet")]
+        var input:[String:Any]=["profilingVersion":personalProfileAgent ? 3:2,"companionVersion":personalProfileAgent || scope=="personalProfile" ? 0:1,"nickname":UserDefaults.standard.string(forKey:"koko.nickname") ?? "","hasMetKoko":UserDefaults.standard.bool(forKey:"koko.hasMet")]
+        if personalProfileAgent{input["purpose"]="personal_profile"}
+        return input
     }
     private func rememberIntroduction() {
         guard let dialogue=session?.dialogue else{return}
@@ -71,12 +75,13 @@ let travelExtraFields:[(String,String)]=[("budgetCoverage","预算包含范围")
         await run {
             if let id=UserDefaults.standard.string(forKey:storageKey) {
                 session=try await request("pet/sessions/"+id)
-                if (profiling || session?.dialogue != nil),session?.dialogue?.companionVersion != (scope=="personalProfile" ? 0:1){session=try await request("pet/sessions/"+id,method:"PATCH",body:dialogueInput)}
+                if (profiling || session?.dialogue != nil),session?.dialogue?.companionVersion != (personalProfileAgent || scope=="personalProfile" ? 0:1){session=try await request("pet/sessions/"+id,method:"PATCH",body:dialogueInput)}
             } else {
                 var body:[String:Any]=["fields":seed,"personalProfile":personal.flatMap{try? JSONSerialization.jsonObject(with:JSONEncoder().encode($0))} ?? [:]]
                 if profiling{body.merge(dialogueInput){_,new in new}}
                 let value:PetSession=try await request("pet/sessions",method:"POST",body:body);session=value;UserDefaults.standard.set(value.id,forKey:storageKey)
             }
+            if personalProfileAgent{memories=try await request("memories")}
             rememberIntroduction()
         }
     }
@@ -107,7 +112,7 @@ let travelExtraFields:[(String,String)]=[("budgetCoverage","预算包含范围")
                 if event.type=="reply" {streaming=event.text ?? ""}
                 if event.type=="error" {throw NSError(domain:"Pet",code:3,userInfo:[NSLocalizedDescriptionKey:event.error ?? "请重试"])}
                 if let final=event.session {
-                    let finished=session?.dialogue?.inspiration == nil && final.dialogue?.inspiration != nil
+                    let finished=(session?.dialogue?.inspiration == nil && final.dialogue?.inspiration != nil) || (session?.dialogue?.phase != "profile_ready" && final.dialogue?.phase=="profile_ready")
                     session=final;completed=true;streaming="";outgoing="";pendingRequest=nil;rememberIntroduction()
                     if finished{koalaCue=KoalaCue(event:.dnaCompleted,id:"initial-profile:"+id)}
                     else {
@@ -276,6 +281,7 @@ struct PetChatView:View {
     @Environment(\.dismiss) private var dismiss
     var onboarding=false
     var personalSetup=false
+    var personalEditing=false
     var conversationOnly=false
     var draftScope=false
     var initialMessage=""
@@ -285,7 +291,7 @@ struct PetChatView:View {
     @State private var parkedMessage=""
     @State private var basicsConfirmed=false
     @State private var studioStartID:String?
-    private var scope:String {personalSetup ? "personalProfile":(onboarding || draftScope) ? "draft" : (store.trip?.id ?? "draft")}
+    private var scope:String {personalSetup ? "personalProfileAgent":(onboarding || draftScope) ? "draft" : (store.trip?.id ?? "draft")}
     private var faceToFace:Bool {personalSetup || onboarding || draftScope}
     private var displayedMessages:[PetMessage] {
         let messages=chat.session?.messages ?? []
@@ -314,7 +320,7 @@ struct PetChatView:View {
     private var conversationContent:some View {
         VStack(spacing:0) {
             HStack(spacing:12){
-                Button{if personalSetup{store.finishPersonalConversation(nil,useClues:false)}else if onboarding{store.returnToTrips(draft:liveFields)}else{dismiss()}}label:{Image(systemName:"chevron.left").font(.headline).frame(width:36,height:44)}.accessibilityLabel(uiText(onboarding ? "返回我的行程":"返回")).accessibilityIdentifier("chat-back")
+                Button{if personalSetup{finishPersonalSetup()}else if onboarding{store.returnToTrips(draft:liveFields)}else{dismiss()}}label:{Image(systemName:"chevron.left").font(.headline).frame(width:36,height:44)}.accessibilityLabel(uiText(onboarding ? "返回我的行程":"返回")).accessibilityIdentifier("chat-back")
                 Text(uiText(personalSetup ? "先认识一下":onboarding || draftScope ? "和 Koko 规划":"和 Koko 聊聊")).font(.headline)
                 Spacer()
                 Menu{
@@ -379,7 +385,7 @@ struct PetChatView:View {
                             },close:{acceptedInspiration=direction;requestedInspiration=false;inspirationOverride=nil}).id("inspiration")
                         }
                         ForEach(chat.session?.pendingPreferences ?? []){preference in
-                            TravelPreferenceCard(preference:preference,busy:chat.busy,decide:{consent,ignored in Task{await chat.decidePreference(preference,consent:consent,dismiss:ignored)}},correct:{message="关于"+preference.label+"，其实我";composing=true})
+                            TravelPreferenceCard(preference:preference,busy:chat.busy,decide:{consent,ignored in Task{await chat.decidePreference(preference,consent:consent,dismiss:ignored);if personalSetup && chat.error==nil{store.memories=chat.memories}}},correct:{message=preference.label+": ";composing=true})
                         }
                         if let warning=chat.session?.memoryWarning,!warning.isEmpty{Text(uiText(warning)).font(.caption).foregroundStyle(Palette.muted)}
                         englishDisplayNotice
@@ -397,7 +403,7 @@ struct PetChatView:View {
                             }.padding(16).background(chatBlue.opacity(0.035),in:RoundedRectangle(cornerRadius:16)).accessibilityIdentifier("chat-deferred-dates")
                         }
                         if canPlanDirectly && !chat.busy{directPlanningCard}
-                        if let error=chat.error{Text(uiText(error)).font(.caption).foregroundStyle(.red)}
+                        if let error=chat.error{Text(uiText(error)).font(.caption).foregroundStyle(.red);if personalSetup && chat.session==nil{Button(uiText("Retry")){Task{await chat.load(scope:scope,personal:store.personalProfile,profiling:true)}}.accessibilityIdentifier("personal-agent-retry")}}
                         Color.clear.frame(height:1).id("bottom")
                     }.padding(20)
                 }.scrollDismissesKeyboard(.interactively)
@@ -408,10 +414,10 @@ struct PetChatView:View {
                 .onChange(of:requestedInspiration){_,_ in Task{@MainActor in try? await Task.sleep(for:.milliseconds(120));withAnimation{proxy.scrollTo("bottom",anchor:.bottom)}}}
             }
             if personalSetup {
-                if chat.session?.dialogue?.inspiration != nil {
-                    PrimaryButton(title:"开始准备旅行",symbol:"arrow.right"){store.finishPersonalConversation(chat.session,useClues:true)}.padding(.horizontal,20).disabled(chat.busy || !message.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty).accessibilityIdentifier("personal-start-planning")
+                if chat.session?.messages.contains(where:{$0.role=="user"})==true {
+                    PrimaryButton(title:personalEditing ? "Done for now":"Continue to trip planning",symbol:"arrow.right"){finishPersonalSetup()}.padding(.horizontal,20).disabled(chat.busy || !message.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty).accessibilityIdentifier("personal-start-planning")
                 }
-                if !composing{Button(uiText("先跳过，之后再认识")){store.finishPersonalConversation(nil,useClues:false)}.font(.caption).frame(minHeight:40).disabled(chat.busy).accessibilityIdentifier("personal-skip")}
+                if !composing{Button(uiText("Finish for now")){finishPersonalSetup()}.font(.caption).frame(minHeight:40).disabled(chat.busy || !message.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty).accessibilityIdentifier("personal-skip")}
             }else if !canPlanDirectly{replyChoices.padding(.horizontal,16).padding(.vertical,6)}
             if !personalSetup,!composing,let issue=generationIssue {
                 VStack(alignment:.leading,spacing:6) {
@@ -555,6 +561,7 @@ struct PetChatView:View {
             if !chat.busy,let session=chat.session,!session.contextualReplies.isEmpty,!canPlanDirectly,!waitingForDeferredDates,(personalSetup || !presentsInspiration(session)) {
                 KokoQuickReplies(replies:session.contextualReplies.filter{personalSetup || !presentsInspiration(session) || !["accept_direction","change_direction"].contains($0.intent)},busy:chat.busy,stacked:personalSetup,compact:composing,quiet:!personalSetup){reply in
                     switch reply.intent {
+                    case "finish_profile":finishPersonalSetup()
                     case "compose_name":message="叫我";composing=true
                     case "details":if personalSetup{store.finishPersonalConversation(chat.session,useClues:true)}else{composing=false;detailRoute=TripDetailRoute(id:-1)}
                     case "details_destination":composing=false;detailRoute=TripDetailRoute(id:0)
@@ -597,7 +604,7 @@ struct PetChatView:View {
                 if !pendingMessage.isEmpty{parkedMessage=pendingMessage;UserDefaults.standard.set(pendingMessage,forKey:"petComposer.parked."+scope)}
                 message=""
             }else{message=initialMessage.isEmpty || pendingMessage.hasPrefix(initialMessage) ? pendingMessage:initialMessage+(pendingMessage.isEmpty ? "":"\n"+pendingMessage)}
-            await chat.load(scope:scope,seed:seed,personal:(onboarding || draftScope) ? store.pendingPersonalProfile:nil,profiling:personalSetup || onboarding || draftScope)
+            await chat.load(scope:scope,seed:seed,personal:personalSetup ? store.personalProfile:(onboarding || draftScope) ? store.pendingPersonalProfile:nil,profiling:personalSetup || onboarding || draftScope)
             if usesPlanningStudio,let id=chat.session?.id {
                 basicsConfirmed=UserDefaults.standard.bool(forKey:"koko.studio.basics."+id) && studioBasicsReady
                 studioStartID=UserDefaults.standard.string(forKey:"koko.studio.start."+id)
@@ -629,6 +636,11 @@ struct PetChatView:View {
         ScrollView(.horizontal,showsIndicators:false){HStack(spacing:8){ForEach(TripPlanningShortcuts.items(liveFields,ready:canPlanDirectly),id:\.stage){item in
             Button{composing=false;detailRoute=TripDetailRoute(id:item.stage)}label:{Label(uiText(item.title),systemImage:"pencil").font(.caption.weight(.semibold)).padding(.horizontal,13).frame(minHeight:44).background(Palette.mint.opacity(0.6),in:Capsule())}.buttonStyle(BuddyPressStyle()).accessibilityIdentifier("chat-edit-stage-"+String(item.stage))
         }}}.padding(.horizontal,20).padding(.vertical,4)
+    }
+    private func finishPersonalSetup() {
+        if chat.session != nil{store.memories=chat.memories}
+        if personalEditing{dismiss()}
+        else{store.finishPersonalConversation(chat.session,useClues:false)}
     }
     private var preparationStatus:String {
         if !onboarding && !draftScope{return "告诉 Koko 你想怎么调整～"}
@@ -1157,83 +1169,11 @@ struct TravelRequirements {
     }
 }
 
+// Both first-time and settings entry use the same model-driven personal conversation.
 struct PersonalPreferencesView:View {
-    @Environment(\.locale) private var interfaceLocale
-
     var editing=false
-    @EnvironmentObject private var store:AppStore
-    @Environment(\.dismiss) private var dismiss
-    @StateObject private var chat=PetChatStore()
-    @State private var draft=UserTravelProfile()
-    @State private var step=0
-    @State private var loaded=false
-    @State private var existing:Memory?
-    @State private var response:String?
-    private let interests=["美食","自然","风景","文化","艺术","购物","城市"]
-    private let questions=["如果喜欢的地方有队伍，你通常愿意等多久呀？","旅行时，每天走多少路会让你觉得舒服？不用精确哦。","平时旅行，你的小电池通常有多少电？","你喜欢慢慢发现，还是把一天安排得充实一些？","看到哪些事物，会让你忍不住想去看看？可以多选哦。"]
     var body:some View {
-        let _=interfaceLocale
-        NavigationStack {
-            VStack(spacing:0) {
-                HStack{if step>0{Button{step-=1;response=nil}label:{Image(systemName:"chevron.left")}};Text(uiText(editing ? "修改旅行画像":"认识一下你")).font(.headline);Spacer();Text(uiText(step==5 ? "画像总结":"\(step+1) / 5")).font(.caption).foregroundStyle(Palette.muted)}.padding(20)
-                ProgressView(value:Double(step),total:5).tint(Palette.green).padding(.horizontal,22)
-                HStack(spacing:8){PetAvatar(mood:chat.busy ? .remembering:step==5 ? .ready:response==nil ? .curious:.relaxed).frame(width:110,height:126);PetSpeechBubble(text:response ?? (step==5 ? "这就是你的旅行小画像！没确定的事情可以以后再慢慢了解。":questions[step]))}.padding(18)
-                ScrollView {
-                    VStack(spacing:12){
-                        switch step {
-                        case 0:singleOptions(["尽量不排队","可以等一会儿","为喜欢的地方愿意排队"],value:draft.queueTolerance){draft.queueTolerance=$0}
-                        case 1:
-                            ForEach([(5000,"轻松走走 · 约 3,000–6,000 步"),(10000,"走走停停 · 约 7,000–12,000 步"),(15000,"多多探索 · 约 13,000–18,000 步")],id:\.0){n,title in choice(title,selected:draft.dailySteps==n){draft.dailySteps=n;response="收到，我会参考这个步数上限照顾你的节奏。"}}
-                            VStack(spacing:12){HStack{Text(uiText("自定义步数"));Spacer();Text(uiText(draft.dailySteps.map{"\($0) 步"} ?? "暂未设置")).bold()};Slider(value:Binding(get:{Double(draft.dailySteps ?? 10000)},set:{draft.dailySteps=Int($0)}),in:1000...30000,step:1000).tint(Palette.green).accessibilityLabel(uiText("个人步数偏好"))}.padding(18).background(.white,in:RoundedRectangle(cornerRadius:20))
-                        case 2:singleOptions(["低精力","中等精力","高精力"],value:draft.energy){draft.energy=$0}
-                        case 3:singleOptions(["轻松随意","适中","紧凑充实"],value:draft.rhythm){draft.rhythm=$0}
-                        case 4:
-                            LazyVGrid(columns:[GridItem(.flexible()),GridItem(.flexible())],spacing:12){ForEach(interests,id:\.self){item in choice(item,selected:draft.interests?.contains(item)==true){var values=draft.interests ?? [];if values.contains(item){values.removeAll{$0==item}}else{values.append(item)};draft.interests=values.isEmpty ? nil:values;response="小背包收到你的喜好啦！"}}}
-                        default:
-                            VStack(alignment:.leading,spacing:16){summary("排队",draft.queueTolerance);summary("步数",draft.dailySteps.map{"每天约 \($0) 步"});summary("精力",draft.energy);summary("节奏",draft.rhythm);summary("兴趣",draft.interests?.joined(separator:"、"))}.padding(20).background(.white,in:RoundedRectangle(cornerRadius:22))
-                            Text(uiText("这是长期旅行习惯。每次旅行仍可调整，不会自动改写画像。可在“我的 → 个人画像”修改。")).font(.caption).foregroundStyle(Palette.muted)
-                        }
-                        if let error=chat.error{Text(uiText(error)).font(.caption).foregroundStyle(.red);if !loaded{Button(uiText("重新载入")){Task{await load()}}}}
-                    }.padding(22)
-                }.disabled(!loaded || chat.busy)
-                VStack(spacing:12){
-                    PrimaryButton(title:step==5 ? (editing ? "保存画像":"保存画像，开始规划旅行"):(answered ? "下一题":"暂不确定，下一题"),symbol:step==5 ? "sparkles":"arrow.right"){
-                        if step<5{step+=1;response=nil}else{Task{await save()}}
-                    }.disabled(!loaded || chat.busy)
-                    if step<5 && answered{Button(uiText("暂不确定")){clearCurrent();response="没关系，这题先留白。";step+=1}.font(.caption).foregroundStyle(Palette.muted).disabled(chat.busy || !loaded)}
-                    if editing{Button(uiText("取消")){dismiss()}.font(.caption).disabled(chat.busy)}
-                }.padding(22)
-            }.background(Palette.cream).foregroundStyle(Palette.ink).task{await load()}
-        }.interactiveDismissDisabled(chat.busy)
-    }
-    private var answered:Bool{switch step{case 0:return draft.queueTolerance != nil;case 1:return draft.dailySteps != nil;case 2:return draft.energy != nil;case 3:return draft.rhythm != nil;case 4:return draft.interests != nil;default:return true}}
-    private func clearCurrent(){switch step{case 0:draft.queueTolerance=nil;case 1:draft.dailySteps=nil;case 2:draft.energy=nil;case 3:draft.rhythm=nil;case 4:draft.interests=nil;default:break}}
-    private func summary(_ title:String,_ value:String?)->some View{HStack(alignment:.top){Text(uiText(title)).foregroundStyle(Palette.muted);Spacer();Text(uiText(value ?? "暂不确定")).multilineTextAlignment(.trailing)}}
-    private func choice(_ title:String,selected:Bool,action:@escaping()->Void)->some View{Button(action:action){HStack{Text(uiText(title)).font(.subheadline.bold());Spacer();Image(systemName:selected ? "checkmark.circle.fill":"circle")}.padding(18).background(selected ? Palette.mint:.white,in:RoundedRectangle(cornerRadius:18)).foregroundStyle(Palette.ink)}.buttonStyle(.plain)}
-    private func singleOptions(_ options:[String],value:String?,set:@escaping(String)->Void)->some View{ForEach(options,id:\.self){option in choice(option,selected:value==option){set(option);response=preferenceReply(option)}}}
-    private func preferenceReply(_ option:String)->String {
-        switch option {
-        case "尽量不排队":return "收到，小爪爪记下啦！我会参考这个偏好，排队情况仍要出发前确认哦。"
-        case "低精力":return "小电池也能玩得开心，我会给你多留一点喘口气的空间～"
-        case "高精力":return "探索能量满格！不过每天的步数上限我也会记在心里。"
-        case "轻松随意":return "好呀，留白也是旅行的一部分，我们慢慢来～"
-        case "紧凑充实":return "收到，想看的都先收进背包，再检查时间够不够！"
-        default:return "\(option)，收到啦！这会作为以后的旅行参考，随时都能改。"
-        }
-    }
-    private func load() async {
-        draft=editing ? store.personalProfile:UserTravelProfile()
-        await chat.refreshMemories()
-        // The questionnaire remains usable offline; save reports connection errors without losing answers.
-        existing=editing ? chat.memories.first{$0.id==UserDefaults.standard.string(forKey:"personalProfile.memoryID")}:nil
-        loaded=true
-    }
-    private func save() async {
-        await chat.saveTravelProfile(draft,existing:existing);guard chat.error==nil else{return}
-        store.personalProfile=draft;store.memories=chat.memories
-        if let memory=chat.memories.filter({$0.profile.habits != nil}).sorted(by:{($0.provenance?.createdAt ?? "") > ($1.provenance?.createdAt ?? "")}).first{UserDefaults.standard.set(memory.id,forKey:"personalProfile.memoryID")}
-        store.koalaFeedback=KoalaCue(event:.dnaCompleted)
-        if editing{dismiss()}else{store.completePersonalPreferences()}
+        NavigationStack{PetChatView(personalSetup:true,personalEditing:editing)}
     }
 }
 
@@ -1279,7 +1219,19 @@ enum TripConversationSeed {
     }
 
     static func fields(_ p:TripProfile)->[String:String] {
-        var fields=["destination":"悉尼","date":p.date,"days":String(p.days),"travelers":String(p.travelers ?? 1),"budget":String(p.budget),"budgetCurrency":"AUD","budgetBasis":"perPersonPerDay","budgetCoverage":"activities","interests":p.interests.joined(separator:"、"),"pace":"约\(p.maxSteps)步","transportPreference":p.transportPreference ?? "balanced","origin":p.origin ?? p.start.name,"mustDo":p.mustDo ?? "无","avoid":p.avoid ?? "无","dayStyle":p.dayStyle ?? "fullDay"]
+        var fields:[String:String]=["destination":"悉尼","date":p.date,"days":String(p.days)]
+        fields["travelers"]=String(p.travelers ?? 1)
+        fields["budget"]=String(p.budget)
+        fields["budgetCurrency"]="AUD"
+        fields["budgetBasis"]="perPersonPerDay"
+        fields["budgetCoverage"]="activities"
+        fields["interests"]=p.interests.joined(separator:"、")
+        fields["pace"]="约\(p.maxSteps)步"
+        fields["transportPreference"]=p.transportPreference ?? "balanced"
+        fields["origin"]=p.origin ?? p.start.name
+        fields["mustDo"]=p.mustDo ?? "无"
+        fields["avoid"]=p.avoid ?? "无"
+        fields["dayStyle"]=p.dayStyle ?? "fullDay"
         if let energy=p.energy{fields["energy"]=energy};if let rhythm=p.rhythm{fields["rhythm"]=rhythm};if let queue=p.queueTolerance{fields["queueTolerance"]=queue}
         return fields
     }

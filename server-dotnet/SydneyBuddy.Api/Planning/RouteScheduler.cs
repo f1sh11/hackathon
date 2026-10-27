@@ -134,8 +134,51 @@ public sealed class RouteScheduler(RouteService routes)
         return days;
     }
 
-    private async Task<JsonObject?> ScheduleAsync(IReadOnlyList<JsonObject> order, JsonObject profile, PlanningContext context, bool exact, CancellationToken ct)
+    public async Task<(JsonArray? Days,JsonArray Issues)> EvaluateProposalAsync(JsonObject proposal,JsonObject profile,
+        IReadOnlyList<JsonObject> candidates,PlanningContext context,CancellationToken ct)
     {
+        var issues=new JsonArray();
+        void Issue(string code,int day=-1,double? actual=null,double? limit=null) {
+            var item=new JsonObject{["code"]=code,["day"]=day};if(actual is not null)item["actual"]=actual;if(limit is not null)item["limit"]=limit;issues.Add(item);
+        }
+        if(context.MeterlessPlanning || proposal["dayPlans"] is not JsonArray plans){Issue("proposal_missing");return(null,issues);}
+        if(plans.Count!=profile.Int("days")){Issue("day_count");return(null,issues);}
+        var used=new HashSet<string>(StringComparer.Ordinal);var result=new JsonArray();
+        var date=DateOnly.ParseExact(profile.Str("date"),"yyyy-MM-dd",CultureInfo.InvariantCulture);
+        var known=candidates.ToDictionary(x=>x.Str("id"),StringComparer.Ordinal);
+        for(var day=0;day<plans.Count;day++) {
+            ct.ThrowIfCancellationRequested();
+            if(plans[day] is not JsonObject plan || plan.Int("dayIndex",-1)!=day || plan["placeIds"] is not JsonArray ids || ids.Count is <1 or >30){Issue("day_format",day);continue;}
+            var order=new List<JsonObject>();
+            foreach(var node in ids) {
+                if(node is not JsonValue value || !value.TryGetValue<string>(out var id) || !known.TryGetValue(id,out var point)){Issue("unknown_place",day);continue;}
+                if(!used.Add(id)){Issue("duplicate_place",day);continue;}
+                if(context.DayCandidateIds is not null && !context.DayCandidateIds[day].Contains(id)){Issue("road_evidence_missing",day);continue;}
+                order.Add(point);
+            }
+            if(issues.Count>0)continue;
+            if(order.Any(p=>RecommendationQuality.DuplicatesEndpoint(p,profile))){Issue("duplicate_endpoint",day);continue;}
+            if(profile.Str("weatherOverride")=="rain" && order.Any(p=>!p.Bool("indoor") && !profile.Array("mustVisit")!.Any(id=>id?.ToString()==p.Str("id")))){Issue("rain_outdoor",day);continue;}
+            var cost=order.Sum(p=>p.Number("cost"));
+            if(cost>profile.Number("budget")){Issue("budget",day,cost,profile.Number("budget"));continue;}
+            var daily=profile.DeepClone().AsObject();daily["date"]=date.AddDays(day).ToString("yyyy-MM-dd",CultureInfo.InvariantCulture);
+            var failures=new JsonArray();var scheduled=await ScheduleAsync(order,daily,context,true,ct,failures);
+            if(scheduled is null){foreach(var failure in failures.OfType<JsonObject>()){failure["day"]=day;issues.Add(failure.DeepClone());}if(failures.Count==0)Issue("route_unverified",day);continue;}
+            scheduled["date"]=daily.Str("date");MealTiming.Annotate(scheduled,daily);DailyPacing.Annotate(scheduled,daily);result.Add(scheduled);
+        }
+        if(!profile.Array("mustVisit")!.All(x=>used.Contains(x!.GetValue<string>())))Issue("must_visit_missing");
+        // Interest coverage is a meaningful review, not permission to change hard constraints.
+        var stops=result.OfType<JsonObject>().SelectMany(d=>d.Array("stops")!.OfType<JsonObject>()).ToArray();
+        foreach(var interest in profile.Array("interests")!.Select(x=>x!.GetValue<string>()))
+            if(candidates.Any(p=>RecommendationQuality.Matches(p,interest)) && !stops.Any(p=>RecommendationQuality.Matches(p,interest)))Issue("interest_coverage");
+        if(issues.Count>0)return(null,issues);
+        RecommendationQuality.Assess(profile,result);
+        return(result,issues);
+    }
+
+    private async Task<JsonObject?> ScheduleAsync(IReadOnlyList<JsonObject> order, JsonObject profile, PlanningContext context, bool exact, CancellationToken ct,JsonArray? failures=null)
+    {
+        JsonObject? Reject(string code,double? actual=null,double? limit=null) {var issue=new JsonObject{["code"]=code};if(actual is not null)issue["actual"]=actual;if(limit is not null)issue["limit"]=limit;failures?.Add(issue);return null;}
         var clock = profile.Int("startMinute");
         var totalSteps = 0;
         var waitingMinutes=0;
@@ -152,7 +195,7 @@ public sealed class RouteScheduler(RouteService routes)
         foreach (var point in sequence)
         {
             var leg = exact ? await routes.TimedLegAsync(previous,point,profile,clock,context,ct):context.Walking is not null ? await routes.LegAsync(previous, point, context, ct):RouteService.EstimateLeg(previous, point);
-            if(leg.Bool("unreachable")){if(context.CompareTransit&&!exact)leg=RouteService.EstimateLeg(previous,point);else return null;}
+            if(leg.Bool("unreachable")){if(context.CompareTransit&&!exact)leg=RouteService.EstimateLeg(previous,point);else return Reject("unreachable_leg");}
             var routeSteps=WalkingLoad.DistanceSteps(leg.Number("walkingMeters",leg.Number("meters")),profile);
             var activitySteps=WalkingLoad.VisitSteps(point,point.Int("visitMinutes"),profile,point.Str("activityType"));
             var steps=routeSteps+activitySteps;
@@ -165,7 +208,7 @@ public sealed class RouteScheduler(RouteService routes)
             }
             var feasible = windows.Select(x => (Start: Math.Max(arrival, x.Open), x.Close))
                 .Where(x => x.Start + point.Int("visitMinutes") <= x.Close).OrderBy(x => x.Start).ThenBy(x => x.Close).ToArray();
-            if (feasible.Length == 0) return null;
+            if (feasible.Length == 0) return Reject("opening_window");
             var start = feasible[0].Start;
             if(point.Str("activityType")=="bag-drop"&&profile.Int("startMinute")<720&&start>=720)return null;
             if(RecommendationQuality.IsMeal(point)){
@@ -176,7 +219,8 @@ public sealed class RouteScheduler(RouteService routes)
             clock = start + point.Int("visitMinutes") + (RouteLogistics.IsTask(point)?0:15);
             totalSteps += steps;
             totalCost += point.Number("cost");
-            if (totalCost > profile.Number("budget") || (exact||!context.CompareTransit)&&totalSteps > profile.Int("maxSteps")) return null;
+            if(totalCost>profile.Number("budget"))return Reject("budget",totalCost,profile.Number("budget"));
+            if((exact||!context.CompareTransit)&&totalSteps>profile.Int("maxSteps"))return Reject("steps",totalSteps,profile.Int("maxSteps"));
             var stop = CopyFields(point, "id", "name", "lat", "lng", "category", "indoor", "visitMinutes", "cost", "note", "activityType", "tags", "sourceURL", "source", "website", "costKnown", "indoorKnown", "openingHoursText", "storageConfirmed", "openMinute", "closeMinute");
             stop["arrival"] = TimeLabel(start);
             stop["departure"] = TimeLabel(start + point.Int("visitMinutes"));
@@ -195,10 +239,11 @@ public sealed class RouteScheduler(RouteService routes)
             if (!verified) warnings.Add(point.Str("name") + "：营业时间未核实");
         }
         var back = exact ? await routes.TimedLegAsync(previous,profile.Object("end")!,profile,clock,context,ct):context.Walking is not null ? await routes.LegAsync(previous, profile.Object("end")!, context, ct):RouteService.EstimateLeg(previous,profile.Object("end")!);
-        if(back.Bool("unreachable")){if(context.CompareTransit&&!exact)back=RouteService.EstimateLeg(previous,profile.Object("end")!);else return null;}
+        if(back.Bool("unreachable")){if(context.CompareTransit&&!exact)back=RouteService.EstimateLeg(previous,profile.Object("end")!);else return Reject("unreachable_leg");}
         totalSteps += WalkingLoad.DistanceSteps(back.Number("walkingMeters",back.Number("meters")),profile);
         clock += (int)back.Number("minutes") + 10;
-        if (clock > profile.Int("endMinute") || (exact||!context.CompareTransit)&&totalSteps > profile.Int("maxSteps")) return null;
+        if(clock>profile.Int("endMinute"))return Reject("return_time",clock,profile.Int("endMinute"));
+        if((exact||!context.CompareTransit)&&totalSteps>profile.Int("maxSteps"))return Reject("steps",totalSteps,profile.Int("maxSteps"));
         legs.Add(back);
         return new JsonObject
         {

@@ -12,6 +12,7 @@ public static class DependencyInjection
             return new ProjectPaths(configuration["SYDNEYBUDDY_ROOT"] ?? ProjectPaths.DiscoverRoot(), configuration["SYDNEYBUDDY_DATA"]);
         });
         services.AddSingleton<SecretStore>();
+        services.AddSingleton<PlanningRunJournal>();
         services.AddSingleton<PaidServicePolicy>();
         services.AddHttpClient<NavigationService>(client => client.Timeout = Timeout.InfiniteTimeSpan)
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
@@ -63,6 +64,10 @@ public static class DependencyInjection
         services.AddHttpClient<PlanningAgent>(client=>client.Timeout=Timeout.InfiniteTimeSpan)
             .ConfigurePrimaryHttpMessageHandler(()=>new HttpClientHandler{AllowAutoRedirect=false});
         services.AddScoped<Planner>();
+        services.AddHttpClient<IFeasibilityReasoner,FeasibilityReasoner>(client=>client.Timeout=Timeout.InfiniteTimeSpan).ConfigurePrimaryHttpMessageHandler(()=>new HttpClientHandler{AllowAutoRedirect=false});
+        services.AddScoped<IFeasibilityTools,FeasibilityTools>();
+        services.AddSingleton<FeasibilityReviewStore>();
+        services.AddScoped<FeasibilityAgent>();
         services.AddScoped<TripTransportRouter>();
         services.AddScoped<TransportScheduleService>();
         services.AddScoped<RemainingJourneyService>();

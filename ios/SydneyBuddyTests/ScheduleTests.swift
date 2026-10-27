@@ -63,6 +63,112 @@ import MapKit
         XCTAssertEqual(ProposalReviewPresentation.cost([plan.days[0]]),"Cost to confirm")
     }
 
+    func testExploreSearchControlsDoNotInterceptMapGestures() async throws {
+        let restore=preservePlanningDefaults();defer{restore()}
+        let store=AppStore();store.mapProvider = .apple;store.travelDataSource = .direct
+        let scene=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.first!
+        let old=scene.windows.first{$0.isKeyWindow};let window=UIWindow(windowScene:scene);window.frame=scene.screen.bounds
+        window.rootViewController=UIHostingController(rootView:PoiDiscoveryView(embedded:true).environmentObject(store))
+        window.makeKeyAndVisible();defer{window.isHidden=true;old?.makeKeyAndVisible()}
+        try await Task.sleep(nanoseconds:700_000_000)
+        func findMap(_ view:UIView)->MKMapView?{if let map=view as? MKMapView{return map};return view.subviews.compactMap{findMap($0)}.first}
+        let map=try XCTUnwrap(findMap(window))
+        let sample=window.convert(CGPoint(x:map.bounds.midX,y:map.bounds.height*0.45),from:map)
+        var hit=window.hitTest(sample,with:nil);var mapReceivesTouch=false
+        while let view=hit{if view===map{mapReceivesTouch=true;break};hit=view.superview}
+        XCTAssertTrue(mapReceivesTouch,"Search and category controls must not cover the map’s gesture area")
+    }
+
+    func testExploreDrawerLeavesMapVisibleAndSupportsThreePositions() {
+        XCTAssertLessThan(ExploreDrawer.collapsed.height(in:700),112)
+        XCTAssertLessThan(ExploreDrawer.preview.height(in:700),350)
+        XCTAssertLessThan(ExploreDrawer.expanded.height(in:700),600)
+        XCTAssertEqual(ExploreDrawer.expanded.height(in:700,header:200),488)
+        XCTAssertEqual(ExploreDrawer.collapsed.dragged(up:true),.preview)
+        XCTAssertEqual(ExploreDrawer.preview.dragged(up:true),.expanded)
+        XCTAssertEqual(ExploreDrawer.expanded.dragged(up:false),.preview)
+        XCTAssertEqual(ExploreDrawer.preview.toggled(resultCount:1),.collapsed)
+        XCTAssertEqual(ExploreDrawer.preview.toggled(resultCount:4),.expanded)
+        XCTAssertTrue(PoiDiscoveryCategory.filters("all").isEmpty)
+        XCTAssertEqual(PoiDiscoveryCategory.filters("food").count,4)
+    }
+    func testExploreRankingUsesRealInterestsAndKeepsSelectedPlaceVisible() {
+        let centre=CLLocationCoordinate2D(latitude:-33.865,longitude:151.212)
+        let near=ScheduleCandidate(id:"near",name:"Near",category:"美食",indoor:false,visitMinutes:30,cost:0,lat:centre.latitude,lng:centre.longitude,reason:"")
+        var far=near;far.id="far";far.category="自然";far.lat -= 0.01
+        XCTAssertEqual(ExplorePresentation.ranked([near,far],interests:["自然"],center:centre,selected:nil).map(\.id),["far","near"])
+        XCTAssertEqual(ExplorePresentation.ranked([far,near],interests:[],center:centre,selected:nil).map(\.id),["near","far"])
+        XCTAssertEqual(ExplorePresentation.mapPlaces([near,far],selected:"far",limit:1).map(\.id),["far"])
+        XCTAssertTrue(ExplorePresentation.mapPlaces([near,far],selected:"far",limit:0).isEmpty)
+        XCTAssertTrue(ExplorePresentation.distance(near,from:centre).contains("search centre"))
+        XCTAssertFalse(ExplorePresentation.distance(near,from:centre).contains("walk"))
+    }
+    func testExploreDoesNotShowUnknownPriceAsFreeAndClustersKeepSelectedSeparate() {
+        var point=ScheduleCandidate(id:"one",name:"Unknown",category:"文化",indoor:false,visitMinutes:30,cost:0,lat:-33.865,lng:151.212,reason:"",source:"Apple Maps")
+        XCTAssertNil(ExplorePresentation.price(point))
+        point.estimatedSpendAud=38
+        XCTAssertEqual(ExplorePresentation.price(point),"Est. A$38/person")
+        var other=point;other.id="two"
+        XCTAssertEqual(ExplorePresentation.clusters([point,other],zoom:14,selected:nil).count,1)
+        XCTAssertEqual(ExplorePresentation.clusters([point,other],zoom:14,selected:"one").count,2)
+        let subject=PoiNativeMap(places:[point,other],osm:false,center:.init(latitude:point.lat,longitude:point.lng),zoom:14,onCamera:{_,_ in},onSelect:{_ in})
+        let map=MKMapView();let coordinator=subject.makeCoordinator()
+        let cluster=MKClusterAnnotation(memberAnnotations:[PoiPin(point),PoiPin(other)])
+        XCTAssertEqual((coordinator.mapView(map,viewFor:cluster) as? MKMarkerAnnotationView)?.glyphText,"2")
+    }
+    func testExploreFoodInsertionUsesDisplayedEstimateAndDoesNotTurnStaysIntoStops() throws {
+        var state=try fixture().schedule!;var point=state.candidates[0];point.id="new-meal";point.category="美食";point.source="Apple Maps";point.estimatedSpendAud=48
+        ExplorePresentation.insert(point,into:&state,day:0)
+        let meal=try XCTUnwrap(state.days[0].activities.first{$0.placeId==point.id})
+        XCTAssertEqual(meal.kind,"meal");XCTAssertEqual(meal.cost,48)
+        point.id="new-hotel";point.category="住宿"
+        ExplorePresentation.insert(point,into:&state,day:0)
+        XCTAssertFalse(state.days[0].activities.contains{$0.placeId==point.id})
+    }
+    func testExploreBudgetFeedbackUsesActualLimitsAndDeduplicatesUnknownNotes() throws {
+        var state=try fixture().schedule!;state.days[0].dailyBudget=12;state.days[0].estimatedCost=40
+        state.issues=[ScheduleIssue(code:"budget",message:"中文原始提示",day:0,blocking:true),ScheduleIssue(code:"poi-unknown",message:"第一处未知",day:0,blocking:false),ScheduleIssue(code:"poi-unknown",message:"第二处未知",day:0,blocking:false)]
+        let checks=ExplorePresentation.checks(state,day:0)
+        XCTAssertEqual(checks.count,2);XCTAssertTrue(checks[0].blocking)
+        XCTAssertTrue(checks[0].text.contains("A$40"));XCTAssertTrue(checks[0].text.contains("A$12"))
+        XCTAssertFalse(checks[0].text.contains("中文"))
+    }
+    func testExploreManualAreaSearchKeepsResultsUntilUserRequestsRefresh() async throws {
+        let model=PoiSearchModel();let point=try fixture().schedule!.candidates[0];var calls=0
+        let data=try JSONSerialization.data(withJSONObject:["places":try JSONSerialization.jsonObject(with:JSONEncoder().encode([point]))])
+        model.loader={request in calls+=1;return(data,HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)}
+        model.configure(.osm)
+        for _ in 0..<100{if !model.busy{break};try await Task.sleep(nanoseconds:5_000_000)}
+        let originalCentre=model.searchCenter
+        model.cameraChanged(.init(latitude:-33.90,longitude:151.25),zoom:15,automaticallySearch:false)
+        try await Task.sleep(nanoseconds:30_000_000)
+        XCTAssertEqual(calls,1);XCTAssertEqual(model.places.map(\.id),[point.id]);XCTAssertFalse(model.busy)
+        XCTAssertEqual(model.searchCenter.latitude,originalCentre.latitude)
+        model.search()
+        for _ in 0..<100{if !model.busy{break};try await Task.sleep(nanoseconds:5_000_000)}
+        XCTAssertEqual(calls,2);XCTAssertEqual(model.searchCenter.latitude,-33.90,accuracy:0.000001);model.stop()
+    }
+    func testExploreInsertionChecksChosenDayWithoutSavingOrChangingOriginal() async throws {
+        let original=try fixture();let encoder=JSONEncoder();encoder.outputFormatting = .sortedKeys;let before=try encoder.encode(original);let model=makeEditor();model.inlineEditing=true;model.prepare(original)
+        let chosen=min(1,original.days.count-1);model.dayIndex=chosen;var calls=0
+        var point=original.schedule!.candidates[0];point.id="explore:new";point.name="New place";point.source="OpenStreetMap"
+        model.loader={request in
+            calls+=1;XCTAssertEqual(request.url!.path,"/schedule/editor")
+            let body=try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:Any]
+            XCTAssertEqual(body["transportDays"] as? [Int],[chosen])
+            var raw=body["trip"] as! [String:Any];var state=raw["schedule"] as! [String:Any]
+            state["days"]=body["days"];state["candidates"]=body["candidates"];raw["schedule"]=state
+            return(try JSONSerialization.data(withJSONObject:raw),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)
+        }
+        model.edit{state in ExplorePresentation.insert(point,into:&state,day:chosen)}
+        for _ in 0..<100{if !model.busy{break};try await Task.sleep(nanoseconds:10_000_000)}
+        XCTAssertNil(model.error);XCTAssertEqual(calls,1)
+        XCTAssertTrue(model.state!.days[chosen].activities.contains{$0.placeId==point.id})
+        for index in original.days.indices where index != chosen{XCTAssertFalse(model.state!.days[index].activities.contains{$0.placeId==point.id})}
+        XCTAssertEqual(try encoder.encode(original),before)
+        var state=model.state!;ExplorePresentation.insert(point,into:&state,day:chosen);XCTAssertEqual(state.days.flatMap(\.activities).filter{$0.placeId==point.id}.count,1);model.stop()
+    }
+
     func testDiscoveryZoomUsesCurrentCameraAndDoesNotRepeatWhenResultsRefresh() throws {
         let center=CLLocationCoordinate2D(latitude:-33.865,longitude:151.212)
         let map=MKMapView(frame:CGRect(x:0,y:0,width:390,height:700))
@@ -100,6 +206,18 @@ import MapKit
         XCTAssertFalse(ScheduleSwapOptions.matches(museum,replacingKind:"meal"))
         XCTAssertTrue(ScheduleSwapOptions.matches(restaurant,replacingKind:"meal"))
         XCTAssertTrue(ScheduleSwapOptions.matches(museum,replacingKind:nil))
+    }
+
+    func testPlanningRunCorrelationSurvivesTripEncodingAndDoesNotLeakIntoOtherRequests() async throws {
+        let store=AppStore();let id=UUID().uuidString.lowercased();var value=try fixture();value.planningRunId=id
+        let data=try JSONEncoder().encode(value);XCTAssertEqual(try JSONDecoder().decode(Trip.self,from:data).planningRunId,id)
+        var headers:[String?]=[]
+        store.loader={request in headers.append(request.value(forHTTPHeaderField:"X-Planning-Run"));return(Data("{}".utf8),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)}
+        let _: [String:String] = try await PlanningRunScope.$id.withValue(id){try await store.api("catalog")}
+        let _: [String:String] = try await store.api("catalog")
+        let saved=try JSONSerialization.data(withJSONObject:["trip":["planningRunId":id]])
+        let _: [String:String] = try await store.api("trips",method:"POST",body:saved)
+        XCTAssertEqual(headers.count,3);XCTAssertEqual(headers[0],id);XCTAssertNil(headers[1]);XCTAssertEqual(headers[2],id)
     }
 
     func testInlineUndoDoesNotOpenTheGlobalLoadingScreen() async throws {
@@ -964,13 +1082,13 @@ import MapKit
         window.makeKeyAndVisible();defer{window.isHidden=true;old?.makeKeyAndVisible()}
         try await Task.sleep(nanoseconds:400_000_000)
         func findMap(_ view:UIView)->MKMapView? {if let map=view as? MKMapView{return map};return view.subviews.compactMap{findMap($0)}.first}
-        let map=try XCTUnwrap(findMap(window));XCTAssertEqual(map.overlays.filter{$0 is OsmTiles}.count,1);XCTAssertTrue(map.selectableMapFeatures.isEmpty);XCTAssertEqual(map.annotations.count,points.count)
+        let map=try XCTUnwrap(findMap(window));XCTAssertEqual(map.overlays.filter{$0 is OsmTiles}.count,1);XCTAssertTrue(map.selectableMapFeatures.isEmpty);XCTAssertEqual(Set(map.annotations.compactMap{($0 as? PoiPin)?.point.id}),Set(points.map(\.id)))
         let center=map.centerCoordinate
         store.mapProvider = .apple;try await Task.sleep(nanoseconds:250_000_000)
-        XCTAssertTrue(map.overlays.isEmpty);XCTAssertTrue(map.selectableMapFeatures.contains(.pointsOfInterest));XCTAssertEqual(map.annotations.count,points.count)
+        XCTAssertTrue(map.overlays.isEmpty);XCTAssertTrue(map.selectableMapFeatures.contains(.pointsOfInterest));XCTAssertEqual(Set(map.annotations.compactMap{($0 as? PoiPin)?.point.id}),Set(points.map(\.id)))
         XCTAssertEqual(map.centerCoordinate.latitude,center.latitude,accuracy:0.0001);XCTAssertEqual(map.centerCoordinate.longitude,center.longitude,accuracy:0.0001)
         store.mapProvider = .osm;try await Task.sleep(nanoseconds:250_000_000)
-        XCTAssertEqual(map.overlays.filter{$0 is OsmTiles}.count,1);XCTAssertTrue(map.selectableMapFeatures.isEmpty);XCTAssertEqual(map.annotations.count,points.count)
+        XCTAssertEqual(map.overlays.filter{$0 is OsmTiles}.count,1);XCTAssertTrue(map.selectableMapFeatures.isEmpty);XCTAssertEqual(Set(map.annotations.compactMap{($0 as? PoiPin)?.point.id}),Set(points.map(\.id)))
     }
     func testPoiFocusMovesToVisibleAreaAndKeepsSelectionWithoutSearching() async throws {
         let points=try fixture().schedule!.candidates

@@ -8,7 +8,7 @@ namespace SydneyBuddy.Api;
 /// Orchestrates validation, evidence, recommendations and scheduling; returns drafts without persistence.
 /// </summary>
 public sealed class Planner(PlaceService places, RecommendationService recommendations, RouteScheduler scheduler,
-    WeatherService weather, SecretStore secrets,TravelDataContext? travel=null,PublicTravelWeather? publicWeather=null,PlanningAgent? agent=null,PlanningInventory? inventory=null)
+    WeatherService weather, SecretStore secrets,TravelDataContext? travel=null,PublicTravelWeather? publicWeather=null,PlanningAgent? agent=null,PlanningInventory? inventory=null,PlanningRunJournal? journal=null)
 {
     public IReadOnlyList<JsonObject> Catalog => places.Catalog;
 
@@ -26,7 +26,7 @@ public sealed class Planner(PlaceService places, RecommendationService recommend
     public async Task<JsonObject> PlanAsync(JsonObject raw, string mode, CancellationToken ct = default,bool shortlist=false)
     {
         if (mode is not ("demo" or "assisted" or "live")) throw new ServiceException("模式不合法");
-        var context = new PlanningContext(mode, secrets.Read());
+        var context = new PlanningContext(mode, secrets.Read()){Journal=journal};
         var imported=raw.Array("planningCandidates");
         var autoInventory=false;
         var useAgent=raw.Bool("useAgent") || agent?.UsesSkill==true;
@@ -51,6 +51,7 @@ public sealed class Planner(PlaceService places, RecommendationService recommend
         if(evidence is not null)context.Walking=new WalkingEvidence(evidence);
         context.CompareTransit=evidence is not null && raw.Str("transportPreference","walk")!="walk";
         var profile = PlanValidator.Validate(raw, planningCatalog);
+        journal?.Record("EvidenceCollector","application","route_evidence","success",new(){["walking_observations"]=evidence?.Count ?? 0,["candidate_count"]=planningCatalog.Count,["walking_source"]=evidence is null?"not_supplied":"client_reported_apple_mapkit"});
         if(DailyPacing.Tired(profile)){
             profile["energyFeedback"]="tired";
             if(!shortlist)profile["maxSteps"]=Math.Min(profile.Int("maxSteps"),8000);
@@ -87,21 +88,34 @@ public sealed class Planner(PlaceService places, RecommendationService recommend
         profile.Remove("useAgent");
         var forecast = await WeatherForProfileAsync(profile, context, ct);
         var stays=profile.Str("accommodationStatus")=="booked"?[]:lists?.Array("accommodations")?.OfType<JsonObject>().ToArray()??[];
-        var choice = useAgent ? await (agent??throw new ServiceException("旅行 Agent 尚未启动。")).ProposeAsync(profile,candidates,forecast,stays,ct):await recommendations.SelectAsync(profile, candidates, forecast, context, ct);
-        if(useAgent) {
-            context.Record("Koko Agent 推荐",choice.Str("explanation"),agent!.Provider=="meterless-cloud"?"Meterless H-MEM + NVIDIA / Skill "+ItinerarySkill.Version:agent.Provider=="meterless"?"Meterless Runtime / Skill "+ItinerarySkill.Version:"NVIDIA NIM / "+secrets.Read().GetValueOrDefault("NVIDIA_MODEL",SecretStore.DefaultModel));
-            if(agent.UsesSkill)context.Record("檢索已確認偏好",$"H-MEM 返回 {choice.Int("confirmedMemoryCount")} 筆已確認偏好；本次需求優先，沒有自動保存新偏好。","Meterless H-MEM");
-            foreach(var day in choice.Array("dayPlans")?.OfType<JsonObject>()??[])context.AgentDayRanks[day.Str("date")]=day.Array("preferredIds")!.Select((id,index)=>(Id:id!.GetValue<string>(),Index:index)).ToDictionary(x=>x.Id,x=>x.Index);
-        }
-        var ranks = choice.Array("preferredIds")!.Select((id, index) => (id: id!.GetValue<string>(), index))
-            .ToDictionary(x => x.id, x => x.index, StringComparer.Ordinal);
         if (!shortlist && TravelAdjustmentIntent.Lighter(profile.Str("request")))
             profile["maxSteps"] = Math.Min(profile.Int("maxSteps"), 8000);
-        var days = await scheduler.ScheduleDaysAsync(profile, candidates, forecast, ranks, context, ct);
+        var agentProfile=profile.DeepClone().AsObject();
+        if(context.DayCandidateIds is not null)agentProfile["verifiedDayCandidates"]=new JsonArray(context.DayCandidateIds.Select(g=>(JsonNode)new JsonArray(g.Select(id=>(JsonNode)JsonValue.Create(id)!).ToArray())).ToArray());
+        JsonObject? choice=null;
+        async Task<JsonObject> Propose(JsonObject? feedback) {
+            choice=await (agent??throw new ServiceException("旅行 Agent 尚未启动。")).ProposeAsync(agentProfile,candidates,forecast,stays,ct,feedback);
+            if(agent.UsesSkill)foreach(var day in choice.Array("dayPlans")?.OfType<JsonObject>()??[])context.AgentDayRanks[day.Str("date")]=day.Array("preferredIds")!.Select((id,index)=>(Id:id!.GetValue<string>(),Index:index)).ToDictionary(x=>x.Id,x=>x.Index);
+            return choice;
+        }
+        Dictionary<string,int> Ranks(JsonObject value)=>value.Array("preferredIds")!.Select((id,index)=>(id:id!.GetValue<string>(),index)).ToDictionary(x=>x.id,x=>x.index,StringComparer.Ordinal);
+        JsonArray days;
+        if(useAgent && !shortlist) {
+            days=await PlanningCollaboration.RunAsync(Propose,
+                proposal=>scheduler.EvaluateProposalAsync(proposal,profile,candidates,context,ct),
+                ()=>scheduler.ScheduleDaysAsync(profile,candidates,forecast,choice is null?new Dictionary<string,int>():Ranks(choice),context,ct),journal,ct);
+        } else {
+            choice=useAgent?await Propose(null):await recommendations.SelectAsync(profile,candidates,forecast,context,ct);
+            days=await scheduler.ScheduleDaysAsync(profile,candidates,forecast,Ranks(choice),context,ct);
+        }
+        if(useAgent) {
+            context.Record("Koko Agent 推荐",choice?.Str("explanation") ?? "",agent!.UsesSkill?agent.Provider+" / Skill "+ItinerarySkill.Version:ModelProviderSettings.Resolve(secrets.Read()).Provider);
+            if(agent.UsesSkill)context.Record("檢索已確認偏好",$"H-MEM 返回 {choice!.Int("confirmedMemoryCount")} 筆已確認偏好；本次需求優先，沒有自動保存新偏好。","Meterless H-MEM");
+        }
         context.Record("交通方式比较",context.CompareTransit ? "在候选道路上比较 TfNSW 班次、等候、接驳步行和换乘。票价未知。":"用户选择只步行或兼容旧请求。","交通规划器");
         var draft=BuildDraft(profile, days, forecast, context);
         if(useAgent) {
-            draft["planningAgent"]=new JsonObject{["provider"]=agent!.Provider,["status"]="draft_pending_verification",["skillVersion"]=agent.UsesSkill?ItinerarySkill.Version:null,["explanation"]=choice.Str("explanation"),["outstandingChecks"]=choice.Array("outstandingChecks")?.DeepClone()??new JsonArray(),["memoryEngine"]=choice["memoryEngine"]?.DeepClone(),["confirmedMemoryCount"]=choice.Int("confirmedMemoryCount")};
+            draft["planningAgent"]=new JsonObject{["provider"]=agent!.Provider,["status"]="draft_pending_verification",["skillVersion"]=agent.UsesSkill?ItinerarySkill.Version:null,["explanation"]=choice!.Str("explanation"),["outstandingChecks"]=choice!.Array("outstandingChecks")?.DeepClone()??new JsonArray(),["memoryEngine"]=choice!["memoryEngine"]?.DeepClone(),["confirmedMemoryCount"]=choice!.Int("confirmedMemoryCount")};
             if(agent.UsesSkill) {
                 draft["accommodationSuggestions"]=AccommodationSuggestions.Select(profile,stays,choice.Array("accommodationIds"),days);
                 draft.Array("warnings")!.Add("住宿僅為未預訂候選，未確認空房或實際房價；未變更行程起訖點，亦未計入活動預算。天氣警報、無障礙、營業與預約仍須確認。");
@@ -184,7 +198,7 @@ public sealed class Planner(PlaceService places, RecommendationService recommend
         if(partial)explanation="这是一份待补充草案，部分需求尚未满足。"+explanation;
         return new JsonObject
         {
-            ["recommendationStatus"]=partial?"partial":"ready",["title"] = "悉尼小冒险", ["mode"] = context.Mode, ["profile"] = profile, ["days"] = days,
+            ["planningRunId"]=context.Journal?.CurrentId,["recommendationStatus"]=partial?"partial":"ready",["title"] = "悉尼小冒险", ["mode"] = context.Mode, ["profile"] = profile, ["days"] = days,
             ["dataSource"] = weather.Str("dataSource","legacy"), ["weather"] = weather, ["explanation"] = explanation, ["warnings"] = warnings,
             ["trace"] = context.Trace.DeepClone(), ["createdAt"] = context.Now
         };

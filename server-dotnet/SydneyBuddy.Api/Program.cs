@@ -10,6 +10,7 @@ builder.Services.AddBuddyServices();
 
 var app = builder.Build();
 app.UseMiddleware<LocalRequestMiddleware>();
+app.UseMiddleware<PlanningRunMiddleware>();
 await using (var scope = app.Services.CreateAsyncScope())
 {
     await scope.ServiceProvider.GetRequiredService<BuddyDbContext>().Database.MigrateAsync();

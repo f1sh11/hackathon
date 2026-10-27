@@ -12,6 +12,7 @@ public static class PetEmotion
 public sealed class PetSession
 {
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
+    public string Purpose { get; set; } = "";
     public string ResponseLanguage { get; set; } = "";
     [System.Text.Json.Serialization.JsonIgnore]
     public string InteractionContext { get; set; } = "";
@@ -78,8 +79,8 @@ public static class PetResponseLanguage
         var language=input.Str("language");
         var context=input.Str("interactionContext");
         if(context.Length>2000)throw new ServiceException("行程上下文过长。");
-        session.InteractionContext=context;
-        session.PersonalizingTrip=input.Str("conversationPhase")=="personalize";
+        session.InteractionContext=PersonalProfileAgent.Enabled(session) ? "":context;
+        session.PersonalizingTrip=!PersonalProfileAgent.Enabled(session) && input.Str("conversationPhase")=="personalize";
         if(language is "zh-Hans" or "zh-Hant" or "en")session.ResponseLanguage=language;
     }
     public static string Prompt(PetSession session)=>session.ResponseLanguage switch {
@@ -166,12 +167,13 @@ public static class PetQuestions
         var english=s.ResponseLanguage=="en";
         var display=english ? PetEnglishCopy.Presentation(s):null;
         string Copy(string value)=>english ? PetEnglishCopy.Translate(value):value;
-        return new {s.Id,presentationWarning=english && s.EnglishPresentationUnavailable ? "Some replies couldn’t be displayed in English. Your original conversation is safe.":"",Messages=display?.Messages ?? s.Messages,s.Fields,s.PendingMemory,s.UpdatedAt,
+        var personal=PersonalProfileAgent.Enabled(s);
+        return new {s.Id,s.Purpose,presentationWarning=english && s.EnglishPresentationUnavailable ? "Some replies couldn’t be displayed in English. Your original conversation is safe.":"",Messages=display?.Messages ?? s.Messages,s.Fields,s.PendingMemory,s.UpdatedAt,
             MemoryWarning=display?.MemoryWarning ?? s.MemoryWarning,s.DnaCompleted,Dialogue=display?.Dialogue ?? s.Dialogue,
-            travelDna=TravelProfiling.Dna(s),tripContext=s.Fields,planningFields=TravelProfiling.PlanningFields(s),
+            travelDna=TravelProfiling.Dna(s),tripContext=s.Fields,planningFields=personal ? new Dictionary<string,string>():TravelProfiling.PlanningFields(s),
             pendingPreferences=s.Preferences.Where(x=>x.Status=="awaiting_confirmation"),tripPreferences=s.Preferences.Where(x=>x.Status=="trip_only"),
-            missingImportantFields=TravelProfiling.Missing(s),nextField=Next(s),question=Copy(Question(Next(s))),
-            options=Choices(Next(s)).Select(Copy).ToArray(),completed=Required.Count(k=>Answered(s,k)),total=Required.Length};
+            missingImportantFields=personal ? []:TravelProfiling.Missing(s),nextField=personal ? "":Next(s),question=personal ? "":Copy(Question(Next(s))),
+            options=personal ? []:Choices(Next(s)).Select(Copy).ToArray(),completed=personal ? s.Dialogue?.ResponseCount ?? 0:Required.Count(k=>Answered(s,k)),total=personal ? 0:Required.Length};
     }
     public static void Apply(PetSession s,JsonObject fields)
     {

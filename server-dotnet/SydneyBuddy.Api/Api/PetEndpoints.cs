@@ -6,14 +6,20 @@ public static class PetEndpoints
 {
     public static void MapPetEndpoints(this RouteGroupBuilder routes)
     {
-        routes.MapPost("/pet/sessions",async (HttpContext ctx,PetSessionStore store,MemoryRepository records)=>
+        routes.MapPost("/pet/sessions",async (HttpContext ctx,PetSessionStore store,MemoryRepository records,IPetModel model)=>
         {
             var input=await RequestJson.ReadAsync(ctx);var s=new PetSession();PetResponseLanguage.Apply(s,input);
             TravelProfiling.Refresh(s,await records.ListAsync(ctx.RequestAborted));
             if(input.Object("personalProfile") is JsonObject personal)s.PersonalProfile=(JsonObject)personal.DeepClone();
-            PetQuestions.Apply(s,input.Object("fields")??new());
-            KokoDialogue.Enable(s,input);
-            if(s.Dialogue is null)s.Messages.Add(new(Guid.NewGuid().ToString("N"),"assistant","嗨，我叫 Koko，是你的旅行向导。这次想过一段什么样的假期？随便说说就好。"));
+            if(input.Str("purpose")==PersonalProfileAgent.Purpose) {
+                PersonalProfileAgent.Enable(s,input);
+                var opening=await model.RespondAsync(s,"Begin this personal introduction. No answer has been given yet.",s.ActiveMemories,_=>Task.CompletedTask,ctx.RequestAborted);
+                s.Messages.Add(PersonalProfileAgent.Opening(s,opening));
+            } else {
+                PetQuestions.Apply(s,input.Object("fields")??new());
+                KokoDialogue.Enable(s,input);
+                if(s.Dialogue is null)s.Messages.Add(new(Guid.NewGuid().ToString("N"),"assistant","嗨，我叫 Koko，是你的旅行向导。这次想过一段什么样的假期？随便说说就好。"));
+            }
             await store.Gate.WaitAsync(ctx.RequestAborted);try{store.Save(s);return Results.Json(await PreparedView(s,store,ctx));}finally{store.Gate.Release();}
         });
         routes.MapGet("/pet/sessions/{id}",async(string id,HttpContext ctx,PetSessionStore store,MemoryRepository records,CancellationToken ct)=>
@@ -24,6 +30,10 @@ public static class PetEndpoints
         {
             var input=await RequestJson.ReadAsync(ctx);await store.Gate.WaitAsync(ctx.RequestAborted);
             try{var s=store.Load(id);PetResponseLanguage.Apply(s,input);
+                if(PersonalProfileAgent.Enabled(s)) {
+                    if((input.Object("fields")?.Count ?? 0)>0 || input.Str("acceptedDirection").Length>0)throw new ServiceException("Trip details belong to the next step. This conversation only updates personal preferences.");
+                    store.Save(s);return Results.Json(await PreparedView(s,store,ctx));
+                }
                 if(input.Str("acceptedDirection").Length>0){
                     if((input.Object("fields")?.Count ?? 0)>0)throw new ServiceException("Save trip details separately from choosing an idea.");
                     if(KokoDialogue.AcceptInspiration(s,input.Str("acceptedDirection")))store.Save(s);
@@ -85,6 +95,7 @@ public static class PetEndpoints
                 var field=input.Str("field");string reply;var mood="curious";JsonObject dialogueResult=new();
                 if(field.Length>0)
                 {
+                    if(PersonalProfileAgent.Enabled(s))throw new ServiceException("Use a current choice or your own words to tell Koko about your usual preferences.");
                     if(!PetQuestions.Keys.Contains(field))throw new ServiceException("未知的旅行字段。");
                     var value=input.Str("value");if(value.Length is 0 or >600)throw new ServiceException("回答太长或为空。");
                     if(field=="date" && (value is "今天" or "明天" || value.Equals("Today",StringComparison.OrdinalIgnoreCase) || value.Equals("Tomorrow",StringComparison.OrdinalIgnoreCase)))value=TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTimeOffset.UtcNow,"Australia/Sydney").Date.AddDays(value=="明天" || value.Equals("Tomorrow",StringComparison.OrdinalIgnoreCase) ? 1:0).ToString("yyyy-MM-dd");
@@ -103,9 +114,10 @@ public static class PetEndpoints
                 {
                     var records=await memories.ListAsync(ctx.RequestAborted);
                     TravelProfiling.Refresh(s,records);
-                    var direct=KokoDialogue.DirectResponse(s,message,choice);
-                    var confirmed=s.Dialogue is null ? (JsonArray)records.DeepClone():new JsonArray();
-                    if(records.Count>0 && direct is null) {
+                    var personal=PersonalProfileAgent.Enabled(s);
+                    var direct=personal ? null:KokoDialogue.DirectResponse(s,message,choice);
+                    var confirmed=personal ? new JsonArray(records.Take(40).Select(x=>x?.DeepClone()).ToArray()):s.Dialogue is null ? (JsonArray)records.DeepClone():new JsonArray();
+                    if(!personal && records.Count>0 && direct is null) {
                         try {
                             var recalled=await memory.RunAsync("query",new JsonObject{["query"]="travel preference "+(s.CurrentChoice?.QuestionText ?? "")+" "+message},ctx.RequestAborted);
                             var ids=(recalled.Array("memories") ?? new JsonArray()).Select(x=>x?.Object("memory").Str("id")).ToArray();
@@ -114,18 +126,19 @@ public static class PetEndpoints
                         } catch(ServiceException){s.MemoryWarning=s.Dialogue is null ? "长期偏好检索暂时不可用，本轮参考已确认的本机记录。":"长期偏好检索暂时不可用，先按这次对话继续准备。";}
                     }
                     var result=direct ?? await model.RespondAsync(s,message,confirmed,_=>Task.CompletedTask,ctx.RequestAborted);
+                    if(personal)_=PersonalProfileAgent.Replies(result); // Validate before changing facts, staging memory or saving a turn.
                     dialogueResult=result;
                     mood=PetEmotion.Normalize(result.Str("mood"));
-                    var changes=result.Object("fields")??new();
+                    var changes=personal ? new JsonObject():result.Object("fields")??new();
                     // A reaction to a proposal cannot silently fill unrelated trip facts or global habits.
                     if(s.CurrentChoice is not null)changes=new();
                     else if(s.Dialogue is not null)PetExplicitFacts.FilterUnsupportedHabits(message,changes);
                     // Do not let model-filled unknown placeholders skip unanswered questions.
                     foreach(var key in PetQuestions.Keys)
                         if(changes.ContainsKey(key) && !PetQuestions.Known(changes.Str(key))) changes.Remove(key);
-                    var explicitFacts=new JsonObject();PetExplicitFacts.Apply(message,explicitFacts);
+                    var explicitFacts=new JsonObject();if(!personal)PetExplicitFacts.Apply(message,explicitFacts);
                     foreach(var fact in explicitFacts)changes[fact.Key]=fact.Value?.DeepClone();
-                    foreach(var uncertain in (s.CurrentChoice is null ? result.Array("needsClarification"):null) ?? new JsonArray()) {
+                    foreach(var uncertain in (!personal && s.CurrentChoice is null ? result.Array("needsClarification"):null) ?? new JsonArray()) {
                         var key=uncertain?.GetValue<string>() ?? "";
                         if(key.StartsWith("budget") && !PetExplicitFacts.MentionsBudget(message))continue;
                         if(PetQuestions.Required.Contains(key) && !explicitFacts.ContainsKey(key)){s.Fields.Remove(key);changes.Remove(key);}
@@ -135,12 +148,12 @@ public static class PetEndpoints
                     if(changes.ContainsKey("budget"))reply=PetExplicitFacts.BudgetReply(s) ?? "预算先收好啦，我们再确认金额、币种和范围。";
                     if(PetQuestions.Known(s.Fields.GetValueOrDefault("budgetCurrency")) && s.Fields["budgetCurrency"]!="AUD" && (changes.ContainsKey("budget") || changes.ContainsKey("budgetCurrency")))reply="这笔预算先按原币种保留。生成路线前还需要一份澳元活动预算。";
                     if(PetQuestions.UnsupportedDestination(s) && (changes.ContainsKey("destination") || message.Contains("生成") || reply.Contains("准备好"))){reply="可以先聊聊你想怎样玩，资料也会保留。目前能生成的路线是悉尼，其他城市还需要后续接入。";mood="confused";}
-                    if(choice?.Intent is "skip" or "skip_name" or "use_alias" or "keep" or "draft")result.Remove("preferences");
+                    if(choice?.Intent is "skip" or "skip_name" or "use_alias" or "keep" or "draft" or "finish_profile")result.Remove("preferences");
                     var added=TravelProfiling.Apply(s,result,message,requestId);
                     if(added.Count>0)await SyncPending(s,memory,ctx.RequestAborted);
                     var suggestion=s.Dialogue is not null || result.Array("preferences") is not null || !TravelProfiling.AllowLegacySuggestion(message) ? "":result.Str("memorySuggestion");if(suggestion.Length>0)s.PendingMemory=suggestion[..Math.Min(500,suggestion.Length)];
                 }
-                var assistant=KokoCompanion.RespondWithCare(s,KokoDialogue.CompleteTurn(s,dialogueResult,reply,mood),message);
+                var assistant=PersonalProfileAgent.Enabled(s) ? PersonalProfileAgent.CompleteTurn(s,dialogueResult):KokoCompanion.RespondWithCare(s,KokoDialogue.CompleteTurn(s,dialogueResult,reply,mood),message);
                 s.Messages.Add(new(requestId,"user",message,Choice:s.CurrentChoice));s.Messages.Add(assistant);
                 if(s.Messages.Count>100)s.Messages=s.Messages.TakeLast(100).ToList();
                 s.CompletedRequests.Add(requestId);if(s.CompletedRequests.Count>100)s.CompletedRequests.RemoveAt(0);

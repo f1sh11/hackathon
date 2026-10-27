@@ -7,6 +7,7 @@ public static class PlanningEndpoints
 {
     public static void MapPlanningEndpoints(this RouteGroupBuilder routes)
     {
+        routes.MapGet("/planning/runs/{id}",(string id,PlanningRunJournal journal)=>Results.Json(journal.Read(id)));
         routes.MapGet("/health", (SecretStore secrets, PaidServicePolicy paidServices, NavigationService navigation, JourneyService journeys, TravelDataContext travel,PlanningAgent agent) =>
         {
             var config = secrets.Read();
@@ -14,12 +15,14 @@ public static class PlanningEndpoints
             {
                 managedTravelDataSource = travel.ManagedMode,
                 navigationConfigured = navigation.Configured, transitConfigured = journeys.TransitConfigured || config["TFNSW_API_KEY"].Length > 0, status = "ok", database = "postgresql", paidServicesAllowed = paidServices.Allowed,
-                nvidiaConfigured = config["NVIDIA_API_KEY"].Length > 0,
+                nvidiaConfigured = ModelProviderSettings.Configured(config),
+                aiProvider = string.IsNullOrWhiteSpace(config["AI_PROVIDER"])?"nvidia":config["AI_PROVIDER"],
+                nightshiftConfigured = config["AI_PROVIDER"]=="nightshift" && ModelProviderSettings.Configured(config),
                 planningAgentProvider = agent.Provider, planningAgentConfigured = agent.Configured,
                 nswTransitConfigured = config["TFNSW_API_KEY"].Length > 0,
                 googleConfigured = config["GOOGLE_SERVER_KEY"].Length > 0,
                 iosMapConfigured = config["GOOGLE_IOS_KEY"].Length > 0,
-                model = config["NVIDIA_MODEL"].Length > 0 ? config["NVIDIA_MODEL"] : SecretStore.DefaultModel
+                model = ModelProviderSettings.Configured(config) ? ModelProviderSettings.Resolve(config).Model : "unconfigured"
             });
         });
         routes.MapGet("/planning/agent/status",async (PlanningAgentSettings settings,MeterlessRuntime runtime,PlanningAgent agent,HttpContext context)=>{

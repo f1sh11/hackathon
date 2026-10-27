@@ -430,6 +430,21 @@ public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
         Assert.False(File.Exists(Path.Combine(fixture.TemporaryRoot, ".secrets.json")));
     }
 
+    [Fact]
+    public async Task PlanningRunLinksPreparePlanAndFailedRequestsWithoutLoggingPrivateText() {
+        var id=Guid.NewGuid().ToString();var raw=TestSupport.Profile();raw["mode"]="demo";
+        foreach(var path in new[]{"/plan/prepare","/plan"}) {
+            using var request=new HttpRequestMessage(HttpMethod.Post,path){Content=JsonContent.Create(raw)};request.Headers.Add(PlanningRunJournal.Header,id);
+            var response=await fixture.Client.SendAsync(request);response.EnsureSuccessStatusCode();Assert.Equal(id,response.Headers.GetValues(PlanningRunJournal.Header).Single());
+        }
+        using(var request=new HttpRequestMessage(HttpMethod.Post,"/plan"){Content=new StringContent("{",Encoding.UTF8,"application/json")}) {
+            request.Headers.Add(PlanningRunJournal.Header,id);var response=await fixture.Client.SendAsync(request);Assert.Equal(HttpStatusCode.BadRequest,response.StatusCode);var error=(await response.Content.ReadFromJsonAsync<JsonObject>())!;Assert.Equal(id,error.Str("runId"));
+        }
+        var run=(await fixture.Client.GetFromJsonAsync<JsonObject>("/planning/runs/"+id))!;var rows=run.Array("events")!.OfType<JsonObject>().ToArray();
+        Assert.All(rows,x=>Assert.Equal(id,x.Str("run_id")));Assert.Contains(rows,x=>x.Str("action")=="request_failed");Assert.Equal(Enumerable.Range(1,rows.Length),rows.Select(x=>x.Int("sequence")));
+        Assert.DoesNotContain("NVIDIA_API_KEY",run.ToJsonString());Assert.DoesNotContain("Authorization",run.ToJsonString());
+    }
+
     private async Task<JsonObject> PlanAsync()
     {
         var profile = TestSupport.Profile(); profile["mode"] = "demo";

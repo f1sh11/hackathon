@@ -11,7 +11,7 @@ namespace SydneyBuddy.Api;
 public sealed partial class SecretStore(ProjectPaths paths)
 {
     public const string DefaultModel = "nvidia/nemotron-3.5-lightning-30b-a3b";
-    private static readonly string[] Keys = ["NVIDIA_API_KEY", "GOOGLE_SERVER_KEY", "GOOGLE_IOS_KEY", "NVIDIA_MODEL", "TFNSW_API_KEY"];
+    private static readonly string[] Keys = ["NVIDIA_API_KEY", "GOOGLE_SERVER_KEY", "GOOGLE_IOS_KEY", "NVIDIA_MODEL", "TFNSW_API_KEY", "AI_PROVIDER", "NIGHTSHIFT_BASE_URL", "NIGHTSHIFT_API_KEY", "NIGHTSHIFT_MODEL"];
     private readonly object gate = new();
     public string SetupToken { get; } = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
 
@@ -30,7 +30,7 @@ public sealed partial class SecretStore(ProjectPaths paths)
         lock (gate)
         {
             var current = Read();
-            foreach (var key in Keys.Where(key => key != "NVIDIA_MODEL"))
+            foreach (var key in Keys.Where(key => key is not ("NVIDIA_MODEL" or "AI_PROVIDER" or "NIGHTSHIFT_BASE_URL" or "NIGHTSHIFT_MODEL" or "NIGHTSHIFT_API_KEY")))
             {
                 var value = updates.GetValueOrDefault(key, "").Trim();
                 if (value.Length == 0) continue; // 留空保留已有值。 / Empty fields preserve existing settings.

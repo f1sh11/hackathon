@@ -30,7 +30,7 @@ struct KokoQuickReplies:View {
     @State private var selectedID:String?
     var body:some View {
         let _=interfaceLocale
-        LazyVGrid(columns:Array(repeating:GridItem(.flexible(),spacing:8),count:replies.count>=2 ? 2:1),spacing:8) {
+        LazyVGrid(columns:Array(repeating:GridItem(.flexible(),spacing:8),count:stacked ? 1:(replies.count>=2 ? 2:1)),spacing:8) {
             ForEach(replies){reply in
                 Button{guard selectedID==nil else{return}; selectedID=reply.id; UISelectionFeedbackGenerator().selectionChanged(); choose(reply)}label:{Text(uiText(reply.text)).font(.subheadline.weight(.semibold)).multilineTextAlignment(.center).frame(maxWidth:.infinity,minHeight:44).padding(.horizontal,8).padding(.vertical,5)}
                     .buttonStyle(KokoOptionButtonStyle(prominent:selectedID==reply.id,compact:compact,quiet:quiet)).disabled(busy || selectedID != nil).accessibilityIdentifier("koko-reply-"+reply.intent)
