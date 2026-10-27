@@ -20,6 +20,7 @@ public sealed record TravelSnapshot(JsonObject Poi,JsonArray Catalog,JsonArray M
 public interface ITravelWarehouse {
     Task<TravelSnapshot> ReadAsync(CancellationToken token);
     Task<JsonArray> ActivityOffersAsync(CancellationToken token)=>throw new ServiceException("Zetaris 活動資料尚未設定。");
+    Task<JsonArray> TransitRoutesAsync(CancellationToken token)=>throw new ServiceException("Zetaris 公交路線資料尚未設定。");
     Task<JsonObject> InsightRawAsync(string kind,CancellationToken token)=>throw new ServiceException("Zetaris 尚未設定此公開資料來源。");
     Task<JsonObject> WeatherRawAsync(CancellationToken token)=>throw new ServiceException("Zetaris 即時天氣尚未設定。");
 }
@@ -99,6 +100,16 @@ public sealed class ZetarisTravelWarehouse(HttpClient http,IConfiguration config
         }
         return result;
     }
+    public async Task<JsonArray> TransitRoutesAsync(CancellationToken token){
+        var rows=await QueryAsync("SELECT 'route' AS kind,payload FROM sydneybuddy_travel.travel_transit_routes UNION ALL SELECT 'sentinel','{}'",token);
+        var result=new JsonArray();
+        foreach(var row in rows.OfType<JsonArray>()){
+            if(row.Count!=2)throw new ServiceException("Zetaris 公交路線資料格式無效。");
+            if(row[0]!.GetValue<string>()=="sentinel")continue;
+            result.Add(JsonNode.Parse(row[1]!.GetValue<string>())?.AsObject()??throw new ServiceException("Zetaris 公交路線資料格式無效。"));
+        }
+        return result;
+    }
     public async Task<JsonObject> WeatherRawAsync(CancellationToken token){
         // Never read travel_weather, snapshot cache, or CACHE TABLE here.
         var rows=await QueryAsync("SELECT to_json(struct(*)) AS payload FROM sydneybuddy_live.weather_sydney",token);
@@ -169,7 +180,7 @@ public sealed class PublicTravelWeather(HttpClient http,TravelDataContext select
             double? Read(string key){var values=daily.Array(key);return values is not null&&i<values.Count?Number(values[i]):null;}
             var low=Read("temperature_2m_min");var high=Read("temperature_2m_max");var probability=Read("precipitation_probability_max");var code=Read("weather_code");
             var available=low is not null&&high is not null&&low<=high&&probability is >=0 and <=100&&code is not null;
-            result.Add(new JsonObject{["date"]=dates[i]!.GetValue<string>(),["available"]=available,["temperatureMin"]=low,["temperatureMax"]=high,["precipitationProbability"]=probability,["rainy"]=available&&(probability>=60||code is 51 or 53 or 55 or 56 or 57 or 61 or 63 or 65 or 66 or 67 or 80 or 81 or 82 or 95 or 96 or 99),["fetchedAt"]=fetched.ToString("O"),["source"]="Open-Meteo",["timezone"]="Australia/Sydney"});
+            result.Add(new JsonObject{["date"]=dates[i]!.GetValue<string>(),["available"]=available,["temperatureMin"]=low,["temperatureMax"]=high,["weatherCode"]=code,["precipitationProbability"]=probability,["rainy"]=available&&(probability>=60||code is 51 or 53 or 55 or 56 or 57 or 61 or 63 or 65 or 66 or 67 or 80 or 81 or 82 or 95 or 96 or 99),["fetchedAt"]=fetched.ToString("O"),["source"]="Open-Meteo",["timezone"]="Australia/Sydney"});
         }
         return result;
     }

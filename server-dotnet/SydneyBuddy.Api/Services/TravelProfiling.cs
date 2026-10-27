@@ -41,7 +41,7 @@ public static class TravelProfiling
     };
 
     public const string SystemPrompt = """
-你是旅行向导 Koko，一只温暖、聪明的小考拉。先回应这个人刚说的话、感受或好奇的事，再决定是否需要问题。用用户的语言，像朋友聊天，通常一到三句；可以只回应，不需要每轮提问。每轮至多一个真正有用的问题，允许用户先聊旅行经历或讨论选择。不要把对话变成按字段遍历的问卷，不催促，不卖萌施压，不固定使用“收到/小背包/哼唧”开头。不为填满画像而轮询十二个维度。根据本轮内容自然衔接；用户已经说过的信息自动整理，不再重复问。
+你是旅行向导 Koko，一只温暖、聪明的小考拉。先回应这个人刚说的话、感受或好奇的事，再决定是否需要问题。回复语言严格遵循后面的界面语言指令；用户输入的语言不改变回复语言。像朋友聊天，通常一到三句；可以只回应，不需要每轮提问。每轮至多一个真正有用的问题，允许用户先聊旅行经历或讨论选择。不要把对话变成按字段遍历的问卷，不催促，不卖萌施压，不固定使用“收到/小背包/哼唧”开头。不为填满画像而轮询十二个维度。根据本轮内容自然衔接；用户已经说过的信息自动整理，不再重复问。
 返回严格 JSON，reply 必须第一个：{"reply":"自然回应","fields":{},"preferences":[],"needsClarification":[],"mood":"curious"}。不要代码围栏。
 mood 只允许 curious,excited,relaxed,remembering,confused；疲惫、困难或预算紧张不配庆祝表情。
 用户要修改既有日期、目的地、预算或人数，但新值存在歧义时，needsClarification 输出需重新确认的字段名数组，不能把旧值当作新要求；无歧义时为空数组。
@@ -92,13 +92,13 @@ confirmedPreferences 是当前有效的已确认记忆，pendingPreferences 只�
             if(!Keys.TryGetValue(key,out var definition) || value.Length is 0 or >300)continue;
             var scope=item.Str("scope");if(scope is not ("trip" or "long_term" or "inferred" or "activity"))continue;
             if(session.CurrentChoice is not null && scope!="inferred")scope="activity";
-            if(new[]{"不保存","不要记","别记","不记住","只限这次","仅这次","只用于这次"}.Any(message.Contains))scope="trip";
+            if(new[]{"不保存","不要记","别记","不记住","只限这次","仅这次","只用于这次","don’t save","don't save","dont save","do not save","don’t remember","don't remember","dont remember","do not remember","this trip only","only for this trip"}.Any(x=>message.Contains(x,StringComparison.OrdinalIgnoreCase)))scope="trip";
             var explicitEvidence=evidence.Length>0 && evidence.Length<=500 && message.Contains(evidence,StringComparison.Ordinal);
             if(scope!="inferred" && !explicitEvidence)continue;
             // Companion requirements belong to this trip, not to the user's Travel DNA.
             if(scope=="long_term" && new[]{"这次","本次","这趟","for this trip"}.Any(x=>message.Contains(x,StringComparison.OrdinalIgnoreCase)) &&
-                !new[]{"平时","一般","总是","习惯","讨厌","每次","以后","通常","usually","always","hate"}.Any(x=>evidence.Contains(x,StringComparison.OrdinalIgnoreCase)))scope="trip";
-            if(scope=="long_term" && KokoCompanion.Enabled(session) && KokoCompanion.TemporaryFeeling(message) && !Regex.IsMatch(evidence,"平时|通常|一直|每次|以后|习惯|总是"))scope="trip";
+                !new[]{"平时","一般","总是","习惯","讨厌","每次","以后","通常","usually","always","hate","normally","habit","every trip","in future"}.Any(x=>evidence.Contains(x,StringComparison.OrdinalIgnoreCase)))scope="trip";
+            if(scope=="long_term" && KokoCompanion.Enabled(session) && KokoCompanion.TemporaryFeeling(message) && !Regex.IsMatch(evidence,"平时|通常|一直|每次|以后|习惯|总是|usually|normally|always|every trip|in future|habit",RegexOptions.IgnoreCase))scope="trip";
             var condition=item.Str("condition").Trim();if(condition.Length>150)continue;
             if(session.CurrentChoice is {} choice) {
                 // A contextual yes cannot establish someone's normal schedule, fitness, personality,
@@ -130,8 +130,8 @@ confirmedPreferences 是当前有效的已确认记忆，pendingPreferences 只�
     }
 
     public static bool AllowLegacySuggestion(string message)=>
-        !new[]{"不保存","不要记","别记","不记住","只限这次","仅这次","只用于这次"}.Any(message.Contains) &&
-        (!new[]{"这次","本次","这趟","for this trip"}.Any(x=>message.Contains(x,StringComparison.OrdinalIgnoreCase)) || new[]{"以后","平时","长期","每次","一直","通常"}.Any(message.Contains));
+        !new[]{"不保存","不要记","别记","不记住","只限这次","仅这次","只用于这次","don’t save","don't save","dont save","do not save","don’t remember","don't remember","dont remember","do not remember","this trip only","only for this trip"}.Any(x=>message.Contains(x,StringComparison.OrdinalIgnoreCase)) &&
+        (!new[]{"这次","本次","这趟","for this trip"}.Any(x=>message.Contains(x,StringComparison.OrdinalIgnoreCase)) || new[]{"以后","平时","长期","每次","一直","通常","in future","normally","long term","every trip","always","usually"}.Any(x=>message.Contains(x,StringComparison.OrdinalIgnoreCase)));
 
     public static TravelPreference? Read(JsonObject? node)
     {

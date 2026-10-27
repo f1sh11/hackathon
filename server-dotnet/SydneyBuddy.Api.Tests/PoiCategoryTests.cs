@@ -29,6 +29,27 @@ public sealed class PoiCategoryTests {
         Assert.Contains("[amenity=toilets]",OsmPoiProvider.Query(-33.865,151.212,1500,"toilets",""));
         Assert.Contains("[natural=beach]",OsmPoiProvider.Query(-33.865,151.212,1500,"beaches",""));
     }
+    [Theory]
+    [InlineData("park","自然")]
+    [InlineData("botanical_garden","自然")]
+    [InlineData("art_gallery","艺术")]
+    [InlineData("gallery","艺术")]
+    [InlineData("art_museum","艺术")]
+    [InlineData("museum","文化")]
+    [InlineData("history_museum","文化")]
+    [InlineData("memorial","文化")]
+    public void ImportedSourceKindsRetainTheirActualInterestWithoutInventingPrices(string kind,string category) {
+        var point=Point("osm:node:1001",kind,"sights");point["category"]="风景";
+        var candidate=Assert.Single(PlanningCandidates.Merge([],new JsonArray(point)));
+        Assert.Equal(category,candidate.Str("category"));Assert.True(RecommendationQuality.Matches(candidate,category));
+        if(category=="自然")Assert.True(RecommendationQuality.Matches(candidate,"风景"));
+        Assert.False(candidate.Bool("costKnown"));Assert.False(candidate.Bool("indoorKnown"));Assert.False(candidate.Bool("hoursVerified"));
+    }
+    [Fact] public void APlaceNameAloneDoesNotProveAnArtGalleryOrPark() {
+        var point=Point("osm:node:1002","attraction","sights");point["name"]="Art Gallery Park Hotel";point["category"]="风景";
+        var candidate=Assert.Single(PlanningCandidates.Merge([],new JsonArray(point)));
+        Assert.Equal("风景",candidate.Str("category"));Assert.False(RecommendationQuality.Matches(candidate,"艺术"));
+    }
     [Fact] public void FoodPoisReceiveDeterministicPriceTierMapping(){
         var cafe=Point("c1","cafe");cafe["category"]="美食";PoiCategories.ApplyFoodPriceMapping(cafe);
         Assert.Equal(1,cafe.Int("priceRange"));Assert.Equal("$",cafe.Str("priceTier"));Assert.Equal(20,cafe.Int("estimatedSpendAud"));Assert.Equal("$ · 預估均消 A$20/人",cafe.Str("priceLabel"));
@@ -46,8 +67,17 @@ public sealed class PoiCategoryTests {
         Assert.Equal(3,suites.Int("priceRange"));Assert.Equal("$$$",suites.Str("priceTier"));Assert.Equal(295,suites.Int("nightlyRateAud"));
         var luxury=Point("l4","hotel","lodging");luxury["category"]="住宿";luxury["name"]="Park Hyatt Sydney";PoiCategories.ApplyFoodPriceMapping(luxury);
         Assert.Equal(4,luxury.Int("priceRange"));Assert.Equal("$$$$",luxury.Str("priceTier"));Assert.Equal(620,luxury.Int("nightlyRateAud"));
-        Assert.StartsWith("★ ",luxury.Str("ratingLabel"));Assert.True(luxury.Number("aggregateRating")>=4.5);Assert.True(luxury.Int("reviewCount")>=650);
+        Assert.Null(luxury["aggregateRating"]);Assert.Null(luxury["reviewCount"]);Assert.Equal("unavailable",luxury.Str("ratingStatus"));
         var sight=Point("s10","museum","sights");sight["category"]="風景";sight["name"]="Australian Museum";PoiCategories.ApplyFoodPriceMapping(sight);
-        Assert.StartsWith("★ ",sight.Str("ratingLabel"));Assert.NotEmpty(sight.Str("reviewSummary"));Assert.NotEmpty(sight.Array("reviewHighlights")!);
+        Assert.Null(sight["ratingLabel"]);Assert.Null(sight["reviewSummary"]);Assert.Null(sight["reviewHighlights"]);
     }
+    [Fact] public void UnsourcedLegacyReviewsAreRemovedButTraceableReviewsRemain(){
+        var point=Point("r1","restaurant","food");point["aggregateRating"]=4.8;point["reviewCount"]=900;point["reviewSummary"]="invented praise";
+        PoiCategories.ApplyFoodPriceMapping(point);Assert.Null(point["aggregateRating"]);Assert.Null(point["reviewSummary"]);
+        var legacy=Point("osm:node:100","restaurant","food");legacy["aggregateRating"]=4.9;legacy["reviewCount"]=999;legacy["reviewSummary"]="unverified imported praise";
+        var imported=PoiService.Import(legacy);Assert.Null(imported["aggregateRating"]);Assert.Null(imported["reviewSummary"]);
+        point["ratingSource"]="Review provider";point["ratingSourceUrl"]="https://example.com/reviews/r1";point["aggregateRating"]=4.2;point["reviewCount"]=12;
+        PoiCategories.ApplyFoodPriceMapping(point);Assert.Equal(4.2,point.Number("aggregateRating"));Assert.Equal("source_provided",point.Str("ratingStatus"));
+    }
+
 }

@@ -122,14 +122,27 @@ public sealed class NswJourneyProvider(HttpClient client, SecretStore secrets, N
         string Coordinate(JourneyPoint p) => FormattableString.Invariant($"{p.Lng}:{p.Lat}:EPSG:4326");
         var url = QueryHelpers.AddQueryString("https://api.transport.nsw.gov.au/v1/tp/trip", new Dictionary<string,string?> {
             ["outputFormat"]="rapidJSON", ["coordOutputFormat"]="EPSG:4326", ["depArrMacro"]="dep", ["itdDate"]=local.ToString("yyyyMMdd"), ["itdTime"]=local.ToString("HHmm"),
-            ["type_origin"]="coord", ["name_origin"]=Coordinate(from), ["type_destination"]="coord", ["name_destination"]=Coordinate(to), ["TfNSWTR"]="true", ["calcNumberOfTrips"]="1" });
+            ["type_origin"]="coord", ["name_origin"]=Coordinate(from), ["type_destination"]="coord", ["name_destination"]=Coordinate(to), ["TfNSWTR"]="true", ["calcNumberOfTrips"]="3" });
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
         request.Headers.TryAddWithoutValidation("Authorization", "apikey " + secrets.Read()["TFNSW_API_KEY"]);
         return Parse(await JourneyProviderJson.Send(client, request, "NSW Trip Planner", ct), departure);
     }
     public static IReadOnlyList<JourneyStep> Parse(JsonObject body, DateTimeOffset departure)
     {
-        var legs = body.Array("journeys")?.FirstOrDefault().Array("legs");
+        var journeys = body.Array("journeys");
+        if (journeys is null || journeys.Count == 0) throw new ServiceException("NSW 此区间或日期没有可用班次。");
+        ServiceException? failure = null;
+        // The first alternative may require leaving before the requested time. Keep its timetable
+        // unchanged and try the next provider alternative rather than rejecting every journey.
+        foreach (var journey in journeys)
+        {
+            try { return ParseJourney(journey.Array("legs"), departure); }
+            catch (ServiceException error) { failure ??= error; }
+        }
+        throw failure ?? new ServiceException("NSW 此区间或日期没有可用班次。");
+    }
+    private static IReadOnlyList<JourneyStep> ParseJourney(JsonArray? legs, DateTimeOffset departure)
+    {
         if (legs is null || legs.Count == 0) throw new ServiceException("NSW 此区间或日期没有可用班次。");
         var result = new List<JourneyStep>(); var cursor = departure;
         foreach (var leg in legs)

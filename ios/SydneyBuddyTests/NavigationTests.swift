@@ -7,6 +7,20 @@ import FerrostarCoreFFI
 @testable import SydneyBuddy
 
 @MainActor final class NavigationTests: XCTestCase {
+    func testCoLocatedStopsKeepReadableMapContext() {
+        let point=CLLocationCoordinate2D(latitude:-33.8611,longitude:151.2126)
+        let bounds=routeCameraBounds([point,point])
+        let metersPerPoint=MKMetersPerMapPointAtLatitude(point.latitude)
+        XCTAssertGreaterThanOrEqual(bounds.width*metersPerPoint,649)
+        XCTAssertGreaterThanOrEqual(bounds.height*metersPerPoint,649)
+        XCTAssertTrue(bounds.contains(MKMapPoint(point)))
+    }
+    func testDayOverviewKeepsDistantRouteEndpointsVisible() {
+        let points=[CLLocationCoordinate2D(latitude:-33.86,longitude:151.21),CLLocationCoordinate2D(latitude:-33.89,longitude:151.27)]
+        let bounds=routeCameraBounds(points)
+        XCTAssertTrue(points.allSatisfy{bounds.contains(MKMapPoint($0))})
+        XCTAssertTrue(routeCameraBounds([]).isNull)
+    }
     func testAppleCompletionSurvivesDurationAndOrderChanges() {
         var plan=day();let point=plan.end
         plan.stops=[Stop(id:"stable-activity",name:point.name,lat:point.lat,lng:point.lng,category:"自然",indoor:false,visitMinutes:30,cost:0,note:"",arrival:"10:00",departure:"10:30",hoursVerified:false,mapsURL:"",steps:0)]

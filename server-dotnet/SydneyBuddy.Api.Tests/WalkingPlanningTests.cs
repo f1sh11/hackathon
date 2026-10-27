@@ -17,6 +17,18 @@ public sealed class WalkingPlanningTests:IDisposable
         Assert.DoesNotContain(RecommendationQuality.DailyPool([same,meal],p,new HashSet<string>(),new Dictionary<string,int>()),x=>x.Str("id")=="quay");
         Assert.Contains(RecommendationQuality.DailyPool([same,meal],p,new HashSet<string>{"quay"},new Dictionary<string,int>()),x=>x.Str("id")=="quay");
     }
+    [Fact] public void BoundedPoolPreservesRequestedInterestDiversityAgainstModelRanking() {
+        var profile=Profile();profile["interests"]=new JsonArray("艺术","自然");
+        JsonObject Place(string id,string category)=>new(){["id"]=id,["name"]=id,["category"]=category,["lat"]=-33.865,["lng"]=151.215};
+        var places=Enumerable.Range(0,6).Select(i=>Place("gallery-"+i,"艺术")).Append(Place("park","自然")).ToArray();
+        var ranks=places.Select((p,i)=>(p,i)).ToDictionary(x=>x.p.Str("id"),x=>x.i);
+        var pool=RecommendationQuality.DailyPool(places,profile,new HashSet<string>(),ranks);
+        Assert.Equal(5,pool.Length);Assert.Contains(pool,p=>p.Str("id")=="park");Assert.Contains(pool,p=>p.Str("category")=="艺术");
+        Assert.Equal(pool.Select(p=>p.Str("id")),RecommendationQuality.DailyPool(places.Reverse(),profile,new HashSet<string>(),ranks).Select(p=>p.Str("id")));
+        var required=RecommendationQuality.DailyPool(places,profile,new HashSet<string>{"gallery-5"},ranks);
+        Assert.Contains(required,p=>p.Str("id")=="gallery-5");Assert.Contains(required,p=>p.Str("id")=="park");
+    }
+
     [Fact] public void FullDayWishDoesNotSilentlyBecomeReadyHalfDayEvenForRelaxedTraveler() {
         var p=Profile();p["dayStyle"]="fullDay";p["rhythm"]="轻松随意";
         var day=new JsonObject{["stops"]=new JsonArray(new JsonObject{["activityType"]="meal",["category"]="美食"}),["warnings"]=new JsonArray(),["finishTime"]="12:30"};

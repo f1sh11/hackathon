@@ -10,6 +10,12 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import kotlin.math.roundToInt
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -112,10 +118,33 @@ fun modeLabel(mode:String) = when(mode) {"live"->"在线规划 · 以各项来�
     Panel { Row(verticalAlignment=Alignment.CenterVertically){Text(ui("悉尼天气"),fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f));TextButton(onClick=onRefresh,enabled=enabled){Text(ui("刷新天气"))}}
         if(weather==null) Small("尚未查询") else {
             val days=weather.array("days").objects()
-            if(days.isEmpty()) Text(weather.optString("summary")) else days.forEach { Text("${it.optString("date")} · ${it.optString("summary")}",style=MaterialTheme.typography.bodySmall) }
-            Small(weather.optString("source")); if(weather.has("fetchedAt")) Small("查询于 ${weather.optString("fetchedAt")}")
+            if(days.isEmpty()) Text(weather.optString("summary")) else {
+                LazyRow(horizontalArrangement=Arrangement.spacedBy(8.dp),modifier=Modifier.fillMaxWidth().testTag("weather-days")) {
+                    items(days,key={it.optString("date")}) { day ->
+                        val available=day.optBoolean("available")
+                        val code=day.optInt("weatherCode",-1)
+                        val symbol=if(!available)"？" else when(code){0->"☀️";1,2->"🌤️";3->"☁️";45,48->"🌫️";in 51..57->"🌦️";in 61..67,in 80..82->"🌧️";in 71..77,85,86->"🌨️";in 95..99->"⛈️";else->if(day.optBoolean("rainy"))"🌧️"else"☁️"}
+                        val low=day.optDouble("temperatureMin",Double.NaN);val high=day.optDouble("temperatureMax",Double.NaN)
+                        val oldTemperature=Regex("""-?\d+(?:\.\d+)?[–−~-]-?\d+(?:\.\d+)?°C""").find(day.optString("summary"))?.value?.replace("°C","°")
+                        val temperature=if(!available)null else if(low.isFinite()&&high.isFinite())"${low.roundToInt()}–${high.roundToInt()}°"else oldTemperature
+                        Surface(color=Cream,shape=RoundedCornerShape(14.dp),modifier=Modifier.width(88.dp).clearAndSetSemantics{contentDescription=day.optString("date")+", "+day.optString("summary")}) {
+                            Column(Modifier.padding(vertical=12.dp,horizontal=6.dp).heightIn(min=108.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                                Text(day.optString("date").takeLast(5).replace('-','/'),style=MaterialTheme.typography.labelMedium,fontWeight=FontWeight.Bold)
+                                Text(symbol,fontSize=27.sp)
+                                Text(temperature ?: ui(if(day.optBoolean("stale"))"待更新"else"待預報"),style=MaterialTheme.typography.labelMedium,color=if(available)Ink else Muted)
+                                val rain=day.optDouble("precipitationProbability",Double.NaN)
+                                if(available&&rain.isFinite())Text("💧 ${rain.roundToInt()}%",style=MaterialTheme.typography.labelSmall,color=Green)
+                            }
+                        }
+                    }
+                }
+                var details by remember(weather){mutableStateOf(false)}
+                TextButton(onClick={details=!details}){Text(ui("天氣詳情"))}
+                if(details)days.forEach{Small(it.optString("date")+" · "+it.optString("summary"))}
+                if(details){Small(weather.optString("source"));if(weather.has("fetchedAt"))Small("查询于 ${weather.optString("fetchedAt")}")}
+            }
         }
-        Small("刷新天气不会重排路线。需要改变行程时请问 Buddy。")
+        weather?.let{Small(it.optString("source"))}
     }
 }
 

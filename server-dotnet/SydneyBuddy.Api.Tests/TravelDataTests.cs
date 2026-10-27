@@ -41,6 +41,8 @@ public sealed class TravelDataTests {
         var warehouse=new Warehouse(true);var invoked=false;var middleware=new TravelDataMiddleware(_=>{invoked=true;return Task.CompletedTask;});
         await middleware.InvokeAsync(context,new(new HttpContextAccessor{HttpContext=context}),warehouse);Assert.True(invoked);Assert.Equal(0,warehouse.Calls);
         var forecast=PlanValidator.ValidateForecast(new JsonObject{["date"]="2026-10-24",["days"]=2,["mustVisit"]=new JsonArray("not-needed-for-weather")});Assert.Equal(2,forecast.Int("days"));
+        Assert.Equal(13,PlanValidator.ValidateForecast(new JsonObject{["date"]= "2026-10-24",["days"]=13}).Int("days"));
+        Assert.Throws<ServiceException>(()=>PlanValidator.ValidateForecast(new JsonObject{["date"]="2026-10-24",["days"]=16}));
         Assert.Throws<ServiceException>(()=>PlanValidator.ValidateForecast(new JsonObject{["date"]="invalid"}));
     }
     [Fact] public async Task WarehouseFailureDoesNotSilentlyUseDirect(){
@@ -75,6 +77,7 @@ public sealed class TravelDataTests {
         var service=new PublicTravelWeather(new HttpClient(handler),selection,warehouse);
         var first=await service.GetAsync(TestSupport.Profile(),default);await service.GetAsync(TestSupport.Profile(),default);
         Assert.Equal(2,warehouse.Queries);Assert.Equal(0,handler.Calls);Assert.False(first.Bool("cached"));Assert.True(first.Bool("live"));
+        Assert.Equal(61,first.Array("days")![0]!.Int("weatherCode"));
         warehouse.Fail=true;await Assert.ThrowsAsync<ServiceException>(()=>service.GetAsync(TestSupport.Profile(),default));Assert.Equal(0,handler.Calls);
     }
     [Fact] public async Task DirectWeatherIsNotCachedEither(){

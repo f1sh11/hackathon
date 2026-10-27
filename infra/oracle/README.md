@@ -142,7 +142,7 @@ Zetaris 連線只放在 Oracle 的 `/opt/sydneybuddy/zetaris-cloud.env`（root:r
 
 App 的雲端連線碼使用 iOS Keychain／Android Keystore 加密保存，只傳給指定 HTTPS 後端，不傳給地圖、照片或其他第三方主機。iOS 模擬器需正常簽章（可使用 `CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=-` 的本機臨時簽章）；未簽章測試沒有 Keychain 權限時會拒絕保存，不會退回明文。手機只設定 Oracle 網址與 App 連線碼，不需填 Zetaris。
 
-這版公開入口用於持有連線碼的團隊共用測試：使用同一份後端行程資料，並非每位使用者獨立登入與資料隔離。對外入口與 Oracle 私有 Zetaris 設定尚待本次明確確認後啟用；已完成本機的受管理來源、即時天氣、存取驗證及手機安全儲存測試。
+這版公開入口用於持有連線碼的團隊共用測試：使用同一份後端行程資料，並非每位使用者獨立登入與資料隔離。已依使用者明確授權啟用公開入口並保存 Oracle 私有 Zetaris 設定；已完成受管理來源、即時天氣、存取驗證及手機安全儲存測試。
 
 
 ### 受管理後端部署順序（Oracle Linux E2 Micro）
@@ -176,3 +176,44 @@ python3 scripts/oracle_cloud.py enable-https --host YOUR_VM_IP --key /secure/id_
 手機進入「我的／設定 → 後端連線」，選雲端、填 HTTPS 網址與 App 連線碼，再按「套用並測試連線」。應顯示後端已連線、資料來源由後端管理及 8 個行程景點；不需輸入任何 Zetaris 設定。日常切換可將連線碼留空，沿用安全儲存的值。選本機即可回到個人電腦的服務，兩端資料不會自動互相搬移。
 
 Android 公網驗證測試 `PublicBackendLiveTest` 預設跳過；需 `publicBackendSmoke=true` 及 App 私有目錄的 `backend-public-smoke.json`，內容為上述 HTTPS 設定。測試讀入後移除暫存檔，透過設定畫面保存連線碼，確認匿名請求被拒、雲端來源自動切換及即時天氣。不可將實際連線碼作為測試參數或寫入測試程式碼。
+
+
+### 2026-10-26 公開 HTTPS 上線紀錄
+
+- 入口：`https://api.161-33-225-15.sslip.io`，Let's Encrypt 憑證已簽發，未停用任何憑證驗證。
+- Oracle API／PostgreSQL／Caddy systemd 服務均 active；8787 綁定 loopback，5432 不映射到主機。Security List 對外僅新增 TCP 80／443，SSH 仍限管理電腦的來源 IPv4 `/32`。
+- API 回報 `managedTravelDataSource=zetaris-cloud`；雲端讀取 POI 5968、秘境 12、OSM 5318、規劃目錄 8。今日天氣兩次讀取均 `status=ok`、`cached=false`，取得時間及供應商生成時間不同。
+- 匿名健康查詢 401；帶正確連線碼成功；`/setup`、大小寫及 URL 編碼變形均 404。
+- iOS／Android 模擬器已使用公網 HTTPS 直連，沒有依賴 SSH 或 `adb reverse` 的雲端連線。尚未接上實體手機，實體裝置仍需安裝新版 App 並填入同一入口及私有連線碼。
+- Oracle Linux 原先以 crashkernel 預留 448 MiB，令可用記憶體總量約 498 MiB。依使用者明確同意停用 kdump 並釋放預留，增至約 946 MiB；已將開機參數設 `crashkernel=0`，不再產生完整核心記憶體轉儲。資料 volume、一般日誌與網路防護保留。
+- 重載 firewalld 後需執行 `sudo podman network reload --all`，恢復既有容器轉送規則；部署工具已包含此步驟。它不增加公開連接埠。
+
+實際連線碼只在專案外的私有設定與手機安全儲存中，沒有收入本文件、Git 或映像。管理帳密亦只由 Oracle 後端使用。這份部署未新增付費資源；既有 AWS Zetaris 仍按先前要求保留，AWS 帳單繼續依用量計算。
+
+最終驗證：後端受管理來源 13 項測試、iOS 4 項連線安全／過期回應測試、Android Keystore 測試通過；Android 公網即時天氣及雲端→本機→雲端來回切換通過（本機目錄 14、雲端目錄 8，數量可不同）。iOS 交通預覽改用可水平滑動的日期列，以 10 天合成行程確認第 3 天及第 10 天完整可讀。
+
+
+### 2026-10-26 TfNSW 交通修正
+
+既有 TfNSW 金鑰已依使用者授權經 SSH 存入 Oracle `/opt/sydneybuddy/api.env`（root、0600），由後端環境載入；不進手機、Git 或映像。更新時保留此檔。`/health` 的 `transitConfigured` 現在會計入已配置的 TfNSW，而不只判斷 OTP；`nswTransitConfigured=true`，付費外部 API 仍關閉。
+
+TfNSW 回傳的第一筆路線可能需要早於使用者指定時間出發。解析器現在請求多個候選，跳過時間不合或資料不完整的選項，使用後續有效路線；不平移官方班次，也不將查詢失敗偽裝成步行成功。所有候選都無效時仍明確回報。
+
+驗證：33 項交通供應商／Zetaris／資料來源測試通過；公網 Oracle 查詢 Circular Quay → Bondi Beach 成功取得火車、公車與步行段。iOS 原先失敗的 13 天需求重新準備後進入待確認草案，含 13 天、24 項活動。該份草案尚有需求／價格等待確認，未自動儲存；其可步行安排沒有選入公交路段，不能把 API 路線驗證誤認為這份草案包含公交。新版 Oracle 映像 ID 為 `410f1763f8357d7a94010c9dc71a4255e4dfe0591d9c1bfd18502c247432e2d0`。
+
+
+### 每日天氣圖示（2026-10-26）
+
+iOS／Android 天氣卡改為可水平捲動的日期、圖示、溫度與降雨機率，完整預報文字收進詳情。Open-Meteo 的 WMO 代碼以可選 `weatherCode` 欄位回傳；沒有預報的日期顯示待預報，不推定晴天。天氣查詢的行程範圍與規劃一致，最多 15 天；只有供應商提供的日期有天氣，其餘保持未知。已以 13 天實際雲端查詢及原草案刷新確認，仍為即時、不快取；兩端編譯與 13 項資料來源／天氣測試通過。
+
+
+### 景點搜尋記憶體修正（2026-10-26）
+
+若 App 顯示「服務處理失敗」，先查 `journalctl -u sydneybuddy-api`。此次已實際確認 `/poi/search` 反覆出現 `OutOfMemoryException`：E2 Micro 的 API 容器限制為 320 MiB，但舊版環境另將 .NET managed heap 限為 128 MiB；約 11,000 筆整合地點的搜尋又會複製所有符合條件的物件，最後才取最多 80 筆。
+
+- 搜尋現在先用原始物件參考完成篩選、合併與排序，再只複製回傳地點；仍保留來源、照片、分店判斷及各分類名額，不修改共享快照。
+- `install-micro.py` 將原本 `DOTNET_GCHeapHardLimit=0x08000000` 更新為 `0x0C000000`（192 MiB）。API 容器仍為 320 MiB，保留 128 MiB 給原生配置等用途；不增加 VM 規格或付費資源，自訂的其他 heap 設定維持原值。
+- 1,000 筆合成地點的暖搜尋量測：每次配置約 3.44 MB → 2.08 MB；回歸測試上限為 2.8 MB，同時確認回傳上限及原始快照不被修改。
+- Oracle 已更新；經公開 HTTPS 驗證 15 次搜尋（不同區域、分類、並行請求、跨過 15 秒快照更新間隔）皆為 HTTP 200，來源均為雲端 Zetaris。iOS 原本失敗的搜尋頁重試後顯示 78 個地點及地圖標記。
+
+這項修正不更動天氣資料路徑；天氣仍即時經 Zetaris 呼叫，沒有新增天氣快取。免費 VM 的首次載入與同時查詢仍可能需要數秒。

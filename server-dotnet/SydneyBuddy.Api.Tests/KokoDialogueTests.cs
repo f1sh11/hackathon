@@ -9,6 +9,30 @@ namespace SydneyBuddy.Api.Tests;
 public sealed class KokoDialogueUnitTests
 {
     [Fact]
+    public void PersonalizationPreservesNaturalFollowUpWithConfirmedBasics()
+    {
+        var s=new PetSession();KokoDialogue.Enable(s,new(){["profilingVersion"]=2});
+        s.PersonalizingTrip=true;s.Fields["destination"]="Sydney";s.Fields["date"]="2026-10-30";
+        var reply=KokoDialogue.CompleteTurn(s,new(){["readyForDraft"]=true},"A quiet cafe sounds lovely. Do you enjoy waterfront walks too?","curious");
+        Assert.Equal("A quiet cafe sounds lovely. Do you enjoy waterfront walks too?",reply.Text);
+        Assert.Equal("2026-10-30",s.Fields["date"]);Assert.Empty(s.Preferences);
+        Assert.DoesNotContain("trip details",reply.Text);
+    }
+
+    [Fact]
+    public void AcceptingVisibleIdeaPreservesInterestsAndIsIdempotent() {
+        var s=new PetSession{ResponseLanguage="en"};KokoDialogue.Enable(s,new(){["profilingVersion"]=2});
+        s.Fields["interests"]="建筑、咖啡";s.Fields["date"]="2026-10-30";
+        Assert.True(KokoDialogue.AcceptInspiration(s,"nature"));
+        Assert.Equal("建筑、咖啡、自然、风景",s.Fields["interests"]);Assert.Equal("nature",s.Dialogue!.SelectedDirection);
+        Assert.Equal("2026-10-30",s.Fields["date"]);Assert.Empty(s.Preferences);Assert.Empty(s.PendingMemory);
+        Assert.Contains("Added to this trip",s.Messages.Last().Text);
+        var count=s.Messages.Count;Assert.False(KokoDialogue.AcceptInspiration(s,"nature"));Assert.Equal(count,s.Messages.Count);
+        var restored=JsonSerializer.Deserialize<PetSession>(JsonSerializer.Serialize(s))!;
+        Assert.Equal("nature",restored.Dialogue!.SelectedDirection);Assert.False(KokoDialogue.AcceptInspiration(restored,"nature"));
+        Assert.Throws<ServiceException>(()=>KokoDialogue.AcceptInspiration(s,"unsupported"));
+    }
+    [Fact]
     public void OptionalNameCountsAsOneRoundAndDoesNotRequireModelOrTyping()
     {
         var s=new PetSession();KokoDialogue.Enable(s,new(){["profilingVersion"]=2});
@@ -71,6 +95,11 @@ public sealed class KokoDialogueUnitTests
         s.Fields["travelers"]="1";Assert.Equal("budget",KokoDialogue.NextNeed(s));
         s.Fields["budget"]="120";s.Fields["budgetCurrency"]="AUD";s.Fields["budgetBasis"]="perPersonPerDay";
         Assert.Equal("time",KokoDialogue.NextNeed(s));
+        KokoDialogue.DetailsUpdated(s,new(){["budget"]="120"});
+        Assert.True(s.Dialogue!.DateDeferred);
+        Assert.DoesNotContain(s.Messages.Last().QuickReplies!,x=>x.Intent=="defer_time");
+        Assert.Contains(s.Messages.Last().QuickReplies!,x=>x.Intent=="details_time");
+        Assert.False(PetQuestions.Answered(s,"date"));
     }
     [Fact]
     public void UnsupportedCityAndPartialUpdatesKeepAnActionableNextStep()
@@ -188,6 +217,29 @@ public sealed class KokoDialogueUnitTests
         var hello=Assert.Single(s.Messages);Assert.Contains("Koko",hello.Text);Assert.DoesNotContain("Buddy",hello.Text);
         Assert.Equal(3,hello.QuickReplies!.Length);Assert.Equal("80",s.Fields["budget"]);Assert.Equal(0,s.Dialogue!.ResponseCount);
     }
+    [Fact]
+    public void LegacyDeferredDateSurvivesBudgetUpdateAndOldChoiceReplayIsRecognized() {
+        var s=new PetSession{Dialogue=new(){RequestedField="time"},ResponseLanguage="en"};
+        s.Fields["destination"]="悉尼";
+        s.Messages.Add(new("old-choice","user","Date still open",Choice:new("old-question","Date?","later","日期还没定")));
+        KokoDialogue.DetailsUpdated(s,new(){["budget"]="120"});
+        KokoDialogue.RefreshDeferredState(s);
+        Assert.True(s.Dialogue.DateDeferred);Assert.Equal("travelers",KokoDialogue.NextNeed(s));
+        var count=s.Messages.Count;
+        Assert.True(KokoDialogue.RepeatedChoice(s,new(){["questionId"]="old-question",["optionId"]="later",["message"]="Date still open"}));
+        Assert.False(KokoDialogue.RepeatedChoice(s,new(){["questionId"]="old-question",["optionId"]="later",["message"]="Different answer"}));
+        Assert.Equal(count,s.Messages.Count);Assert.Empty(s.Preferences);Assert.False(s.Fields.ContainsKey("date"));
+        s.Fields["date"]="2026-11-01";s.Fields["days"]="2";KokoDialogue.RefreshDeferredState(s);
+        Assert.False(s.Dialogue.DateDeferred);
+    }
+    [Fact]
+    public void ExplicitNoRequirementsIsAnsweredButUnknownIsNot() {
+        var s=new PetSession();
+        PetQuestions.Apply(s,new(){["avoid"]="无特别要求"});
+        Assert.True(PetQuestions.Answered(s,"avoid"));
+        Assert.False(PetQuestions.Known("暂不确定"));
+        Assert.True(PetQuestions.Known("无特别要求"));
+    }
     internal static JsonObject Selection(PetMessage message,PetQuickReply option)=>new(){["message"]=option.Text,["optionId"]=option.Id,["questionId"]=message.Id};
 }
 
@@ -259,13 +311,34 @@ public sealed class KokoDialogueApiTests(ApiFixture fixture):IClassFixture<ApiFi
         Assert.Equal("60",s.Object("fields")!.Str("budget"));Assert.Equal("2026-10-25",s.Object("fields")!.Str("date"));Assert.Equal(0,model.Calls);
     }
     [Fact]
-    public async Task ClickRetryIsIdempotentButReusingOldButtonAsNewResponseIsRejected()
+    public async Task ClickRetryAndRepeatedHandledChoiceAreNoOpsButTamperingIsRejected()
     {
         using var client=fixture.CreateFactory().CreateClient();var s=await Create(client);var id=s.Str("id");var click=Click(s);
         var first=await Turn(client,id,click);var retry=await Turn(client,id,click);
         Assert.Equal(first.ToJsonString(),retry.ToJsonString());
-        click["requestId"]=Guid.NewGuid().ToString();var stale=await Turn(client,id,click);Assert.Equal("error",stale.Str("type"));
+        click["requestId"]=Guid.NewGuid().ToString();var stale=await Turn(client,id,click);Assert.Equal("done",stale.Str("type"));
+        click["requestId"]=Guid.NewGuid().ToString();click["message"]="changed message";Assert.Equal("error",(await Turn(client,id,click)).Str("type"));
         var saved=(await client.GetFromJsonAsync<JsonObject>($"pet/sessions/{id}"))!;Assert.Equal(1,saved.Object("dialogue")!.Int("responseCount"));Assert.Equal(3,saved.Array("messages")!.Count);
+    }
+    [Fact]
+    public async Task DeferredDateSurvivesReloadAndBudgetEditWithoutOfferingAnotherDeferral() {
+        using var client=fixture.CreateFactory().CreateClient();var s=await Create(client);var id=s.Str("id");
+        var response=await client.PatchAsJsonAsync($"pet/sessions/{id}",new{fields=new Dictionary<string,string>{{"destination","悉尼"},{"travelers","1"},{"budget","60"},{"budgetCurrency","AUD"},{"budgetBasis","perPersonPerDay"}}});
+        s=(await response.Content.ReadFromJsonAsync<JsonObject>())!;
+        var options=s.Array("messages")!.Last()!.Array("quickReplies")!;
+        var index=options.Select((x,i)=>(x,i)).Single(x=>x.x!.Str("intent")=="defer_time").i;
+        s=(await Turn(client,id,Click(s,index))).Object("session")!;
+        Assert.True(s.Object("dialogue")!.Bool("dateDeferred"));Assert.False(s.Object("fields")!.ContainsKey("date"));
+        Assert.DoesNotContain(s.Array("messages")!.Last()!.Array("quickReplies")!,x=>x!.Str("intent")=="defer_time");
+        s=(await client.GetFromJsonAsync<JsonObject>($"pet/sessions/{id}"))!;
+        Assert.True(s.Object("dialogue")!.Bool("dateDeferred"));
+        response=await client.PatchAsJsonAsync($"pet/sessions/{id}",new{fields=new{budget="120"}});
+        s=(await response.Content.ReadFromJsonAsync<JsonObject>())!;
+        Assert.True(s.Object("dialogue")!.Bool("dateDeferred"));Assert.DoesNotContain(s.Array("messages")!.Last()!.Array("quickReplies")!,x=>x!.Str("intent")=="defer_time");
+        response=await client.PatchAsJsonAsync($"pet/sessions/{id}",new{fields=new{date="2026-11-01",days="2"}});
+        s=(await response.Content.ReadFromJsonAsync<JsonObject>())!;
+        Assert.False(s.Object("dialogue")!.Bool("dateDeferred"));Assert.Equal("2026-11-01",s.Object("fields")!.Str("date"));
+        Assert.Empty(s.Array("travelDna")!);
     }
     [Fact]
     public async Task HurryProducesDraftWithoutNvidiaAndMemoryConsentDoesNotCountAsAnotherRound()

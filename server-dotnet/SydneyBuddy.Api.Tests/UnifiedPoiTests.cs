@@ -24,4 +24,20 @@ public sealed class UnifiedPoiTests {
         var hotel=Point("osm:node:201","Test Hotel","lodging");hotel["sourceUrl"]="https://www.openstreetmap.org/node/201";var cafe=Point("osm:node:202","Hotel Cafe","food");
         var result=UnifiedPoiService.Merge([hotel,cafe],-33.865,151.212,1500,"lodging","Hotel",default);var selected=Assert.Single(result.Array("places")!)!.AsObject();var imported=PoiService.Import(selected);Assert.Equal("住宿",imported.Str("category"));Assert.Equal(hotel.Str("sourceUrl"),imported.Str("sourceUrl"));Assert.Single(imported.Array("sources")!);
     }
+    [Fact] public void DenseSearchClonesOnlyReturnedPlacesAndLeavesSnapshotUntouched(){
+        var points=Enumerable.Range(0,1000).Select(i=>{
+            var p=Point("osm:node:"+i,"Restaurant "+i,"food");p["description"]=new string('x',8192);
+            return JsonNode.Parse(p.ToJsonString())!.AsObject();
+        }).ToList();
+        // Warm lazy JSON fields and JIT before measuring the per-search response allocation.
+        UnifiedPoiService.Merge(points,-33.865,151.212,5000,"food","",default);
+        var before=GC.GetAllocatedBytesForCurrentThread();
+        var result=UnifiedPoiService.Merge(points,-33.865,151.212,5000,"food","",default);
+        var allocated=GC.GetAllocatedBytesForCurrentThread()-before;
+        Assert.Equal(1000,result.Int("totalMatches"));Assert.Equal(80,result.Array("places")!.Count);
+        Assert.True(allocated<2_800_000,$"Search allocated {allocated} bytes for only 80 results");
+        Assert.All(points,p=>{Assert.Null(p["distanceMeters"]);Assert.Null(p["sources"]);Assert.Equal("food",p.Str("searchCategory"));});
+        result.Array("places")![0]!["name"]="Changed response";
+        Assert.Equal("Restaurant 0",points[0].Str("name"));
+    }
 }

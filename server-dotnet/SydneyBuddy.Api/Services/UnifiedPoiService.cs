@@ -23,9 +23,15 @@ public sealed class UnifiedPoiService(TravelDataContext travel,OverturePoiProvid
     static string NameKey(string value)=>string.Concat(value.Normalize(NormalizationForm.FormD).Where(c=>char.IsLetterOrDigit(c)&&CharUnicodeInfo.GetUnicodeCategory(c)!=UnicodeCategory.NonSpacingMark)).ToLowerInvariant();
     static string Kind(JsonObject p)=>p.Bool("hiddenGem")||p.Str("source")=="Wikivoyage"?"gems":p.Str("searchCategory",p.Str("category") switch{"美食"=>"food","設施"=>"facilities","住宿"=>"lodging","店家"=>"shops",_=>"sights"});
     static int Richness(JsonObject p)=>(p.Str("source")=="Restaurant evidence"?3000:0)+(p.Array("socialRecommendations") is null?0:1000)+(p.Object("guide") is null?0:100)+(p.Array("photos")?.Count??0)*5+(p.Str("source")=="OpenStreetMap"?2:0);
+    sealed class Match(JsonObject point,double meters,string kind) {
+        public JsonObject Point {get;}=point;
+        public double Meters {get;}=meters;
+        public string Kind {get;}=kind;
+        public List<JsonObject> Duplicates {get;}=[];
+    }
     public static JsonObject Merge(IEnumerable<JsonObject> points,double lat,double lng,int radius,string category,string text,CancellationToken token){
         var origin=new JsonObject{["lat"]=lat,["lng"]=lng};var tokens=text.Split(' ',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
-        var groups=new Dictionary<string,List<JsonObject>>(StringComparer.Ordinal);var identifiers=new HashSet<string>(StringComparer.Ordinal);
+        var groups=new Dictionary<string,List<Match>>(StringComparer.Ordinal);var identifiers=new HashSet<string>(StringComparer.Ordinal);
         foreach(var point in points.OrderByDescending(Richness)){
             token.ThrowIfCancellationRequested();var kind=Kind(point);
             if(!PoiCategories.Matches(point,category))continue;
@@ -34,28 +40,34 @@ public sealed class UnifiedPoiService(TravelDataContext travel,OverturePoiProvid
             var meters=RouteService.Distance(origin,point);if(meters>radius)continue;
             var name=NameKey(point.Str("name"))+":"+point.Str("category");if(!groups.TryGetValue(name,out var group))groups[name]=group=[];
             // Same name alone is insufficient: branches can be near each other.
-            var existing=group.FirstOrDefault(p=>RouteService.Distance(p,point)<=25 && (p.Str("source")!=point.Str("source") || p.Str("id")==point.Str("id") || p.Str("matchedPlaceId").Length>0&&p.Str("matchedPlaceId")==point.Str("matchedPlaceId")));
-            if(existing is not null){
-                var sources=existing.Array("sources")!;if(!sources.Any(s=>s?.ToString()==point.Str("source")))sources.Add(point.Str("source"));existing.Array("sourceIds")!.Add(point.Str("id"));
-                foreach(var field in new[]{"website","phone","address","openingHoursText","wikidata"})if(existing.Str(field).Length==0&&point.Str(field).Length>0)existing[field]=point[field]!.DeepClone();
-                if((existing.Array("photos") is null||existing.Array("photos")!.Count==0)&&point.Array("photos")?.Count>0)existing["photos"]=point.Array("photos")!.DeepClone();
-                if(existing.Object("restaurantData") is JsonObject restaurant && point.Str("source")!="Restaurant evidence" && point.Object("restaurantData") is JsonObject communityRestaurant){
+            var existing=group.FirstOrDefault(match=>RouteService.Distance(match.Point,point)<=25 && (match.Point.Str("source")!=point.Str("source") || match.Point.Str("id")==point.Str("id") || match.Point.Str("matchedPlaceId").Length>0&&match.Point.Str("matchedPlaceId")==point.Str("matchedPlaceId")));
+            if(existing is not null){existing.Duplicates.Add(point);continue;}
+            group.Add(new Match(point,Math.Round(meters),kind));
+        }
+        var ordered=groups.Values.SelectMany(x=>x).OrderBy(p=>p.Meters).ThenBy(p=>p.Point.Str("id")).ToList();
+        // Keep references while filtering and ranking; clone only the bounded response.
+        // Cloning every nearby POI exhausted the managed heap on the free Oracle VM.
+        var chosen=category=="all"&&text.Length==0?ordered.GroupBy(p=>p.Kind).SelectMany(g=>g.Take(13)).OrderBy(p=>p.Meters).Take(80):ordered.Take(80);
+        var result=new JsonArray();
+        foreach(var match in chosen){
+            var value=match.Point.DeepClone().AsObject();value["distanceMeters"]=match.Meters;
+            value["sources"]=new JsonArray(match.Point.Str("source"));value["sourceIds"]=new JsonArray(match.Point.Str("id"));
+            foreach(var point in match.Duplicates){
+                var sources=value.Array("sources")!;if(!sources.Any(s=>s?.ToString()==point.Str("source")))sources.Add(point.Str("source"));value.Array("sourceIds")!.Add(point.Str("id"));
+                foreach(var field in new[]{"website","phone","address","openingHoursText","wikidata"})if(value.Str(field).Length==0&&point.Str(field).Length>0)value[field]=point[field]!.DeepClone();
+                if((value.Array("photos") is null||value.Array("photos")!.Count==0)&&point.Array("photos")?.Count>0)value["photos"]=point.Array("photos")!.DeepClone();
+                if(value.Object("restaurantData") is JsonObject restaurant && point.Str("source")!="Restaurant evidence" && point.Object("restaurantData") is JsonObject communityRestaurant){
                     foreach(var field in new[]{"reportedSpends","recommendations","reviews"})foreach(var claim in communityRestaurant.Array(field)??new JsonArray()){
                         var entries=restaurant.Array(field)!;if(!entries.Any(x=>x!.Str("quote")==claim!.Str("quote")&&x.Object("source")?.Str("url")==claim.Object("source")?.Str("url")))entries.Add(claim!.DeepClone());
                     }
                 }
                 if(point.Array("socialRecommendations") is JsonArray socialClaims){
-                    if(existing.Array("socialRecommendations") is null)existing["socialRecommendations"]=new JsonArray();
-                    foreach(var claim in socialClaims){var target=existing.Array("socialRecommendations")!;if(!target.Any(x=>x!.Str("sourceUrl")==claim!.Str("sourceUrl")))target.Add(claim!.DeepClone());}
+                    if(value.Array("socialRecommendations") is null)value["socialRecommendations"]=new JsonArray();
+                    foreach(var claim in socialClaims){var target=value.Array("socialRecommendations")!;if(!target.Any(x=>x!.Str("sourceUrl")==claim!.Str("sourceUrl")))target.Add(claim!.DeepClone());}
                 }
-                continue;
             }
-            var value=point.DeepClone().AsObject();value["distanceMeters"]=Math.Round(meters);value["sources"]=new JsonArray(point.Str("source"));value["sourceIds"]=new JsonArray(point.Str("id"));value["searchCategory"]=kind;group.Add(value);
+            PoiCategories.ApplyFoodPriceMapping(value);value.Remove("searchText");value.Remove("searchCategory");result.Add(value);
         }
-        var ordered=groups.Values.SelectMany(x=>x).OrderBy(p=>p.Number("distanceMeters")).ThenBy(p=>p.Str("id")).ToList();
-        // Reserve slots for each kind so dense cafes don't hide hotels or community places.
-        var chosen=category=="all"&&text.Length==0?ordered.GroupBy(Kind).SelectMany(g=>g.Take(13)).OrderBy(p=>p.Number("distanceMeters")).Take(80).ToList():ordered.Take(80).ToList();
-        var result=new JsonArray();foreach(var point in chosen){PoiCategories.ApplyFoodPriceMapping(point);point.Remove("searchText");point.Remove("searchCategory");result.Add(point);}
         return new(){["places"]=result,["totalMatches"]=ordered.Count,["returnedCount"]=result.Count,["limit"]=80,["truncated"]=ordered.Count>result.Count};
     }
 }

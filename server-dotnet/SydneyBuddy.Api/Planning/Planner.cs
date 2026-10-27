@@ -37,6 +37,8 @@ public sealed class Planner(PlaceService places, RecommendationService recommend
         context.CompareTransit=evidence is not null && raw.Str("transportPreference","walk")!="walk";
         var profile = PlanValidator.Validate(raw, planningCatalog);
         var candidates = TravelConstraints.Apply(profile, imported is null ? await places.GetCandidatesAsync(context, ct):planningCatalog.Where(p=>PoiService.IsImported(p)||profile.Array("mustVisit")!.Any(id=>id!.GetValue<string>()==p.Str("id"))||profile.Str("mustDo").Contains(p.Str("name"))).ToArray());
+        var locationConflictCount=planningCatalog.Count(PlanningLocationGuard.HasKnownConflict);
+        if(locationConflictCount>0)context.Record("核对地点位置",$"发现 {locationConflictCount} 个已确认的来源地点身份与坐标冲突，已从自动规划中排除，未更改来源数据或推测正确坐标。","来源地点冲突：待修正");
         var uncertainEventCount=planningCatalog.Count(SeasonalEventGuard.NeedsVerifiedDates);
         if(uncertainEventCount>0)context.Record("核对限时活动",$"候选中有 {uncertainEventCount} 个疑似季节性或限时活动。地图搜索结果不能证明本次日期开放，已排除自动推荐；没有推断活动停业或过期。","保守候选校验：活动日期待核实");
         if(candidateDays is not null) {
@@ -145,7 +147,7 @@ public sealed class Planner(PlaceService places, RecommendationService recommend
         if(allStops.Any(RecommendationQuality.IsMeal))warnings.Add("具体餐厅已安排；餐费为每人估算并计入本日预算，不代表菜单报价、订位或有空位。营业时间出发前仍需确认。");
         var explanation = $"共安排 {allStops.Length} 项活动，其中 {allStops.Count(RecommendationQuality.IsMeal)} 次具体用餐。每天 A${profile.Number("budget").ToString("G", CultureInfo.InvariantCulture)} 活动预算和 {profile.Int("maxSteps")} 步上限，规划 {days.Count} 天路线。已计入交通、参观、休息和返回{profile.Object("end")!.Str("name")}的时间。";
         if (weather.Bool("rainy")) explanation += "预报有雨，优先室内，缩短可选户外停留；出发前确认天气。";
-        if(days.OfType<JsonObject>().Any(d=>d.Array("warnings")!.Any(w=>w!.GetValue<string>().Contains("半日活动"))))explanation+="部分日期仅安排半日活动和用餐，下午留白，未视为全天已排满。";
+        if(days.OfType<JsonObject>().Any(d=>d.Array("warnings")!.Any(w=>w!.GetValue<string>().Contains("半日活动"))))explanation+="部分日期仅安排半日活动，下午留白，未视为全天已排满。";
         if(partial)explanation="这是一份待补充草案，部分需求尚未满足。"+explanation;
         return new JsonObject
         {

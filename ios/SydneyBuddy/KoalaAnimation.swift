@@ -33,20 +33,33 @@ enum KoalaEvent:String,CaseIterable {
 /// Conservative presentation hints from the current utterance/choice, never profile facts or risk analysis.
 enum KoalaConversationFeedback {
     static func event(text:String,scene:String="")->KoalaEvent? {
-        let normalized=text.folding(options:[.widthInsensitive],locale:nil).replacingOccurrences(of:",",with:"").replacingOccurrences(of:"，",with:"").replacingOccurrences(of:" ",with:"")
+        let english=text.folding(options:[.widthInsensitive,.caseInsensitive],locale:Locale(identifier:"en_US_POSIX"))
+            .replacingOccurrences(of:"’",with:"'").replacingOccurrences(of:",",with:"").replacingOccurrences(of:"，",with:"")
             .replacingOccurrences(of:"一万五千",with:"15000").replacingOccurrences(of:"一万五",with:"15000")
-        let walkingScene=scene.contains("步") || scene.contains("步行") || scene.contains("走多少")
-        let walkingExpression=try? NSRegularExpression(pattern:"([0-9]+)步")
-        let quantities=walkingExpression?.matches(in:normalized,range:NSRange(normalized.startIndex...,in:normalized)).compactMap{match in
-            Range(match.range(at:1),in:normalized).map{String(normalized[$0])}
+        let englishScene=scene.lowercased()
+        let normalized=english.replacingOccurrences(of:" ",with:"")
+        func matches(_ pattern:String,_ value:String)->Bool {value.range(of:pattern,options:.regularExpression) != nil}
+        let walkingScene=scene.contains("步") || scene.contains("步行") || scene.contains("走多少") || matches(#"\b(?:steps?|walk(?:ing)?)\b"#,englishScene)
+        let walkingExpression=try? NSRegularExpression(pattern:#"([0-9]+)\s*步|\b([0-9]+)\s*steps?\b"#,options:[.caseInsensitive])
+        let quantities=walkingExpression?.matches(in:english,range:NSRange(english.startIndex...,in:english)).compactMap{match -> String? in
+            for index in 1..<match.numberOfRanges {if let range=Range(match.range(at:index),in:english){return String(english[range])}}
+            return nil
         } ?? []
         let longWalk=quantities.last == "15000" || walkingScene && normalized == "15000"
-        let negatedWalk=normalized.range(of:"(?:不是|不走|不想走|不打算走|不愿走|不要超过|不要|不超过|不到|少于|不满|别走|取消|不选)15000",options:.regularExpression) != nil
+        let negatedWalk=matches("(?:不是|不走|不想走|不打算走|不愿走|不要超过|不要|不超过|不到|少于|不满|别走|取消|不选)15000",normalized)
+            || matches(#"\b(?:not|no|don't|do not|won't|will not|can't|cannot|never|under|below|less than|fewer than|at most|maximum|max)\b.{0,32}\b15000\b"#,english)
+            || matches(#"[<≤]\s*=?\s*15000\b"#,english)
         if longWalk && !negatedWalk{return .playfulTired}
         let rainScene=scene.contains("雨") || scene.contains("伞") || normalized.contains("雨") || normalized.contains("伞")
+            || matches(#"\b(?:rain|rains|rainy|raining|umbrella)\b"#,englishScene+" "+english)
         let declines=["不要","不想","不去","不行","不愿","不可以","不喜欢","不用","不需要","先不","不打算","换","改","等","躲","避","室内","晴天","看天气","再定","再决定"]
         let accepts=["带伞","带上伞","撑伞","没关系","不怕","可以","愿意","都行","照样","照常","也能","喜欢","走吧","去吧"]
-        if rainScene && !declines.contains(where:normalized.contains) && accepts.contains(where:normalized.contains){return .rainConversation}
+        // Keep word boundaries for English; removing spaces would confuse “rain” with “train”.
+        let refusalText=english.replacingOccurrences(of:#"\b(?:don't mind|do not mind|not afraid|not worried|no problem)\b"#,with:"",options:.regularExpression)
+        let declinesEnglish=matches(#"\b(?:no|not|never|don't|do not|won't|will not|can't|cannot|avoid|skip|indoors?|inside|wait|change|instead|rather)\b"#,refusalText)
+        let acceptsEnglish=matches(#"\b(?:fine|okay|ok|all right|no problem|don't mind|do not mind|not afraid|not worried|happy to|let's go|still go|go anyway|rain or shine|love|like)\b"#,english)
+            || matches(#"\b(?:bring|take|use|carry|open)\b.{0,16}\bumbrella\b"#,english)
+        if rainScene && !declines.contains(where:normalized.contains) && !declinesEnglish && (accepts.contains(where:normalized.contains) || acceptsEnglish){return .rainConversation}
         return nil
     }
 }
@@ -169,6 +182,8 @@ struct KoalaPlayback {
 }
 
 struct PetAvatar:View {
+    @Environment(\.locale) private var interfaceLocale
+
     var mood:PetMood = .greeting
     var cue:KoalaCue? = nil
     var animated=true
@@ -178,11 +193,12 @@ struct PetAvatar:View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     var body:some View {
+        let _=interfaceLocale
         Group {
             if let image=player.image{Image(uiImage:image).resizable().interpolation(.high).scaledToFit()}
             else {Image(systemName:"leaf.circle.fill").resizable().scaledToFit().foregroundStyle(Palette.green)}
         }.frame(width:size,height:size*116/108)
-        .accessibilityElement(children:.ignore).accessibilityLabel("旅行伙伴 Koko，"+(mood == .thinking ? "正在思考":mood == .listening ? "正在听你说":"陪你准备旅行"))
+        .accessibilityElement(children:.ignore).accessibilityLabel(uiText("旅行伙伴 Koko，\(mood == .thinking ? "正在思考":mood == .listening ? "正在听你说":"陪你准备旅行")"))
         .onAppear{player.onIdle=onIdle;player.request(cue?.action ?? KoalaAction.forMood(mood),token:cue?.id ?? "mood:"+mood.rawValue,returnToIdle:cue?.returnsToIdle ?? false)}
         .onChange(of:mood){_,value in player.request(KoalaAction.forMood(value),token:"mood:"+value.rawValue)}
         .onChange(of:cue){_,value in
@@ -197,6 +213,8 @@ struct PetAvatar:View {
 }
 
 struct KoalaFeedbackBanner:View {
+    @Environment(\.locale) private var interfaceLocale
+
     let cue:KoalaCue
     let dismiss:()->Void
     @State private var closing=false
@@ -227,7 +245,8 @@ struct KoalaFeedbackBanner:View {
         else{closing=true}
     }
     var body:some View {
-        HStack(spacing:8){PetAvatar(cue:visibleCue,onIdle:{if closing || !held{dismiss()}});VStack(alignment:.leading,spacing:8){Text(title).font(.subheadline.bold());if held{Button(closing ? "咱们继续":"知道了",action:close).font(.caption).disabled(closing)}}}
+        let _=interfaceLocale
+        HStack(spacing:8){PetAvatar(cue:visibleCue,onIdle:{if closing || !held{dismiss()}});VStack(alignment:.leading,spacing:8){Text(uiText(title)).font(.subheadline.bold());if held{Button(uiText(closing ? "咱们继续":"知道了"),action:close).font(.caption).disabled(closing)}}}
             .padding(.horizontal,18).background(Palette.cream,in:RoundedRectangle(cornerRadius:24))
             .onChange(of:cue.id){_,_ in closing=false}
             .task(id:cue.id){if reduceMotion && !held{do{try await Task.sleep(nanoseconds:1_700_000_000);dismiss()}catch{}}}
@@ -238,6 +257,8 @@ struct KoalaFeedbackBanner:View {
 /// One companion stage, shared by the welcome and current conversational turn.
 /// Prop gestures use authored clips; listening uses a small pose change only.
 struct KokoCompanionScene:View {
+    @Environment(\.locale) private var interfaceLocale
+
     var mood:PetMood = .greeting
     var cue:KoalaCue? = nil
     var ready=false
@@ -246,6 +267,7 @@ struct KokoCompanionScene:View {
     @State private var tapped:KoalaCue?
     private var activeCue:KoalaCue? {tapped ?? cue}
     var body:some View {
+        let _=interfaceLocale
         ZStack(alignment:.bottom){
             Ellipse().fill(Palette.mint.opacity(0.75)).frame(width:250,height:28).padding(.bottom,7)
             HStack{Image(systemName:"leaf.fill").rotationEffect(.degrees(-35));Spacer();Image(systemName:"leaf.fill").rotationEffect(.degrees(35))}.font(.system(size:22)).foregroundStyle(Palette.green.opacity(0.25)).frame(width:270).padding(.bottom,24).accessibilityHidden(true)
@@ -256,7 +278,7 @@ struct KokoCompanionScene:View {
                 PetAvatar(mood:mood,cue:activeCue,size:height*1.12)
                     .rotationEffect(.degrees(!reduceMotion && mood == .listening ? -4:0),anchor:.bottom)
                     .offset(y:!reduceMotion && mood == .excited ? -5:0)
-            }.buttonStyle(.plain).accessibilityLabel(mood == .thinking ? "Koko 正在看小地图":mood == .listening ? "Koko 正在听你说":ready ? "Koko 已准备好，点击打招呼":"和 Koko 打个招呼").accessibilityIdentifier("koko-companion")
+            }.buttonStyle(.plain).accessibilityLabel(uiText(mood == .thinking ? "Koko 正在看小地图":mood == .listening ? "Koko 正在听你说":ready ? "Koko 已准备好，点击打招呼":"和 Koko 打个招呼")).accessibilityIdentifier("koko-companion")
         }.frame(maxWidth:.infinity).frame(height:height).animation(reduceMotion ? nil:.spring(response:0.45,dampingFraction:0.8),value:mood).animation(reduceMotion ? nil:.easeInOut(duration:0.3),value:ready)
         .task(id:tapped?.id){
             guard let token=tapped?.id else{return}
@@ -306,15 +328,17 @@ struct KokoCompanionStage:View {
 struct KokoOptionButtonStyle:ButtonStyle {
     var prominent=false
     var compact=false
+    var quiet=false
+    private var accent:Color {quiet ? Color(red:0.20,green:0.36,blue:0.79):Palette.green}
     func makeBody(configuration:Configuration)->some View {
         configuration.label
             .foregroundStyle(prominent ? .white:Palette.ink)
-            .frame(maxWidth:.infinity,minHeight:compact ? 34:44)
+            .frame(maxWidth:.infinity,minHeight:44)
             .padding(.horizontal,16).padding(.vertical,compact ? 5:7)
-            .background(RoundedRectangle(cornerRadius:18).fill(prominent ? Palette.green:Palette.cream))
-            .overlay(RoundedRectangle(cornerRadius:18).stroke(Palette.green.opacity(0.8),lineWidth:1.5))
-            .background(RoundedRectangle(cornerRadius:18).fill(Palette.green).offset(y:configuration.isPressed ? 0:5))
-            .offset(y:configuration.isPressed ? 4:0).padding(.bottom,5)
+            .background(RoundedRectangle(cornerRadius:18).fill(prominent ? accent:(quiet ? .white:Palette.cream)))
+            .overlay(RoundedRectangle(cornerRadius:18).stroke(accent.opacity(quiet ? 0.3:0.8),lineWidth:quiet ? 1:1.5))
+            .background(RoundedRectangle(cornerRadius:18).fill(quiet ? .clear:accent).offset(y:configuration.isPressed ? 0:5))
+            .offset(y:configuration.isPressed ? 4:0).padding(.bottom,quiet ? 0:5)
             .animation(.easeOut(duration:0.10),value:configuration.isPressed)
     }
 }
