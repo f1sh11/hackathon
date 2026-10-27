@@ -230,3 +230,13 @@ iOS／Android 天氣卡改為可水平捲動的日期、圖示、溫度與降雨
 驗證結果：完整後端測試 510 項通過；公開 HTTPS 的 inventory／POI／map-layers 兩輪並行與跨過 15 秒快照到期後皆成功。最終映像實際 NVIDIA `/plan` 約 16 秒完成兩天、8 個不同 ID 的停靠點，包含指定 Opera House、15 個住宿候選及 1 個建議，天氣來源為 Open-Meteo / Zetaris，行程數量不變。後端沒有 OOM kill 或重啟。
 
 iOS 模擬器切換 Cloud 後顯示已連線、資料來源固定 Cloud Zetaris (Sydney)，完成 Apple Maps 逐段步行查詢並顯示兩天、6 站待確認草稿；未按 Save this draft。此 UI 草稿出現 Museum of Contemporary Art 與 Museum of Contemporary Art Australia 兩筆同場館別名，說明不同 ID 檢查不等於實體場館去重；此資料品質問題仍待修正。票價、營業時間及部分需求仍待核實，不能視為可直接執行的完成行程。未驗證實體手機或本次 Android 模擬器。
+
+### 行程步數、住宿與行李規劃上線（2026-10-27）
+
+已部署程式提交 `0d81faa134ffd2f0b7fc2a461097994a690ea093`，Skill 版本 `2026-10-27.3`，並整合 main 的個人偏好對話、供應商選擇及可行性審查。遠端功能分支與 main 已同步；本段部署紀錄是程式部署後的文件更新。
+
+部署前 VM 的 SSH／HTTPS 皆無回應。依既有授權執行一般重新啟動，等待 Oracle 的關機流程後恢復；容器隨開機啟動正常。前次開機沒有持久化系統 journal，因此本次不能據此確認原先無回應的根因。未變更 VM 規格、網路開放範圍或供應商金鑰。
+
+更新前在 VM root 私有目錄 `/opt/sydneybuddy/backups/logistics-20261027/` 保存 PostgreSQL dump 與 App 狀態備份，並保留舊映像 `localhost/sydneybuddy-api:pre-logistics-20261027`。既有資料 volume、Zetaris／NVIDIA／TfNSW 設定及 App 連線碼保留。8787 仍只綁 loopback，5432 未公開。
+
+驗證：公開 HTTPS 健康檢查成功，匿名請求 401；API、資料庫、HTTPS 服務 active；執行映像 revision 與上述程式提交相同。真實 NVIDIA／Meterless 一日測試約 32 秒產生草稿，資料來源 `zetaris-cloud`、天氣 `Open-Meteo / Zetaris`。低精力 8,000 步上限下共 6 站（包含寄放／取件），估算 6,716 步，寄放第一、取件最後，飯店起訖點保留；寄放服務刻意未確認，草稿正確維持 partial。16:27 提早返程標示 `early_for_energy`，未冒稱已排到 20:00。測試未儲存，前後行程數量相同。這不代表測試飯店是真實訂房或已提供寄放服務，也未新增實體手機驗證。
