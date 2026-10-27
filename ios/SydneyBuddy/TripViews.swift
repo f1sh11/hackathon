@@ -36,7 +36,7 @@ struct ProposalView:View {
     }
     var body:some View {
         let _=interfaceLocale
-        if store.proposal?.mode == "demo" && !store.proposalIsSuggestion {ScheduleEditorView()} else { legacy }
+        if store.proposal?.mode == "demo" && !store.proposalIsSuggestion && store.proposal?.accommodationSuggestions==nil {ScheduleEditorView()} else { legacy }
     }
     @State private var expandedDays:Set<String>=[]
     private let reviewBlue=Color(red:0.20,green:0.36,blue:0.79)
@@ -71,12 +71,30 @@ struct ProposalView:View {
                         Text(uiText("Your days")).font(.headline)
                         ForEach(Array(plan.days.enumerated()),id:\.element.id){index,day in reviewDay(day,index:index)}
                         Text(uiText("Planned stops only. Unconfirmed costs, transport and stays are extra.")).font(.caption).foregroundStyle(.secondary)
+                        if let stays=plan.accommodationSuggestions,!stays.isEmpty {
+                            DisclosureGroup {
+                                VStack(alignment:.leading,spacing:16){
+                                    Text(uiText("Stay suggestions are not booked. Availability and rates need confirmation; your start and end points are unchanged.")).font(.caption).foregroundStyle(.secondary)
+                                    ForEach(stays){stay in
+                                        VStack(alignment:.leading,spacing:4){
+                                            Text(stay.displayName).font(.subheadline.weight(.semibold))
+                                            if let address=stay.address,!address.isEmpty{Text(address).font(.caption).foregroundStyle(.secondary)}
+                                            Text(uiText(stay.source ?? "")).font(.caption2).foregroundStyle(.secondary)
+                                        }.frame(maxWidth:.infinity,alignment:.leading)
+                                    }
+                                }.padding(.top,8)
+                            }label:{Label(uiText("Unbooked stay suggestions"),systemImage:"bed.double")}.padding(16).background(reviewBlue.opacity(0.025),in:RoundedRectangle(cornerRadius:16))
+                        }
                         DisclosureGroup{
                             WeatherCard(weather:plan.weather,profile:plan.profile)
                         }label:{Label(uiText("Weather for your dates"),systemImage:"cloud.sun").font(.subheadline.weight(.semibold))}.padding(16).background(reviewBlue.opacity(0.025),in:RoundedRectangle(cornerRadius:16)).accessibilityIdentifier("proposal-weather")
                         DisclosureGroup(uiText("Planning notes & checks")){
                             VStack(alignment:.leading,spacing:12){
                                 Text(uiText("Source notes are kept in their original language.")).font(.caption).foregroundStyle(.secondary)
+                                if let agent=plan.planningAgent {
+                                    Text(agent.explanation).font(.subheadline)
+                                    ForEach(Array(agent.outstandingChecks.enumerated()),id:\.offset){_,check in Text(check).font(.caption).foregroundStyle(.secondary)}
+                                }
                                 Text(uiText(unchanged ? "这次试算没有改变地点、时间或预计步数，也没有减少步行。可以先保留原行程，或返回日程缩短停留、移除可选活动，再重新核对路线。":plan.explanation)).font(.caption)
                                 ForEach(Array(plan.warnings.enumerated()),id:\.offset){_,warning in Text(uiText(warning)).font(.caption).foregroundStyle(.secondary)}
                                 DisclosureGroup(uiText("查看规划依据与验证记录")){ForEach(plan.trace){trace in VStack(alignment:.leading,spacing:5){Text(uiText(trace.title)).font(.subheadline.weight(.semibold));Text(uiText(trace.detail)).font(.caption);Text(trace.source).font(.caption2).foregroundStyle(.secondary)}.padding(.vertical,6)}}

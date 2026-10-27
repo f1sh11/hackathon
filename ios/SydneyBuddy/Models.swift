@@ -61,6 +61,8 @@ struct TripProfile: Codable {
     var request:String? = ""
     var weatherOverride: String? = nil
     var transportPreference:String? = nil
+    var indoorPreference:String? = nil
+    var weatherTolerance:String? = nil
     static func dateString(_ date: Date) -> String {
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; f.timeZone = TimeZone(identifier: "Australia/Sydney"); return f.string(from: date)
     }
@@ -138,7 +140,10 @@ struct Trace: Codable, Identifiable {
     var title: String; var detail: String; var source: String; var fetchedAt: String
     var id: String { title }
 }
+struct PlanningAgentEvidence:Codable {var provider:String;var status:String;var skillVersion:String?;var explanation:String;var outstandingChecks:[String]}
 struct Trip: Codable, Identifiable {
+    var planningAgent:PlanningAgentEvidence? = nil
+    var accommodationSuggestions:[ScheduleCandidate]? = nil
     var transportRoutes:[TransitObservation]? = nil
     var planningCandidates:[ScheduleCandidate]? = nil
     var recommendationStatus:String? = nil
@@ -154,7 +159,9 @@ struct Memory: Codable, Identifiable {
     struct Provenance:Codable {var createdAt:String}
     struct MemoryProfile: Codable { var interests: [String]; var maxSteps: Int; var habits:UserTravelProfile? = nil;var travelDna:TravelPreference? = nil }
 }
-struct Health: Codable { var managedTravelDataSource:String?; var navigationConfigured: Bool?; var paidServicesAllowed: Bool?; var status: String; var nvidiaConfigured: Bool; var googleConfigured: Bool; var iosMapConfigured: Bool; var model: String }
+struct Health: Codable { var managedTravelDataSource:String?; var navigationConfigured: Bool?; var paidServicesAllowed: Bool?; var status: String; var nvidiaConfigured: Bool; var googleConfigured: Bool; var iosMapConfigured: Bool; var model: String; var planningAgentProvider:String? = nil; var planningAgentConfigured:Bool? = nil
+    var itineraryAgentAvailable:Bool {planningAgentConfigured ?? nvidiaConfigured}
+}
 struct Expense: Codable, Identifiable {
     var id = UUID(); var title: String; var cents: Int; var participants: Int
     var tripID: String? = nil
@@ -453,7 +460,9 @@ struct TravelPlanningTask:Codable {
         }
         var profile=profile
         var payload=raw
-        if health?.nvidiaConfigured==true,(!replanExisting || trip==nil),let origin=profile.origin,!origin.isEmpty,!["环形码头","Circular Quay","中央车站","中央車站","悉尼机场","悉尼機場","未确定","暂不确定","未知","稍后补充","还没确定","还没想好","未提供","unknown","不确定","不知道"].contains(origin) {
+        payload["language"]=AppLanguage.current.rawValue
+        payload["useAgent"]=health?.itineraryAgentAvailable==true
+        if health?.itineraryAgentAvailable==true,(!replanExisting || trip==nil),let origin=profile.origin,!origin.isEmpty,!["环形码头","Circular Quay","中央车站","中央車站","悉尼机场","悉尼機場","未确定","暂不确定","未知","稍后补充","还没确定","还没想好","未提供","unknown","不确定","不知道"].contains(origin) {
             report("正在确认住宿或出发地点的位置…")
             let found=try await ApplePoiProvider.search(profile.start.location,"all",origin)
             guard let first=found.first,found.count==1 || first.name.localizedCaseInsensitiveContains(origin) || origin.localizedCaseInsensitiveContains(first.name) else {throw NSError(domain:"Plan",code:4,userInfo:[NSLocalizedDescriptionKey:"还不能唯一确认住宿或出发地点，请补充酒店全名或具体地址。原需求已保留。"])}
@@ -484,7 +493,7 @@ struct TravelPlanningTask:Codable {
             if let existing,existing.days.indices.contains(dayIndex) {
                 let day=existing.days[dayIndex]
                 let needsCandidates = profile.mustDo != existing.profile.mustDo || profile.avoid != existing.profile.avoid || (profile.request ?? "").range(of:"多一点美食|加.*餐|more food|add.*restaurant",options:.regularExpression) != nil
-                if needsCandidates,requestSource.warehouse || health?.nvidiaConfigured==true {
+                if needsCandidates,requestSource.warehouse || health?.itineraryAgentAvailable==true {
                     let additions=try await discoverPlanningCandidates(profile,source:requestSource)
                     let combined=(existing.planningCandidates ?? [])+additions.filter{p in !(existing.planningCandidates ?? []).contains{$0.id==p.id}}
                     payload["planningCandidates"]=try JSONSerialization.jsonObject(with:JSONEncoder().encode(Array(combined.prefix(60))))
@@ -495,12 +504,12 @@ struct TravelPlanningTask:Codable {
                 observations=try await AppleWalkingRoads.shared.matrix(points){done,total in report("正在核对步行路段 \(done)/\(total)…",.roads,done,total)}
             }else {
                 struct Shortlist:Decodable {var candidateDays:[[String]];var candidates:[ScheduleCandidate]?}
-                if requestSource.warehouse || health?.nvidiaConfigured==true {
+                if requestSource.warehouse || health?.itineraryAgentAvailable==true {
                     report(requestSource.warehouse ? "正在从所选 Zetaris 来源查找地点…":"正在搜索符合你兴趣的真实地点…",.places)
                     let discovered=try await discoverPlanningCandidates(profile,source:requestSource)
                     guard !discovered.isEmpty else{throw NSError(domain:"Plan",code:3,userInfo:[NSLocalizedDescriptionKey:"暂时没有搜到可用地点，请缩小范围或补充想去的地方。未生成示例替代行程。"])}
                     payload["planningCandidates"]=try JSONSerialization.jsonObject(with:JSONEncoder().encode(discovered))
-                    payload["useAgent"]=health?.nvidiaConfigured==true
+                    payload["useAgent"]=health?.itineraryAgentAvailable==true
                 }
                 report("正在挑选活动与合适的用餐地点…",.places)
                 let shortlist:Shortlist=try await api("plan/prepare",method:"POST",body:JSONSerialization.data(withJSONObject:payload),source:requestSource)

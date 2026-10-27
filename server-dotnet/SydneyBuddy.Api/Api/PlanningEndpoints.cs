@@ -7,7 +7,7 @@ public static class PlanningEndpoints
 {
     public static void MapPlanningEndpoints(this RouteGroupBuilder routes)
     {
-        routes.MapGet("/health", (SecretStore secrets, PaidServicePolicy paidServices, NavigationService navigation, JourneyService journeys, TravelDataContext travel) =>
+        routes.MapGet("/health", (SecretStore secrets, PaidServicePolicy paidServices, NavigationService navigation, JourneyService journeys, TravelDataContext travel,PlanningAgent agent) =>
         {
             var config = secrets.Read();
             return Results.Json(new
@@ -15,12 +15,19 @@ public static class PlanningEndpoints
                 managedTravelDataSource = travel.ManagedMode,
                 navigationConfigured = navigation.Configured, transitConfigured = journeys.TransitConfigured || config["TFNSW_API_KEY"].Length > 0, status = "ok", database = "postgresql", paidServicesAllowed = paidServices.Allowed,
                 nvidiaConfigured = config["NVIDIA_API_KEY"].Length > 0,
+                planningAgentProvider = agent.Provider, planningAgentConfigured = agent.Configured,
                 nswTransitConfigured = config["TFNSW_API_KEY"].Length > 0,
                 googleConfigured = config["GOOGLE_SERVER_KEY"].Length > 0,
                 iosMapConfigured = config["GOOGLE_IOS_KEY"].Length > 0,
                 model = config["NVIDIA_MODEL"].Length > 0 ? config["NVIDIA_MODEL"] : SecretStore.DefaultModel
             });
         });
+        routes.MapGet("/planning/agent/status",async (PlanningAgentSettings settings,MeterlessRuntime runtime,HttpContext context)=>{
+            context.Response.Headers.CacheControl="no-store";
+            return Results.Json(new JsonObject{["provider"]=settings.Provider,["skillVersion"]=ItinerarySkill.Version,
+                ["runtime"]=settings.Provider=="meterless"?await runtime.StatusAsync(context.RequestAborted):new JsonObject{["status"]="not_selected"}});
+        });
+        routes.MapPost("/planning/inventory",async(HttpContext context,PlanningInventory inventory)=>Results.Json(inventory.Read(await RequestJson.ReadAsync(context),context.RequestAborted)));
         routes.MapPost("/navigation/route", async (HttpContext context, NavigationService navigation) =>
             Results.Json(await navigation.RouteAsync(await RequestJson.ReadAsync(context), context.RequestAborted)));
         routes.MapPost("/journey/plan", async (HttpContext context, JourneyService journeys) =>

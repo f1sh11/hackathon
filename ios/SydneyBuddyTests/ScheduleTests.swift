@@ -4,6 +4,23 @@ import MapKit
 @testable import SydneyBuddy
 
 @MainActor final class ScheduleTests:XCTestCase {
+    func testMeterlessCapabilityDoesNotRequireNvidiaOrLeakConfiguration() throws {
+        let raw=Data(#"{"status":"ok","nvidiaConfigured":false,"googleConfigured":false,"iosMapConfigured":false,"model":"legacy","planningAgentProvider":"meterless","planningAgentConfigured":true}"#.utf8)
+        let health=try JSONDecoder().decode(Health.self,from:raw)
+        XCTAssertTrue(health.itineraryAgentAvailable);XCTAssertFalse(health.nvidiaConfigured)
+        let legacy=try JSONDecoder().decode(Health.self,from:Data(#"{"status":"ok","nvidiaConfigured":true,"googleConfigured":false,"iosMapConfigured":false,"model":"legacy"}"#.utf8))
+        XCTAssertTrue(legacy.itineraryAgentAvailable)
+    }
+    func testUnbookedStaysAndAgentChecksSurviveDraftRoundTripWithoutChangingOrigin() throws {
+        var trip=try fixture();let original=trip.profile.start
+        trip.profile.indoorPreference="preferIndoor";trip.profile.weatherTolerance="avoidRain"
+        trip.planningAgent=PlanningAgentEvidence(provider:"meterless",status:"draft_pending_verification",skillVersion:"2026-10-27.1",explanation:"Weather-aware draft",outstandingChecks:["Availability unverified"])
+        trip.accommodationSuggestions=[ScheduleCandidate(id:"osm:node:300",name:"Hotel",category:"住宿",indoor:true,visitMinutes:60,cost:0,lat:-33.86,lng:151.21,reason:"Unbooked")]
+        let result=try JSONDecoder().decode(Trip.self,from:JSONEncoder().encode(trip))
+        XCTAssertEqual(result.planningAgent?.provider,"meterless");XCTAssertEqual(result.planningAgent?.outstandingChecks,["Availability unverified"])
+        XCTAssertEqual(result.accommodationSuggestions?.first?.id,"osm:node:300");XCTAssertEqual(result.profile.start.lat,original.lat);XCTAssertEqual(result.profile.start.lng,original.lng)
+        XCTAssertEqual(result.profile.weatherTolerance,"avoidRain");XCTAssertFalse(result.days.flatMap(\.stops).contains{$0.id=="osm:node:300"})
+    }
     func testSydneyDestinationUsesInterfaceLanguageWithoutRewritingOtherCities() {
         for alias in ["悉尼","雪梨","Sydney","SYDNEY"] {
             XCTAssertEqual(GuidedTripDetails.destinationDisplay(alias,language:.english),"Sydney")

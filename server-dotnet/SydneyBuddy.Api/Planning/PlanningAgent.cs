@@ -3,9 +3,74 @@ using System.Text;
 using System.Text.Json.Nodes;
 namespace SydneyBuddy.Api;
 
-/// Same NVIDIA-only boundary as Koko chat; model may rank supplied identities, never invent place facts.
-public sealed class PlanningAgent(HttpClient client,SecretStore secrets)
+/// One planning agent, with an explicit provider. Code retains authority over place facts and feasibility.
+public sealed class PlanningAgent(HttpClient client,SecretStore secrets,PlanningAgentSettings? settings=null,MeterlessRuntime? runtime=null,IMemoryService? memory=null)
 {
+    public string Provider => settings?.Provider ?? "nvidia";
+    public bool Configured => Provider == "meterless" ? settings?.Configured == true : Provider == "nvidia" && secrets.Read()["NVIDIA_API_KEY"].Length > 0;
+
+    public async Task<JsonObject> ProposeAsync(JsonObject profile,IReadOnlyList<JsonObject> candidates,JsonObject weather,IReadOnlyList<JsonObject> accommodations,CancellationToken ct)
+    {
+        if(Provider=="nvidia")return await RankAsync(profile,candidates,ct);
+        if(Provider!="meterless"||runtime is null)throw new ServiceException("行程 Agent 供應商設定無效。");
+        var activities=candidates.Select((p,i)=>(Alias:"p"+i,Place:p)).ToDictionary(x=>x.Alias,x=>x.Place);
+        var stays=accommodations.Select((p,i)=>(Alias:"s"+i,Place:p)).ToDictionary(x=>x.Alias,x=>x.Place);
+        var trip=new JsonObject();
+        foreach(var field in new[]{"date","days","budget","maxSteps","startMinute","endMinute","start","end","interests","request","mustDo","avoid","origin","energy","rhythm","transportPreference","weatherOverride","language","indoorPreference","weatherTolerance","companionNeeds","specialLimits","bookings","tickets","flights"})
+            if(profile[field] is not null)trip[field]=profile[field]!.DeepClone();
+        trip["language"]=profile.Str("language","zh-Hant");
+        trip["mustVisit"]=new JsonArray(activities.Where(x=>profile.Array("mustVisit")?.Any(id=>id?.ToString()==x.Value.Str("id"))==true).Select(x=>(JsonNode)JsonValue.Create(x.Key)!).ToArray());
+        JsonObject Evidence(string id,JsonObject p) {
+            var item=new JsonObject{["id"]=id};
+            foreach(var field in new[]{"name","nameEn","description","descriptionEn","category","poiKind","lat","lng","indoor","indoorKnown","visitMinutes","cost","costKnown","openMinute","closeMinute","hoursVerified","openingHoursText","note","source","sourceUrl","retrievedAt","nightlyRateAud","priceLabel"})
+                if(p[field] is not null)item[field]=p[field]!.DeepClone();
+            item["setting"]=p["indoorKnown"] is not null&&!p.Bool("indoorKnown")?"unknown":p["indoor"] is null?"unknown":p.Bool("indoor")?"indoor":"outdoor";
+            if(stays.ContainsKey(id)){item["availabilityVerified"]=false;item["rateVerified"]=false;}
+            return item;
+        }
+        var evidence=new JsonObject{["trip"]=trip,["weather"]=weather.DeepClone(),
+            ["candidates"]=new JsonArray(activities.Select(x=>(JsonNode)Evidence(x.Key,x.Value)).ToArray()),
+            ["accommodations"]=new JsonArray(stays.Select(x=>(JsonNode)Evidence(x.Key,x.Value)).ToArray()),
+            ["limitations"]=new JsonArray("Daily forecasts cannot establish hourly dry windows.","The current public forecast is Sydney-scoped and does not verify weather across all NSW regions.","Official weather warnings are not connected unless explicitly supplied.","Accommodation availability and nightly rates are not verified.","Travel time and hard constraints require downstream validation.")};
+        if(memory is not null){
+            var recalled=await memory.RunAsync("query",new JsonObject{["query"]="travel preferences "+string.Join(" ",profile.Array("interests")??new JsonArray())},ct);
+            evidence["confirmedMemoryContext"]=recalled["context"]?.DeepClone();
+        }
+        var response=await runtime.CompleteAsync(ItinerarySkill.Read(profile.Str("language","zh-Hant")),evidence,ct);
+        try {
+            var content=response.Array("choices")?.FirstOrDefault()?.Object("message")?.Str("content")??"";
+            var output=RecommendationService.ParseModelJson(content);
+            if(output.Any(x=>x.Key is not ("preferredIds" or "dayPlans" or "accommodationIds" or "explanation" or "outstandingChecks")))throw new FormatException();
+            JsonArray Ids(JsonNode? value,Dictionary<string,JsonObject> known,int limit) {
+                if(value is not JsonArray ids||ids.Count>limit)throw new FormatException();
+                var seen=new HashSet<string>();var result=new JsonArray();
+                foreach(var n in ids){if(n is not JsonValue v||!v.TryGetValue<string>(out var id)||!known.ContainsKey(id)||!seen.Add(id))throw new FormatException();result.Add(known[id].Str("id"));}
+                return result;
+            }
+            var preferred=Ids(output["preferredIds"],activities,60);
+            if(!profile.Array("mustVisit")!.All(x=>preferred.Any(y=>y?.ToString()==x?.ToString())))throw new FormatException();
+            var selectedStays=Ids(output["accommodationIds"]??new JsonArray(),stays,5);
+            var dayPlans=new JsonArray();var dates=new HashSet<string>();var placed=new HashSet<string>();
+            var first=DateOnly.ParseExact(profile.Str("date"),"yyyy-MM-dd");
+            var allowedDates=Enumerable.Range(0,profile.Int("days")).Select(i=>first.AddDays(i).ToString("yyyy-MM-dd")).ToHashSet();
+            if(output["dayPlans"] is not null&&output["dayPlans"] is not JsonArray)throw new FormatException();
+            foreach(var day in output.Array("dayPlans")??new JsonArray()) {
+                if(day is not JsonObject obj||obj.Any(x=>x.Key is not ("date" or "preferredIds"))||!allowedDates.Contains(obj.Str("date"))||!dates.Add(obj.Str("date")))throw new FormatException();
+                var ids=Ids(obj["preferredIds"],activities,60);
+                if(ids.Any(x=>!placed.Add(x!.ToString())))throw new FormatException();
+                dayPlans.Add(new JsonObject{["date"]=obj.Str("date"),["preferredIds"]=ids});
+            }
+            var checks=new JsonArray();
+            if(output["outstandingChecks"] is not null&&output["outstandingChecks"] is not JsonArray)throw new FormatException();
+            if(output.Array("outstandingChecks")?.Count>12)throw new FormatException();
+            foreach(var check in output.Array("outstandingChecks")??new JsonArray()){
+                if(check is not JsonValue v||!v.TryGetValue<string>(out var text))throw new FormatException();checks.Add(PlanValidator.Truncate(text,240));
+            }
+            if(output["explanation"] is not JsonValue explanation||!explanation.TryGetValue<string>(out var reason))throw new FormatException();
+            return new(){["preferredIds"]=preferred,["dayPlans"]=dayPlans,["accommodationIds"]=selectedStays,["outstandingChecks"]=checks,["explanation"]=PlanValidator.Truncate(reason,600),["provider"]="meterless",["skillVersion"]=ItinerarySkill.Version};
+        }catch(Exception e)when(e is FormatException or InvalidOperationException or System.Text.Json.JsonException or ServiceException){throw new ServiceException("Meterless 回傳未知、重複或格式無效的行程候選，已拒絕；原行程保持不變。");}
+    }
+
     public async Task<JsonObject> RankAsync(JsonObject profile,IReadOnlyList<JsonObject> candidates,CancellationToken ct)
     {
         var config=secrets.Read();if(string.IsNullOrWhiteSpace(config["NVIDIA_API_KEY"]))throw new ServiceException("旅行 Agent 尚未配置 NVIDIA 服务。需求已保留。");

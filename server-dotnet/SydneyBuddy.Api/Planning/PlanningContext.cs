@@ -15,6 +15,8 @@ public sealed class PlanningContext(string mode, IReadOnlyDictionary<string, str
     public int TransitQueries {get;set;}
     public Dictionary<string,JsonObject> TransitCache {get;}=[];
     public IReadOnlyList<HashSet<string>>? DayCandidateIds {get;set;}
+    public Dictionary<string,IReadOnlyDictionary<string,int>> AgentDayRanks {get;}=[];
+    public bool MeterlessPlanning {get;set;}
     public IReadOnlyDictionary<string, string> Config { get; } = new Dictionary<string, string>(config);
     public string Now { get; } = DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture);
     public JsonArray Trace { get; } = [];

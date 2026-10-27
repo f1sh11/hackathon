@@ -157,7 +157,7 @@ public sealed class ZetarisTravelWarehouse(HttpClient http,IConfiguration config
     }
 }
 public sealed class TravelDataMiddleware(RequestDelegate next) {
-    static readonly string[] Paths=["/poi/search","/poi/media","/catalog","/schedule/editor","/plan","/data/status","/data/map-layers","/pet"];
+    static readonly string[] Paths=["/poi/search","/poi/media","/catalog","/schedule/editor","/plan","/planning/inventory","/data/status","/data/map-layers","/pet"];
     public async Task InvokeAsync(HttpContext context,TravelDataContext selection,ITravelWarehouse warehouse){
         var mode=selection.Mode;
         if(selection.Warehouse&&((context.Request.Path=="/restaurants/import")||(context.Request.Path.StartsWithSegments("/social")&&context.Request.Path.Value!.EndsWith("/publish",StringComparison.Ordinal))||Paths.Any(path=>context.Request.Path.StartsWithSegments(path)) || (HttpMethods.IsPost(context.Request.Method)&&context.Request.Path=="/trips"))){

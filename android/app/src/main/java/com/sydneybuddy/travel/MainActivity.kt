@@ -177,7 +177,7 @@ fun modeLabel(mode:String) = when(mode) {"live"->"在线规划 · 以各项来�
 
 @Composable fun ProposalScreen(store:BuddyStore) {
     val pending=store.proposal ?: return
-    if(pending.trip.optString("mode")=="demo") {ScheduleEditorScreen(store);return}
+    if(pending.trip.optString("mode")=="demo" && !pending.trip.has("accommodationSuggestions")) {ScheduleEditorScreen(store);return}
     Page {
         Heading(if(pending.targetId==null) "你的路线准备好了" else "看看这次怎么调整")
         Small("确认之后，才会保存到你的行程。")
@@ -189,6 +189,14 @@ fun modeLabel(mode:String) = when(mode) {"live"->"在线规划 · 以各项来�
                 Text("预计步数：${store.trip!!.array("days").objects().sumOf{it.optInt("estimatedSteps")}} → ${pending.trip.array("days").objects().sumOf{it.optInt("estimatedSteps")}}") }
         }
         WeatherPanel(pending.trip.optJSONObject("weather"),false,{})
+        if(pending.trip.array("accommodationSuggestions").length()>0) Panel {
+            Text(ui("Unbooked stay suggestions"),fontWeight=FontWeight.Bold)
+            Small(ui("Stay suggestions are not booked. Availability and rates need confirmation; your start and end points are unchanged."))
+            pending.trip.array("accommodationSuggestions").objects().forEach {stay ->
+                Text(ui(if(store.language==AppLanguage.ENGLISH)stay.optString("nameEn").ifBlank{stay.optString("name")} else stay.optString("name")),fontWeight=FontWeight.SemiBold)
+                Small(stay.optString("address"));Small(stay.optString("source"))
+            }
+        }
         pending.trip.array("days").objects().forEach {DaySummary(it)}
         Evidence(pending.trip)
         Action("确认并保存",!store.busy,store::accept)

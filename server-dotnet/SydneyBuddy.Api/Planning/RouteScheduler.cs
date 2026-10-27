@@ -22,17 +22,19 @@ public sealed class RouteScheduler(RouteService routes)
             ct.ThrowIfCancellationRequested();
             var daily = (JsonObject)profile.DeepClone();
             daily["date"] = firstDate.AddDays(day).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            var dailyRanks=context.AgentDayRanks.GetValueOrDefault(daily.Str("date"))??ranks;
             // 每一天使用自己的天气；某一天有雨不能把其他晴天的户外景点一并过滤。
             // Apply rain filtering per date, rather than excluding outdoor places for the entire trip.
             var forecast = weather.Array("days")?.OfType<JsonObject>().FirstOrDefault(x => x.Str("date") == daily.Str("date"));
             var rainy = forecast?.Bool("rainy") ?? weather.Bool("rainy");
             var available = places.Where(x => !used.Contains(x.Str("id")) &&
                 (context.DayCandidateIds is null || context.DayCandidateIds[day].Contains(x.Str("id"))) &&
-                (profile.Str("weatherOverride")!="rain" || x.Bool("indoor") || mustVisit.Contains(x.Str("id")))).ToArray();
+                (!context.MeterlessPlanning || !rainy || profile.Str("weatherTolerance")!="avoidRain" || x.Bool("indoor")&&(x["indoorKnown"] is null||x.Bool("indoorKnown"))) &&
+                (context.MeterlessPlanning || profile.Str("weatherOverride")!="rain" || x.Bool("indoor") || mustVisit.Contains(x.Str("id")))).ToArray();
             // Forecast rain changes preference and outdoor duration, not the entire purpose of a trip.
-            var pool=RecommendationQuality.DailyPool(available,daily,mustVisit,ranks).Select(x=> {
+            var pool=RecommendationQuality.DailyPool(available,daily,mustVisit,dailyRanks).Select(x=> {
                 var p=(JsonObject)x.DeepClone();
-                if(rainy&&!p.Bool("indoor")&&(p["indoorKnown"] is null||p.Bool("indoorKnown"))&&!mustVisit.Contains(p.Str("id"))) {
+                if(!context.MeterlessPlanning&&rainy&&!p.Bool("indoor")&&(p["indoorKnown"] is null||p.Bool("indoorKnown"))&&!mustVisit.Contains(p.Str("id"))) {
                     p["visitMinutes"]=Math.Min(p.Int("visitMinutes"),30);
                     p["note"]=p.Str("note")+"；预报有雨，缩短户外停留，出发前确认天气。";
                 }
@@ -63,8 +65,10 @@ public sealed class RouteScheduler(RouteService routes)
                     var estimate = await ScheduleAsync(order, daily, context, exact: false, ct);
                     if (estimate is null) continue;
                     var score = order.Sum(point => 10d + RecommendationQuality.InterestScore(point,interests)
-                        + (ranks.Count - ranks.GetValueOrDefault(point.Str("id"), ranks.Count)) * 0.8
-                        - (rainy && !point.Bool("indoor") ? 18 : 0));
+                        + (dailyRanks.Count - dailyRanks.GetValueOrDefault(point.Str("id"), dailyRanks.Count)) * 0.8
+                        - (rainy && !point.Bool("indoor") && (!context.MeterlessPlanning || profile.Str("weatherTolerance")!="acceptRain") ? 18 : 0)
+                        + (context.MeterlessPlanning && (point["indoorKnown"] is null||point.Bool("indoorKnown")) &&
+                            (profile.Str("indoorPreference")=="preferIndoor"&&point.Bool("indoor")||profile.Str("indoorPreference")=="preferOutdoor"&&!point.Bool("indoor")) ? 12 : 0));
                     // One real meal plus visits beats either skipping lunch or filling a day with restaurants.
                     if(mealCount>0)score+=35;
                     if(order.Any(p=>!RecommendationQuality.IsMeal(p)))score+=15;

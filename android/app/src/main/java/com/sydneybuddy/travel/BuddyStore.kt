@@ -147,6 +147,8 @@ class BuddyStore(app: Application) : AndroidViewModel(app) {
         val revision = if (onboarding) 0 else trip?.optInt("revision", 0) ?: 0
         operation {
             source.put("request", message).put("mode", if (!online) "demo" else if (health?.optBoolean("googleConfigured") == true) "live" else "assisted")
+            source.put("useAgent", online && (health?.optBoolean("planningAgentConfigured",health?.optBoolean("nvidiaConfigured") == true) == true))
+            source.put("language",language.code)
             if (rain) source.put("weatherOverride", "rain") else source.remove("weatherOverride")
             val result = JSONObject(request("plan", "POST", source))
             proposal = Proposal(result, target, revision)

@@ -20,6 +20,8 @@ public static class PlanValidator
         try
         {
             var profile = (JsonObject)raw.DeepClone();
+            if(profile["indoorPreference"] is not null&&profile.Str("indoorPreference") is not ("balanced" or "preferIndoor" or "preferOutdoor"))throw new FormatException();
+            if(profile["weatherTolerance"] is not null&&profile.Str("weatherTolerance") is not ("standard" or "acceptRain" or "avoidRain"))throw new FormatException();
             if (!DateOnly.TryParseExact(profile.Str("date"), "yyyy-MM-dd", CultureInfo.InvariantCulture,
                     DateTimeStyles.None, out var date))
                 throw new FormatException();

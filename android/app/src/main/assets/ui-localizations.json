@@ -5182,5 +5182,11 @@
   "由地圖搜尋加入工具箱": {"en": "Added to your toolbox from map search", "zh-Hans": "由地图搜寻加入工具箱", "zh-Hant": "由地圖搜尋加入工具箱"},
   "費用、營業狀態與排隊未知；尚未預留費用，請自行確認。": {"en": "Costs, opening status and queues are unknown. No budget has been reserved; please check before visiting.", "zh-Hans": "费用、营业状态与排队未知；尚未预留费用，请自行确认。", "zh-Hant": "費用、營業狀態與排隊未知；尚未預留費用，請自行確認。"},
   "參考收費：{0} · 非即時報價": {"en": "Reference charge: {0} · Not a live quote", "zh-Hans": "参考收费：{0} · 非实时报价", "zh-Hant": "參考收費：{0} · 非即時報價"},
-  "參考收費：{0}": {"en": "Reference charge: {0}", "zh-Hans": "参考收费：{0}", "zh-Hant": "參考收費：{0}"}
+  "參考收費：{0}": {"en": "Reference charge: {0}", "zh-Hans": "参考收费：{0}", "zh-Hant": "參考收費：{0}"},
+  "Unbooked stay suggestions": {"en": "Unbooked stay suggestions", "zh-Hant": "住宿參考清單（未預訂）", "zh-Hans": "住宿参考清单（未预订）"},
+  "Stay suggestions are not booked. Availability and rates need confirmation; your start and end points are unchanged.": {"en": "Stay suggestions are not booked. Availability and rates need confirmation; your start and end points are unchanged.", "zh-Hant": "住宿僅供參考，尚未預訂。空房與價格需確認，行程起訖點保持不變。", "zh-Hans": "住宿仅供参考，尚未预订。空房与价格需确认，行程起终点保持不变。"},
+  "住宿僅為未預訂候選，未確認空房或實際房價；未變更行程起訖點，亦未計入活動預算。天氣警報、無障礙、營業與預約仍須確認。": {"en": "Stays are unbooked suggestions. Availability and actual rates are unverified; trip endpoints are unchanged and stays are excluded from the activity budget. Weather alerts, accessibility, hours and reservations still need checking.", "zh-Hant": "住宿僅為未預訂候選，未確認空房或實際房價；未變更行程起訖點，亦未計入活動預算。天氣警報、無障礙、營業與預約仍須確認。", "zh-Hans": "住宿仅为未预订候选，未确认空房或实际房价；未更改行程起终点，也未计入活动预算。天气预警、无障碍、营业与预约仍须确认。"},
+  "Meterless 已提供候選建議，步行依 Apple 道路資料核對；住宿、費用、營業與天氣警報仍有待確認項目。": {"en": "Meterless proposed candidates, with walking checked against Apple road data. Stays, costs, hours and weather alerts still require confirmation.", "zh-Hans": "Meterless 已提供候选建议，步行按 Apple 道路资料核对；住宿、费用、营业与天气预警仍有待确认项目。", "zh-Hant": "Meterless 已提供候選建議，步行依 Apple 道路資料核對；住宿、費用、營業與天氣警報仍有待確認項目。"},
+  "Meterless 已提供候選建議；交通仍依本次路線模式的資料驗證或估算，不代表所有限制均已確認。": {"en": "Meterless proposed candidates. Travel is checked or estimated using the selected route mode; not all constraints are verified.", "zh-Hans": "Meterless 已提供候选建议；交通仍按本次路线模式的数据验证或估算，不代表所有限制均已确认。", "zh-Hant": "Meterless 已提供候選建議；交通仍依本次路線模式的資料驗證或估算，不代表所有限制均已確認。"},
+  "预报有雨，结合兴趣、室内外偏好及天气接受程度比较安排；出发前确认天气。": {"en": "Rain is forecast. Compare activities using interests, indoor/outdoor preferences and weather tolerance; recheck before travel.", "zh-Hans": "预报有雨，结合兴趣、室内外偏好及天气接受程度比较安排；出发前确认天气。", "zh-Hant": "預報有雨，結合興趣、室內外偏好及天氣接受程度比較安排；出發前確認天氣。"}
 }

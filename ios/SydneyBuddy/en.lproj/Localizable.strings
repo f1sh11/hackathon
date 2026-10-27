@@ -3979,3 +3979,9 @@
 "費用、營業狀態與排隊未知；尚未預留費用，請自行確認。" = "Costs, opening status and queues are unknown. No budget has been reserved; please check before visiting.";
 "參考收費：{0} · 非即時報價" = "Reference charge: {0} · Not a live quote";
 "參考收費：{0}" = "Reference charge: {0}";
+"Unbooked stay suggestions" = "Unbooked stay suggestions";
+"Stay suggestions are not booked. Availability and rates need confirmation; your start and end points are unchanged." = "Stay suggestions are not booked. Availability and rates need confirmation; your start and end points are unchanged.";
+"住宿僅為未預訂候選，未確認空房或實際房價；未變更行程起訖點，亦未計入活動預算。天氣警報、無障礙、營業與預約仍須確認。" = "Stays are unbooked suggestions. Availability and actual rates are unverified; trip endpoints are unchanged and stays are excluded from the activity budget. Weather alerts, accessibility, hours and reservations still need checking.";
+"Meterless 已提供候選建議，步行依 Apple 道路資料核對；住宿、費用、營業與天氣警報仍有待確認項目。" = "Meterless proposed candidates, with walking checked against Apple road data. Stays, costs, hours and weather alerts still require confirmation.";
+"Meterless 已提供候選建議；交通仍依本次路線模式的資料驗證或估算，不代表所有限制均已確認。" = "Meterless proposed candidates. Travel is checked or estimated using the selected route mode; not all constraints are verified.";
+"预报有雨，结合兴趣、室内外偏好及天气接受程度比较安排；出发前确认天气。" = "Rain is forecast. Compare activities using interests, indoor/outdoor preferences and weather tolerance; recheck before travel.";
