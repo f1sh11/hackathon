@@ -91,6 +91,7 @@ class HeadlessDemoTests(unittest.TestCase):
 
     def test_live_handoff_revises_with_original_hard_requirements(self):
         case = self.case()
+        original = copy.deepcopy(case)
         reviews = [
             {"decision": "revise", "issues": [{"code": "daily_budget_exceeded", "actual": 25, "limit": 20}],
              "handoff": {"targetAgent": "itinerary_planner"}, "nextAgent": "itinerary_planner"},
@@ -107,7 +108,12 @@ class HeadlessDemoTests(unittest.TestCase):
         requests = [body for path, body in client.calls if path == "/agents/feasibility/reviews"]
         self.assertEqual([1, 2], [x["planRevision"] for x in requests])
         self.assertEqual(requests[0]["planId"], requests[1]["planId"])
-        self.assertEqual(case["profile"], requests[1]["requirements"])
+        expected_requirements = copy.deepcopy(case["profile"])
+        expected_requirements["interests"] = ["\u98ce\u666f", "\u827a\u672f"]
+        self.assertEqual(expected_requirements, requests[1]["requirements"])
+        self.assertEqual(expected_requirements["interests"], plans[1]["interests"])
+        self.assertEqual("en", plans[1]["language"])
+        self.assertEqual(original, case)
         self.assertFalse(any(path == "/trips" or path.endswith("/confirm") for path, _ in client.calls))
 
     def test_live_missing_evidence_stops_without_blind_retry(self):

@@ -14,6 +14,11 @@ import uuid
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+# The API still uses legacy category values. Keep examples and offline output in English.
+API_INTERESTS = {
+    "scenery": "\u98ce\u666f", "art": "\u827a\u672f", "food": "\u7f8e\u98df",
+    "nature": "\u81ea\u7136", "culture": "\u6587\u5316", "city": "\u57ce\u5e02",
+}
 SAMPLE_NOTICE = (
     "OFFLINE REHEARSAL: deterministic Python policies and synthetic travel data. "
     "No production C# planner, model, Zetaris, Meterless or real route service was called. "
@@ -251,7 +256,9 @@ def run_live(case, log, max_repairs, client, data_mode, walking_evidence=None):
               planning_configured=health.get("planningAgentConfigured"), data_mode=data_mode)
     if not health.get("planningAgentConfigured"):
         raise DemoError("Configure the backend's selected planning model before running live mode.")
-    profile = copy.deepcopy(case["profile"])
+    requirements = copy.deepcopy(case["profile"])
+    requirements["interests"] = [API_INTERESTS.get(value, value) for value in requirements.get("interests", [])]
+    profile = copy.deepcopy(requirements)
     plan_id = "headless-" + log.id
     for attempt in range(max_repairs + 1):
         request = copy.deepcopy(profile)
@@ -273,7 +280,7 @@ def run_live(case, log, max_repairs, client, data_mode, walking_evidence=None):
         log.save("draft-%d.json" % (attempt + 1), draft)
         review = client.call("/agents/feasibility/reviews", dict(
             planId=plan_id, planRevision=attempt + 1, requirementsRevision=1,
-            trip=draft, requirements=case["profile"]))
+            trip=draft, requirements=requirements))
         if not isinstance(review, dict) or review.get("decision") not in ("pass", "revise", "needs_info", "unavailable"):
             raise DemoError("Review API returned an invalid decision.")
         log.save("review-%d.json" % (attempt + 1), review)
@@ -291,7 +298,7 @@ def run_live(case, log, max_repairs, client, data_mode, walking_evidence=None):
             if review.get("handoff", {}).get("targetAgent") != "itinerary_planner":
                 return dict(status="needs_info", draft=draft, review=review, revisions=attempt,
                             reason="The handoff requires user clarification, not an automatic planning retry.")
-            profile = repair_request(case["profile"], review)
+            profile = repair_request(requirements, review)
     return dict(status="blocked", draft=draft, review=review, revisions=max_repairs,
                 reason="Repair limit reached. No trip was saved and no hard requirement was relaxed.")
 
