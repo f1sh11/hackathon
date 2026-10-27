@@ -193,7 +193,6 @@ struct BudgetAmountInput:UIViewRepresentable {
         field.inputAssistantItem.leadingBarButtonGroups=[]
         field.inputAssistantItem.trailingBarButtonGroups=[]
         if #available(iOS 18.0,*){field.writingToolsBehavior = .none}
-        if #available(iOS 26.0,*){field.allowsNumberPadPopover=false}
         field.delegate=context.coordinator
         field.accessibilityIdentifier="details-budget"
         field.addTarget(context.coordinator,action:#selector(Coordinator.changed(_:)),for:.editingChanged)

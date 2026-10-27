@@ -48,6 +48,10 @@ struct SettingsView:View {
     @State private var socialImport=false
     @State private var restaurantImport=false
     @State private var showingLedger=false
+    private var personalProfileSummary:String {
+        ([store.personalProfile.summary]+store.memories.filter{$0.profile.travelDna != nil}.map(\.summary))
+            .filter{!$0.isEmpty}.joined(separator:"\n")
+    }
     var body:some View {
         let _=interfaceLocale
         NavigationStack {
@@ -56,7 +60,7 @@ struct SettingsView:View {
                 Section {Button(uiText("匯入社群靈感"),systemImage:"square.and.arrow.down"){socialImport=true}.accessibilityIdentifier("social-import-open").sheet(isPresented:$socialImport){SocialImportView()}}
                 Section {Button(uiText("匯入菜單與餐廳資料")){restaurantImport=true}.sheet(isPresented:$restaurantImport){RestaurantImportView()}}
                 Section(uiText("我的旅行偏好")) {
-                    Text(uiText(store.personalProfile.summary.isEmpty ? "还没认识你的旅行习惯，来告诉 Buddy 吧。":store.personalProfile.summary)).font(.subheadline)
+                    Text(uiText(personalProfileSummary.isEmpty ? "还没认识你的旅行习惯，来告诉 Buddy 吧。":personalProfileSummary)).font(.subheadline)
                     Button { editingPersonalPreferences=true } label:{Label(uiText("修改旅行习惯"),systemImage:"slider.horizontal.3")}
                     Text(uiText("新旅行会参考这些习惯；这次旅行的要求始终优先。修改不会改变已有行程或当前草稿。")).font(.caption).foregroundStyle(Palette.muted)
                     DisclosureGroup(uiText("聊天中另外记住的偏好（\(store.memories.count)）")) {

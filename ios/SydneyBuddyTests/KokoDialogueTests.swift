@@ -84,6 +84,30 @@ final class KokoDialogueTests:XCTestCase {
         XCTAssertTrue((body["fields"] as! [String:String]).isEmpty)
         XCTAssertNil(body["consent"]);XCTAssertNil(body["travelDna"])
     }
+    @MainActor func testPersonalAgentStartsWithThreeChoicesAndResumesWithoutASecondOpening() async throws {
+        let defaults=UserDefaults.standard;let key="petSession.personalProfileAgent";let prior=defaults.object(forKey:key)
+        defer{if let prior{defaults.set(prior,forKey:key)}else{defaults.removeObject(forKey:key)}};defaults.removeObject(forKey:key)
+        var value=session();value.fields=[:];value.planningFields=[:];value.nextField="";value.purpose="personal_profile"
+        value.dialogue=ProfilingDialogueState(version:3,responseCount:0,phase:"personal_profile",nickname:"",ideas:[],inspiration:nil)
+        value.messages=[PetMessage(id:"personal-opening",role:"assistant",text:"What do you usually enjoy?",quickReplies:[
+            PetQuickReply(id:"personal-1",text:"Quiet places",intent:"respond"),
+            PetQuickReply(id:"personal-2",text:"Something active",intent:"respond"),
+            PetQuickReply(id:"personal-3",text:"It depends",intent:"respond")])]
+        let chat=PetChatStore();var created:[[String:Any]]=[]
+        chat.loader={request in
+            if request.httpMethod=="POST"{created.append(try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:Any])}
+            let data=request.url!.path.hasSuffix("/memories") ? Data("[]".utf8):try JSONEncoder().encode(value)
+            return(data,HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)
+        }
+        await chat.load(scope:"personalProfileAgent",profiling:true)
+        XCTAssertNil(chat.error);XCTAssertEqual(created.count,1)
+        XCTAssertEqual(created[0]["purpose"] as? String,"personal_profile");XCTAssertEqual(created[0]["profilingVersion"] as? Int,3)
+        XCTAssertTrue((created[0]["fields"] as! [String:String]).isEmpty)
+        XCTAssertEqual(chat.session?.contextualReplies.map(\.id),["personal-1","personal-2","personal-3"])
+        await chat.reloadSession()
+        XCTAssertNil(chat.error);XCTAssertEqual(created.count,1)
+        XCTAssertEqual(chat.session?.contextualReplies.map(\.id),["personal-1","personal-2","personal-3"])
+    }
     func testV2DraftRestoresContextualChoicesWithoutMakingUnknownTravelDataReady() throws {
         let original=session(inspiration:true)
         let restored=try JSONDecoder().decode(PetSession.self,from:JSONEncoder().encode(original))
