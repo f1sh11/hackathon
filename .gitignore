@@ -58,3 +58,6 @@ infra/zetaris/migration/*.local.*
 
 # Private feasibility snapshots and review receipts
 **/.feasibility-reviews/
+
+# Headless demo runs may contain user requirements and unsaved drafts.
+.demo-runs/

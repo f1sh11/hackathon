@@ -1,0 +1,13 @@
+{
+  "name": "Sydney one-day rehearsal: remove an optional paid stop after review",
+  "profile": {
+    "date": "tomorrow", "days": 1, "budget": 20, "maxSteps": 10000,
+    "startMinute": 600, "endMinute": 1080,
+    "start": {"name": "Circular Quay", "lat": -33.8611, "lng": 151.2126},
+    "end": {"name": "Circular Quay", "lat": -33.8611, "lng": 151.2126},
+    "mustVisit": ["opera"], "interests": ["风景", "艺术"], "transportPreference": "walk",
+    "request": "Plan a relaxed Sydney day. Keep the Opera House exterior; other visits are optional. Do not raise my budget."
+  },
+  "preferredIds": ["opera", "mca", "garden"],
+  "sampleRouteFailure": false
+}

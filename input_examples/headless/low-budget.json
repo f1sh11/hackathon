@@ -1,0 +1,13 @@
+{
+  "name": "Low budget with required places: explain the conflict without relaxing requirements",
+  "profile": {
+    "date": "tomorrow", "days": 1, "budget": 5, "maxSteps": 10000,
+    "startMinute": 600, "endMinute": 1080,
+    "start": {"name": "Circular Quay", "lat": -33.8611, "lng": 151.2126},
+    "end": {"name": "Circular Quay", "lat": -33.8611, "lng": 151.2126},
+    "mustVisit": ["opera", "mca", "garden"], "interests": ["艺术"], "transportPreference": "walk",
+    "request": "All three required visits must stay. Keep my AUD 5 daily activity budget; explain if this is impossible."
+  },
+  "preferredIds": ["opera", "mca", "garden"],
+  "sampleRouteFailure": false
+}

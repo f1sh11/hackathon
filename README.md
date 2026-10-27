@@ -6,6 +6,18 @@
 
 完整迁移范围与代码阅读说明见 [迁移说明](docs/ASPNET-MIGRATION.md)。
 
+## 不用 iOS 的命令行演示
+
+只需 Python 3.9+，先运行免密钥的离线流程演练：
+
+```sh
+python3 scripts/demo_agent.py --input input_examples/headless/ordinary-day.json
+```
+
+终端会显示生成草案、检查、返工和最终结果，运行文件保存在被 Git 忽略的 `.demo-runs/<run_id>/`。离线模式使用独立的确定性 Python 演练策略与合成数据，**没有调用生产 C# 规划器、模型、Zetaris 或 Meterless，不是实际 Agent 协作的证明**。
+
+真实后端联调使用 `--mode live`，调用现有 `/plan` 与独立检查接口，最多自动返工两轮；不保存行程。模型配置、路线证据限制、另外两个案例和结果说明见 [无 iOS 演示指南](docs/HEADLESS-DEMO.md)。
+
 ## 功能与边界
 
 - 悉尼市区 1–3 天步行规划，8 个限定候选地标，每天最多 4 站，跨天不重复。
