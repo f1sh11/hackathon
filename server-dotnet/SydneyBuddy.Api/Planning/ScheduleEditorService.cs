@@ -198,6 +198,7 @@ public sealed class ScheduleEditorService(PlaceCatalog catalog,RestaurantStore? 
         trip["weather"]=new JsonObject{["summary"]=rainy?"下雨示例情境":"晴天示例情境",["rainy"]=rainy,["source"]="使用者測試情境，非即時天氣",["status"]="demo"};
         for(var i=0;i<legacy.Count;i++)if(previousDays?[i] is JsonObject old && old.Array("completedStops") is {} past){legacy[i]!["completedStops"]=past.DeepClone();if(old.Array("skippedStops") is {} skipped)legacy[i]!["skippedStops"]=skipped.DeepClone();}
         trip["days"]=legacy;trip["profile"]=profile;trip["explanation"]="依偏好產生多日時間軸草案，可拖動、拉伸及勾選景點；確認後才儲存。";
+        var transitSources=legacy.OfType<JsonObject>().SelectMany(day=>day.Array("legs")?.OfType<JsonObject>()??[]).Where(leg=>leg.Str("mode")=="transit").Select(leg=>leg.Str("source")).Where(source=>source.Length>0).Distinct(StringComparer.Ordinal).ToArray();
         if(walking is not null){
             trip["warnings"]=new JsonArray(walking.IsHistoricalReplay
                 ? "步行按历史道路回放重放，不是实时导航；费用、排队和未核实营业时段仍需确认。"
@@ -205,6 +206,9 @@ public sealed class ScheduleEditorService(PlaceCatalog catalog,RestaurantStore? 
             trip.Object("schedule")!["source"]=walking.IsHistoricalReplay
                 ? "历史道路回放 / "+walking.SourceSummary
                 : "Apple Maps / MapKit 步行排程";
+            if(transitSources.Length>0)trip.Object("schedule")!["source"]+="；公共交通 / "+string.Join(" / ",transitSources);
+        }else if(transitSources.Length>0){
+            trip.Object("schedule")!["source"]="本機示例＋已提供的公共交通資料 / "+string.Join(" / ",transitSources);
         }
         if(request["rainy"] is null && request.Object("trip")?.Object("weather") is {} originalWeather)trip["weather"]=originalWeather.DeepClone();
         if(trip["recommendationStatus"] is not null) {

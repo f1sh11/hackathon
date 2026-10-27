@@ -54,6 +54,7 @@ public sealed class MultimodalPlanningTests:IDisposable
         var updated=editor.Build(new JsonObject{["trip"]=trip,["transportRoutes"]=new JsonArray(route),["days"]=new JsonArray(new JsonObject{["date"]="2026-10-23",["startMinute"]=600,["endMinute"]=1080,["activities"]=new JsonArray()})},allowHistoricalTransit:true);
         var used=updated.Array("days")![0]!.Array("legs")![0]!.AsObject();
         Assert.Equal("transit",used.Str("mode"));Assert.Equal("Transport for NSW / Trip Planner",used.Str("source"));
+        Assert.Contains("Transport for NSW / Trip Planner",updated.Object("schedule")!.Str("source"));
     }
     [Fact]public async Task EditingOneDayRetainsOtherDatesTransitEvidence() {
         var paths=new ProjectPaths(TestSupport.RepositoryRoot());var catalog=new PlaceCatalog(new CatalogCache(),paths);var editor=new ScheduleEditorService(catalog);
