@@ -35,6 +35,7 @@ public static class PersonalProfileAgent
         ["confirmedPreferences"] = memories.DeepClone(),
         ["pendingPreferences"] = JsonSerializer.SerializeToNode(session.Preferences.Where(x => x.Status == "awaiting_confirmation"), JsonExtensions.Options),
         ["preferenceKeys"] = JsonSerializer.SerializeToNode(TravelProfiling.Keys.Keys),
+        ["preferenceDimensions"] = JsonSerializer.SerializeToNode(TravelProfiling.Keys.ToDictionary(x => x.Key, x => x.Value.Dimension)),
         ["currentChoice"] = JsonSerializer.SerializeToNode(session.CurrentChoice, JsonExtensions.Options),
         ["opening"] = session.Messages.Count == 0,
         ["nickname"] = session.Dialogue?.Nickname ?? "",
