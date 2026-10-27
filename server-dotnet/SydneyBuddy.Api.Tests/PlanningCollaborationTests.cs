@@ -78,6 +78,7 @@ public sealed class PlanningCollaborationTests:IDisposable
     [Fact]public async Task ModelUsesNightshiftEndpointAndReturnsMappedDayProposal() {
         File.WriteAllText(Path.Combine(root,".secrets.json"),"{\"AI_PROVIDER\":\"nightshift\",\"NIGHTSHIFT_BASE_URL\":\"http://127.0.0.1:8088/v1\",\"NIGHTSHIFT_API_KEY\":\"test-token\",\"NIGHTSHIFT_MODEL\":\"meterless/auto\"}");
         var handler=new ProviderHandler();var agent=new PlanningAgent(new HttpClient(handler),new SecretStore(new(root)));
+        Assert.True(agent.Configured);
         var result=await agent.RankAsync(TestSupport.Profile(),[Place("canonical-place",10)],default,new(){["issues"]=new JsonArray(new JsonObject{["code"]="budget"})});
         Assert.Equal("canonical-place",result.Array("dayPlans")![0]!.Array("placeIds")![0]!.GetValue<string>());Assert.Contains("reviewFeedback",handler.Body);Assert.Contains("meterless/auto",handler.Body);Assert.Equal("127.0.0.1",handler.Host);Assert.DoesNotContain("response_format",handler.Body);
     }

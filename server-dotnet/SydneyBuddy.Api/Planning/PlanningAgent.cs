@@ -9,7 +9,7 @@ public sealed class PlanningAgent(HttpClient client,SecretStore secrets,Planning
     public string Provider => settings?.Provider ?? "nvidia";
     public bool UsesSkill => settings?.UsesSkill==true;
     public bool CloudCallsAllowed => Provider=="meterless-cloud"&&settings?.CloudCallsAllowed==true;
-    public bool Configured => Provider == "meterless-cloud" ? cloud?.Configured==true : Provider == "meterless" ? settings?.Configured == true : Provider == "nvidia" && secrets.Read()["NVIDIA_API_KEY"].Length > 0;
+    public bool Configured => Provider == "meterless-cloud" ? cloud?.Configured==true : Provider == "meterless" ? settings?.Configured == true : Provider == "nvidia" && ModelProviderSettings.Configured(secrets.Read());
 
     public async Task<JsonObject> ProposeAsync(JsonObject profile,IReadOnlyList<JsonObject> candidates,JsonObject weather,IReadOnlyList<JsonObject> accommodations,CancellationToken ct,JsonObject? feedback=null)
     {
