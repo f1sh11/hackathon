@@ -15,11 +15,13 @@ os.chmod(env,0o600)
 values=dict(line.split('=',1) for line in env.read_text().splitlines() if '=' in line)
 api=root/'api.env'
 if not api.exists():
-    api.write_text('ConnectionStrings__SydneyBuddy=Host=db;Port=5432;Database=sydneybuddy;Username=sydneybuddy;Password='+values['POSTGRES_PASSWORD']+';Maximum Pool Size=10\nDOTNET_GCHeapHardLimit=0x0C000000\nNODE_OPTIONS=--max-old-space-size=64\n')
-# Upgrade the old 128 MiB heap cap; keep 128 MiB headroom within the 320 MiB container.
+    api.write_text('ConnectionStrings__SydneyBuddy=Host=db;Port=5432;Database=sydneybuddy;Username=sydneybuddy;Password='+values['POSTGRES_PASSWORD']+';Maximum Pool Size=10\nDOTNET_GCHeapHardLimit=0x18000000\nNODE_OPTIONS=--max-old-space-size=64\n')
+# Upgrade the old 128/192 MiB heap caps for inventory and Meterless planning.
+# Keep 256 MiB headroom for native allocations and the bounded Node helper.
 # Preserve custom settings, database credentials and other private environment values.
 content=api.read_text()
-content=content.replace('DOTNET_GCHeapHardLimit=0x08000000','DOTNET_GCHeapHardLimit=0x0C000000')
+for previous in ('0x08000000','0x0C000000','0x14000000'):
+    content=content.replace('DOTNET_GCHeapHardLimit='+previous,'DOTNET_GCHeapHardLimit=0x18000000')
 api.write_text(content)
 os.chmod(api,0o600)
 units=Path('/etc/containers/systemd');units.mkdir(parents=True,exist_ok=True)
@@ -57,7 +59,7 @@ EnvironmentFile=/opt/sydneybuddy/api.env
 PublishPort=127.0.0.1:8787:8787
 DropCapability=ALL
 NoNewPrivileges=true
-PodmanArgs=--memory=320m --log-opt=max-size=10mb
+PodmanArgs=--memory=640m --log-opt=max-size=10mb
 [Service]
 Restart=always
 TimeoutStartSec=180

@@ -104,4 +104,24 @@ public sealed class TravelDataTests {
         await Assert.ThrowsAsync<ServiceException>(()=>new ZetarisTravelWarehouse(new HttpClient(handler),config,cache).ReadAsync(default));
         Assert.Contains("sydneybuddy_travel.travel_poi",handler.Sql);Assert.DoesNotContain("private-test-token",handler.Sql);Assert.Equal(2,handler.Calls);
     }
+    sealed class CompleteSnapshotHandler:HttpMessageHandler {
+        public int Calls;
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,CancellationToken token){
+            Calls++;
+            var rows=new JsonArray();
+            foreach(var (kind,payload) in new[]{("poi","{\"id\":\"test-place\",\"lat\":-33.86,\"lng\":151.21}"),("catalog","{\"id\":\"test\"}"),("maps","{}"),("metadata","{\"source\":\"Overture Maps\",\"bbox\":[150,-34,152,-33]}")})
+                rows.Add(new JsonArray(kind,payload));
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK){Content=new StringContent(new JsonObject{["data"]=rows,["total"]=rows.Count}.ToJsonString())});
+        }
+    }
+    [Fact] public async Task CompleteSnapshotIsReusedForOverlappingViewportAndPlanningReads(){
+        using var cache=new MemoryCache(new MemoryCacheOptions());var handler=new CompleteSnapshotHandler();
+        var config=new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?>{{"Zetaris:ApiKey","test"},{"Zetaris:OrgId","test"}}).Build();
+        var warehouse=new ZetarisTravelWarehouse(new HttpClient(handler),config,cache);
+        var full=await warehouse.ReadAsync(default);
+        var viewport=await warehouse.ReadForSearchAsync(-33.86,151.21,1500,default);
+        var nextPlan=await warehouse.ReadAsync(default);
+        Assert.Same(full,viewport);Assert.Same(full,nextPlan);Assert.Equal(1,handler.Calls);
+    }
+
 }

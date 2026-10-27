@@ -217,3 +217,16 @@ iOS／Android 天氣卡改為可水平捲動的日期、圖示、溫度與降雨
 - Oracle 已更新；經公開 HTTPS 驗證 15 次搜尋（不同區域、分類、並行請求、跨過 15 秒快照更新間隔）皆為 HTTP 200，來源均為雲端 Zetaris。iOS 原本失敗的搜尋頁重試後顯示 78 個地點及地圖標記。
 
 這項修正不更動天氣資料路徑；天氣仍即時經 Zetaris 呼叫，沒有新增天氣快取。免費 VM 的首次載入與同時查詢仍可能需要數秒。
+
+
+### Meterless 與 NVIDIA 雲端驗證（2026-10-27）
+
+部署採用 `PlanningAgent__Provider=meterless-cloud` 與 `PlanningAgent__AllowCloudModelCalls=true`。NVIDIA 金鑰只存於 Oracle root 私有的 `/opt/sydneybuddy/api.env`（0600）；App 只需既有 Oracle HTTPS 網址及 App 連線碼，旅遊資料由後端固定讀取 Sydney 雲端 Zetaris。`AllowPaidServices=false` 保留，但明確啟用的 NVIDIA 模型仍使用該帳號的額度。
+
+實測發現 App 同時讀取完整規劃資料及地圖視窗時，視窗快照會取代完整快照，導致後續規劃重複下載、解析整批地點。完整快照現在可供視窗搜尋重用；搜尋仍依座標與半徑篩選結果，不保留多份視窗快取，天氣仍即時查詢。新增回歸測試確認完整讀取、視窗讀取、後續規劃只查詢一次。
+
+同一 E2 Micro VM 的 API 容器上限調整為 640 MiB、managed heap 384 MiB，保留 256 MiB 給原生配置與 Node helper；舊的 128／192／320 MiB heap 設定自動更新，其餘私有設定保留。沒有變更 VM 規格、新增付費資源或公開 8787／5432。仍須留意免費 VM 的並行負載。
+
+驗證結果：完整後端測試 510 項通過；公開 HTTPS 的 inventory／POI／map-layers 兩輪並行與跨過 15 秒快照到期後皆成功。最終映像實際 NVIDIA `/plan` 約 16 秒完成兩天、8 個不同 ID 的停靠點，包含指定 Opera House、15 個住宿候選及 1 個建議，天氣來源為 Open-Meteo / Zetaris，行程數量不變。後端沒有 OOM kill 或重啟。
+
+iOS 模擬器切換 Cloud 後顯示已連線、資料來源固定 Cloud Zetaris (Sydney)，完成 Apple Maps 逐段步行查詢並顯示兩天、6 站待確認草稿；未按 Save this draft。此 UI 草稿出現 Museum of Contemporary Art 與 Museum of Contemporary Art Australia 兩筆同場館別名，說明不同 ID 檢查不等於實體場館去重；此資料品質問題仍待修正。票價、營業時間及部分需求仍待核實，不能視為可直接執行的完成行程。未驗證實體手機或本次 Android 模擬器。
