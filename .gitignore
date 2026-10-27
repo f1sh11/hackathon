@@ -52,3 +52,9 @@ infra/zetaris/migration/*.local.*
 
 # Local Zetaris JDBC tooling environment
 .venv-zetaris/
+
+# Private, redacted planning run evidence
+**/.planning-runs/
+
+# Private feasibility snapshots and review receipts
+**/.feasibility-reviews/

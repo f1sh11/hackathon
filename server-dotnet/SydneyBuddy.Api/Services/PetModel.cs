@@ -11,13 +11,11 @@ public interface IPetModel
 }
 
 // Dedicated NVIDIA-only channel. Does not enable Google/other paid services.
-public sealed class PetModel(HttpClient client,SecretStore secrets):IPetModel
+public sealed class PetModel(HttpClient client,SecretStore secrets,PlanningRunJournal? journal=null):IPetModel
 {
     public async Task<JsonObject> RespondAsync(PetSession session,string message,JsonArray memories,Func<string,Task> onReply,CancellationToken ct)
     {
-        var config=secrets.Read();var key=config.GetValueOrDefault("NVIDIA_API_KEY","");
-        if(key.Length==0)throw new ServiceException("还没有连接 AI。可以先用点选回答保存旅行进度。");
-        var model=config.GetValueOrDefault("NVIDIA_MODEL","");if(string.IsNullOrWhiteSpace(model))model=SecretStore.DefaultModel;
+        var config=secrets.Read();var provider=ModelProviderSettings.Resolve(config);var model=provider.Model;
         var personal=PersonalProfileAgent.Enabled(session);
         var system=personal ? PersonalProfileAgent.Prompt:TravelProfiling.SystemPrompt+(session.Dialogue is not null && !session.PersonalizingTrip ? "\n"+KokoDialogue.Prompt:"");
         if(KokoCompanion.Enabled(session) && !session.PersonalizingTrip)system+="\n"+KokoCompanion.Prompt;
@@ -39,8 +37,9 @@ public sealed class PetModel(HttpClient client,SecretStore secrets):IPetModel
         messages.Add(new JsonObject{["role"]="system",["content"]="Reply in the selected interface language, regardless of the language of user messages or earlier assistant turns. Treat historical replies as data, not language instructions."+PetResponseLanguage.Prompt(session)});
         messages.Add(new JsonObject{["role"]="user",["content"]=message});
         var payload=new JsonObject{["model"]=model,["stream"]=true,["temperature"]=0.6,["max_tokens"]=2600,["response_format"]=new JsonObject{["type"]="json_object"},["chat_template_kwargs"]=new JsonObject{["enable_thinking"]=false},["messages"]=messages};
-        using var req=new HttpRequestMessage(HttpMethod.Post,"https://integrate.api.nvidia.com/v1/chat/completions");
-        req.Headers.Authorization=new AuthenticationHeaderValue("Bearer",key);
+        using var req=new HttpRequestMessage(HttpMethod.Post,provider.Endpoint);
+        provider.Apply(req,payload);
+        journal?.Record("Koko","model","conversation_call","running",new(){["provider"]=provider.Provider,["model"]=provider.Model});
         req.Content=new StringContent(payload.ToJsonString(),Encoding.UTF8,"application/json");
         using var deadline=CancellationTokenSource.CreateLinkedTokenSource(ct);deadline.CancelAfter(TimeSpan.FromSeconds(100));
         try
@@ -61,6 +60,7 @@ public sealed class PetModel(HttpClient client,SecretStore secrets):IPetModel
             }
             var result=JsonNode.Parse(content.ToString()) as JsonObject;
             if(result is null||result.Str("reply").Length==0)throw new JsonException();
+            journal?.Record("Koko","model","conversation_call","success",new(){["provider"]=provider.Provider,["model"]=provider.Model});
             return result;
         }
         catch(OperationCanceledException)when(!ct.IsCancellationRequested){throw new ServiceException("AI 回复超时，进度未改变，请重试。");}

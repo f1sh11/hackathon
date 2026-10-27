@@ -1,0 +1,62 @@
+using System.Text.Json.Nodes;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging.Abstractions;
+namespace SydneyBuddy.Api.Tests;
+
+public sealed class TestFeasibilityReasoner:IFeasibilityReasoner {
+    public List<string> Called=[];public bool AlwaysPass;
+    public Task<JsonObject> NextAsync(JsonObject context,CancellationToken ct) {
+        ct.ThrowIfCancellationRequested();var observations=context.Object("observations")!;
+        foreach(var tool in new[]{"route_evidence","place_evidence"})if(!AlwaysPass&&!observations.ContainsKey(tool)){Called.Add(tool);return Task.FromResult<JsonObject>(new(){["action"]="call_tool",["tool"]=tool});}
+        if(!AlwaysPass&&observations.Object("route_evidence")?.Array("issues")?.OfType<JsonObject>().Any(i=>i.Str("code")=="transit_refresh_required")==true&&!observations.ContainsKey("refresh_transit"))return Task.FromResult<JsonObject>(new(){["action"]="call_tool",["tool"]="refresh_transit"});
+        return Task.FromResult<JsonObject>(new(){["action"]="finish",["decision"]="pass",["issueCodes"]=new JsonArray()});
+    }
+}
+public sealed class FeasibilityAgentTests:IDisposable {
+    readonly string root=Path.Combine(Path.GetTempPath(),"feasibility-"+Guid.NewGuid().ToString("N"));
+    PlanningRunJournal Journal(){var a=new HttpContextAccessor{HttpContext=new DefaultHttpContext()};var j=new PlanningRunJournal(new(root),a,NullLogger<PlanningRunJournal>.Instance);j.Begin(a.HttpContext);return j;}
+    public static JsonObject Draft() {
+        var start=new JsonObject{["name"]="Circular Quay",["lat"]=-33.8611,["lng"]=151.2126};var point=new JsonObject{["name"]="Sydney Opera House",["lat"]=-33.8568,["lng"]=151.2153};
+        var p=TestSupport.Profile();p["date"]="2026-10-28";p["start"]=start.DeepClone();p["end"]=start.DeepClone();p["mustVisit"]=new JsonArray("opera");p["interests"]=new JsonArray("风景");
+        var stop=point.DeepClone().AsObject();foreach(var pair in new JsonObject{["id"]="opera",["category"]="风景",["arrival"]="10:10",["departure"]="10:30",["visitMinutes"]=20,["cost"]=20,["costKnown"]=true,["steps"]=1600,["note"]="",["indoor"]=false,["hoursVerified"]=false})stop[pair.Key]=pair.Value?.DeepClone();
+        JsonObject Leg()=>new(){["meters"]=1000,["minutes"]=10,["polyline"]="",["source"]="Apple Maps / MapKit 步行查询"};
+        JsonObject Road(JsonObject a,JsonObject b)=>new(){["from"]=a.DeepClone(),["to"]=b.DeepClone(),["meters"]=1000,["seconds"]=600,["fetchedAt"]=DateTimeOffset.UtcNow.ToString("O")};
+        return new(){["title"]="Review test",["mode"]="demo",["profile"]=p,["days"]=new JsonArray(new JsonObject{["date"]="2026-10-28",["start"]=start.DeepClone(),["end"]=start.DeepClone(),["planningStartMinute"]=600,["finishTime"]="10:40",["estimatedCost"]=20,["estimatedSteps"]=3000,["warnings"]=new JsonArray(),["stops"]=new JsonArray(stop),["legs"]=new JsonArray(Leg(),Leg())}),["walkingRoutes"]=new JsonArray(Road(start,point),Road(point,start)),["weather"]=new JsonObject{["summary"]="Unknown",["source"]="test",["rainy"]=false},["explanation"]="Test only",["warnings"]=new JsonArray(),["trace"]=new JsonArray(),["createdAt"]=DateTimeOffset.UtcNow.ToString("O")};
+    }
+    public static JsonObject Request(JsonObject? trip=null)=>new(){["planId"]=Guid.NewGuid().ToString(),["planRevision"]=1,["requirementsRevision"]=1,["trip"]=trip??Draft()};
+    sealed class Tools:IFeasibilityTools {
+        public bool Fail;public List<string> Calls=[];
+        public Task<JsonObject> CallAsync(string tool,JsonObject trip,JsonObject profile,CancellationToken ct){Calls.Add(tool);if(Fail&&tool!="constraint_check")throw new ServiceException("tool failed");return Task.FromResult(tool=="constraint_check"?FeasibilityTools.Constraints(trip,profile):tool=="route_evidence"?FeasibilityTools.Routes(trip):FeasibilityTools.Result(new()));}
+    }
+    FeasibilityAgent Agent(TestFeasibilityReasoner reasoner,Tools tools,FeasibilityReviewStore? store=null)=>new(reasoner,tools,store??new(new(root)),Journal());
+    [Fact]public async Task IndependentToolLoopPassesAndKeepsOriginalSnapshotUnchanged(){var t=Draft();var before=t.ToJsonString();var tools=new Tools();var r=new TestFeasibilityReasoner();var result=await Agent(r,tools).ReviewAsync(Request(t),default);Assert.Equal("pass",result.Str("decision"));Assert.True(result.Bool("canConfirm"));Assert.Equal(new[]{"constraint_check","route_evidence","place_evidence"},tools.Calls);Assert.Equal(before,t.ToJsonString());}
+    [Fact]public async Task ModelCannotOverrideBudgetBlock(){var t=Draft();t.Object("profile")!["budget"]=10;var r=await Agent(new(){AlwaysPass=true},new()).ReviewAsync(Request(t),default);Assert.Equal("revise",r.Str("decision"));Assert.False(r.Bool("canConfirm"));Assert.Contains(r.Array("issues")!.OfType<JsonObject>(),i=>i.Str("code")=="daily_budget_exceeded"&&i.Number("actual")==20);Assert.Equal("itinerary_planner",r.Str("nextAgent"));}
+    [Fact]public async Task ModelCannotPassWithoutRequiredTools(){var tools=new Tools();var r=await Agent(new(){AlwaysPass=true},tools).ReviewAsync(Request(),default);Assert.True(r.Bool("canConfirm"));Assert.Contains("route_evidence",tools.Calls);Assert.Contains("place_evidence",tools.Calls);}
+    [Fact]public async Task ExpiredWalkingEvidenceNeedsInformation(){var t=Draft();foreach(var road in t.Array("walkingRoutes")!.OfType<JsonObject>())road["fetchedAt"]=DateTimeOffset.UtcNow.AddDays(-1).ToString("O");var r=await Agent(new(),new()).ReviewAsync(Request(t),default);Assert.Equal("needs_info",r.Str("decision"));Assert.False(r.Bool("canConfirm"));Assert.Equal("itinerary_planner",r.Str("nextAgent"));}
+    [Fact]public async Task ToolFailureCannotBecomeApproval(){var r=await Agent(new(),new(){Fail=true}).ReviewAsync(Request(),default);Assert.False(r.Bool("canConfirm"));Assert.Equal("needs_info",r.Str("decision"));}
+    [Fact]public async Task NewPlanRevisionInvalidatesOldReceipt(){var store=new FeasibilityReviewStore(new(root));var request=Request();var agent=Agent(new(),new(),store);var first=await agent.ReviewAsync(request,default);request["planRevision"]=2;request.Object("trip")!["title"]="Changed";await agent.ReviewAsync(request,default);Assert.Throws<RevisionConflictException>(()=>store.Confirmable(first.Str("reviewId"),1,1));}
+    [Fact]public async Task SameVersionDifferentSnapshotIsRejected(){var store=new FeasibilityReviewStore(new(root));var request=Request();await Agent(new(),new(),store).ReviewAsync(request,default);request.Object("trip")!["title"]="Tampered";await Assert.ThrowsAsync<RevisionConflictException>(()=>Agent(new(),new(),store).ReviewAsync(request,default));}
+    [Theory][InlineData("daily_budget_exceeded")][InlineData("must_visit_missing")][InlineData("time_overlap_or_travel_gap")][InlineData("daily_steps_exceeded")][InlineData("duplicate_place")]
+    public void DeterministicChecksCoverHardFailures(string code){var t=Draft();var p=t.Object("profile")!;var d=t.Array("days")![0]!.AsObject();switch(code){case "daily_budget_exceeded":p["budget"]=10;break;case "must_visit_missing":p["mustVisit"]=new JsonArray("missing");break;case "time_overlap_or_travel_gap":d.Array("stops")![0]!["arrival"]="10:00";break;case "daily_steps_exceeded":p["maxSteps"]=100;break;case "duplicate_place":d.Array("stops")!.Add(d.Array("stops")![0]!.DeepClone());d.Array("legs")!.Add(d.Array("legs")![0]!.DeepClone());break;}Assert.Contains(FeasibilityTools.Constraints(t,p).Array("issues")!.OfType<JsonObject>(),i=>i.Str("code")==code);}
+    [Fact]public async Task UnknownBudgetBasisRequiresClarification(){var q=Request();q["requirements"]=new JsonObject{["activityBudget"]=new JsonObject{["amount"]=60,["currency"]="USD",["basis"]="groupTrip"}};var r=await Agent(new(),new()).ReviewAsync(q,default);Assert.Equal("needs_info",r.Str("decision"));}
+    [Fact]public void SpoofedSourceTextIsNotRoadEvidence(){var t=Draft();t.Remove("walkingRoutes");Assert.Contains(FeasibilityTools.Routes(t).Array("issues")!.OfType<JsonObject>(),i=>i.Str("code")=="walking_evidence_missing");}
+    [Fact]public async Task CancellationDoesNotCreateApproval(){using var ct=new CancellationTokenSource();ct.Cancel();await Assert.ThrowsAnyAsync<OperationCanceledException>(()=>Agent(new(),new()).ReviewAsync(Request(),ct.Token));}
+    [Fact]public async Task HigherVersionWithSameContentStillInvalidatesReceipt(){var store=new FeasibilityReviewStore(new(root));var q=Request();var agent=Agent(new(),new(),store);var first=await agent.ReviewAsync(q,default);q["planRevision"]=2;await agent.ReviewAsync(q,default);Assert.Throws<RevisionConflictException>(()=>store.Confirmable(first.Str("reviewId"),1,1));Assert.False(store.Read(first.Str("reviewId")).Bool("canConfirm"));}
+    sealed class BadReasoner:IFeasibilityReasoner {
+        public Task<JsonObject> NextAsync(JsonObject c,CancellationToken ct)=>Task.FromResult<JsonObject>(new(){["action"]="call_tool",["tool"]="delete_trip"});
+    }
+    [Fact]public async Task UnknownToolCannotExecuteOrApprove(){var tools=new Tools();var r=await new FeasibilityAgent(new BadReasoner(),tools,new(new(root)),Journal()).ReviewAsync(Request(),default);Assert.False(r.Bool("canConfirm"));Assert.Equal("unavailable",r.Str("decision"));Assert.Equal(new[]{"constraint_check"},tools.Calls);}
+    [Fact]public async Task ReceiptCannotOutliveRoadEvidence(){var t=Draft();foreach(var road in t.Array("walkingRoutes")!.OfType<JsonObject>())road["fetchedAt"]=DateTimeOffset.UtcNow.AddHours(-6).AddMinutes(1).ToString("O");var r=await Agent(new(),new()).ReviewAsync(Request(t),default);Assert.True(r.Bool("canConfirm"));Assert.True(DateTimeOffset.Parse(r.Str("validUntil"))<DateTimeOffset.UtcNow.AddMinutes(2));}
+    [Fact]public void CanonicalPlaceIdIsUsedInsteadOfActivityUuid(){var t=Draft();var stop=t.Array("days")![0]!.Array("stops")![0]!.AsObject();stop["placeId"]="opera";stop["id"]=Guid.NewGuid().ToString();Assert.DoesNotContain(FeasibilityTools.Constraints(t,t.Object("profile")!).Array("issues")!.OfType<JsonObject>(),x=>x.Str("code")=="must_visit_missing");}
+    [Fact]public void AccessibilityUnknownCannotBePresentedAsSatisfied(){var t=Draft();t.Object("profile")!["companionNeeds"]="wheelchair access";Assert.Contains(FeasibilityTools.Constraints(t,t.Object("profile")!).Array("issues")!.OfType<JsonObject>(),x=>x.Str("code")=="accessibility_needs_unverified"&&x.Str("severity")=="needs_info");}
+    sealed class RecoveringReasoner:IFeasibilityReasoner {
+        public Task<JsonObject> NextAsync(JsonObject c,CancellationToken ct)=>Task.FromResult<JsonObject>(c.Object("observations")!.ContainsKey("tool_policy")?new(){["action"]="finish",["decision"]="pass",["issueCodes"]=new JsonArray()}:new(){["action"]="call_tool",["tool"]="invented_tool"});
+    }
+    [Fact]public async Task InvalidToolRequestCanRecoverThroughExplicitPolicyFeedback(){var tools=new Tools();var r=await new FeasibilityAgent(new RecoveringReasoner(),tools,new(new(root)),Journal()).ReviewAsync(Request(),default);Assert.True(r.Bool("canConfirm"));Assert.DoesNotContain("invented_tool",tools.Calls);Assert.True(r.Object("observations")!.ContainsKey("tool_policy"));}
+    [Fact]public async Task AmbiguousRequirementDateCannotBeApproved(){var q=Request();q["requirements"]=new JsonObject{["date"]="next Friday"};var r=await Agent(new(),new()).ReviewAsync(q,default);Assert.Equal("needs_info",r.Str("decision"));Assert.Equal("requirements_agent",r.Str("nextAgent"));}
+    [Fact]public async Task ConfirmedSnapshotUsesTheRequirementsActuallyChecked(){var q=Request();q["requirements"]=new JsonObject{["budget"]=60};var store=new FeasibilityReviewStore(new(root));var r=await Agent(new(),new(),store).ReviewAsync(q,default);Assert.Equal(60,store.Confirmable(r.Str("reviewId"),1,1).Object("profile")!.Number("budget"));}
+    [Theory]
+    [InlineData("daily_budget_exceeded")][InlineData("opening_hours_unknown")][InlineData("walking_evidence_missing")][InlineData("place_evidence_unavailable")][InlineData("route_evidence_timeout")][InlineData("future_issue_code")]
+    public void IssueCopyIsEnglishAndKeepsStableCodes(string code){var issue=FeasibilityTools.Issue(code,0,actual:85,limit:60);Assert.Equal(code,issue.Str("code"));Assert.NotEmpty(issue.Str("message"));Assert.NotEmpty(issue.Str("actionLabel"));Assert.DoesNotContain(issue.Str("message")+issue.Str("actionLabel"),c=>c is >= '\u3400' and <= '\u9fff');}
+    public void Dispose(){if(Directory.Exists(root))Directory.Delete(root,true);}
+}

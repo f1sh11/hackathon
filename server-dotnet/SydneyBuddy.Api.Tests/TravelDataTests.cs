@@ -11,6 +11,14 @@ public sealed class TravelDataTests {
         public int Calls;
         public Task<TravelSnapshot> ReadAsync(CancellationToken token){Calls++;if(fail)throw new ServiceException("warehouse unavailable");return Task.FromResult(Snapshot());}
     }
+    [Theory]
+    [InlineData("POST","/agents/feasibility/reviews",1)]
+    [InlineData("GET","/agents/feasibility/reviews/receipt",0)]
+    [InlineData("POST","/agents/feasibility/reviews/receipt/confirm",0)]
+    public async Task FeasibilityLoadsCloudEvidenceOnlyWhenReviewing(string method,string path,int expected) {
+        var context=new DefaultHttpContext();context.Request.Path=path;context.Request.Method=method;context.Request.Headers[TravelDataContext.Header]="zetaris-cloud";
+        var selection=new TravelDataContext(new HttpContextAccessor{HttpContext=context});var warehouse=new Warehouse();await new TravelDataMiddleware(_=>Task.CompletedTask).InvokeAsync(context,selection,warehouse);Assert.Equal(expected,warehouse.Calls);
+    }
     [Fact] public async Task ManagedCloudIgnoresClientSourceAndLoadsWarehouse() {
         var context=new DefaultHttpContext();context.Request.Path="/catalog";context.Request.Headers[TravelDataContext.Header]="direct";
         var config=new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?>{{"TravelData:ManagedSource","zetaris-cloud"}}).Build();

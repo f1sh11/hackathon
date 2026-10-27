@@ -18,10 +18,8 @@ public sealed class RecommendationService(IExternalJsonClient external, IMemoryS
             context.Record("生成候选排序", "本地规则演示；没有调用 Nemotron。", "本地规则");
             return new JsonObject { ["preferredIds"] = new JsonArray(), ["explanation"] = "根据兴趣、天气与预算筛选，再检查整条路线。" };
         }
-        var key = context.Config.GetValueOrDefault("NVIDIA_API_KEY");
-        if (string.IsNullOrEmpty(key)) throw new ServiceException("尚未配置 NVIDIA 密钥；没有调用 AI，也没有修改原行程。");
-        var model = context.Config.GetValueOrDefault("NVIDIA_MODEL");
-        if (string.IsNullOrEmpty(model)) model = DefaultModel;
+        var provider=ModelProviderSettings.Resolve(context.Config);
+        var model=provider.Model;
         var recall = await memory.RunAsync("query", new JsonObject
         {
             ["query"] = "travel preference Sydney " + string.Join(" ", profile.Array("interests")!.Select(x => x!.GetValue<string>()))
@@ -36,7 +34,8 @@ public sealed class RecommendationService(IExternalJsonClient external, IMemoryS
             ["candidates"] = new JsonArray(places.Select(x => (JsonNode)CopyFields(x,
                 "id", "name", "category", "indoor", "visitMinutes", "cost", "note")).ToArray())
         };
-        var response = await external.FetchAsync("https://integrate.api.nvidia.com/v1/chat/completions", new JsonObject
+        context.Journal?.Record("RecommendationAgent","model","model_call","running",new(){["provider"]=provider.Provider,["model"]=model});
+        var response = await external.FetchAsync(provider.Endpoint.AbsoluteUri, provider.Prepare(new JsonObject
         {
             ["model"] = model, ["stream"] = false, ["temperature"] = 0.2, ["max_tokens"] = 2048,
             ["chat_template_kwargs"] = new JsonObject { ["enable_thinking"] = false },
@@ -50,7 +49,7 @@ public sealed class RecommendationService(IExternalJsonClient external, IMemoryS
                 },
                 new JsonObject { ["role"] = "user", ["content"] = evidence.ToJsonString() }
             }
-        }, new Dictionary<string, string> { ["Authorization"] = "Bearer " + key }, timeoutSeconds: 70, cancellationToken: ct);
+        }), new Dictionary<string, string> { ["Authorization"] = "Bearer " + provider.Key }, timeoutSeconds: 70, cancellationToken: ct);
         JsonObject result;
         var originalCount = 0;
         try
@@ -76,7 +75,8 @@ public sealed class RecommendationService(IExternalJsonClient external, IMemoryS
         {
             throw new ServiceException("模型输出包含无效地点，已拒绝，原行程保持不变。");
         }
-        context.Record("Nemotron 候选推荐", $"{model} 返回 {originalCount} 个候选；下一步独立校验。", "NVIDIA NIM");
+        context.Journal?.Record("RecommendationAgent","model","model_call","success",new(){["provider"]=provider.Provider,["model"]=model,["ranked_count"]=originalCount});
+        context.Record("Nemotron 候选推荐", $"{model} 返回 {originalCount} 个候选；下一步独立校验。", provider.Provider);
         return result;
     }
 

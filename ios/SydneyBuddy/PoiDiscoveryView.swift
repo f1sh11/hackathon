@@ -12,10 +12,10 @@ import CryptoKit
     func add(_ p:ScheduleCandidate){guard !places.contains(where:{$0.id==p.id}) else{return};places.append(p);if let data=try? JSONEncoder().encode(places){UserDefaults.standard.set(data,forKey:"poi-toolbox")}}
 }
 enum PoiDiscoveryCategory {
-    static let groups=[("all","全部"),("sights","景點"),("gems","私房景點"),("food","餐飲"),("lodging","住宿"),("shops","店家"),("facilities","生活設施")]
+    static let groups=[("all","全部"),("sights","景點"),("food","餐飲"),("gems","私房景點"),("lodging","住宿"),("shops","店家"),("facilities","生活設施")]
     static let details=[("restaurants","餐廳","food"),("cafes","咖啡廳","food"),("bakeries","甜點烘焙","food"),("bars","酒吧夜生活","food"),("museums","博物館","sights"),("parks","公園綠地","sights"),("beaches","海灘","sights"),("hotels","飯店旅館","lodging"),("hostels","青年旅館","lodging"),("supermarkets","超市雜貨","shops"),("toilets","廁所","facilities"),("drinking_water","飲水點","facilities")]
     static func parent(_ id:String)->String{details.first{$0.0==id}?.2 ?? id}
-    static func filters(_ id:String)->[(String,String,String)]{let group=parent(id);return details.filter{group=="all" || $0.2==group}}
+    static func filters(_ id:String)->[(String,String,String)]{let group=parent(id);return group=="all" ? []:details.filter{$0.2==group}}
 }
 @MainActor enum ApplePoiProvider {
     static func search(_ center:CLLocationCoordinate2D,_ category:String,_ query:String,_ radiusOverride:Double?=nil) async throws -> [ScheduleCandidate] {
@@ -83,11 +83,13 @@ enum PoiDiscoveryCategory {
     @Published var query=""
     @Published var category="all"
     @Published var places:[ScheduleCandidate]=[]
+    @Published private(set) var searchCenter=CLLocationCoordinate2D(latitude:-33.865,longitude:151.212)
     @Published var selected:String?
     @Published var busy=false
     @Published var error:String?
     @Published var hasSearched=false
     @Published var searchSummary:String?
+    @Published private(set) var truncated=false
     @Published private(set) var provider:MapProvider = .osm
     @Published private(set) var attribution="Overture Maps Foundation"
     @Published private(set) var openSource="Overture Maps / local snapshot"
@@ -102,7 +104,7 @@ enum PoiDiscoveryCategory {
     private var lastCamera:(CLLocationCoordinate2D,Double)?
     var cameraDelay:UInt64=800_000_000
     private(set) var viewportRadius:Double?
-    func cameraChanged(_ point:CLLocationCoordinate2D,zoom:Double) {
+    func cameraChanged(_ point:CLLocationCoordinate2D,zoom:Double,automaticallySearch:Bool=true) {
         guard CLLocationCoordinate2DIsValid(point),zoom.isFinite else{return}
         if let last=lastCamera {
             let distance=CLLocation(latitude:point.latitude,longitude:point.longitude).distance(from:CLLocation(latitude:last.0.latitude,longitude:last.0.longitude))
@@ -110,7 +112,9 @@ enum PoiDiscoveryCategory {
         }
         lastCamera=(point,zoom);center=point
         viewportRadius=min(5000,max(500,156543.03392*cos(point.latitude * .pi/180)/pow(2,zoom)*420))
-        stop();places=[];selected=nil;error=nil
+        stop();selected=nil;error=nil
+        guard automaticallySearch else{return}
+        places=[]
         guard provider != .schematic else{return}
         cameraJob=Task{@MainActor in
             do{try await Task.sleep(nanoseconds:cameraDelay);try Task.checkCancellation()}catch{return}
@@ -127,7 +131,7 @@ enum PoiDiscoveryCategory {
         if category == "gems" || value == .osm || value == .apple || dataSource.warehouse{search()}
     }
     func search(){
-        stop();error=nil;searchSummary=nil;hasSearched=true;places=[];selected=nil
+        stop();error=nil;searchSummary=nil;truncated=false;hasSearched=true;places=[];selected=nil;searchCenter=center
         guard provider != .schematic else{error="離線示意圖不提供地點搜尋，請切換其他底圖。";return}
         guard category == "gems" || dataSource.warehouse || provider != .google || googleMapConfigured else{error="Google 地圖尚未設定金鑰，請選擇其他底圖。";return}
         busy=true
@@ -148,7 +152,7 @@ enum PoiDiscoveryCategory {
                     let parsed=try JSONDecoder().decode(Response.self,from:data)
                     guard kind == "gems" || route.warehouse || current != .google || parsed.places.allSatisfy({$0.source=="Google Places"}) else{throw NSError(domain:"POI",code:2,userInfo:[NSLocalizedDescriptionKey:"搜尋來源不一致，請更新後端後重試。"])}
                     result=parsed.places
-                    guard token==generation else{return};if let credit=parsed.attribution{attribution=credit};searchSummary=parsed.truncated == true ? "已顯示部分結果，請輸入名稱或縮小分類。":parsed.message
+                    guard token==generation else{return};if let credit=parsed.attribution{attribution=credit};truncated=parsed.truncated == true;searchSummary=parsed.truncated == true ? "已顯示部分結果，請輸入名稱或縮小分類。":parsed.message
                     if kind == "gems" || current == .osm || route.warehouse{openSource=parsed.source ?? "開放地點資料";dataVersion=parsed.metadata?.release}
                 }
                 try Task.checkCancellation();guard token==generation else{return}
@@ -158,9 +162,105 @@ enum PoiDiscoveryCategory {
     }
     func stop(){cameraJob?.cancel();cameraJob=nil;generation=UUID();job?.cancel();job=nil;busy=false}
 }
+private struct ExploreHeaderHeight:PreferenceKey {
+    static var defaultValue:CGFloat=126
+    static func reduce(value:inout CGFloat,nextValue:()->CGFloat){value=max(value,nextValue())}
+}
+enum ExploreDrawer:Int {
+    case collapsed,preview,expanded
+    func height(in available:CGFloat,header:CGFloat=126)->CGFloat {
+        switch self {case .collapsed:return 108;case .preview:return min(330,max(230,available*0.40));case .expanded:return max(160,available-header-12)}
+    }
+    var next:Self {self == .collapsed ? .preview:self == .preview ? .expanded:.collapsed}
+    func toggled(resultCount:Int)->Self {resultCount==1 && self == .preview ? .collapsed:next}
+    func dragged(up:Bool)->Self {up ? (self == .collapsed ? .preview:.expanded):(self == .expanded ? .preview:.collapsed)}
+}
+struct ExploreCheck:Identifiable {let id:String;let text:String;let blocking:Bool}
+enum ExplorePresentation {
+    static func money(_ amount:Double)->String {String(format:amount.rounded()==amount ? "A$%.0f":"A$%.2f",amount)}
+    static func checks(_ state:ScheduleState,day:Int)->[ExploreCheck] {
+        guard state.days.indices.contains(day) else{return []}
+        let current=state.days[day]
+        var seen=Set<String>()
+        return state.issues.filter{$0.day==day || $0.day == -1}.sorted{$0.blocking && !$1.blocking}.compactMap {issue in
+            guard seen.insert(issue.code).inserted else{return nil}
+            let text:String
+            switch issue.code {
+            case "budget":text="Estimated day cost "+money(current.estimatedCost)+" exceeds the day budget of "+money(current.dailyBudget ?? state.settings.dailyBudget)+"."
+            case "total-budget":text="Estimated trip cost "+money(state.totalCost)+" exceeds the trip budget of "+money(state.settings.totalBudget)+"."
+            case "steps":text="About \(current.estimatedSteps) steps exceeds this day’s limit of \(current.maxSteps ?? state.settings.maxSteps)."
+            case "time-budget":text="Travel and queues exceed this day’s time allowance."
+            case "end-time":text="This change would finish around "+current.finishTime+", after the planned end of the day."
+            case "restroom-gap":text="Leave room for a bathroom break."
+            case "poi-unknown":text="Some place prices and opening hours still need checking."
+            case "unknown-queue":text="Queue times are unknown. Leave a little spare time."
+            case "weather":text="Some stops have rain warnings. Check the forecast before heading out."
+            case "unconfirmed":text="Some stays or facilities still need confirming."
+            case "appointment":text="A stop would miss a fixed time slot."
+            case "hours","window":text="A stop conflicts with its planning time window."
+            case "locked":text="This would change a locked stop."
+            case "luggage":text="Luggage drop-off and collection need checking."
+            case "restaurant-price-expired":text="A meal estimate has expired. Refresh it before relying on it."
+            default:text=issue.blocking ? "This change needs another check before it can be saved.":"There is another planning note to review."
+            }
+            return ExploreCheck(id:issue.code,text:text,blocking:issue.blocking)
+        }
+    }
+    static func insert(_ candidate:ScheduleCandidate,into state:inout ScheduleState,day:Int) {
+        guard state.days.indices.contains(day),candidate.category != "住宿",!state.days.flatMap(\.activities).contains(where:{$0.placeId==candidate.id}) else{return}
+        var point=candidate
+        if point.category=="美食" {
+            point.activityType="meal"
+            let estimate=point.restaurantData?.budgetEstimate
+            let amount=estimate?.currency=="AUD" ? estimate?.perPerson:nil
+            point.cost=amount ?? point.mappedFoodCost ?? state.settings.mealCost
+            point.note=(point.note ?? "")+" Planning meal cost is an estimate, not a verified price."
+        }
+        if !state.candidates.contains(where:{$0.id==point.id}){state.candidates.append(point)}
+        let activity=ScheduleActivity(id:UUID().uuidString,placeId:point.id,kind:point.activityKind,name:point.name,lat:point.lat,lng:point.lng,duration:point.visitMinutes,cost:point.cost,arrival:"",departure:"",scheduledStart:state.days[day].startMinute,travelMinutes:0,indoor:point.indoor)
+        let position=state.days[day].activities.firstIndex(where:{$0.kind=="stay" || $0.kind=="bag-pickup"}) ?? state.days[day].activities.count
+        state.days[day].activities.insert(activity,at:position)
+    }
+    static func ranked(_ places:[ScheduleCandidate],interests:[String],center:CLLocationCoordinate2D,selected:String?)->[ScheduleCandidate] {
+        let origin=CLLocation(latitude:center.latitude,longitude:center.longitude)
+        func distance(_ p:ScheduleCandidate)->Double {origin.distance(from:CLLocation(latitude:p.lat,longitude:p.lng))}
+        return places.sorted {a,b in
+            if (a.id==selected) != (b.id==selected){return a.id==selected}
+            let am=interests.contains(a.category),bm=interests.contains(b.category)
+            if am != bm{return am}
+            let ad=distance(a),bd=distance(b)
+            return abs(ad-bd)>1 ? ad<bd:a.id<b.id
+        }
+    }
+    static func distance(_ p:ScheduleCandidate,from center:CLLocationCoordinate2D)->String {
+        let meters=CLLocation(latitude:center.latitude,longitude:center.longitude).distance(from:CLLocation(latitude:p.lat,longitude:p.lng))
+        return meters<1000 ? "\(max(10,Int((meters/10).rounded())*10)) m from search centre":String(format:"%.1f km from search centre",meters/1000)
+    }
+    static func price(_ p:ScheduleCandidate)->String? {
+        if let estimate=p.restaurantData?.budgetEstimate,estimate.currency=="AUD",let value=estimate.perPerson,value.isFinite,value>0{return String(format:"Est. A$%.0f/person",value)}
+        if let value=p.estimatedSpendAud,value.isFinite,value>0{return String(format:"Est. A$%.0f/person",value)}
+        if p.category=="住宿",let value=p.mappedLodgingCost,value.isFinite,value>0{return String(format:"Est. A$%.0f/night",value)}
+        if p.category=="美食",let value=p.mappedFoodCost,value.isFinite,value>0{return String(format:"Est. A$%.0f/person",value)}
+        if !p.importedPoi,p.cost.isFinite,p.cost>0{return String(format:"Est. A$%.0f/person",p.cost)}
+        return nil
+    }
+    static func mapPlaces(_ places:[ScheduleCandidate],selected:String?,limit:Int=40)->[ScheduleCandidate] {
+        guard limit>0 else{return []}
+        var seen=Set<String>()
+        let spread=places.filter{point in seen.insert("\(Int(floor(point.lat/0.002))):\(Int(floor(point.lng/0.002)))").inserted}
+        let spreadIDs=Set(spread.map(\.id))
+        var result=Array((spread+places.filter{!spreadIDs.contains($0.id)}).prefix(limit))
+        if let point=places.first(where:{$0.id==selected}),!result.contains(where:{$0.id==point.id}){if !result.isEmpty{result.removeLast()};result.append(point)}
+        return result
+    }
+    static func clusters(_ places:[ScheduleCandidate],zoom:Double,selected:String?)->[[ScheduleCandidate]] {
+        let size=360/pow(2,max(3,min(20,zoom)))*0.065
+        let groups=Dictionary(grouping:places){p in p.id==selected ? "selected:"+p.id:"\(Int(floor(p.lat/size))):\(Int(floor(p.lng/size)))"}
+        return groups.keys.sorted().compactMap{groups[$0]}
+    }
+}
 @MainActor struct PoiDiscoveryView:View {
     @Environment(\.locale) private var interfaceLocale
-
     var embedded=false
     var initialQuery=""
     var initialCategory:String?=nil
@@ -171,306 +271,340 @@ enum PoiDiscoveryCategory {
     @Environment(\.dismiss) var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @StateObject private var model=PoiSearchModel()
+    @ObservedObject private var toolbox=PoiToolbox.shared
     @State private var detail:ScheduleCandidate?
+    @State private var savingPlace:ScheduleCandidate?
     @State private var focus:PoiMapFocus?
     @State private var ticketSummaries:[String:TicketPriceSummary]=[:]
     @State private var featureLoading=false
     @State private var featureError:String?
     @State private var localProvider:MapProvider = .apple
-    private var searchProvider:MapProvider {addingToDay ? localProvider:store.mapProvider}
-    @ObservedObject private var toolbox=PoiToolbox.shared
+    @State private var filtersOpen=false
+    @State private var creditsOpen=false
+    @State private var savedOpen=false
+    @State private var savedFocus:ScheduleCandidate?
     @State private var showInsights=false
-    @State private var showDataInfo=false
+    @State private var requestInsights=false
+    @State private var requestCredits=false
+    @State private var showMapInsights=false
+    @State private var receipt:String?
     @State private var zoom:Double=14
     @State private var cameraAction:RouteMapCameraAction?
-    @State private var expanded=false
+    @State private var drawer:ExploreDrawer = .preview
+    @State private var headerHeight:CGFloat=126
     @State private var areaChanged=false
+    @State private var initialized=false
+    @State private var resumeSearch=false
     @FocusState private var searching:Bool
+    private let blue=Color(red:0.20,green:0.36,blue:0.79)
+    private let ink=Color(red:0.09,green:0.15,blue:0.24)
+    private var searchProvider:MapProvider {addingToDay ? localProvider:store.mapProvider}
     private var visiblePlaces:[ScheduleCandidate] {model.provider==searchProvider && model.dataSource==store.travelDataSource ? model.places:[]}
-    private var orderedPlaces:[ScheduleCandidate] {visiblePlaces.sorted{a,b in a.id==model.selected && b.id != model.selected}}
+    private var orderedPlaces:[ScheduleCandidate] {ExplorePresentation.ranked(visiblePlaces,interests:model.category=="all" ? store.personalProfile.interests ?? []:[],center:model.center,selected:model.selected)}
+    private var mapPlaces:[ScheduleCandidate] {ExplorePresentation.mapPlaces(orderedPlaces,selected:model.selected)}
     private var insightPoints:[[String:Any]] {[["id":"center","name":"搜尋中心","lat":model.center.latitude,"lng":model.center.longitude]]+visiblePlaces.prefix(20).map{["id":$0.id,"name":$0.name,"lat":$0.lat,"lng":$0.lng]}}
-    private var insightMarkers:[InsightMarker] {(store.insights?.traffic.items ?? [])+(store.insights?.pricePlaces ?? [])}
-    private var discoveryContent:some View {
-    NavigationStack {
-        GeometryReader { geo in
-            ZStack(alignment: .top) {
-                map.ignoresSafeArea(edges: .bottom)
-                VStack(spacing: 10) {
-                    HStack(spacing: 10) {
-                        HStack {
-                            Image(systemName: "magnifyingglass").foregroundStyle(Palette.muted)
-                            TextField(uiText("想去哪里？"), text: $model.query)
-                                .focused($searching)
-                                .submitLabel(.search)
-                                .onSubmit { search() }
-                            if !model.query.isEmpty {
-                                Button {
-                                    model.query = ""
-                                    search()
-                                } label: {
-                                    Image(systemName: "xmark.circle.fill")
-                                }
-                                .accessibilityLabel(uiText("清空搜索"))
-                            }
-                            Button(uiText("搜索")) { search() }
-                                .font(.subheadline.bold())
-                                .disabled(model.busy)
-                        }
-                        .padding(13)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
-
-                        Menu {
-                            Picker(uiText("地图来源"), selection: Binding(get:{searchProvider},set:{if addingToDay{localProvider=$0}else{store.mapProvider=$0}})) {
-                                ForEach(store.availableMapProviders) { Text(uiText($0.label)).tag($0) }
-                            }
-                        } label: {
-                            Image(systemName: "square.3.layers.3d")
-                                .frame(width: 46, height: 46)
-                                .background(.regularMaterial, in: Circle())
-                        }
-                        .accessibilityLabel(uiText("切换地图来源"))
-                    }
-
-                    categoryBar
-                    Button{showInsights=true;Task{await store.refreshInsights(places:insightPoints)}}label:{Label(uiText("交通・人潮・費用"),systemImage:"info.circle").font(.caption).padding(10).background(.regularMaterial,in:Capsule())}.accessibilityIdentifier("travel-insights-open")
-
-                    if areaChanged {
-                        Button {
-                            search()
-                        } label: {
-                            Label(uiText("搜索此区域"), systemImage: "arrow.clockwise")
-                                .font(.subheadline.bold())
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 10)
-                                .background(.regularMaterial, in: Capsule())
-                        }
-                        .disabled(model.busy)
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 10)
-            }
-            .overlay(alignment:.bottomTrailing) {
-                if !searching && !expanded && searchProvider != .schematic {
-                    VStack(spacing:10) {
-                        VStack(spacing:0) {
-                            Button{changeCamera(.zoomIn)}label:{Image(systemName:"plus").font(.headline).frame(width:46,height:46)}.accessibilityLabel(store.language.text("放大地圖")).accessibilityIdentifier("poi-zoom-in")
-                            Divider().frame(width:26)
-                            Button{changeCamera(.zoomOut)}label:{Image(systemName:"minus").font(.headline).frame(width:46,height:46)}.accessibilityLabel(store.language.text("縮小地圖")).accessibilityIdentifier("poi-zoom-out")
-                        }.background(.regularMaterial,in:RoundedRectangle(cornerRadius:18))
-                        Button{changeCamera(.fit)}label:{Image(systemName:"arrow.up.left.and.arrow.down.right").font(.headline).frame(width:46,height:46).background(.regularMaterial,in:Circle())}.accessibilityLabel(store.language.text("顯示搜尋範圍")).accessibilityIdentifier("poi-fit-results")
-                    }.shadow(color:.black.opacity(0.08),radius:5,y:2).padding(16)
-                }
-            }
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                if !searching { results(height: panelHeight(geo.size.height)) }
-            }
-        }
-        .background(Palette.cream)
-        .navigationTitle(uiText(replacingPlace ? "寻找替代地点":addingToDay ? "寻找餐厅，加入当天":"探索目的地"))
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            if !embedded {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(uiText("完成")) { dismiss() }
-                }
-            }
-        }
-    }
-    }
-    private var discoverySheets:some View {
-    discoveryContent.tint(Palette.green)
-    .overlay {if featureLoading{ProgressView("正在載入地點…").padding(16).background(.regularMaterial,in:Capsule()).accessibilityIdentifier("map-feature-loading")}}
-    .alert(uiText("地點資料暫時無法載入"),isPresented:Binding(get:{featureError != nil},set:{if !$0{featureError=nil}})){Button(uiText("完成")){featureError=nil}}message:{Text(uiText(featureError ?? ""))}
-    .task(id:visiblePlaces.map(\.id).joined()+store.travelDataSource.rawValue+searchProvider.rawValue){await loadTicketSummaries()}
-    .sheet(item: $detail) { SchedulePlaceDetail(candidate: $0) }
-    .sheet(isPresented:$showInsights){TravelInsightsSheet(places:insightPoints)}
-    .sheet(isPresented:$showDataInfo){dataInfo}
-    .task(id:visiblePlaces.map(\.id).joined()+store.travelDataSource.rawValue+store.mapProvider.rawValue){if !visiblePlaces.isEmpty{await store.refreshInsights(places:insightPoints)}}
-    }
+    private var insightMarkers:[InsightMarker] {showMapInsights ? (store.insights?.traffic.items ?? [])+(store.insights?.pricePlaces ?? []):[]}
     var body:some View {
-    let _=interfaceLocale
-    discoverySheets.onAppear {
-        updateSearchLanguage(store.language)
-        if let viewport = store.mapViewport {
-            model.center = CLLocationCoordinate2D(latitude: viewport.lat, longitude: viewport.lng)
+        let _=interfaceLocale
+        NavigationStack {
+            GeometryReader {geo in
+                ZStack(alignment:.top){
+                    map(bottomInset:drawerHeight(geo.size.height)).ignoresSafeArea(edges:embedded ? [.top,.bottom]:.bottom)
+                    searchControls.padding(.horizontal,16).padding(.top,8)
+                        .background(GeometryReader{header in Color.clear.preference(key:ExploreHeaderHeight.self,value:header.size.height)})
+                        .onPreferenceChange(ExploreHeaderHeight.self){headerHeight=$0}
+                }
+                .overlay(alignment:.bottomTrailing){
+                    if !searching && drawer != .expanded && searchProvider != .schematic {
+                        mapControls.padding(.trailing,16).padding(.bottom,drawerHeight(geo.size.height)+12)
+                    }
+                }
+                .overlay(alignment:.bottom){if !searching{results(height:drawerHeight(geo.size.height))}}
+                .overlay(alignment:.bottom){
+                    if let receipt,!searching {
+                        HStack(spacing:10){PetAvatar(cue:KoalaCue(event:.preferenceConfirmed,id:receipt),size:42).frame(width:42,height:48);Text(receipt).font(.subheadline.weight(.semibold)).lineLimit(2)}
+                            .padding(12).background(.white,in:RoundedRectangle(cornerRadius:18)).shadow(color:.black.opacity(0.10),radius:10,y:3)
+                            .padding(.horizontal,24).padding(.bottom,drawerHeight(geo.size.height)+12).allowsHitTesting(false)
+                    }
+                }
+            }
+            .background(.white).foregroundStyle(ink)
+            .navigationTitle(uiText(replacingPlace ? "寻找替代地点":addingToDay ? "寻找餐厅，加入当天":"Explore"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar(embedded ? .hidden:.visible,for:.navigationBar)
+            .toolbar{if !embedded{ToolbarItem(placement:.topBarTrailing){Button(uiText("完成")){dismiss()}}}}
+        }.tint(blue)
+        .overlay{if featureLoading{ProgressView(uiText("Loading place…")).padding(16).background(.regularMaterial,in:Capsule()).accessibilityIdentifier("map-feature-loading")}}
+        .alert(uiText("地點資料暫時無法載入"),isPresented:Binding(get:{featureError != nil},set:{if !$0{featureError=nil}})){Button(uiText("完成")){featureError=nil}}message:{Text(uiText(featureError ?? ""))}
+        .sheet(item:$detail){SchedulePlaceDetail(candidate:$0)}
+        .sheet(item:$savingPlace){point in ExploreSavePlaceSheet(candidate:point){message in savingPlace=nil;acknowledge(message)}.environmentObject(store)}
+        .sheet(isPresented:$filtersOpen,onDismiss:{if requestInsights{requestInsights=false;showInsights=true;Task{await store.refreshInsights(places:insightPoints)}}else if requestCredits{requestCredits=false;creditsOpen=true}}){filterSheet}
+        .sheet(isPresented:$creditsOpen){creditsSheet}
+        .sheet(isPresented:$savedOpen,onDismiss:{if let point=savedFocus{savedFocus=nil;if !model.places.contains(where:{$0.id==point.id}){model.places.append(point)};focusPlace(point)}}){savedSheet}
+        .sheet(isPresented:$showInsights){TravelInsightsSheet(places:insightPoints)}
+        .task(id:visiblePlaces.map(\.id).joined()+store.travelDataSource.rawValue+searchProvider.rawValue){await loadTicketSummaries()}
+        .task(id:showMapInsights.description+visiblePlaces.map(\.id).joined()+store.travelDataSource.rawValue){if showMapInsights && !visiblePlaces.isEmpty{await store.refreshInsights(places:insightPoints)}}
+        .task(id:receipt){guard let current=receipt else{return};do{try await Task.sleep(nanoseconds:4_500_000_000);if receipt==current{receipt=nil}}catch{}}
+        .onAppear {
+            updateSearchLanguage(store.language)
+            if initialized{if model.provider != searchProvider || model.dataSource != store.travelDataSource{configure()}else if resumeSearch{model.search()};resumeSearch=false;return}
+            initialized=true
+            if let viewport=store.mapViewport{model.center = .init(latitude:viewport.lat,longitude:viewport.lng)}
+            model.query=initialQuery
+            if let initialCategory{model.category=initialCategory}else if addingToDay{model.category=replacingPlace ? "all":"food"}
+            configure()
         }
-        model.query=initialQuery
-        if let initialCategory{model.category=initialCategory}else if addingToDay{model.category=replacingPlace ? "all":"food"}
-        model.configure(searchProvider, googleMapConfigured: SydneyBuddyApp.mapConfigured,dataSource:store.travelDataSource)
+        .onChange(of:store.language){_,language in updateSearchLanguage(language)}
+        .onChange(of:localProvider){_,_ in if addingToDay{configure()}}
+        .onChange(of:store.mapProvider){_,_ in if !addingToDay{configure()}}
+        .onChange(of:store.travelDataSource){_,_ in configure()}
+        .onChange(of:model.category){_,_ in search()}
+        .onChange(of:model.selected){_,id in if id==nil{focus=nil}}
+        .onDisappear{resumeSearch=model.busy;model.stop()}
     }
-    .onChange(of:store.language){_,language in updateSearchLanguage(language)}
-    .onChange(of:localProvider){_,provider in if addingToDay{detail=nil;areaChanged=false;cameraAction=nil;model.configure(provider,googleMapConfigured:SydneyBuddyApp.mapConfigured,dataSource:store.travelDataSource)}}
-    .onChange(of: store.mapProvider) { _, provider in
-        guard !addingToDay else{return}
-        detail = nil
-        areaChanged = false
-        cameraAction=nil
-        model.configure(provider, googleMapConfigured: SydneyBuddyApp.mapConfigured,dataSource:store.travelDataSource)
-    }
-    .onChange(of:store.travelDataSource){_,_ in detail=nil;areaChanged=false;cameraAction=nil;model.configure(searchProvider,googleMapConfigured:SydneyBuddyApp.mapConfigured,dataSource:store.travelDataSource)}
-    .onChange(of: model.category) { _, _ in
-        searching=false;areaChanged=false;model.search()
-    }
-    .onChange(of: model.selected) { _, id in
-        if id == nil {focus=nil}
-        if id != nil {
-            searching = false
-            expanded = false
+    private var searchControls:some View {
+        VStack(spacing:10){
+            HStack(spacing:8){
+                HStack(spacing:8){
+                    Image(systemName:"magnifyingglass").foregroundStyle(.secondary)
+                    TextField(uiText("Find a place"),text:$model.query).focused($searching).submitLabel(.search).onSubmit{search()}.accessibilityIdentifier("poi-search")
+                    if !model.query.isEmpty{Button{model.query="";search()}label:{Image(systemName:"xmark.circle.fill").foregroundStyle(.secondary)}.accessibilityLabel(uiText("清空搜索"))}
+                }.padding(14).background(.white,in:RoundedRectangle(cornerRadius:18))
+                Button{searching=false;savedOpen=true}label:{Image(systemName:"bookmark").frame(width:44,height:48).background(.white,in:RoundedRectangle(cornerRadius:16))}.accessibilityLabel(uiText("Saved places")).accessibilityIdentifier("poi-saved-places")
+                Button{searching=false;filtersOpen=true}label:{Image(systemName:"slider.horizontal.3").frame(width:44,height:48).background(.white,in:RoundedRectangle(cornerRadius:16))}.accessibilityLabel(uiText("Filters and map options")).accessibilityIdentifier("poi-filters")
+            }.shadow(color:.black.opacity(0.07),radius:8,y:3)
+            if !searching {
+                categoryBar
+                if areaChanged{Button{search()}label:{Label(uiText("搜索此区域"),systemImage:"arrow.clockwise").font(.subheadline.bold()).padding(.horizontal,16).padding(.vertical,11).background(.white,in:Capsule())}.accessibilityIdentifier("poi-search-area")}
+            }
         }
     }
-    .onDisappear { model.stop() }
+    private var categoryMenuGroups:[(String,String)] {PoiDiscoveryCategory.groups.filter{group in PoiDiscoveryCategory.details.contains{$0.2==group.0}}}
+    private var selectedCategoryDetail:String? {PoiDiscoveryCategory.details.first{$0.0==model.category}?.1}
+    private var categoryBar:some View {
+        HStack(spacing:8){
+            ScrollViewReader{proxy in
+                ScrollView(.horizontal,showsIndicators:false){HStack(spacing:8){ForEach(PoiDiscoveryCategory.groups,id:\.0){id,label in
+                    categoryChip(id,id=="all" && !(store.personalProfile.interests ?? []).isEmpty ? "For you":uiText(label)).id(id)
+                }}.padding(.horizontal,2)}
+                .onChange(of:model.category){_,category in withAnimation(reduceMotion ? nil:.easeInOut(duration:0.2)){proxy.scrollTo(PoiDiscoveryCategory.parent(category),anchor:.center)}}
+            }
+            Menu{
+                categoryOption(PoiDiscoveryCategory.parent(model.category),"全部")
+                if PoiDiscoveryCategory.parent(model.category)=="all"{
+                    ForEach(categoryMenuGroups,id:\.0){group in
+                        Section(uiText(group.1)){ForEach(PoiDiscoveryCategory.details.filter{$0.2==group.0},id:\.0){option in categoryOption(option.0,option.1)}}
+                    }
+                }else{ForEach(PoiDiscoveryCategory.filters(model.category),id:\.0){id,title,_ in categoryOption(id,title)}}
+            }label:{Label(uiText(selectedCategoryDetail ?? "Type"),systemImage:"line.3.horizontal.decrease").font(.caption.weight(.semibold)).fixedSize(horizontal:true,vertical:false).padding(.horizontal,12).frame(minHeight:40).background(selectedCategoryDetail==nil ? .white:blue,in:Capsule()).foregroundStyle(selectedCategoryDetail==nil ? ink:.white)}
+                .accessibilityIdentifier("poi-category-filter").accessibilityLabel(uiText("細分類")+": "+uiText(selectedCategoryDetail ?? "全部"))
+        }
     }
-    private func updateSearchLanguage(_ language:AppLanguage) {
-        switch language {case .english:model.language="en";case .simplified:model.language="zh-CN";case .traditional:model.language="zh-TW"}
+    private func categoryOption(_ id:String,_ title:String)->some View {
+        Button{model.category=id}label:{if model.category==id{Label(uiText(title),systemImage:"checkmark")}else{Text(uiText(title))}}.accessibilityIdentifier("poi-category-"+id)
     }
-    private func changeCamera(_ kind:RouteMapCameraAction.Kind) {
-        searching=false;focus=nil;model.selected=nil
-        cameraAction=RouteMapCameraAction(kind:kind)
+    private func categoryChip(_ id:String,_ label:String,exact:Bool=false)->some View {
+        let selected=exact ? model.category==id:PoiDiscoveryCategory.parent(model.category)==id
+        return Button{model.category=id}label:{Text(uiText(label)).font(exact ? .caption.weight(.semibold):.subheadline.weight(.semibold)).padding(.horizontal,14).frame(minHeight:exact ? 34:40).background(selected ? blue:Color.white,in:Capsule()).foregroundStyle(selected ? .white:ink)}.buttonStyle(BuddyPressStyle()).accessibilityAddTraits(selected ? [.isSelected]:[]).accessibilityIdentifier("poi-category-"+id)
     }
-    private func panelHeight(_ height:CGFloat)->CGFloat {max(180,height*(expanded ? 0.65:0.36))}
-    @ViewBuilder private var map:some View {
+    private var mapControls:some View {
+        VStack(spacing:10){
+            VStack(spacing:0){
+                Button{changeCamera(.zoomIn)}label:{Image(systemName:"plus").frame(width:44,height:44)}.accessibilityLabel(store.language.text("放大地圖")).accessibilityIdentifier("poi-zoom-in")
+                Divider().frame(width:22)
+                Button{changeCamera(.zoomOut)}label:{Image(systemName:"minus").frame(width:44,height:44)}.accessibilityLabel(store.language.text("縮小地圖")).accessibilityIdentifier("poi-zoom-out")
+            }.background(.white,in:RoundedRectangle(cornerRadius:16))
+            Button{changeCamera(.fit)}label:{Image(systemName:"arrow.up.left.and.arrow.down.right").frame(width:44,height:44).background(.white,in:Circle())}.accessibilityLabel(store.language.text("顯示搜尋範圍")).accessibilityIdentifier("poi-fit-results")
+        }.font(.subheadline.bold()).shadow(color:.black.opacity(0.08),radius:6,y:2)
+    }
+    private func results(height:CGFloat)->some View {
+        VStack(spacing:0){
+            Button{setDrawer(drawer.toggled(resultCount:visiblePlaces.count))}label:{VStack(spacing:9){Capsule().fill(Color.secondary.opacity(0.3)).frame(width:34,height:4);HStack{Text(uiText(model.busy ? "Finding places…":"Explore nearby")).font(.system(.headline,design:.rounded));Text(String(visiblePlaces.count)).font(.caption).foregroundStyle(.secondary);Spacer();Image(systemName:drawer == .expanded || (visiblePlaces.count==1 && drawer == .preview) ? "chevron.down":"chevron.up").font(.caption.bold())}}.padding(.horizontal,20).padding(.top,10).padding(.bottom,12)}
+                .buttonStyle(.plain).accessibilityIdentifier("poi-drawer-toggle").accessibilityLabel(uiText(drawer == .expanded || (visiblePlaces.count==1 && drawer == .preview) ? "收起地点列表":"展开地点列表"))
+                .gesture(DragGesture(minimumDistance:15).onEnded{value in if abs(value.translation.height)>20{setDrawer(visiblePlaces.count==1 && value.translation.height<0 ? .preview:drawer.dragged(up:value.translation.height<0))}})
+            if drawer != .collapsed {
+                if model.busy{ProgressView().padding(12)}
+                if let error=model.error{ScrollView{VStack(spacing:10){Text(uiText("暂时没找到地点资料")).font(.headline);Text(uiText(error)).font(.caption).foregroundStyle(.secondary);Button(uiText("重新搜索")){search()}}.padding(20)}}
+                else if !model.busy && visiblePlaces.isEmpty{VStack(spacing:10){Image(systemName:"magnifyingglass").font(.title2);Text(uiText("No places here yet")).font(.headline);Text(uiText(model.category=="drinking_water" && model.provider == .apple && model.dataSource == .direct ? "Apple Maps doesn’t list drinking-water points. Switch to OpenStreetMap in Filters.":"Try a name, another category, or search a different area.")).font(.caption).foregroundStyle(.secondary)}.frame(maxWidth:.infinity,maxHeight:.infinity).padding(20)}
+                else {
+                    ScrollViewReader{proxy in ScrollView{LazyVStack(spacing:0){
+                        if model.truncated{Text(uiText("Showing a selection. Search a name or narrow the category.")).font(.caption).foregroundStyle(.secondary).padding(.horizontal,20).padding(.bottom,6).accessibilityIdentifier("poi-search-summary")}
+                        ForEach(orderedPlaces){point in placeRow(point).id(point.id);Divider().padding(.leading,68)}
+                    }}.scrollDismissesKeyboard(.interactively).onChange(of:model.selected){_,id in if let id{proxy.scrollTo(id,anchor:.top)}}}
+                }
+            }
+            Spacer(minLength:0)
+            Button{creditsOpen=true}label:{HStack(spacing:8){Label(uiText("Data credits"),systemImage:"info.circle").font(.caption);Spacer(minLength:8);Text(verbatim:compactCredit).font(.caption2).multilineTextAlignment(.trailing)}.foregroundStyle(.secondary).frame(maxWidth:.infinity,minHeight:44).padding(.horizontal,18)}.buttonStyle(.plain).accessibilityIdentifier("poi-data-credits")
+        }.frame(height:height).frame(maxWidth:.infinity).background(Color(red:0.99,green:0.985,blue:0.97),in:UnevenRoundedRectangle(topLeadingRadius:24,topTrailingRadius:24)).shadow(color:.black.opacity(0.08),radius:12,y:-3)
+    }
+    private func placeRow(_ point:ScheduleCandidate)->some View {
+        HStack(spacing:12){
+            Button{focusPlace(point);detail=point}label:{HStack(spacing:12){
+                Image(systemName:point.discoverySymbol).font(.title3).foregroundStyle(blue).frame(width:40,height:44).background(blue.opacity(0.07),in:RoundedRectangle(cornerRadius:12))
+                VStack(alignment:.leading,spacing:4){
+                    Text(point.displayName).font(.subheadline.weight(.semibold)).foregroundStyle(ink).lineLimit(2)
+                    Text(uiText(point.category)+" · "+uiText(ExplorePresentation.distance(point,from:model.searchCenter))).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                    if let ticket=ticketSummaries[point.id]{Text(uiText("Reference price")+" · "+ticket.label(store.language)).font(.caption2).foregroundStyle(.secondary).lineLimit(1)}
+                    else if let price=ExplorePresentation.price(point){Text(uiText(price)).font(.caption2).foregroundStyle(.secondary).lineLimit(1)}
+                    if point.hasSourcedRating{Text(uiText(point.mappedRatingLabel)).font(.caption2).foregroundStyle(.secondary)}
+                }.frame(maxWidth:.infinity,alignment:.leading)
+            }}.buttonStyle(.plain).accessibilityLabel(uiText("查看地点："+point.displayName)).accessibilityIdentifier("poi-detail-"+point.id)
+            Button{save(point)}label:{Label(uiText(point.source=="Google Places" ? "Details":addingToDay ? (replacingPlace ? "Use":"Add"):isAdded(point) ? "Saved":"Save"),systemImage:addingToDay ? "plus":isAdded(point) ? "checkmark":"plus").font(.caption.weight(.semibold)).padding(.horizontal,10).frame(minHeight:44).background(blue.opacity(0.08),in:Capsule())}.buttonStyle(BuddyPressStyle()).accessibilityLabel(uiText("Save ")+point.displayName).accessibilityIdentifier("poi-toggle-"+point.id)
+        }.padding(.horizontal,18).padding(.vertical,12).background(model.selected==point.id ? blue.opacity(0.055):.clear)
+    }
+    private var filterSheet:some View {
+        NavigationStack{Form{
+            Section(uiText("Map")){Picker(uiText("地图来源"),selection:Binding(get:{searchProvider},set:{if addingToDay{localProvider=$0}else{store.mapProvider=$0}})){ForEach(store.availableMapProviders){Text(uiText($0.label)).tag($0)}}.accessibilityIdentifier("poi-map-provider")}
+            Section(uiText("Explore")){Picker(uiText("Category"),selection:Binding(get:{PoiDiscoveryCategory.parent(model.category)},set:{model.category=$0})){ForEach(PoiDiscoveryCategory.groups,id:\.0){id,label in Text(uiText(label)).tag(id)}}
+                if model.category=="all",!(store.personalProfile.interests ?? []).isEmpty{Text(uiText("For you puts places matching your saved interests first, then sorts by distance from the map centre.")).font(.caption)}
+            }
+            Section(uiText("Travel context")){
+                Toggle(uiText("Show traffic and cost markers"),isOn:$showMapInsights).accessibilityIdentifier("poi-insights-toggle")
+                Button{requestInsights=true;filtersOpen=false}label:{Label(uiText("交通・人潮・費用"),systemImage:"info.circle")}.accessibilityIdentifier("travel-insights-open")
+            }
+            Section{Button(uiText("Places & data sources")){requestCredits=true;filtersOpen=false}.accessibilityIdentifier("poi-filter-credits")}
+        }.navigationTitle(uiText("Filters")).navigationBarTitleDisplayMode(.inline).toolbar{Button(uiText("Done")){filtersOpen=false}}}.tint(blue).presentationDetents([.medium,.large])
+    }
+    private var compactCredit:String {
+        if model.attribution.contains("OpenStreetMap") || searchProvider == .osm{return model.attribution.contains("Overture") ? "© OpenStreetMap · Overture":"© OpenStreetMap"}
+        return searchProvider == .google ? "Google Maps":searchProvider == .apple ? "Apple Maps":"Overture"
+    }
+    private var creditsSheet:some View {
+        NavigationStack{ScrollView{VStack(alignment:.leading,spacing:16){
+            Text(uiText("Place data: ")+model.source).font(.headline)
+            Text(model.attribution).font(.caption)
+            if let version=model.dataVersion{Text(uiText("Data version: ")+version).font(.caption)}
+            if model.attribution.contains("OpenStreetMap") || searchProvider == .osm{Link("© OpenStreetMap contributors · ODbL",destination:URL(string:"https://www.openstreetmap.org/copyright")!)}
+            if model.attribution.contains("Overture"){Link("Overture Maps attribution",destination:URL(string:"https://docs.overturemaps.org/attribution/")!)}
+            if model.attribution.contains("Wikivoyage"){Link("Wikivoyage · CC BY-SA 4.0",destination:URL(string:"https://creativecommons.org/licenses/by-sa/4.0/")!)}
+            Text(uiText("Prices marked Est. are planning estimates. Ratings appear only when a review source and review count are available. Distance is measured from the last search centre, not a verified walking route.")).font(.subheadline)
+            if let summary=model.searchSummary{DisclosureGroup(uiText("Original provider note")){Text(verbatim:summary).font(.caption)}}
+        }.padding(24)}.navigationTitle(uiText("Data credits")).navigationBarTitleDisplayMode(.inline).toolbar{Button(uiText("Done")){creditsOpen=false}}}.tint(blue)
+    }
+    private var savedSheet:some View {
+        NavigationStack{List{
+            if toolbox.places.isEmpty{Text(uiText("Save a place here, then add it to a trip whenever you’re ready.")).foregroundStyle(.secondary)}
+            ForEach(toolbox.places){point in Button{savedFocus=point;savedOpen=false}label:{VStack(alignment:.leading,spacing:5){Text(point.displayName).font(.headline);Text(uiText(point.category)).font(.caption).foregroundStyle(.secondary)}}.swipeActions{Button(uiText("Remove"),role:.destructive){toolbox.remove(point.id)}}}
+        }.navigationTitle(uiText("Saved places")).toolbar{Button(uiText("Done")){savedOpen=false}}}.tint(blue)
+    }
+    @ViewBuilder private func map(bottomInset:CGFloat)->some View {
         switch searchProvider {
-        case .apple,.osm:PoiNativeMap(places:visiblePlaces,osm:searchProvider == .osm,center:model.center,zoom:zoom,onCamera:{zoom=$1;areaChanged=false;model.cameraChanged($0,zoom:$1)},onSelect:{id in if let point=visiblePlaces.first(where:{$0.id==id}){focusPlace(point)}},insightMarkers:insightMarkers,focus:focus,cameraAction:cameraAction,onFeature:{point in model.stop();if !model.places.contains(where:{$0.id==point.id}){model.places.append(point)};focusPlace(point);detail=point},onFeatureStatus:{loading,error in featureLoading=loading;featureError=error}).accessibilityIdentifier("poi-map-"+searchProvider.rawValue)
+        case .apple,.osm:PoiNativeMap(places:mapPlaces,osm:searchProvider == .osm,center:model.center,zoom:zoom,onCamera:cameraChanged,onSelect:{id in if let point=visiblePlaces.first(where:{$0.id==id}){focusPlace(point)}},insightMarkers:insightMarkers,focus:focus,cameraAction:cameraAction,bottomInset:bottomInset,onFeature:{point in model.stop();if !model.places.contains(where:{$0.id==point.id}){model.places.append(point)};focusPlace(point);detail=point},onFeatureStatus:{loading,error in featureLoading=loading;featureError=error}).accessibilityIdentifier("poi-map-"+searchProvider.rawValue)
         case .google:
-            if SydneyBuddyApp.mapReady{PoiGoogleMap(places:visiblePlaces,center:model.center,zoom:zoom,onCamera:{zoom=$1;areaChanged=false;model.cameraChanged($0,zoom:$1)},onSelect:{id in if let point=visiblePlaces.first(where:{$0.id==id}){focusPlace(point)}},insightMarkers:insightMarkers,focus:focus,cameraAction:cameraAction)}
+            if SydneyBuddyApp.mapReady{PoiGoogleMap(places:mapPlaces,center:model.center,zoom:zoom,onCamera:cameraChanged,onSelect:{id in if let point=visiblePlaces.first(where:{$0.id==id}){focusPlace(point)}},insightMarkers:insightMarkers,focus:focus,cameraAction:cameraAction,bottomInset:bottomInset)}
             else{ContentUnavailableView(uiText("地图尚未配置"),systemImage:"map",description:Text(uiText("请切换到 Apple Maps 或 OpenStreetMap。")))}
         case .schematic:ContentUnavailableView(uiText("请选择在线底图"),systemImage:"map",description:Text(uiText("示意图不支持地点搜索。")))
         }
     }
-    private func results(height:CGFloat)->some View {
-        VStack(spacing:0){
-            Button{togglePanel()}label:{VStack(spacing:10){Capsule().fill(Palette.muted.opacity(0.35)).frame(width:36,height:4);HStack{Text(uiText(model.busy ? "正在寻找好去处…":"附近地点")).font(.headline);Text(uiText("\(visiblePlaces.count)")).font(.caption).foregroundStyle(Palette.muted);Spacer();Image(systemName:expanded ? "chevron.down":"chevron.up").font(.caption.bold())}}.padding(.horizontal,20).padding(.top,10).padding(.bottom,12)}.buttonStyle(.plain).accessibilityLabel(uiText(expanded ? "收起地点列表":"展开地点列表"))
-                .gesture(DragGesture(minimumDistance:15).onEnded{value in if abs(value.translation.height)>20{expanded=value.translation.height<0}})
-            if model.busy{ProgressView().padding(12)}
-            if let error=model.error{ScrollView{VStack(spacing:10){Text(uiText("暂时没找到地点资料")).font(.headline);Text(uiText(error)).font(.caption).foregroundStyle(Palette.muted);Button(uiText("重新搜索")){search()}}.padding(20)}}
-            else if !model.busy && visiblePlaces.isEmpty {ContentUnavailableView(uiText("换个地方看看"),systemImage:"magnifyingglass",description:Text(uiText("移动地图后自动搜索，也可点“搜索此区域”，或换一个关键词。")))}
-            else{ScrollViewReader{proxy in ScrollView{LazyVStack(spacing:0){ForEach(orderedPlaces){p in placeRow(p).id(p.id);Divider().padding(.leading,68)}}}.onChange(of:model.selected){_,id in if let id{proxy.scrollTo(id,anchor:.top)}}}}
-            Button{showDataInfo=true}label:{
-                HStack(spacing:8){
-                    Label(uiText("資料說明"),systemImage:"info.circle").font(.caption)
-                    Spacer(minLength:8)
-                    Text(verbatim:compactCredit).font(.caption2).multilineTextAlignment(.trailing)
-                }.frame(minHeight:44).padding(.horizontal,16)
-            }.buttonStyle(.plain).foregroundStyle(Palette.muted).accessibilityIdentifier("poi-data-info")
-        }.frame(height:height).frame(maxWidth:.infinity).background(Palette.cream,in:UnevenRoundedRectangle(topLeadingRadius:24,topTrailingRadius:24)).shadow(color:.black.opacity(0.08),radius:12,y:-3)
+    private func updateSearchLanguage(_ language:AppLanguage){
+        switch language{case .english:model.language="en";case .simplified:model.language="zh-CN";case .traditional:model.language="zh-TW"}
     }
-    private func placeRow(_ p:ScheduleCandidate)->some View {
-        let insightPrice=store.insights?.places.first{$0.id==p.id}?.price
-        let priceText=ticketSummaries[p.id]?.label(store.language) ?? p.mappedFoodPriceLabel ?? (insightPrice?.status == "unknown" ? nil:insightPrice?.summary)
-        let metaLine=[p.hasSourcedRating ? p.mappedRatingLabel:nil,priceText].compactMap{$0}.joined(separator:" · ")
-        return HStack(alignment:.top,spacing:12){
-            Image(systemName:p.discoverySymbol).font(.title3).foregroundStyle(Palette.green).frame(width:38,height:44).background(Palette.mint,in:RoundedRectangle(cornerRadius:12))
-            Button{focusPlace(p)}label:{VStack(alignment:.leading,spacing:5){Text(p.displayName).font(.subheadline.bold()).multilineTextAlignment(.leading);if !metaLine.isEmpty{Text(uiText(metaLine)).font(.caption2).foregroundStyle(Palette.muted)};Text(uiText(p.address?.isEmpty == false ? p.address! : (p.displayDescription ?? "点击查看地点详情"))).font(.caption).foregroundStyle(Palette.muted).lineLimit(1)}.frame(maxWidth:.infinity,alignment:.leading)}.buttonStyle(.plain).accessibilityLabel(uiText("查看地点："+p.displayName)).accessibilityIdentifier("poi-focus-"+p.id)
-            Button{focusPlace(p);detail=p}label:{Image(systemName:"info.circle").frame(width:36,height:44)}.accessibilityLabel(uiText("介紹："+p.displayName)).accessibilityIdentifier("poi-detail-"+p.id)
-            if p.source == "Google Places" {
-                Text(uiText("Google 地點暫不匯入本機示例時間軸")).font(.caption2).foregroundStyle(Palette.muted)
-            } else {
-                Button {
-                    if addingToDay {if !replacingPlace{toolbox.add(p)};onAdd(p)}
-                    else if isAdded(p) { toolbox.remove(p.id) }
-                    else { toolbox.add(p); onAdd(p) }
-                } label: {
-                    Image(systemName:addingToDay ? "plus":isAdded(p) ? "checkmark":"plus").font(.headline).frame(width:44,height:44).background(.white,in:Circle())
-                }
-                .accessibilityLabel(uiText((replacingPlace ? "用这个替换":addingToDay ? "加入当天":store.language.text(isAdded(p) ? "移出工具箱":"＋工具箱")) + "：" + p.displayName))
-                .accessibilityIdentifier("poi-toggle-"+p.id)
-            }
-        }.padding(.horizontal,16).padding(.vertical,12).background(model.selected==p.id ? Palette.mint.opacity(0.5):.clear)
+    private func configure(){detail=nil;focus=nil;areaChanged=false;cameraAction=nil;model.configure(searchProvider,googleMapConfigured:SydneyBuddyApp.mapConfigured,dataSource:store.travelDataSource)}
+    private func cameraChanged(_ point:CLLocationCoordinate2D,_ newZoom:Double){
+        let moved=CLLocation(latitude:model.center.latitude,longitude:model.center.longitude).distance(from:CLLocation(latitude:point.latitude,longitude:point.longitude))>60 || abs(zoom-newZoom)>0.35
+        zoom=newZoom
+        guard moved else{return}
+        model.cameraChanged(point,zoom:newZoom,automaticallySearch:false);areaChanged=true;searching=false;setDrawer(.collapsed)
     }
-    private var compactCredit:String {
-        if model.attribution.contains("OpenStreetMap") || searchProvider == .osm {
-            return model.attribution.contains("Overture") ? "© OpenStreetMap · Overture":"© OpenStreetMap"
-        }
-        return searchProvider == .google ? "Google Maps":searchProvider == .apple ? "Apple Maps":"Overture"
+    private func changeCamera(_ kind:RouteMapCameraAction.Kind){searching=false;focus=nil;model.selected=nil;cameraAction=RouteMapCameraAction(kind:kind);setDrawer(.collapsed)}
+    private func focusPlace(_ point:ScheduleCandidate){searching=false;model.stop();model.center = .init(latitude:point.lat,longitude:point.lng);model.selected=point.id;setDrawer(.preview);focus=PoiMapFocus(point:point)}
+    private func search(){searching=false;areaChanged=false;focus=nil;model.search();setDrawer(.preview)}
+    private func drawerHeight(_ available:CGFloat)->CGFloat {
+        if drawer == .preview,!model.busy,model.error==nil,visiblePlaces.count==1{return min(180,available*0.35)}
+        return drawer.height(in:available,header:headerHeight)
     }
-    private var dataInfo:some View {
-        NavigationStack {
-            List {
-                if let summary=model.searchSummary {
-                    Section(uiText("搜尋結果說明")){Text(uiText(summary)).accessibilityIdentifier("poi-search-summary")}
-                }
-                Section(uiText("資料來源")) {
-                    Text(uiText(store.language.text("地點資料：{0}",model.source)))
-                    Text(uiText(searchProvider.label))
-                    if let version=model.dataVersion{LabeledContent(uiText("資料版本"),value:version)}
-                }
-                Section(uiText("授權與致謝")) {
-                    Text(verbatim:model.attribution).font(.subheadline)
-                    if model.attribution.contains("OpenStreetMap") || searchProvider == .osm {
-                        Link("© OpenStreetMap contributors · ODbL",destination:URL(string:"https://www.openstreetmap.org/copyright")!)
-                    }
-                    if model.attribution.contains("Overture") {
-                        Link("Overture Maps Foundation",destination:URL(string:"https://docs.overturemaps.org/attribution/")!)
-                    }
-                    if model.attribution.contains("Wikivoyage") {
-                        Link("Wikivoyage · CC BY-SA 4.0",destination:URL(string:"https://creativecommons.org/licenses/by-sa/4.0/")!)
-                    }
-                }
-            }
-            .navigationTitle(uiText("資料來源與說明")).navigationBarTitleDisplayMode(.inline)
-            .toolbar{ToolbarItem(placement:.topBarTrailing){Button(uiText("完成")){showDataInfo=false}}}
-        }.presentationDetents([.medium,.large]).presentationDragIndicator(.visible)
+    private func setDrawer(_ value:ExploreDrawer){withAnimation(reduceMotion ? nil:.easeInOut(duration:0.22)){drawer=value}}
+    private func isAdded(_ point:ScheduleCandidate)->Bool {toolbox.places.contains{$0.id==point.id}}
+    private func save(_ point:ScheduleCandidate){
+        if point.source=="Google Places"{detail=point;return}
+        if addingToDay{if !replacingPlace{toolbox.add(point)};onAdd(point)}else{savingPlace=point}
     }
-    private var categoryMenuGroups:[(String,String)] {PoiDiscoveryCategory.groups.filter{group in PoiDiscoveryCategory.details.contains{$0.2==group.0}}}
-    private func categorySection(_ group:(String,String))->some View {
-        let options=PoiDiscoveryCategory.details.filter{$0.2==group.0}
-        return Section(uiText(group.1)) {
-            ForEach(options,id:\.0){option in categoryOption(option.0,option.1)}
-        }
-    }
-    private var categoryBar:some View {
-        HStack(spacing:6) {
-            ScrollViewReader { proxy in
-                ScrollView(.horizontal,showsIndicators:false){HStack(spacing:6){
-                    ForEach(PoiDiscoveryCategory.groups,id:\.0){id,label in
-                        Button{model.category=id}label:{Text(uiText(label)).font(.subheadline).padding(.horizontal,12).frame(minHeight:40).background(PoiDiscoveryCategory.parent(model.category)==id ? Palette.green:Color.clear,in:Capsule()).foregroundStyle(PoiDiscoveryCategory.parent(model.category)==id ? .white:Palette.ink)}.id(id).accessibilityIdentifier("poi-category-"+id)
-                    }
-                }}
-                .onChange(of:model.category){_,category in withAnimation(reduceMotion ? nil:.easeInOut(duration:0.2)){proxy.scrollTo(PoiDiscoveryCategory.parent(category),anchor:.center)}}
-            }
-            if !PoiDiscoveryCategory.filters(model.category).isEmpty {
-                Divider().frame(height:24)
-                Menu {
-                    categoryOption(PoiDiscoveryCategory.parent(model.category),"全部")
-                    if PoiDiscoveryCategory.parent(model.category)=="all" {
-                        ForEach(categoryMenuGroups,id:\.0){group in categorySection(group)}
-                    } else {
-                        ForEach(PoiDiscoveryCategory.filters(model.category),id:\.0){id,title,_ in categoryOption(id,title)}
-                    }
-                } label: {
-                    Label(uiText(selectedCategoryDetail ?? "篩選"),systemImage:"line.3.horizontal.decrease")
-                        .font(.caption.bold()).fixedSize(horizontal:true,vertical:false).padding(.horizontal,10).frame(minHeight:40)
-                        .background(selectedCategoryDetail != nil ? Palette.green:Palette.mint,in:Capsule())
-                        .foregroundStyle(selectedCategoryDetail != nil ? .white:Palette.ink)
-                }.accessibilityIdentifier("poi-category-filter").accessibilityLabel(uiText("細分類")+"："+uiText(selectedCategoryDetail ?? "全部"))
-            }
-        }.padding(6).background(.regularMaterial,in:RoundedRectangle(cornerRadius:16))
-    }
-    private var selectedCategoryDetail:String? {PoiDiscoveryCategory.details.first{$0.0==model.category}?.1}
-    private func categoryOption(_ id:String,_ title:String)->some View {
-        Button{model.category=id}label:{
-            if model.category==id{Label(uiText(title),systemImage:"checkmark")}
-            else{Text(uiText(title))}
-        }.accessibilityIdentifier("poi-category-"+id)
-    }
-    private func isAdded(_ p:ScheduleCandidate)->Bool {toolbox.places.contains{$0.id==p.id}}
+    private func acknowledge(_ message:String){receipt=uiText(message);UIImpactFeedbackGenerator(style:.soft).impactOccurred();UIAccessibility.post(notification:.announcement,argument:receipt)}
     private func loadTicketSummaries() async {
         ticketSummaries=[:];let points=Array(visiblePlaces.prefix(80));let source=store.travelDataSource;let provider=searchProvider
         guard !points.isEmpty else{return}
         do{
             let raw=try await SocialImportModel().call("activities/summaries",body:["places":points.map{["id":$0.id,"name":$0.name,"lat":$0.lat,"lng":$0.lng] as [String:Any]}],store:store)
-            try Task.checkCancellation()
-            guard source==store.travelDataSource,provider==searchProvider,raw["dataSource"] as? String==source.rawValue else{return}
+            try Task.checkCancellation();guard source==store.travelDataSource,provider==searchProvider,raw["dataSource"] as? String==source.rawValue else{return}
             ticketSummaries=try JSONDecoder().decode([String:TicketPriceSummary].self,from:JSONSerialization.data(withJSONObject:raw["summaries"] ?? [:]))
-        }catch{ /* Reference prices are optional; unavailable data keeps the unknown label. */ }
+        }catch{}
     }
-    private func focusPlace(_ point:ScheduleCandidate){
-        searching=false;model.stop();model.center = .init(latitude:point.lat,longitude:point.lng);model.selected=point.id;expanded=false;focus=PoiMapFocus(point:point)
-    }
-    private func search(){searching=false;areaChanged=false;model.search()}
-    private func togglePanel(){withAnimation(reduceMotion ? nil:.easeInOut(duration:0.2)){expanded.toggle()}}
 }
+
+@MainActor private struct ExploreSavePlaceSheet:View {
+    let candidate:ScheduleCandidate
+    var onSaved:(String)->Void
+    @EnvironmentObject var store:AppStore
+    @ObservedObject private var toolbox=PoiToolbox.shared
+    @Environment(\.dismiss) private var dismiss
+    var body:some View {
+        NavigationStack{List{
+            Section{Text(candidate.displayName).font(.title3.bold());Button{toolbox.add(candidate);onSaved("Saved for later. We can make room for it when you’re ready.")}label:{Label(uiText(toolbox.places.contains(where:{$0.id==candidate.id}) ? "Keep in saved places":"Save for later"),systemImage:"bookmark")}.accessibilityIdentifier("poi-save-later")}
+            Section(uiText("Add to a trip")){
+                if candidate.category=="住宿"{Text(uiText("Save this stay for later, then choose it in your trip’s Preferences & stays. It won’t be added as a sightseeing stop.")).font(.subheadline).foregroundStyle(.secondary)}
+                else if store.saved.isEmpty{Text(uiText("No trips yet. Save it for later, then plan a trip from Trips.")).foregroundStyle(.secondary)}
+                ForEach(TripHomePresentation.orderedTrips(store.saved,today:TripProfile.dateString(Date())).filter{!$0.days.isEmpty && candidate.category != "住宿"}){trip in
+                    NavigationLink{ExploreAddToTripView(candidate:candidate,original:trip,onSaved:onSaved).environmentObject(store)}label:{VStack(alignment:.leading,spacing:4){Text(TripHomePresentation.title(trip,language:store.language));Text(trip.profile.date).font(.caption).foregroundStyle(.secondary)}}.accessibilityIdentifier("poi-save-trip-"+(trip.id ?? ""))
+                }
+            }
+            if toolbox.places.contains(where:{$0.id==candidate.id}){Section{Button(uiText("Remove from saved places"),role:.destructive){toolbox.remove(candidate.id);dismiss()}}}
+        }.navigationTitle(uiText("Save this place")).navigationBarTitleDisplayMode(.inline).toolbar{Button(uiText("Cancel")){dismiss()}}}.tint(Color(red:0.20,green:0.36,blue:0.79))
+    }
+}
+
+@MainActor private struct ExploreAddToTripView:View {
+    let candidate:ScheduleCandidate
+    let original:Trip
+    var onSaved:(String)->Void
+    @EnvironmentObject var store:AppStore
+    @StateObject private var editor=ScheduleEditorModel()
+    @State private var selectedDay=0
+    @State private var checked=false
+    @State private var saving=false
+    @State private var saveError:String?
+    private var alreadyAdded:Bool {(original.schedule ?? ScheduleState.preserving(original)).days.flatMap(\.activities).contains{$0.placeId==candidate.id}}
+    private var canSave:Bool {checked && !editor.busy && !editor.dirty && !saving && editor.error==nil && editor.state?.issues.contains(where:{$0.blocking})==false && editor.state?.days.flatMap(\.activities).contains(where:{$0.placeId==candidate.id})==true}
+    var body:some View {
+        ScrollView{VStack(alignment:.leading,spacing:18){
+            Text(candidate.displayName).font(.title2.bold())
+            Text(TripHomePresentation.title(original,language:store.language)).font(.subheadline).foregroundStyle(.secondary)
+            if alreadyAdded{Label(uiText("This place is already in this trip."),systemImage:"checkmark.circle")}
+            else{
+                Picker(uiText("Choose a day"),selection:$selectedDay){ForEach(original.days.indices,id:\.self){index in Text("Day \(index+1) · \(original.days[index].date)").tag(index)}}.pickerStyle(.menu).accessibilityIdentifier("poi-save-day")
+                Text(uiText("We’ll check travel time and how it fits before changing your trip.")).font(.subheadline).foregroundStyle(.secondary)
+                if editor.busy{ProgressView(uiText("Checking the route and timing…"))}
+                if let state=editor.state,checked,!editor.busy,state.days.indices.contains(selectedDay){
+                    let day=state.days[selectedDay]
+                    Text("\(day.activities.count) stops · About \(day.estimatedSteps) steps").font(.headline)
+                    ForEach(day.activities){activity in HStack{Text(activity.arrival).font(.caption.monospacedDigit());Text(state.candidates.first(where:{$0.id==activity.placeId})?.displayName ?? uiText(activity.name)).font(.subheadline)}.foregroundStyle(activity.placeId==candidate.id ? Color.blue:Color.primary)}
+                    let checks=ExplorePresentation.checks(state,day:selectedDay)
+                    if checks.contains(where:{$0.blocking}){Text(uiText("This doesn’t fit yet. Try another day, or keep it saved for later. Your original trip is unchanged.")).font(.subheadline.weight(.semibold))}
+                    ForEach(checks.filter(\.blocking)){check in Label(uiText(check.text),systemImage:"exclamationmark.triangle").font(.caption).foregroundStyle(.red)}
+                    if checks.contains(where:{!$0.blocking}){DisclosureGroup(uiText("Things to keep in mind")){ForEach(checks.filter{!$0.blocking}){check in Text(uiText(check.text)).font(.caption).padding(.vertical,3)}}}
+                    DisclosureGroup(uiText("Original calculation notes")){ForEach(state.issues.filter{$0.day==selectedDay || $0.day == -1}){issue in Text(verbatim:issue.message).font(.caption)}}
+                    Text(uiText("Prices and opening hours may still need checking.")).font(.caption).foregroundStyle(.secondary)
+                }
+                if let error=editor.error ?? saveError{Text(uiText("Couldn’t complete this change. Your original trip is unchanged. Try again, or refresh Trips before retrying a save.")).font(.caption).foregroundStyle(.red);DisclosureGroup(uiText("Technical details")){Text(verbatim:error).font(.caption)}}
+                Button(uiText(checked ? "Check again":"Check fit")){check()}.buttonStyle(.bordered).disabled(editor.busy || saving).accessibilityIdentifier("poi-check-fit")
+                Button{save()}label:{Text(uiText(saving ? "Saving…":"Confirm and add")).font(.headline).frame(maxWidth:.infinity,minHeight:50)}.buttonStyle(.borderedProminent).disabled(!canSave).accessibilityIdentifier("poi-confirm-add")
+                if checked,!editor.busy,!saving,!canSave{Button(uiText("Keep saved for later")){PoiToolbox.shared.add(candidate);onSaved("Saved for later. We can find a better fit together.")}.accessibilityIdentifier("poi-save-instead")}
+            }
+        }.padding(24)}.disabled(saving).navigationTitle(uiText("Add to trip")).navigationBarTitleDisplayMode(.inline)
+        .interactiveDismissDisabled(saving).navigationBarBackButtonHidden(saving)
+        .task{editor.loader=store.loader;editor.inlineEditing=true;editor.prepare(original);selectedDay=TripHomePresentation.dayIndex(original,today:TripProfile.dateString(Date()))}
+        .onChange(of:selectedDay){_,_ in editor.acceptSaved(original);checked=false;saveError=nil}
+        .onDisappear{editor.stop()}
+    }
+    private func check(){editor.acceptSaved(original);editor.dayIndex=selectedDay;checked=true;saveError=nil;editor.edit{state in ExplorePresentation.insert(candidate,into:&state,day:selectedDay)}}
+    private func save(){
+        guard canSave,let value=editor.trip else{return};saving=true;saveError=nil
+        Task{let ok=await store.saveAdjustment(value,original:original,dayIndex:selectedDay,inline:true);saving=false
+            if ok{store.koalaFeedback=nil;PoiToolbox.shared.add(candidate);onSaved("Added to "+TripHomePresentation.title(original,language:store.language)+".")}
+            else{saveError=store.adjustmentError ?? "Couldn’t save this change. Your original trip is unchanged."}
+        }
+    }
+}
+
 @MainActor final class AppleFeatureLookup {
     private var job:Task<Void,Never>?
     private var generation=UUID()
@@ -503,6 +637,7 @@ struct PoiNativeMap:UIViewRepresentable {
     var insightMarkers:[InsightMarker]=[]
     var focus:PoiMapFocus?=nil
     var cameraAction:RouteMapCameraAction?=nil
+    var bottomInset:CGFloat=0
     var onFeature:(ScheduleCandidate)->Void={_ in}
     var onFeatureStatus:(Bool,String?)->Void={_,_ in}
     func makeCoordinator()->Coordinator{Coordinator(self)}
@@ -514,10 +649,21 @@ struct PoiNativeMap:UIViewRepresentable {
         func mapView(_ map:MKMapView,regionDidChangeAnimated animated:Bool){if focusing{focusing=false;return};parent.onCamera(map.centerCoordinate,log2(360/max(0.00001,map.region.span.longitudeDelta)))}
         func mapView(_ map:MKMapView,viewFor annotation:MKAnnotation)->MKAnnotationView? {
             if let pin=annotation as? InsightMapPin {let view=MKMarkerAnnotationView(annotation:pin,reuseIdentifier:nil);view.markerTintColor=pin.kind == "price" ? .systemGreen:.systemOrange;view.glyphText=pin.kind == "price" ? "$":"!";view.canShowCallout=true;return view}
+            if let cluster=annotation as? MKClusterAnnotation {
+                let view=MKMarkerAnnotationView(annotation:cluster,reuseIdentifier:nil);view.markerTintColor = .systemBlue;view.glyphText=String(cluster.memberAnnotations.count);view.displayPriority = .defaultHigh;view.titleVisibility = .hidden;view.subtitleVisibility = .hidden;view.canShowCallout=false;return view
+            }
             guard let pin=annotation as? PoiPin else{return nil}
-            let view=MKMarkerAnnotationView(annotation:pin,reuseIdentifier:nil);let selected=pin.point.id==parent.focus?.point.id;view.markerTintColor=selected ? .systemBlue:pin.point.category=="美食" ? .systemOrange:.systemTeal;view.displayPriority=selected ? .required:.defaultHigh;view.zPriority=selected ? .max:.defaultUnselected;view.transform=selected ? CGAffineTransform(scaleX:1.2,y:1.2):.identity;view.glyphImage=UIImage(systemName:pin.point.discoverySymbol);view.canShowCallout=true;return view
+            let view=MKMarkerAnnotationView(annotation:pin,reuseIdentifier:nil);let selected=pin.point.id==parent.focus?.point.id
+            view.markerTintColor=selected ? .systemBlue:UIColor(red:0.34,green:0.47,blue:0.62,alpha:1)
+            view.titleVisibility = selected ? .visible:.hidden;view.subtitleVisibility = .hidden;view.collisionMode = .circle
+            view.clusteringIdentifier=selected ? nil:"explore-places";view.displayPriority=selected ? .required:.defaultLow;view.zPriority=selected ? .max:.defaultUnselected
+            view.transform=selected ? CGAffineTransform(scaleX:1.15,y:1.15):.identity;view.glyphImage=UIImage(systemName:pin.point.discoverySymbol);view.canShowCallout=true;return view
         }
-        func mapView(_ map:MKMapView,didSelect view:MKAnnotationView){if let pin=view.annotation as? PoiPin,pin.point.id != parent.focus?.point.id{featureLookup.cancel();parent.onFeatureStatus(false,nil);parent.onSelect(pin.point.id)}}
+        func mapView(_ map:MKMapView,didSelect view:MKAnnotationView){
+            if let cluster=view.annotation as? MKClusterAnnotation {
+                map.deselectAnnotation(cluster,animated:false);map.setVisibleMapRect(routeCameraBounds(cluster.memberAnnotations.map(\.coordinate)),edgePadding:UIEdgeInsets(top:150,left:50,bottom:180,right:50),animated:!UIAccessibility.isReduceMotionEnabled);return
+            }
+            if let pin=view.annotation as? PoiPin,pin.point.id != parent.focus?.point.id{featureLookup.cancel();parent.onFeatureStatus(false,nil);parent.onSelect(pin.point.id)}}
         func mapView(_ map:MKMapView,didSelect annotation:MKAnnotation){
             guard !parent.osm,let feature=annotation as? MKMapFeatureAnnotation,feature.featureType == .pointOfInterest else{return}
             let request=MKMapItemRequest(mapFeatureAnnotation:feature)
@@ -531,7 +677,7 @@ struct PoiNativeMap:UIViewRepresentable {
             })
         }
     }
-    func makeUIView(context:Context)->MKMapView{let map=MKMapView();map.delegate=context.coordinator;map.showsScale=true;map.isPitchEnabled=false;map.selectableMapFeatures=osm ? []:[.pointsOfInterest];if osm{map.addOverlay(OsmTiles(),level:.aboveLabels)};let delta=360/pow(2,zoom);map.setRegion(MKCoordinateRegion(center:center,span:MKCoordinateSpan(latitudeDelta:delta,longitudeDelta:delta)),animated:false);return map}
+    func makeUIView(context:Context)->MKMapView{let map=MKMapView();map.delegate=context.coordinator;map.showsScale=true;map.isPitchEnabled=false;map.preferredConfiguration=MKStandardMapConfiguration(elevationStyle:.flat,emphasisStyle:.muted);map.selectableMapFeatures=osm ? []:[.pointsOfInterest];if osm{map.addOverlay(OsmTiles(),level:.aboveLabels)};let delta=360/pow(2,zoom);map.setRegion(MKCoordinateRegion(center:center,span:MKCoordinateSpan(latitudeDelta:delta,longitudeDelta:delta)),animated:false);return map}
     func applyCameraAction(_ map:MKMapView,coordinator:Coordinator,animated:Bool) {
         guard let action=cameraAction,coordinator.lastCameraAction != action.id else{return}
         coordinator.lastCameraAction=action.id;coordinator.focusing=false
@@ -548,12 +694,14 @@ struct PoiNativeMap:UIViewRepresentable {
     func updateUIView(_ map:MKMapView,context:Context){
         if context.coordinator.parent.osm != osm{context.coordinator.featureLookup.cancel();onFeatureStatus(false,nil)}
         context.coordinator.parent=self
+        let margins=UIEdgeInsets(top:120,left:12,bottom:bottomInset+12,right:12)
+        if map.layoutMargins != margins{map.layoutMargins=margins}
         applyCameraAction(map,coordinator:context.coordinator,animated:!UIAccessibility.isReduceMotionEnabled)
         map.selectableMapFeatures=osm ? []:[.pointsOfInterest]
         let tiles=map.overlays.filter{$0 is OsmTiles}
         if osm && tiles.isEmpty{map.addOverlay(OsmTiles(),level:.aboveLabels)}
         if !osm{map.removeOverlays(tiles)}
-        let key=AppLanguage.current.rawValue+places.map{ $0.id+$0.displayName }.joined(separator:",")+insightMarkers.map{$0.id+$0.title}.joined()+(focus?.point.id ?? "")
+        let key=AppLanguage.current.rawValue+places.map{$0.id+$0.displayName}.joined(separator:",")+insightMarkers.map{$0.id+$0.title}.joined()+(focus?.point.id ?? "")
         if context.coordinator.key != key {
             context.coordinator.key=key;map.removeAnnotations(map.annotations);map.addAnnotations(places.map(PoiPin.init))
             for item in insightMarkers{let pin=InsightMapPin();pin.kind=item.kind;pin.coordinate = .init(latitude:item.lat,longitude:item.lng);pin.title=uiText(item.title);pin.subtitle=uiText(item.summary);map.addAnnotation(pin)}
@@ -574,13 +722,20 @@ private struct PoiGoogleMap:UIViewRepresentable {
     var insightMarkers:[InsightMarker]=[]
     var focus:PoiMapFocus?=nil
     var cameraAction:RouteMapCameraAction?=nil
+    var bottomInset:CGFloat=0
     func makeCoordinator()->Coordinator{Coordinator(self)}
     final class Coordinator:NSObject,GMSMapViewDelegate {
         var parent:PoiGoogleMap;var key="";var focusToken:UUID?;var lastCameraAction:UUID?;var focusing=false;var markers:[String:GMSMarker]=[:]
         init(_ parent:PoiGoogleMap){self.parent=parent}
         func mapView(_ map:GMSMapView,willMove gesture:Bool){if gesture{focusing=false}}
         func mapView(_ map:GMSMapView,idleAt camera:GMSCameraPosition){if focusing{focusing=false;return};parent.onCamera(camera.target,Double(camera.zoom))}
-        func mapView(_ map:GMSMapView,didTap marker:GMSMarker)->Bool{if let id=marker.userData as? String{parent.onSelect(id)};return true}
+        func mapView(_ map:GMSMapView,didTap marker:GMSMarker)->Bool{
+            if let points=marker.userData as? [ScheduleCandidate]{
+                let rect=routeCameraBounds(points.map{CLLocationCoordinate2D(latitude:$0.lat,longitude:$0.lng)})
+                let bounds=GMSCoordinateBounds(coordinate:MKMapPoint(x:rect.minX,y:rect.minY).coordinate,coordinate:MKMapPoint(x:rect.maxX,y:rect.maxY).coordinate)
+                map.animate(with:GMSCameraUpdate.fit(bounds,with:UIEdgeInsets(top:150,left:40,bottom:180,right:40)))
+            }else if let id=marker.userData as? String{parent.onSelect(id)};return true
+        }
     }
     func makeUIView(context:Context)->GMSMapView {
         let options=GMSMapViewOptions();options.camera=GMSCameraPosition(target:center,zoom:Float(zoom))
@@ -588,9 +743,11 @@ private struct PoiGoogleMap:UIViewRepresentable {
     }
     func updateUIView(_ map:GMSMapView,context:Context){
         context.coordinator.parent=self
+        let margins=UIEdgeInsets(top:120,left:12,bottom:bottomInset+12,right:12)
+        if !context.coordinator.focusing && map.padding != margins{map.padding=margins}
         if let action=cameraAction,context.coordinator.lastCameraAction != action.id {
             context.coordinator.lastCameraAction=action.id;context.coordinator.focusing=false
-            map.selectedMarker=nil;map.padding = .zero
+            map.selectedMarker=nil;map.padding = margins
             switch action.kind {
             case .zoomIn:map.animate(toZoom:min(20,map.camera.zoom+1))
             case .zoomOut:map.animate(toZoom:max(3,map.camera.zoom-1))
@@ -601,14 +758,22 @@ private struct PoiGoogleMap:UIViewRepresentable {
                 map.animate(with:GMSCameraUpdate.fit(bounds,with:UIEdgeInsets(top:min(220,map.bounds.height*0.4),left:30,bottom:70,right:76)))
             }
         }
-        let key=AppLanguage.current.rawValue+places.map{ $0.id+$0.displayName }.joined(separator:",")+insightMarkers.map{$0.id+$0.title}.joined()+(focus?.point.id ?? "")
+        let key=AppLanguage.current.rawValue+places.map{$0.id+$0.displayName}.joined(separator:",")+insightMarkers.map{$0.id+$0.title}.joined()+(focus?.point.id ?? "")+String(format:"%.1f",map.camera.zoom)
         if key != context.coordinator.key {context.coordinator.key=key;map.clear();context.coordinator.markers=[:]
         for item in insightMarkers{let pin=GMSMarker(position:.init(latitude:item.lat,longitude:item.lng));pin.title=uiText(item.title);pin.snippet=uiText(item.summary);pin.icon=GMSMarker.markerImage(with:item.kind == "price" ? .systemGreen:.systemOrange);pin.map=map}
-        for point in places{let marker=GMSMarker(position:CLLocationCoordinate2D(latitude:point.lat,longitude:point.lng));marker.title=point.displayName;marker.userData=point.id;marker.icon=GMSMarker.markerImage(with:point.id==focus?.point.id ? .systemBlue:point.category=="美食" ? .systemOrange:.systemTeal);marker.zIndex=point.id==focus?.point.id ? 1000:0;marker.map=map;context.coordinator.markers[point.id]=marker}
+        for group in ExplorePresentation.clusters(places,zoom:Double(map.camera.zoom),selected:focus?.point.id){
+            guard let point=group.first else{continue}
+            let marker=GMSMarker(position:.init(latitude:group.map(\.lat).reduce(0,+)/Double(group.count),longitude:group.map(\.lng).reduce(0,+)/Double(group.count)))
+            if group.count>1{
+                marker.title="\(group.count) places";marker.userData=group
+                let label=UILabel(frame:CGRect(x:0,y:0,width:36,height:36));label.text=String(group.count);label.textAlignment = .center;label.font = .boldSystemFont(ofSize:14);label.textColor = .white;label.backgroundColor = .systemBlue;label.layer.cornerRadius=18;label.clipsToBounds=true;marker.iconView=label
+            }else{marker.title=point.displayName;marker.userData=point.id;marker.icon=GMSMarker.markerImage(with:point.id==focus?.point.id ? .systemBlue:UIColor(red:0.34,green:0.47,blue:0.62,alpha:1));context.coordinator.markers[point.id]=marker}
+            marker.zIndex=point.id==focus?.point.id ? 1000:0;marker.map=map
+        }
         }
         if let focus,context.coordinator.focusToken != focus.token {
             context.coordinator.focusToken=focus.token;context.coordinator.focusing=true
-            map.padding=UIEdgeInsets(top:map.bounds.height*0.30,left:24,bottom:map.bounds.height*0.36,right:24)
+            map.padding=UIEdgeInsets(top:map.bounds.height*0.30,left:24,bottom:max(bottomInset+12,map.bounds.height*0.36),right:24)
             if let selected=context.coordinator.markers[focus.point.id]{map.selectedMarker=selected;map.animate(to:GMSCameraPosition(target:selected.position,zoom:17))}
         }
     }

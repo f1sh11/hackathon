@@ -139,6 +139,7 @@ struct Trace: Codable, Identifiable {
     var id: String { title }
 }
 struct Trip: Codable, Identifiable {
+    var planningRunId:String? = nil
     var transportRoutes:[TransitObservation]? = nil
     var planningCandidates:[ScheduleCandidate]? = nil
     var recommendationStatus:String? = nil
@@ -220,6 +221,8 @@ struct TravelPlanningTask:Codable {
     var id=UUID().uuidString;var status="draft";var fields:[String:String];var tripID:String?;var message:String?;var personalProfile:UserTravelProfile?=nil;var assumptions:[String]?=nil
     var progress:PlanningProgress?=nil;var draft:Trip?=nil
 }
+
+enum PlanningRunScope { @TaskLocal static var id:String? }
 
 @MainActor final class AppStore: ObservableObject {
     @Published var personalProfile=UserTravelProfile.load() {
@@ -345,6 +348,8 @@ struct TravelPlanningTask:Codable {
         var req = URLRequest(url: requestBase.appendingPathComponent(path)); req.httpMethod = method; req.httpBody = body
         let selected=source ?? travelDataSource;selected.apply(to:&req);if path=="weather"{req.cachePolicy = .reloadIgnoringLocalCacheData}
         req.setValue("application/json", forHTTPHeaderField: "Content-Type"); req.timeoutInterval = 240
+        let bodyRunID=body.flatMap{try? JSONSerialization.jsonObject(with:$0) as? [String:Any]}.flatMap{($0["trip"] as? [String:Any])?["planningRunId"] as? String}
+        if let runID=PlanningRunScope.id ?? bodyRunID{req.setValue(runID,forHTTPHeaderField:"X-Planning-Run")}
         let loaded:(Data,URLResponse)
         do {loaded=try await loader(req)}
         catch {guard requestBase==base,requestRevision==backendRevision else{throw CancellationError()};throw error}
@@ -352,7 +357,7 @@ struct TravelPlanningTask:Codable {
         guard requestBase==base,requestRevision==backendRevision else {throw CancellationError()}
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
             let e = (try? JSONSerialization.jsonObject(with:data)) as? [String:Any]
-            throw NSError(domain:"SydneyBuddy",code:1,userInfo:[NSLocalizedDescriptionKey:e?["error"] as? String ?? "服务暂不可用，请检查本机服务。"])
+            throw NSError(domain:"SydneyBuddy",code:1,userInfo:[NSLocalizedDescriptionKey:e?["error"] as? String ?? "服务暂不可用，请检查本机服务。", "planningRunId":e?["runId"] as? String ?? (response as? HTTPURLResponse)?.value(forHTTPHeaderField:"X-Planning-Run") ?? ""])
         }
         if ["weather","plan","plan/prepare","plan/remaining","catalog","data/map-layers","data/status","data/insights"].contains(path),source == nil,selected != travelDataSource {throw CancellationError()}
         return try JSONDecoder().decode(T.self, from: data)
@@ -446,6 +451,11 @@ struct TravelPlanningTask:Codable {
     var roadLegs:([DayPlan]) async throws -> [WalkingObservation] = {try await AppleWalkingRoads.shared.legs($0)}
     private var remainingRequest:[String:Any]?
     private func roadPlan(_ raw:[String:Any],profile:TripProfile,replanExisting:Bool=true,background:Bool=false) async throws -> Trip {
+        return try await PlanningRunScope.$id.withValue(UUID().uuidString.lowercased()) {
+            try await correlatedRoadPlan(raw,profile:profile,replanExisting:replanExisting,background:background)
+        }
+    }
+    private func correlatedRoadPlan(_ raw:[String:Any],profile:TripProfile,replanExisting:Bool,background:Bool) async throws -> Trip {
         let mapProvider=background ? (planningMapProvider ?? self.mapProvider):self.mapProvider
         let requestSource=background ? (planningDataSource ?? travelDataSource):travelDataSource
         func report(_ detail:String,_ phase:PlanningPhase = .roads,_ done:Int?=nil,_ total:Int?=nil) {

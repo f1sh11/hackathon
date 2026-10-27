@@ -27,7 +27,7 @@ public interface ITravelWarehouse {
 }
 
 /// <summary>Only fixed public SELECTs leave this backend. Weather uses an uncached native Zetaris REST table.</summary>
-public sealed class ZetarisTravelWarehouse(HttpClient http,IConfiguration config,IMemoryCache cache,TravelDataContext? selection=null,ProjectPaths? paths=null):ITravelWarehouse {
+public sealed class ZetarisTravelWarehouse(HttpClient http,IConfiguration config,IMemoryCache cache,TravelDataContext? selection=null,ProjectPaths? paths=null,PlanningRunJournal? journal=null):ITravelWarehouse {
     static readonly SemaphoreSlim Gate=new(1,1);
     bool Cloud=>selection?.Mode=="zetaris-cloud";
     Dictionary<string,string> LoadEnvFile(){
@@ -133,14 +133,16 @@ public sealed class ZetarisTravelWarehouse(HttpClient http,IConfiguration config
     }
     async Task<TravelSnapshot> ReadSnapshotAsync(string filter,CancellationToken token){
         var key="travel-public-v8:"+(Cloud?"cloud":"local")+":"+Setting("RestaurantsEnabled")+":"+Setting("SocialEnabled")+":"+Setting("BaseUrl")+":"+Setting("LoginUrl")+":"+Setting("Transport")+":"+Setting("Username")+":"+Setting("OrgId")+":"+Setting("EnvironmentFile");
-        if(cache.TryGetValue<(string Filter,TravelSnapshot Value)>(key,out var hit)&&hit.Filter==filter)return hit.Value;
+        if(cache.TryGetValue<(string Filter,TravelSnapshot Value)>(key,out var hit)&&hit.Filter==filter){journal?.Record("PlaceRetriever","zetaris","snapshot_cache","success",new(){["source"]=Cloud?"zetaris-cloud":"zetaris",["cached"]=true});return hit.Value;}
         await Gate.WaitAsync(token);
         try {
             if(cache.TryGetValue<(string Filter,TravelSnapshot Value)>(key,out hit)&&hit.Filter==filter)return hit.Value;
             var sql="SELECT 'poi' AS dataset,payload FROM sydneybuddy_travel.travel_poi"+filter+" UNION ALL SELECT 'catalog',payload FROM sydneybuddy_travel.travel_catalog UNION ALL SELECT 'maps',payload FROM sydneybuddy_travel.travel_map_layers UNION ALL SELECT 'metadata',payload FROM sydneybuddy_travel.travel_metadata UNION ALL SELECT 'gems',payload FROM sydneybuddy_travel.travel_hidden_gems UNION ALL SELECT 'osm',payload FROM sydneybuddy_travel.travel_osm_places"+filter;
             if(bool.TryParse(Setting("SocialEnabled"),out var socialEnabled)&&socialEnabled)sql+=" UNION ALL SELECT 'social',payload FROM sydneybuddy_travel.travel_social_places"+filter;
             if(bool.TryParse(Setting("RestaurantsEnabled"),out var restaurantsEnabled)&&restaurantsEnabled)sql+=" UNION ALL SELECT 'restaurants',payload FROM sydneybuddy_travel.travel_restaurant_places"+filter;
+            journal?.Record("PlaceRetriever","zetaris","query_public_sources","running",new(){["source"]=Cloud?"zetaris-cloud":"zetaris",["viewport_filter"]=filter.Length>0});
             var rows=await QueryAsync(sql,token);
+            journal?.Record("PlaceRetriever","zetaris","query_public_sources","success",new(){["row_count"]=rows.Count});
             var groups=new Dictionary<string,JsonArray>{{"poi",new()},{"catalog",new()},{"maps",new()},{"metadata",new()},{"gems",new()},{"osm",new()},{"social",new()},{"restaurants",new()}};
             foreach(var row in rows.OfType<JsonArray>()){
                 if(row.Count!=2||!groups.TryGetValue(row[0]!.GetValue<string>(),out var group))throw new ServiceException("Zetaris 資料格式不一致。");
@@ -160,7 +162,7 @@ public sealed class TravelDataMiddleware(RequestDelegate next) {
     static readonly string[] Paths=["/poi/search","/poi/media","/catalog","/schedule/editor","/plan","/data/status","/data/map-layers","/pet"];
     public async Task InvokeAsync(HttpContext context,TravelDataContext selection,ITravelWarehouse warehouse){
         var mode=selection.Mode;
-        if(selection.Warehouse&&((context.Request.Path=="/restaurants/import")||(context.Request.Path.StartsWithSegments("/social")&&context.Request.Path.Value!.EndsWith("/publish",StringComparison.Ordinal))||Paths.Any(path=>context.Request.Path.StartsWithSegments(path)) || (HttpMethods.IsPost(context.Request.Method)&&context.Request.Path=="/trips"))){
+        if(selection.Warehouse&&((HttpMethods.IsPost(context.Request.Method)&&context.Request.Path=="/agents/feasibility/reviews")||(context.Request.Path=="/restaurants/import")||(context.Request.Path.StartsWithSegments("/social")&&context.Request.Path.Value!.EndsWith("/publish",StringComparison.Ordinal))||Paths.Any(path=>context.Request.Path.StartsWithSegments(path)) || (HttpMethods.IsPost(context.Request.Method)&&context.Request.Path=="/trips"))){
             if(context.Request.Path=="/poi/search"&&HttpMethods.IsPost(context.Request.Method)){
                 context.Request.EnableBuffering();var input=await RequestJson.ReadAsync(context);context.Request.Body.Position=0;
                 context.Items[typeof(TravelSnapshot)]=await warehouse.ReadForSearchAsync(input.Number("lat",-33.865),input.Number("lng",151.212),input.Int("radius",1500),context.RequestAborted);

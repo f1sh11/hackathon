@@ -524,3 +524,7 @@ OpenStreetMap 底圖的商家／景點搜尋預設改讀取本機 Overture Place
 公開資料的一鍵打包、校驗及 AWS 匯入步驟，請看 [Zetaris 搬移工具](infra/zetaris/migration/README.md)。
 
 Zetaris 平台的本機安裝／快速啟動、AWS managed cluster 建立及停止方式，請看 [服務啟動教學](infra/zetaris/migration/SERVICE-STARTUP.md)。
+
+## 独立可行性检查 Agent
+
+已提供独立检查、报告读取和受版本保护的确认接口，以及无 iOS 的 Python 联调客户端。工具权限、证据限制、三个 Agent 的 handoff 和当前兼容入口范围见 [开发对接说明](docs/agents/FEASIBILITY-AGENT.md)。

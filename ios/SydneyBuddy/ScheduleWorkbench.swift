@@ -135,7 +135,7 @@ struct SchedulePlaceDetail:View {
         NavigationStack {
             ScrollView {
                 VStack(alignment:.leading,spacing:20) {
-                    Image(systemName:candidate.indoor ? "building.2.crop.circle.fill":"leaf.circle.fill").font(.system(size:54)).foregroundStyle(Palette.green)
+                    Image(systemName:candidate.discoverySymbol).font(.system(size:44)).foregroundStyle(Palette.green)
                     Text(candidate.displayName).font(.title2.bold())
                     Text(uiText(candidate.category+" · "+(candidate.importedPoi ? (candidate.indoor ? "室內（來源標記）":"室內外未確認"):(candidate.indoor ? "室內":"戶外")))).font(.subheadline).foregroundStyle(Palette.muted)
                     VStack(alignment:.leading,spacing:8) {
@@ -168,17 +168,17 @@ struct SchedulePlaceDetail:View {
                     if let source=candidate.sourceUrl,let url=URL(string:source){Link(uiText("地點資料來源"),destination:url).font(.caption)}
                     ActivityReferencesView(lat:candidate.lat,lng:candidate.lng,placeId:candidate.id,placeName:candidate.name)
                     PlaceMediaView(candidate:candidate)
-                    Text(uiText("為你推薦")).font(.headline)
-                    Text(uiText(candidate.reason))
+                    DisclosureGroup(uiText("Provider notes")){Text(verbatim:candidate.reason).font(.caption);if let note=candidate.note{Text(verbatim:note).font(.caption)}}
                     if let release=candidate.sourceRelease{Text(uiText("Overture · "+release)).font(.caption)}
                     if let website=candidate.website,let url=URL(string:website),["http","https"].contains(url.scheme?.lowercased() ?? ""){Link(uiText("官方網站"),destination:url)}
                     if let phone=candidate.phone,!phone.isEmpty{Text(uiText("電話：")+phone)}
                     VStack(alignment:.leading,spacing:10) {
                         Text(uiText("建議停留 \(candidate.visitMinutes) 分鐘"))
-                        Text(candidate.restaurantData != nil ? uiText("餐費見上方估算；營業與排隊仍待確認。") : candidate.mappedFoodPriceLabel != nil ? uiText("價格等級映射：")+uiText(candidate.mappedFoodPriceLabel!)+uiText(" · 排隊時間未知") : candidate.importedPoi ? uiText("費用與排隊時間未知") : uiText("規劃預留 A$\(Int(candidate.cost)) · 排隊時間未知"))
+                        if let price=ExplorePresentation.price(candidate){Text(uiText(price))}
+                        Text(uiText(candidate.restaurantData != nil ? "餐費見上方估算；營業與排隊仍待確認。":candidate.importedPoi ? "Prices, opening hours and queue times still need checking.":"規劃預留 A$\(Int(candidate.cost)) · 排隊時間未知"))
                         if let text=candidate.openingHoursText,!text.isEmpty{Text(uiText("營業時間標記："+text)).font(.caption)}
                         if let open=candidate.openMinute,let close=candidate.closeMinute {Text(uiText("示範開放時段 \(time(open))–\(time(close))"))}
-                        if let note=candidate.note {Text(uiText(note)).font(.caption)}
+
                     }.padding().frame(maxWidth:.infinity,alignment:.leading).background(Palette.mint,in:RoundedRectangle(cornerRadius:14))
                     Text(candidate.importedPoi ? uiText("資料來源：")+uiText(candidate.source ?? "未知")+uiText("；費用及營業資訊未確認。") : uiText("本機景點資料；費用與開放時間是規劃示例，出發前請確認當日資訊。")).font(.caption).foregroundStyle(Palette.muted)
                 }.padding(24)
