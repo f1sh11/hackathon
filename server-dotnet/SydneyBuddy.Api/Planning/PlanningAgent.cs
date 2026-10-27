@@ -4,15 +4,17 @@ using System.Text.Json.Nodes;
 namespace SydneyBuddy.Api;
 
 /// One planning agent, with an explicit provider. Code retains authority over place facts and feasibility.
-public sealed class PlanningAgent(HttpClient client,SecretStore secrets,PlanningAgentSettings? settings=null,MeterlessRuntime? runtime=null,IMemoryService? memory=null)
+public sealed class PlanningAgent(HttpClient client,SecretStore secrets,PlanningAgentSettings? settings=null,MeterlessRuntime? runtime=null,IMemoryService? memory=null,CloudPlanningModel? cloud=null)
 {
     public string Provider => settings?.Provider ?? "nvidia";
-    public bool Configured => Provider == "meterless" ? settings?.Configured == true : Provider == "nvidia" && secrets.Read()["NVIDIA_API_KEY"].Length > 0;
+    public bool UsesSkill => settings?.UsesSkill==true;
+    public bool CloudCallsAllowed => Provider=="meterless-cloud"&&settings?.CloudCallsAllowed==true;
+    public bool Configured => Provider == "meterless-cloud" ? cloud?.Configured==true : Provider == "meterless" ? settings?.Configured == true : Provider == "nvidia" && secrets.Read()["NVIDIA_API_KEY"].Length > 0;
 
     public async Task<JsonObject> ProposeAsync(JsonObject profile,IReadOnlyList<JsonObject> candidates,JsonObject weather,IReadOnlyList<JsonObject> accommodations,CancellationToken ct)
     {
         if(Provider=="nvidia")return await RankAsync(profile,candidates,ct);
-        if(Provider!="meterless"||runtime is null)throw new ServiceException("行程 Agent 供應商設定無效。");
+        if(!UsesSkill || Provider=="meterless"&&runtime is null || Provider=="meterless-cloud"&&cloud is null)throw new ServiceException("行程 Agent 供應商設定無效。");
         var activities=candidates.Select((p,i)=>(Alias:"p"+i,Place:p)).ToDictionary(x=>x.Alias,x=>x.Place);
         var stays=accommodations.Select((p,i)=>(Alias:"s"+i,Place:p)).ToDictionary(x=>x.Alias,x=>x.Place);
         var trip=new JsonObject();
@@ -32,11 +34,15 @@ public sealed class PlanningAgent(HttpClient client,SecretStore secrets,Planning
             ["candidates"]=new JsonArray(activities.Select(x=>(JsonNode)Evidence(x.Key,x.Value)).ToArray()),
             ["accommodations"]=new JsonArray(stays.Select(x=>(JsonNode)Evidence(x.Key,x.Value)).ToArray()),
             ["limitations"]=new JsonArray("Daily forecasts cannot establish hourly dry windows.","The current public forecast is Sydney-scoped and does not verify weather across all NSW regions.","Official weather warnings are not connected unless explicitly supplied.","Accommodation availability and nightly rates are not verified.","Travel time and hard constraints require downstream validation.")};
+        var memoryCount=0;
         if(memory is not null){
             var recalled=await memory.RunAsync("query",new JsonObject{["query"]="travel preferences "+string.Join(" ",profile.Array("interests")??new JsonArray())},ct);
             evidence["confirmedMemoryContext"]=recalled["context"]?.DeepClone();
+            memoryCount=recalled.Array("memories")?.Count??0;
         }
-        var response=await runtime.CompleteAsync(ItinerarySkill.Read(profile.Str("language","zh-Hant")),evidence,ct);
+        evidence["worldState"]=new JsonObject{["engine"]="Meterless World Model / application implementation",["phase"]="proposing",["persistence"]="not_saved",["requiredIds"]=trip["mustVisit"]!.DeepClone(),["activityCount"]=activities.Count,["accommodationCount"]=stays.Count,["confirmedMemoryCount"]=memoryCount,["currentRequirementsOverrideMemory"]=true};
+        var skill=ItinerarySkill.Read(profile.Str("language","zh-Hant"));
+        var response=Provider=="meterless-cloud"?await cloud!.CompleteAsync(skill,evidence,ct):await runtime!.CompleteAsync(skill,evidence,ct);
         try {
             var content=response.Array("choices")?.FirstOrDefault()?.Object("message")?.Str("content")??"";
             var output=RecommendationService.ParseModelJson(content);
@@ -67,7 +73,7 @@ public sealed class PlanningAgent(HttpClient client,SecretStore secrets,Planning
                 if(check is not JsonValue v||!v.TryGetValue<string>(out var text))throw new FormatException();checks.Add(PlanValidator.Truncate(text,240));
             }
             if(output["explanation"] is not JsonValue explanation||!explanation.TryGetValue<string>(out var reason))throw new FormatException();
-            return new(){["preferredIds"]=preferred,["dayPlans"]=dayPlans,["accommodationIds"]=selectedStays,["outstandingChecks"]=checks,["explanation"]=PlanValidator.Truncate(reason,600),["provider"]="meterless",["skillVersion"]=ItinerarySkill.Version};
+            return new(){["preferredIds"]=preferred,["dayPlans"]=dayPlans,["accommodationIds"]=selectedStays,["outstandingChecks"]=checks,["explanation"]=PlanValidator.Truncate(reason,600),["provider"]=Provider,["skillVersion"]=ItinerarySkill.Version,["memoryEngine"]="Meterless H-MEM",["confirmedMemoryCount"]=memoryCount};
         }catch(Exception e)when(e is FormatException or InvalidOperationException or System.Text.Json.JsonException or ServiceException){throw new ServiceException("Meterless 回傳未知、重複或格式無效的行程候選，已拒絕；原行程保持不變。");}
     }
 

@@ -29,10 +29,10 @@ public sealed class Planner(PlaceService places, RecommendationService recommend
         var context = new PlanningContext(mode, secrets.Read());
         var imported=raw.Array("planningCandidates");
         var autoInventory=false;
-        var useAgent=raw.Bool("useAgent") || agent?.Provider=="meterless";
-        context.MeterlessPlanning=useAgent&&agent?.Provider=="meterless";
+        var useAgent=raw.Bool("useAgent") || agent?.UsesSkill==true;
+        context.MeterlessPlanning=useAgent&&agent?.UsesSkill==true;
         JsonObject? lists=null;
-        if(useAgent&&agent?.Provider=="meterless"&&inventory is not null) {
+        if(useAgent&&agent?.UsesSkill==true&&inventory is not null) {
             lists=inventory.Read(raw,ct);
             if(imported is null&&lists.Array("activities")?.Count>0){
                 autoInventory=true;
@@ -85,7 +85,8 @@ public sealed class Planner(PlaceService places, RecommendationService recommend
         var stays=lists?.Array("accommodations")?.OfType<JsonObject>().ToArray()??[];
         var choice = useAgent ? await (agent??throw new ServiceException("旅行 Agent 尚未启动。")).ProposeAsync(profile,candidates,forecast,stays,ct):await recommendations.SelectAsync(profile, candidates, forecast, context, ct);
         if(useAgent) {
-            context.Record("Koko Agent 推荐",choice.Str("explanation"),agent!.Provider=="meterless"?"Meterless Runtime / Skill "+ItinerarySkill.Version:"NVIDIA NIM / "+secrets.Read().GetValueOrDefault("NVIDIA_MODEL",SecretStore.DefaultModel));
+            context.Record("Koko Agent 推荐",choice.Str("explanation"),agent!.Provider=="meterless-cloud"?"Meterless H-MEM + NVIDIA / Skill "+ItinerarySkill.Version:agent.Provider=="meterless"?"Meterless Runtime / Skill "+ItinerarySkill.Version:"NVIDIA NIM / "+secrets.Read().GetValueOrDefault("NVIDIA_MODEL",SecretStore.DefaultModel));
+            if(agent.UsesSkill)context.Record("檢索已確認偏好",$"H-MEM 返回 {choice.Int("confirmedMemoryCount")} 筆已確認偏好；本次需求優先，沒有自動保存新偏好。","Meterless H-MEM");
             foreach(var day in choice.Array("dayPlans")?.OfType<JsonObject>()??[])context.AgentDayRanks[day.Str("date")]=day.Array("preferredIds")!.Select((id,index)=>(Id:id!.GetValue<string>(),Index:index)).ToDictionary(x=>x.Id,x=>x.Index);
         }
         var ranks = choice.Array("preferredIds")!.Select((id, index) => (id: id!.GetValue<string>(), index))
@@ -96,8 +97,8 @@ public sealed class Planner(PlaceService places, RecommendationService recommend
         context.Record("交通方式比较",context.CompareTransit ? "在候选道路上比较 TfNSW 班次、等候、接驳步行和换乘。票价未知。":"用户选择只步行或兼容旧请求。","交通规划器");
         var draft=BuildDraft(profile, days, forecast, context);
         if(useAgent) {
-            draft["planningAgent"]=new JsonObject{["provider"]=agent!.Provider,["status"]="draft_pending_verification",["skillVersion"]=agent.Provider=="meterless"?ItinerarySkill.Version:null,["explanation"]=choice.Str("explanation"),["outstandingChecks"]=choice.Array("outstandingChecks")?.DeepClone()??new JsonArray()};
-            if(agent.Provider=="meterless") {
+            draft["planningAgent"]=new JsonObject{["provider"]=agent!.Provider,["status"]="draft_pending_verification",["skillVersion"]=agent.UsesSkill?ItinerarySkill.Version:null,["explanation"]=choice.Str("explanation"),["outstandingChecks"]=choice.Array("outstandingChecks")?.DeepClone()??new JsonArray(),["memoryEngine"]=choice["memoryEngine"]?.DeepClone(),["confirmedMemoryCount"]=choice.Int("confirmedMemoryCount")};
+            if(agent.UsesSkill) {
                 draft["accommodationSuggestions"]=new JsonArray((choice.Array("accommodationIds")??new JsonArray()).Select(id=>stays.Single(s=>s.Str("id")==id!.GetValue<string>()).DeepClone()).ToArray());
                 draft.Array("warnings")!.Add("住宿僅為未預訂候選，未確認空房或實際房價；未變更行程起訖點，亦未計入活動預算。天氣警報、無障礙、營業與預約仍須確認。");
             }
@@ -114,6 +115,7 @@ public sealed class Planner(PlaceService places, RecommendationService recommend
         }
         if(context.CompareTransit)draft["transportRoutes"]=transportEvidence;
         if(imported is not null){draft["planningCandidates"]=new JsonArray(planningCatalog.Where(PoiService.IsImported).Select(p=>p.DeepClone()).ToArray());draft.Array("warnings")!.Add("地点来自本次真实搜索；未知门票、营业时间和餐饮价格未核实，预算可能不完整。");}
+        if(context.MeterlessPlanning)draft["planningState"]=PlanningWorldState.Project(draft,false);
         return draft;
     }
 
@@ -186,7 +188,7 @@ public sealed class Planner(PlaceService places, RecommendationService recommend
 
     private async Task<JsonObject> WeatherForProfileAsync(JsonObject profile, PlanningContext context, CancellationToken ct)
     {
-        var value = travel?.Explicit==true && publicWeather is not null ? await publicWeather.GetAsync(profile,ct) : context.Mode == "live"
+        var value = (travel?.Explicit==true || agent?.UsesSkill==true) && publicWeather is not null ? await publicWeather.GetAsync(profile,ct) : context.Mode == "live"
             ? await weather.GetAsync(profile, context.Config.GetValueOrDefault("GOOGLE_SERVER_KEY"), ct)
             : new JsonObject { ["summary"] = "晴天（演示）", ["rainy"] = false, ["source"] = "演示假设" };
         if (profile.Str("weatherOverride") == "rain")

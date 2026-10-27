@@ -2,6 +2,49 @@
 
 Branch: `feat/meterless-itinerary-agent`. Runtime is not installed or started by this change. No production/Oracle settings are changed.
 
+## Selected architecture: Meterless engines + cloud model
+
+The preferred mode for this branch is now **`meterless-cloud`**. It uses the official vendored **Meterless H-MEM** reference for confirmed preference retrieval, the project's existing **World Model application implementation** for route-state projections and PostgreSQL events, and **NVIDIA NIM** for model inference. It does not require Meterless Runtime or a Meterless-hosted cloud service. The older `meterless` Runtime provider remains available as an explicit alternative; `nvidia` retains the legacy rank-only path.
+
+```text
+App -> ASP.NET Core
+        -> selected local/Zetaris attractions, dining, lodging and daily weather
+        -> H-MEM: retrieve user-confirmed preferences, never auto-save inferred preferences
+        -> one NVIDIA planning agent using the reviewed bilingual Skill and proposing-state evidence
+        -> deterministic scheduling + existing World Model risk/state projection
+     <- unsaved itinerary, unbooked stay suggestions, pending checks and planningState
+User confirms -> PostgreSQL transaction: trip revision + World Model run/snapshot/events
+```
+
+### Enable this mode after adding your private key
+
+Use `server-dotnet/SydneyBuddy.Api/appsettings.MeterlessCloud.example.json` as a configuration reference. The example is not auto-loaded. Set these backend environment variables, or merge the corresponding sections into the environment's private ASP.NET settings:
+
+```text
+PlanningAgent__Provider=meterless-cloud
+PlanningAgent__AllowCloudModelCalls=true
+AllowPaidServices=false
+```
+
+Provide `NVIDIA_API_KEY` through the existing backend private `.secrets.json` or service environment; optionally set `NVIDIA_MODEL` through its existing configuration path. Never place keys in App settings, tracked JSON, prompts, command arguments or this document. No key was found during this change, and the user chose to configure it later. No real NVIDIA call is claimed.
+
+The dedicated opt-in permits **only this fixed NVIDIA planning endpoint**. It does not turn on Google or globally set `AllowPaidServices=true`. `assisted` planning can use this mode while the global paid-service flag remains false; `live` Google planning remains blocked. Actual NVIDIA availability, rate limits and billing depend on the account/model. Missing credentials, disabled opt-in, HTTP errors or invalid output produce explicit failures without provider/demo fallback.
+
+`GET /planning/agent/status` reports cloud `configured_not_probed` or `not_configured`; it does not infer successful model connectivity from a saved key. Runtime is `not_selected`. Native clients already consume the provider/configured capability and require no model credentials.
+
+### State ownership and persistence
+
+- `worldState` supplied to the model is backend-produced, request-scoped evidence: proposing phase, known candidate counts, required aliases and confirmed-memory count. Model output cannot overwrite state or constraints.
+- Returned `planningState` contains deterministic route-risk projections and remains `awaiting_confirmation`; generating a draft does not create a saved trip or World Model run.
+- Confirming a save recomputes state from the accepted route, rather than trusting a client-supplied projection. The trip and its `itinerary_planning` run, snapshot and events commit in **one PostgreSQL transaction**, bound to the accepted trip revision.
+- `GET /trips/{tripId}/planning-state` returns the latest planning run. Existing `/trips/{tripId}/world` remains scoped to `travel_simulation`, so the new events do not replace the digital-twin simulation view. Revision changes mark older runs stale.
+- H-MEM persistence remains a separate explicit preference-consent flow. Planning reads it; it does not automatically add or rewrite preferences. The shared test backend still uses the existing team identity, not new per-user isolation.
+- World Model here means the project's C# application implementation and PostgreSQL append store; no separately hosted official Meterless Runtime is running. Risk projections are rules over evidence, not real-world predictions or verified booking availability.
+
+The Runtime-specific instructions below apply only when selecting `PlanningAgent:Provider=meterless`.
+
+Cloud-mode verification on 2026-10-27: **509 backend tests passed**, including a real PostgreSQL API test with a mock NVIDIA transport, draft/save separation, planning/simulation run separation, stale revision detection, and refusal of Google live mode while global paid services are disabled. **103 iOS ScheduleTests passed**, including state round-trip preservation. Localization resources and 4 English guard tests passed. The cloud model was mocked; no real key, provider request, production deployment or cloud VM restart was performed.
+
 ## Data and execution flow
 
 ```text

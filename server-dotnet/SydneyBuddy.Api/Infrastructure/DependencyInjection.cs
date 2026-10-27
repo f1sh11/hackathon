@@ -56,6 +56,8 @@ public static class DependencyInjection
         services.AddScoped<RouteScheduler>();
         services.AddSingleton<PlanningAgentSettings>();
         services.AddScoped<PlanningInventory>();
+        services.AddHttpClient<CloudPlanningModel>(client=>client.Timeout=Timeout.InfiniteTimeSpan)
+            .ConfigurePrimaryHttpMessageHandler(()=>new HttpClientHandler{AllowAutoRedirect=false});
         services.AddHttpClient<MeterlessRuntime>(client=>client.Timeout=Timeout.InfiniteTimeSpan)
             .ConfigurePrimaryHttpMessageHandler(()=>new HttpClientHandler{AllowAutoRedirect=false});
         services.AddHttpClient<PlanningAgent>(client=>client.Timeout=Timeout.InfiniteTimeSpan)

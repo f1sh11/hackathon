@@ -28,6 +28,10 @@ public sealed class TripRepository(BuddyDbContext database)
         if (id.Length > 200) throw new ServiceException("行程标识过长");
         trip["id"] = id;
         trip["revision"] = expectedRevision + 1;
+        var recordPlanning=trip.Object("planningAgent")?.Str("provider") is "meterless-cloud" or "meterless";
+        var worlds=new WorldRepository(database);
+        await using var transaction=recordPlanning && database.Database.CurrentTransaction is null?await worlds.BeginAsync("world-trip:"+id,ct):null;
+        if(recordPlanning)trip["planningState"]=PlanningWorldState.Project(trip,true);
         var json = trip.ToJsonString();
 
         if (expectedRevision == 0)
@@ -54,6 +58,8 @@ public sealed class TripRepository(BuddyDbContext database)
                     .SetProperty(entity => entity.Revision, entity => entity.Revision + 1), ct);
             if (updated != 1) throw new RevisionConflictException();
         }
+        if(recordPlanning)await worlds.RecordPlanningAsync(trip,ct);
+        if(transaction is not null)await transaction.CommitAsync(ct);
         return trip;
     }
 

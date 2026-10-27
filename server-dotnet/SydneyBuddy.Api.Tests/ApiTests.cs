@@ -16,6 +16,43 @@ namespace SydneyBuddy.Api.Tests;
 public sealed class ApiTests(ApiFixture fixture) : IClassFixture<ApiFixture>
 {
     [Fact]
+    public async Task CloudMemoryPlanningSavesWorldStateOnlyAfterConfirmationAndRetainsRevisionSafety()
+    {
+        var privateRoot=Path.Combine(fixture.TemporaryRoot,"cloud-model-fixture");Directory.CreateDirectory(privateRoot);
+        File.WriteAllText(Path.Combine(privateRoot,".secrets.json"),"{\"NVIDIA_API_KEY\":\"fixture-cloud-key\"}");
+        var handler=new CloudPlanningTests.CloudHandler();
+        await using var factory=fixture.CreateFactory().WithWebHostBuilder(web=>{
+            web.ConfigureAppConfiguration((_,c)=>c.AddInMemoryCollection(new Dictionary<string,string?>{["PlanningAgent:Provider"]="meterless-cloud",["PlanningAgent:AllowCloudModelCalls"]="true"}));
+            web.ConfigureServices(s=>{
+                s.RemoveAll<SecretStore>();s.AddSingleton(new SecretStore(new ProjectPaths(privateRoot)));
+                s.RemoveAll<CloudPlanningModel>();s.AddScoped(p=>new CloudPlanningModel(new HttpClient(handler),p.GetRequiredService<SecretStore>(),p.GetRequiredService<PlanningAgentSettings>()));
+                s.RemoveAll<PublicTravelWeather>();s.AddScoped(p=>new PublicTravelWeather(new HttpClient(new PlanningWeatherHandler()),p.GetRequiredService<TravelDataContext>(),p.GetRequiredService<ITravelWarehouse>()));
+            });
+        });
+        using var client=factory.CreateClient(new WebApplicationFactoryClientOptions{BaseAddress=new Uri("http://localhost")});
+        var health=await client.GetFromJsonAsync<JsonObject>("/health");Assert.False(health!.Bool("paidServicesAllowed"));Assert.True(health.Bool("planningAgentConfigured"));
+        var status=await client.GetFromJsonAsync<JsonObject>("/planning/agent/status");Assert.Equal("nvidia",status!.Object("cloudModel")!.Str("provider"));Assert.Equal("not_selected",status.Object("runtime")!.Str("status"));
+        var before=(await client.GetFromJsonAsync<JsonArray>("/trips"))!.Count;
+        var profile=TestSupport.Profile();profile["mode"]="assisted";profile["budget"]=500;profile["language"]="en";
+        var response=await client.PostAsJsonAsync("/plan",profile);response.EnsureSuccessStatusCode();var draft=(await response.Content.ReadFromJsonAsync<JsonObject>())!;
+        Assert.Equal("meterless-cloud",draft.Object("planningAgent")!.Str("provider"));Assert.Equal("awaiting_confirmation",draft.Object("planningState")!.Str("phase"));Assert.Equal(before,(await client.GetFromJsonAsync<JsonArray>("/trips"))!.Count);
+        var savedResponse=await client.PostAsJsonAsync("/trips",new{trip=draft,expectedRevision=0});savedResponse.EnsureSuccessStatusCode();var saved=(await savedResponse.Content.ReadFromJsonAsync<JsonObject>())!;
+        Assert.Equal("confirmed",saved.Object("planningState")!.Str("phase"));Assert.Equal(1,saved.Object("planningState")!.Int("tripRevision"));
+        var endpoint="/trips/"+saved.Str("id");var planning=(await client.GetFromJsonAsync<JsonObject>(endpoint+"/planning-state"))!;Assert.True(planning.Bool("available"));Assert.Equal("itinerary_planning",planning.Object("run")!.Str("kind"));Assert.Equal(1,planning.Object("run")!.Int("tripRevision"));
+        Assert.False((await client.GetFromJsonAsync<JsonObject>(endpoint+"/world"))!.Bool("available"));
+        var simulation=await client.PostAsJsonAsync(endpoint+"/simulation-runs",new{requestId="cloud-test-simulation"});simulation.EnsureSuccessStatusCode();Assert.Equal("travel_simulation",(await simulation.Content.ReadFromJsonAsync<JsonObject>())!.Str("kind"));
+        Assert.Equal("itinerary_planning",(await client.GetFromJsonAsync<JsonObject>(endpoint+"/planning-state"))!.Object("run")!.Str("kind"));
+        var oldRun=planning.Object("run")!.Str("id");saved["title"]="Updated accepted trip";
+        var updated=await client.PostAsJsonAsync("/trips",new{trip=saved,expectedRevision=1});updated.EnsureSuccessStatusCode();Assert.Equal(2,(await client.GetFromJsonAsync<JsonObject>(endpoint+"/planning-state"))!.Object("run")!.Int("tripRevision"));
+        Assert.True((await client.GetFromJsonAsync<JsonObject>("/simulation-runs/"+oldRun))!.Bool("stale"));
+        Assert.Equal(HttpStatusCode.Conflict,(await client.PostAsJsonAsync("/trips",new{trip=saved,expectedRevision=1})).StatusCode);
+        profile["mode"]="live";Assert.Equal(HttpStatusCode.UnprocessableEntity,(await client.PostAsJsonAsync("/plan",profile)).StatusCode);
+    }
+
+    sealed class PlanningWeatherHandler:HttpMessageHandler {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,CancellationToken ct)=>Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK){Content=new StringContent("{\"timezone\":\"Australia/Sydney\",\"daily\":{\"time\":[\"2026-10-24\"],\"temperature_2m_min\":[15],\"temperature_2m_max\":[23],\"precipitation_probability_max\":[70],\"weather_code\":[61]}}",Encoding.UTF8,"application/json")});
+    }
+    [Fact]
     public async Task MultiDayInlineAdjustmentPreservesUntouchedDayAndRejectsStaleSave() {
         var profile=TestSupport.Profile(3);profile["mode"]="demo";profile["budget"]=500;
         var planned=(await (await fixture.Client.PostAsJsonAsync("/plan",profile)).Content.ReadFromJsonAsync<JsonObject>())!;

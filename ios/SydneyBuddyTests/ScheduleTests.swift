@@ -15,11 +15,13 @@ import MapKit
         var trip=try fixture();let original=trip.profile.start
         trip.profile.indoorPreference="preferIndoor";trip.profile.weatherTolerance="avoidRain"
         trip.planningAgent=PlanningAgentEvidence(provider:"meterless",status:"draft_pending_verification",skillVersion:"2026-10-27.1",explanation:"Weather-aware draft",outstandingChecks:["Availability unverified"])
+        trip.planningState=PlanningStateEvidence(schemaVersion:1,engine:"Meterless World Model / application implementation",phase:"awaiting_confirmation",tripRevision:0,summary:WorldSummary(walkingSteps:1000,cost:50,transportMinutes:20,outdoorMinutes:30,energyRisk:"low",budgetRisk:"unknown",weatherRisk:"unknown",source:"Unsaved route projection"),suggestions:[])
         trip.accommodationSuggestions=[ScheduleCandidate(id:"osm:node:300",name:"Hotel",category:"住宿",indoor:true,visitMinutes:60,cost:0,lat:-33.86,lng:151.21,reason:"Unbooked")]
         let result=try JSONDecoder().decode(Trip.self,from:JSONEncoder().encode(trip))
         XCTAssertEqual(result.planningAgent?.provider,"meterless");XCTAssertEqual(result.planningAgent?.outstandingChecks,["Availability unverified"])
         XCTAssertEqual(result.accommodationSuggestions?.first?.id,"osm:node:300");XCTAssertEqual(result.profile.start.lat,original.lat);XCTAssertEqual(result.profile.start.lng,original.lng)
         XCTAssertEqual(result.profile.weatherTolerance,"avoidRain");XCTAssertFalse(result.days.flatMap(\.stops).contains{$0.id=="osm:node:300"})
+        XCTAssertEqual(result.planningState?.phase,"awaiting_confirmation");XCTAssertEqual(result.planningState?.summary.weatherRisk,"unknown")
     }
     func testSydneyDestinationUsesInterfaceLanguageWithoutRewritingOtherCities() {
         for alias in ["悉尼","雪梨","Sydney","SYDNEY"] {

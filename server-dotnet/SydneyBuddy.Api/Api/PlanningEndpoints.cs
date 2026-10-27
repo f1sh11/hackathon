@@ -22,9 +22,10 @@ public static class PlanningEndpoints
                 model = config["NVIDIA_MODEL"].Length > 0 ? config["NVIDIA_MODEL"] : SecretStore.DefaultModel
             });
         });
-        routes.MapGet("/planning/agent/status",async (PlanningAgentSettings settings,MeterlessRuntime runtime,HttpContext context)=>{
+        routes.MapGet("/planning/agent/status",async (PlanningAgentSettings settings,MeterlessRuntime runtime,PlanningAgent agent,HttpContext context)=>{
             context.Response.Headers.CacheControl="no-store";
-            return Results.Json(new JsonObject{["provider"]=settings.Provider,["skillVersion"]=ItinerarySkill.Version,
+            return Results.Json(new JsonObject{["provider"]=settings.Provider,["skillVersion"]=ItinerarySkill.Version,["configured"]=agent.Configured,
+                ["cloudModel"]=settings.Provider=="meterless-cloud"?new JsonObject{["provider"]="nvidia",["status"]=agent.Configured?"configured_not_probed":"not_configured",["memoryEngine"]="Meterless H-MEM",["stateEngine"]="Meterless World Model / application implementation"}:null,
                 ["runtime"]=settings.Provider=="meterless"?await runtime.StatusAsync(context.RequestAborted):new JsonObject{["status"]="not_selected"}});
         });
         routes.MapPost("/planning/inventory",async(HttpContext context,PlanningInventory inventory)=>Results.Json(inventory.Read(await RequestJson.ReadAsync(context),context.RequestAborted)));
@@ -52,7 +53,7 @@ public static class PlanningEndpoints
         routes.MapGet("/catalog", (Planner planner) => Results.Json(planner.Catalog));
         routes.MapPost("/plan/remaining",async (HttpContext context,TripRepository trips,RemainingJourneyService remaining)=>{var input=await RequestJson.ReadAsync(context);var original=await trips.FindAsync(input.Str("tripId"),context.RequestAborted)??throw new ServiceException("行程不存在。");if(original.Int("revision")!=input.Int("expectedRevision"))throw new RevisionConflictException();return Results.Json(await remaining.BuildAsync(original,input,context.RequestAborted));});
         routes.MapPost("/plan/prepare",async (HttpContext context,Planner planner)=>Results.Json(await planner.PrepareWalkingAsync(await RequestJson.ReadAsync(context),context.RequestAborted)));
-        routes.MapPost("/plan", async (HttpContext context, Planner planner, PaidServicePolicy paidServices) =>
+        routes.MapPost("/plan", async (HttpContext context, Planner planner, PaidServicePolicy paidServices,PlanningAgent agent) =>
         {
             var input = await RequestJson.ReadAsync(context);
             if (input.ContainsKey("mode") &&
@@ -60,7 +61,7 @@ public static class PlanningEndpoints
                 throw new ServiceException("模式不合法");
             var mode = input.Str("mode", "demo");
             if (mode is not ("demo" or "assisted" or "live")) throw new ServiceException("模式不合法");
-            if (mode != "demo") paidServices.RequireAllowed();
+            if (mode != "demo" && !(mode=="assisted"&&agent.CloudCallsAllowed)) paidServices.RequireAllowed();
             input.Remove("mode");
             return Results.Json(await planner.PlanAsync(input, mode, context.RequestAborted));
         });

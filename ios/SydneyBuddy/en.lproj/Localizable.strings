@@ -3985,3 +3985,8 @@
 "Meterless 已提供候選建議，步行依 Apple 道路資料核對；住宿、費用、營業與天氣警報仍有待確認項目。" = "Meterless proposed candidates, with walking checked against Apple road data. Stays, costs, hours and weather alerts still require confirmation.";
 "Meterless 已提供候選建議；交通仍依本次路線模式的資料驗證或估算，不代表所有限制均已確認。" = "Meterless proposed candidates. Travel is checked or estimated using the selected route mode; not all constraints are verified.";
 "预报有雨，结合兴趣、室内外偏好及天气接受程度比较安排；出发前确认天气。" = "Rain is forecast. Compare activities using interests, indoor/outdoor preferences and weather tolerance; recheck before travel.";
+"檢索已確認偏好" = "Recall confirmed preferences";
+"H-MEM 返回 {0} 筆已確認偏好；本次需求優先，沒有自動保存新偏好。" = "H-MEM returned {0} confirmed preferences. Current requirements take priority; no new preferences were saved automatically.";
+"已確認行程的規則投影；不是實際支出或即時位置。" = "Rule-based projection of the confirmed trip; not actual spending or live location.";
+"未儲存草案的規則投影；不是實際支出或即時位置。" = "Rule-based projection of the unsaved draft; not actual spending or live location.";
+"尚未設定 NVIDIA 行程模型金鑰，需求已保留；沒有改用示例行程。" = "The NVIDIA planning API key is not configured. Your requirements are retained; no example itinerary was substituted.";

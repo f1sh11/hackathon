@@ -10,6 +10,8 @@ namespace SydneyBuddy.Api;
 public sealed class PlanningAgentSettings(IConfiguration configuration)
 {
     public string Provider => configuration["PlanningAgent:Provider"] ?? "nvidia";
+    public bool UsesSkill => Provider is "meterless" or "meterless-cloud";
+    public bool CloudCallsAllowed => configuration.GetValue<bool>("PlanningAgent:AllowCloudModelCalls");
     public string Model => configuration["Meterless:Model"] ?? "meterless/auto";
     public string Token => (configuration["meterless_runtime_token"] ?? configuration["Meterless:Token"] ?? "").Trim();
     public bool Configured => Provider == "meterless" && Token.Length > 0 && Token != "rt-local";

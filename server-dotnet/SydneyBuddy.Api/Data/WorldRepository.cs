@@ -46,12 +46,12 @@ public sealed class WorldRepository(BuddyDbContext database)
     public async Task<WorldRunEntity?> FindRunAsync(string worldId, string requestId, CancellationToken ct = default) =>
         await database.WorldRuns.AsNoTracking().SingleOrDefaultAsync(x => x.WorldId == worldId && x.RequestId == requestId, ct);
 
-    public async Task<WorldRunEntity> CreateRunAsync(TravelWorldEntity world, string requestId, int revision, CancellationToken ct = default)
+    public async Task<WorldRunEntity> CreateRunAsync(TravelWorldEntity world, string requestId, int revision, CancellationToken ct = default,string kind="travel_simulation")
     {
         var run = new WorldRunEntity
         {
             Id = "run_" + Guid.NewGuid().ToString("N"), WorldId = world.Id, RequestId = requestId,
-            Kind = "travel_simulation", TripRevision = revision, Status = "running",
+            Kind = kind, TripRevision = revision, Status = "running",
             CreatedAt = DateTimeOffset.UtcNow.ToString("O")
         };
         database.WorldRuns.Add(run);
@@ -115,14 +115,28 @@ public sealed class WorldRepository(BuddyDbContext database)
         };
     }
 
-    public async Task<JsonObject> GetLatestForTripAsync(string tripId, CancellationToken ct = default)
+    public async Task<JsonObject> GetLatestForTripAsync(string tripId, CancellationToken ct = default,string kind="travel_simulation")
     {
         var world = await database.Worlds.AsNoTracking().SingleOrDefaultAsync(x => x.TripId == tripId, ct);
         if (world is null) return new JsonObject { ["available"] = false };
-        var run = await database.WorldRuns.AsNoTracking().Where(x => x.WorldId == world.Id)
+        var run = await database.WorldRuns.AsNoTracking().Where(x => x.WorldId == world.Id && x.Kind==kind)
             .OrderByDescending(x => x.CreatedAt).FirstOrDefaultAsync(ct);
         if (run is null) return new JsonObject { ["available"] = false, ["worldId"] = world.Id };
         return new JsonObject { ["available"] = true, ["run"] = await GetRunAsync(run.Id, ct) };
+    }
+
+    /// Called inside the same transaction as a user-confirmed trip save. No prompts, tokens or memories are persisted here.
+    public async Task RecordPlanningAsync(JsonObject trip,CancellationToken ct)
+    {
+        var world=await EnsureAsync(trip.Str("id"),ct);
+        var requestId="planning:revision:"+trip.Int("revision");
+        if(await FindRunAsync(world.Id,requestId,ct) is not null)return;
+        var run=await CreateRunAsync(world,requestId,trip.Int("revision"),ct,"itinerary_planning");
+        var state=trip.Object("planningState")!;
+        foreach(var item in state.Array("events")!.OfType<JsonObject>())
+            await AppendEventAsync(run,item.Str("type"),requestId+":"+item.Str("type"),item.Str("source"),item,ct);
+        await AppendSnapshotAsync(run,state,ct);
+        await CompleteRunAsync(run,ct);
     }
 
     private static JsonObject RenderSnapshot(WorldSnapshotEntity row)

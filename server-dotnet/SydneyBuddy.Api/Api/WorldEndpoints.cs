@@ -9,6 +9,8 @@ public static class WorldEndpoints
     {
         routes.MapGet("/trips/{tripId}/world", async (string tripId, WorldRepository worlds, CancellationToken ct) =>
             Results.Json(await worlds.GetLatestForTripAsync(tripId, ct)));
+        routes.MapGet("/trips/{tripId}/planning-state",async(string tripId,WorldRepository worlds,CancellationToken ct)=>
+            Results.Json(await worlds.GetLatestForTripAsync(tripId,ct,"itinerary_planning")));
         routes.MapPost("/trips/{tripId}/simulation-runs", async (string tripId, HttpContext context, TravelWorldModelService simulation) =>
         {
             var input = await RequestJson.ReadAsync(context);

@@ -141,7 +141,9 @@ struct Trace: Codable, Identifiable {
     var id: String { title }
 }
 struct PlanningAgentEvidence:Codable {var provider:String;var status:String;var skillVersion:String?;var explanation:String;var outstandingChecks:[String]}
+struct PlanningStateEvidence:Codable {var schemaVersion:Int;var engine:String;var phase:String;var tripRevision:Int;var summary:WorldSummary;var suggestions:[WorldSuggestion]}
 struct Trip: Codable, Identifiable {
+    var planningState:PlanningStateEvidence? = nil
     var planningAgent:PlanningAgentEvidence? = nil
     var accommodationSuggestions:[ScheduleCandidate]? = nil
     var transportRoutes:[TransitObservation]? = nil
