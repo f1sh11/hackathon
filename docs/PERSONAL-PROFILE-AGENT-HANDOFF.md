@@ -32,6 +32,8 @@ Localisation/catalog consistency and the four existing English guard tests pass 
 
 CI also exposed an inherited `GuidedTripDetails` build error: `BudgetAmountTextField` does not expose the assigned `allowsNumberPadPopover` member to the runner's Swift compiler. Remove that optional assignment; retain the decimal keyboard and existing budget input/normalisation rules.
 
+After that fix, the runner also timed out type-checking the inherited `SavedTripWorkspace.body`. Extract its existing day tabs, map, panel header, transport, schedule, proposal and presentation expressions into opaque view helpers. Preserve the source strings, layout order, callbacks and data flow; this only reduces the compiler's expression workload.
+
 Update the backend and iOS client together. Runtime wording and pacing still need a configured NVIDIA conversation and hands-on device review. In that review, try an anime interest followed by a condition about exhibitions, reject a proposed inference, type a correction, then reopen the conversation. Check that the dialogue feels natural and stays useful for the personal travel profile, with three relevant options after every successful response.
 
 ## Review and debugging
