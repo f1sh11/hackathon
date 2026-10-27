@@ -1210,7 +1210,19 @@ enum TripConversationSeed {
     }
 
     static func fields(_ p:TripProfile)->[String:String] {
-        var fields=["destination":"悉尼","date":p.date,"days":String(p.days),"travelers":String(p.travelers ?? 1),"budget":String(p.budget),"budgetCurrency":"AUD","budgetBasis":"perPersonPerDay","budgetCoverage":"activities","interests":p.interests.joined(separator:"、"),"pace":"约\(p.maxSteps)步","transportPreference":p.transportPreference ?? "balanced","origin":p.origin ?? p.start.name,"mustDo":p.mustDo ?? "无","avoid":p.avoid ?? "无","dayStyle":p.dayStyle ?? "fullDay"]
+        var fields:[String:String]=["destination":"悉尼","date":p.date,"days":String(p.days)]
+        fields["travelers"]=String(p.travelers ?? 1)
+        fields["budget"]=String(p.budget)
+        fields["budgetCurrency"]="AUD"
+        fields["budgetBasis"]="perPersonPerDay"
+        fields["budgetCoverage"]="activities"
+        fields["interests"]=p.interests.joined(separator:"、")
+        fields["pace"]="约\(p.maxSteps)步"
+        fields["transportPreference"]=p.transportPreference ?? "balanced"
+        fields["origin"]=p.origin ?? p.start.name
+        fields["mustDo"]=p.mustDo ?? "无"
+        fields["avoid"]=p.avoid ?? "无"
+        fields["dayStyle"]=p.dayStyle ?? "fullDay"
         if let energy=p.energy{fields["energy"]=energy};if let rhythm=p.rhythm{fields["rhythm"]=rhythm};if let queue=p.queueTolerance{fields["queueTolerance"]=queue}
         return fields
     }

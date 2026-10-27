@@ -34,6 +34,8 @@ CI also exposed an inherited `GuidedTripDetails` build error: `BudgetAmountTextF
 
 After that fix, the runner also timed out type-checking the inherited `SavedTripWorkspace.body`. Extract its existing day tabs, map, panel header, transport, schedule, proposal and presentation expressions into opaque view helpers. Preserve the source strings, layout order, callbacks and data flow; this only reduces the compiler's expression workload.
 
+Apply the same extraction to the inherited `HomeView` map controls/route card. Split the existing trip-seed dictionary into typed string assignments. Both were further type-check timeouts under the runner's Xcode 16.4 compiler; preserve their values and behaviour.
+
 Update the backend and iOS client together. Runtime wording and pacing still need a configured NVIDIA conversation and hands-on device review. In that review, try an anime interest followed by a condition about exhibitions, reject a proposed inference, type a correction, then reopen the conversation. Check that the dialogue feels natural and stays useful for the personal travel profile, with three relevant options after every successful response.
 
 ## Review and debugging
