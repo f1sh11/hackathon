@@ -63,3 +63,5 @@ infra/zetaris/migration/*.local.*
 outputs/
 agent-skills/bundle.json
 *.private.json
+# Headless demo runs may contain user requirements and unsaved drafts.
+.demo-runs/
