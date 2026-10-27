@@ -20,3 +20,5 @@ SydneyBuddy Postman 使用方式
 
 59 個請求，涵蓋程式目前全部 55 個路由（另提供 JSON 上傳/下載與 Skill 中英文變體）。
 Collection 建立完成不等於所有外部服務均可用；來源沒有資料、營業資訊未知、缺少道路證據等仍會如實回傳。
+
+新增 SkillAdmin.postman_collection.json 為獨立管理 Collection（11 個請求，涵蓋 8 個管理路由及下載變體），需獨立 Vault 管理憑證。參閱 docs/SKILL-ADMIN-POSTMAN.md。

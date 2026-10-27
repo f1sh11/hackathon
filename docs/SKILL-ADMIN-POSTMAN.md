@@ -1,6 +1,6 @@
 # Postman 全程管理旅遊規劃 Skill
 
-此版本新增管理 API；程式更新至 AWS 並設定獨立管理憑證後，才能在 AWS 使用。原有 App 連線碼本身沒有管理權限。沒有自動新增管理權、設定正式密鑰、部署或變更目前 Skill。
+管理 API 已於 2026-10-27 部署至既有 AWS 後端，獨立管理憑證已設定並保存於本機 Postman Vault。原有 App 連線碼本身沒有管理權限；目前有效 Skill 仍為 2026-10-27.5，內容未改變。測試只上傳 deployment-check-20261027 候選，未啟用。部署臨時權限已撤銷。
 
 ## 一次性後端設定
 
@@ -19,7 +19,7 @@ AWS 沿用既有 HTTPS gateway；需同時提供：
 
 匯入 `examples/postman/SkillAdmin.postman_collection.json`，它是獨立 Collection，不覆蓋原來的 API 請求或自訂旅遊參數。
 
-Collection Variables 的 `skill_admin_base_url` 預設為 `http://127.0.0.1:8787`。部署完成後，改為既有 AWS 後端網址（結尾包含 `/sydneybuddy`）。這個變數獨立於原 Collection，避免目前選到 AWS 環境就誤改雲端 Skill。
+Collection Variables 的 `skill_admin_base_url` 已設定為既有 AWS 後端網址（結尾包含 `/sydneybuddy`）。需要本機測試時可改為 `http://127.0.0.1:8787`，並另行設定本機管理憑證。這個變數獨立於原 Collection。
 
 ## 方式 A：直接上傳中英文 Markdown（建議）
 

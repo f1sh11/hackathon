@@ -78,3 +78,17 @@ and rollback without restart, restoring embedded Skill 2026-10-27.5 afterward.
 The shared App token has no Skill write endpoint. Temporary namespace edit
 permissions are revoked after deployment. See docs/PLANNING-JSON-TEST-API.md and
 docs/PLANNING-SKILL-WORKFLOW.md. No new hosts or storage resources were added.
+
+Skill administration API deployment — 2026-10-27
+The existing API container was updated to the pinned skill-admin image. A new
+independent admin credential is stored in a mode-0600 private file on the existing
+app-state PVC and referenced by SKILL_ADMIN_TOKEN_FILE. The App bearer alone
+cannot manage Skills. No new node, load balancer, database or disk was created.
+Live HTTPS checks verified raw JSON and full bilingual Markdown candidate uploads,
+preview, missing/wrong admin rejection, missing App bearer rejection, stale
+activation rejection, and unchanged embedded Skill content/version 2026-10-27.5.
+The deployment-check candidate was not activated. Postman status returned 200.
+Temporary AmazonEKSEditPolicy was removed; AmazonEKSViewPolicy remains.
+Use deploy_aws_skill_admin.py only in an explicitly authorized update session.
+It preserves the existing container settings, adds the admin file reference, and
+restores the previous API container configuration if deployment validation fails.
