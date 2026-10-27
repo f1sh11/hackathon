@@ -6,6 +6,18 @@
 
 完整迁移范围与代码阅读说明见 [迁移说明](docs/ASPNET-MIGRATION.md)。
 
+## Headless Command-Line Demo
+
+Run the offline rehearsal with Python 3.9+; no API keys or iOS setup are required:
+
+```sh
+python3 scripts/demo_agent.py --input input_examples/headless/ordinary-day.json
+```
+
+The terminal shows draft generation, review, revision, and the final result. Artifacts are written to the Git-ignored `.demo-runs/<run_id>/` directory. Offline mode uses separate deterministic Python policies and synthetic data. **It does not call the production C# planner, models, Zetaris, or Meterless, and is not evidence of real agent collaboration.**
+
+Use `--mode live` to call the existing `/plan` and independent review APIs, with up to two repair rounds and no automatic trip saving. See the [Headless Demo Guide](docs/HEADLESS-DEMO.md) for model setup, route-evidence limitations, the other two scenarios, and output details.
+
 ## 功能与边界
 
 - 悉尼市区 1–3 天步行规划，8 个限定候选地标，每天最多 4 站，跨天不重复。

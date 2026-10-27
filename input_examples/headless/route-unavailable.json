@@ -1,0 +1,13 @@
+{
+  "name": "Missing routes: stop with needs_info instead of inventing road evidence",
+  "profile": {
+    "date": "tomorrow", "days": 1, "budget": 50, "maxSteps": 10000,
+    "startMinute": 600, "endMinute": 1080,
+    "start": {"name": "Circular Quay", "lat": -33.8611, "lng": 151.2126},
+    "end": {"name": "Circular Quay", "lat": -33.8611, "lng": 151.2126},
+    "mustVisit": ["opera"], "interests": ["scenery"], "transportPreference": "walk", "language": "en",
+    "request": "Plan a Sydney day, but do not approve it without current route evidence."
+  },
+  "preferredIds": ["opera", "garden"],
+  "sampleRouteFailure": true
+}
