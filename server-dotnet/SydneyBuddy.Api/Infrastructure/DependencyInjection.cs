@@ -39,6 +39,8 @@ public static class DependencyInjection
         services.AddScoped<PreferenceService>();
         services.AddSingleton<PetSessionStore>();
         services.AddHttpClient<IPetModel, PetModel>(client => client.Timeout = Timeout.InfiniteTimeSpan).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+        services.AddHttpClient<IPetEnglishTranslator,PetEnglishTranslator>(client=>client.Timeout=Timeout.InfiniteTimeSpan).ConfigurePrimaryHttpMessageHandler(()=>new HttpClientHandler{AllowAutoRedirect=false});
+        services.AddTransient<PetEnglishPresenter>();
         services.AddHttpContextAccessor();
         services.AddSingleton<TravelDataContext>();
         services.AddHttpClient<ITravelWarehouse,ZetarisTravelWarehouse>(client=>client.Timeout=TimeSpan.FromSeconds(40)).ConfigurePrimaryHttpMessageHandler(()=>new HttpClientHandler{AllowAutoRedirect=false});

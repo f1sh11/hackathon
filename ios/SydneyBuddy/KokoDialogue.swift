@@ -10,6 +10,9 @@ struct ProfilingDialogueState:Codable,Equatable {
     var companionVersion:Int? = nil
     var version:Int;var responseCount:Int;var phase:String;var nickname:String
     var ideas:[String];var inspiration:TravelInspiration?
+    var proposedDirection:String?=nil
+    var selectedDirection:String?=nil
+    var dateDeferred:Bool?=nil
 }
 struct TravelInspiration:Codable,Equatable {
     var title:String;var ideas:[String];var status:String;var placesVerified:Bool
@@ -22,6 +25,7 @@ struct KokoQuickReplies:View {
     let busy:Bool
     var stacked=false
     var compact=false
+    var quiet=false
     let choose:(PetQuickReply)->Void
     @State private var selectedID:String?
     var body:some View {
@@ -29,7 +33,7 @@ struct KokoQuickReplies:View {
         LazyVGrid(columns:Array(repeating:GridItem(.flexible(),spacing:8),count:replies.count>=2 ? 2:1),spacing:8) {
             ForEach(replies){reply in
                 Button{guard selectedID==nil else{return}; selectedID=reply.id; UISelectionFeedbackGenerator().selectionChanged(); choose(reply)}label:{Text(uiText(reply.text)).font(.subheadline.weight(.semibold)).multilineTextAlignment(.center).frame(maxWidth:.infinity,minHeight:44).padding(.horizontal,8).padding(.vertical,5)}
-                    .buttonStyle(KokoOptionButtonStyle(prominent:selectedID==reply.id,compact:compact)).disabled(busy || selectedID != nil).accessibilityIdentifier("koko-reply-"+reply.intent)
+                    .buttonStyle(KokoOptionButtonStyle(prominent:selectedID==reply.id,compact:compact,quiet:quiet)).disabled(busy || selectedID != nil).accessibilityIdentifier("koko-reply-"+reply.intent)
             }
         }.padding(.top,8).accessibilityIdentifier("koko-contextual-replies")
         .onChange(of:replies){_,_ in selectedID=nil}
@@ -38,44 +42,55 @@ struct KokoQuickReplies:View {
     }
 }
 
-struct KokoInspirationCard:View {
-    @Environment(\.locale) private var interfaceLocale
-
-    let session:PetSession
-    let inspiration:TravelInspiration
-    private var facts:[TravelPreference] {
-        let explicit=(session.travelDna ?? [])+(session.tripPreferences ?? [])
-        var seen=Set<String>()
-        return explicit.filter{$0.source != "ai_inference" && seen.insert($0.key+"|"+$0.condition+"|"+$0.value).inserted}
+enum KokoInspirationPresentation {
+    static func direction(_ session:PetSession)->String? {
+        guard let key=session.dialogue?.proposedDirection,["nature","culture","food"].contains(key) else{return nil}
+        return key
     }
-    private var unknownDimensions:String {
-        let dimensions=[("sleep","作息"),("fitness","体力"),("pace","节奏"),("queue","排队"),("crowds","人群"),("interests","兴趣"),("spending","消费"),("weather","天气"),("food","饮食"),("transport","交通"),("style","旅行风格"),("habits","特殊习惯")]
-        let known=Set(facts.map(\.dimension))
-        return dimensions.filter{!known.contains($0.0)}.map{$0.1}.joined(separator:"、")
+    static func shouldShow(_ session:PetSession)->Bool {
+        guard session.dialogue?.inspiration != nil,direction(session) != nil else{return false}
+        if session.contextualReplies.contains(where:{$0.intent=="accept_direction"}){return true}
+        let latest=session.messages.last(where:{$0.role=="user"})?.text.lowercased() ?? ""
+        let asks=["没想好","给我点建议","灵感","换个想法","换个思路","ideas","inspiration","suggest something","not sure what","surprise me"]
+        return asks.contains(where:latest.contains) && session.dialogue?.selectedDirection != session.dialogue?.proposedDirection
     }
-    var body:some View {
-        let _=interfaceLocale
-        DisclosureGroup(uiText("查看旅行灵感")){VStack(alignment:.leading,spacing:13) {
-            Label(uiText("咱们的旅行灵感"),systemImage:"sparkles").font(.headline).foregroundStyle(Palette.green)
-            Text(uiText((TravelRequirements.known(session.effectiveFields["destination"]) ? session.effectiveFields["destination"]!:"目的地待定")+" · "+(inspiration.title.components(separatedBy:" · ").last ?? "旅行灵感"))).font(.subheadline.bold())
-            ForEach(Array(inspiration.ideas.enumerated()),id:\.offset){index,idea in
-                HStack(alignment:.top,spacing:8){Text(uiText("\(index+1)")).font(.caption.bold()).foregroundStyle(Palette.green);Text(uiText(idea)).font(.subheadline)}
-            }
-            Divider()
-            Text(uiText("已经了解的线索")).font(.subheadline.bold())
-            if let interests=session.effectiveFields["interests"],TravelRequirements.known(interests){Text(uiText("本次兴趣："+interests)).font(.caption)}
-            if facts.isEmpty && !TravelRequirements.known(session.effectiveFields["interests"]){Text(uiText("还没有明确的偏好；可以先看看灵感，之后再调整。")).font(.caption).foregroundStyle(Palette.muted)}
-            ForEach(facts){fact in
-                VStack(alignment:.leading,spacing:3){Text(uiText(fact.summary)).font(.caption);Text(uiText(fact.status=="confirmed" ? "已确认的长期偏好":fact.source=="contextual_choice" ? "这次提议中的选择":"当前对话的线索")).font(.caption2).foregroundStyle(Palette.muted)}
-            }
-            if !unknownDimensions.isEmpty{DisclosureGroup(uiText("其他习惯以后慢慢了解")){Text(uiText("仍未知："+unknownDimensions+"。暂不确定的内容不会替你填写。")).font(.caption).foregroundStyle(Palette.muted)}.font(.caption).foregroundStyle(Palette.muted)}
-            Text(uiText(TripDraftSummary(fields:session.fields).subtitle)).font(.caption).foregroundStyle(Palette.muted)
-            Text(uiText("具体场所、日期、费用和交通尚需核实；这份灵感可以随时改，出行资料可以之后一起补。")).font(.caption).foregroundStyle(Palette.muted)
-        }}.font(.subheadline).padding(14).frame(maxWidth:.infinity,alignment:.leading).background(Palette.mint.opacity(0.7),in:RoundedRectangle(cornerRadius:20)).accessibilityIdentifier("koko-inspiration")
+    static func interests(_ direction:String)->String {
+        switch direction{case "culture":return "文化、艺术";case "food":return "美食、城市";default:return "自然、风景"}
+    }
+    static func title(_ direction:String)->String {
+        switch direction{case "culture":return "A little culture, a little wandering.";case "food":return "Good food, without the rush.";default:return "A little greenery, a slower day."}
+    }
+    static func description(_ direction:String)->String {
+        switch direction{case "culture":return "Local stories, interesting streets, and time to pause.";case "food":return "A food-filled neighborhood, small shops, and a well-earned break.";default:return "A waterside wander, a café break, and room to explore."}
     }
 }
-
-
+struct KokoInspirationCard:View {
+    let direction:String
+    var busy=false
+    var accepted=false
+    var accept:()->Void
+    var another:()->Void
+    var close:()->Void
+    private let blue=Color(red:0.20,green:0.36,blue:0.79)
+    var body:some View {
+        VStack(alignment:.leading,spacing:12){
+            HStack{Label(uiText("Koko’s little idea"),systemImage:"sparkles").font(.caption.weight(.semibold)).foregroundStyle(blue);Spacer();Button(action:close){Image(systemName:"xmark").font(.caption).frame(width:44,height:44)}.buttonStyle(.plain).accessibilityLabel(uiText("Back to planning"))}
+            Text(uiText(KokoInspirationPresentation.title(direction))).font(.system(.headline,design:.rounded,weight:.bold))
+            Text(uiText(KokoInspirationPresentation.description(direction))).font(.subheadline).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
+            ViewThatFits(in:.horizontal){
+                HStack(spacing:12){acceptButton;anotherButton}
+                VStack(spacing:8){acceptButton;anotherButton}
+            }
+            Text(uiText("An idea for now. Places and routes come next.")).font(.caption2).foregroundStyle(.secondary)
+        }.padding(16).frame(maxWidth:.infinity,alignment:.leading).background(blue.opacity(0.035),in:RoundedRectangle(cornerRadius:16)).overlay(RoundedRectangle(cornerRadius:16).stroke(blue.opacity(0.13))).disabled(busy).accessibilityIdentifier("koko-inspiration")
+    }
+    private var acceptButton:some View {
+        Button(action:accept){Text(uiText(busy ? "Saving…":accepted ? "Added to this trip":"Sounds like me")).font(.subheadline.weight(.semibold)).frame(maxWidth:.infinity,minHeight:46)}.buttonStyle(TripsCreateButtonStyle()).disabled(accepted).accessibilityIdentifier("inspiration-accept")
+    }
+    private var anotherButton:some View {
+        Button(action:another){Text(uiText("Try another idea")).font(.subheadline.weight(.semibold)).foregroundStyle(blue).frame(maxWidth:.infinity,minHeight:46)}.buttonStyle(BuddyPressStyle()).accessibilityIdentifier("inspiration-another")
+    }
+}
 
 // UI projection intentionally exposes one current assistant utterance, never a transcript.
 enum KokoConversationPresentation {

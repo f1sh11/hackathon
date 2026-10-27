@@ -94,8 +94,8 @@ public static class KokoCompanion
         }
         return null;
     }
-    public static bool NeedsRest(string message)=>Regex.IsMatch(message,"最近很累|有点累|好累|太累|想歇|想放松") && !Regex.IsMatch(message,"不累|没觉得累|并不累|不是很累|不觉得累|不想放松|不想歇");
-    public static bool TemporaryFeeling(string message)=>NeedsRest(message) || Regex.IsMatch(message,"这次.*心情|今天.*心情|最近.*疲惫");
+    public static bool NeedsRest(string message)=>!Regex.IsMatch(message,@"\btired of\b",RegexOptions.IgnoreCase) && Regex.IsMatch(message,@"最近很累|有点累|好累|太累|想歇|想放松|\b(?:tired|exhausted|need (?:a )?rest|want (?:a )?rest|like a rest|need to relax)\b",RegexOptions.IgnoreCase) && !Regex.IsMatch(message,@"不累|没觉得累|并不累|不是很累|不觉得累|不想放松|不想歇|\b(?:not|never|don.?t feel|do not feel)\s+(?:very |really |at all )?(?:tired|exhausted)\b|\b(?:don.t|do not)\s+(?:want|need|feel like)\s+(?:to )?(?:a )?(?:rest|relax)\b",RegexOptions.IgnoreCase);
+    public static bool TemporaryFeeling(string message)=>NeedsRest(message) || Regex.IsMatch(message,"这次.*心情|今天.*心情|最近.*疲惫|(?:this trip|today|lately).*(?:mood|feel|exhausted)",RegexOptions.IgnoreCase);
     public static void ApplyFeeling(PetSession s,string message) {
         if(Enabled(s) && NeedsRest(message)){s.Fields["energy"]="低精力";s.Fields["rhythm"]="轻松随意";}
     }

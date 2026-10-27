@@ -4,7 +4,7 @@ enum AppLanguage:String,CaseIterable,Identifiable {
     case traditional="zh-Hant",simplified="zh-Hans",english="en"
     var id:String{rawValue}
     var label:String{switch self{case .traditional:return "繁體中文";case .simplified:return "简体中文";case .english:return "English"}}
-    static var current:AppLanguage { AppLanguage(rawValue:UserDefaults.standard.string(forKey:"appLanguage") ?? "") ?? .simplified }
+    static var current:AppLanguage { AppLanguage(rawValue:UserDefaults.standard.string(forKey:"appLanguage") ?? "") ?? .english }
     private var bundle:Bundle { Self.bundles[self] ?? .main }
     private static let bundles:[AppLanguage:Bundle] = Dictionary(uniqueKeysWithValues:allCases.compactMap { language in
         Bundle.main.path(forResource:language.rawValue,ofType:"lproj").flatMap { Bundle(path:$0) }.map { (language,$0) }
@@ -52,7 +52,7 @@ enum AppLanguage:String,CaseIterable,Identifiable {
             }
         }
         if self == .english {
-            for separator in [" · ","、","\n"] where value.contains(separator) {
+            for separator in ["\n"," · ","、"] where value.contains(separator) {
                 return value.components(separatedBy:separator).map{display($0)}.joined(separator:separator == "、" ? ", ":separator)
             }
             if value.hasPrefix("· "){return "· "+display(String(value.dropFirst(2)))}

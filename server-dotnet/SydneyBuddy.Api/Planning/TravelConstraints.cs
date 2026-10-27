@@ -38,10 +38,14 @@ public static class TravelConstraints
         }
         if(required.Overlaps(excluded))throw new ServiceException("同一个地点同时被设为必去和避开，请先修改这次的需求。");
         profile["mustVisit"]=new JsonArray(required.Select(id=>JsonValue.Create(id)).ToArray());
+        var conflictingLocation=places.FirstOrDefault(p=>required.Contains(p.Str("id")) && PlanningLocationGuard.HasKnownConflict(p));
+        if(conflictingLocation is not null)throw new ServiceException("「"+conflictingLocation.Str("name")+"」的地点身份与地图坐标存在冲突，暂不能自动安排。需求已保留，请核实地点，或取消这项必去要求后重试。");
+        var locationConflicts=places.Count(PlanningLocationGuard.HasKnownConflict);
         var uncertainEvents=places.Where(SeasonalEventGuard.NeedsVerifiedDates).ToArray();
         var requiredEvent=uncertainEvents.FirstOrDefault(p=>required.Contains(p.Str("id")));
         if(requiredEvent is not null)throw new ServiceException("「"+requiredEvent.Str("name")+"」可能是季节性或限时活动，尚未核实本次日期是否开放，暂不自动安排。需求已保留，请先取消这项必去要求，确认活动日期后再手动加入。");
-        var filtered=places.Where(p=>!excluded.Contains(p.Str("id")) && !SeasonalEventGuard.NeedsVerifiedDates(p)).ToArray();
+        var filtered=places.Where(p=>!excluded.Contains(p.Str("id")) && !PlanningLocationGuard.HasKnownConflict(p) && !SeasonalEventGuard.NeedsVerifiedDates(p)).ToArray();
+        if(filtered.Length==0 && locationConflicts>0)throw new ServiceException("候选地点的身份与坐标存在冲突，暂不能生成可靠路线。请选择其他地点后重试，旅行需求会保留。");
         if(filtered.Length==0 && uncertainEvents.Length>0)throw new ServiceException("这些候选活动的开放日期尚未核实，暂时不能生成路线。请选择其他常设地点，旅行需求会保留。");
         if(filtered.Length==0)throw new ServiceException("避开这些地点后暂时没有可规划的景点，请调整需求。");
         return filtered;

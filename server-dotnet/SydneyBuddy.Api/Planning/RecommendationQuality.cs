@@ -24,8 +24,23 @@ public static class RecommendationQuality
             - RouteService.Distance(profile.Object("start")!,p)/250;
         var all=places.Where(p=>must.Contains(p.Str("id")) || !DuplicatesEndpoint(p,profile)).OrderByDescending(Rank).ThenBy(p=>p.Str("id"),StringComparer.Ordinal).ToArray();
         var result=all.Where(p=>must.Contains(p.Str("id"))).ToList();
-        // Keep both genuine meals and visits in the bounded search, even for a food-only trip.
-        foreach(var p in all.Where(IsMeal).Take(3).Concat(all.Where(p=>!IsMeal(p)).Take(5)))
+        // Keep the same bounded search size while preventing model ranks from crowding out
+        // an entire requested interest before the route optimizer can evaluate it.
+        var visits=all.Where(p=>!IsMeal(p)).ToArray();
+        var selectedVisits=new List<JsonObject>();
+        var uncovered=interests.Where(i=>i!="美食" && !result.Any(p=>Matches(p,i))).ToHashSet(StringComparer.Ordinal);
+        while(selectedVisits.Count<5 && uncovered.Count>0) {
+            var next=visits.Where(p=>selectedVisits.All(x=>x.Str("id")!=p.Str("id")))
+                .OrderByDescending(p=>uncovered.Count(i=>Matches(p,i))).FirstOrDefault();
+            if(next is null || !uncovered.Any(i=>Matches(next,i)))break;
+            selectedVisits.Add(next);uncovered.RemoveWhere(i=>Matches(next,i));
+        }
+        foreach(var p in visits) {
+            if(selectedVisits.Count==5)break;
+            if(selectedVisits.All(x=>x.Str("id")!=p.Str("id")))selectedVisits.Add(p);
+        }
+        // Meals stay separate: a scenic district cannot stand in for an actual restaurant.
+        foreach(var p in all.Where(IsMeal).Take(3).Concat(selectedVisits))
             if(result.All(x=>x.Str("id")!=p.Str("id")))result.Add(p);
         return result.ToArray();
     }

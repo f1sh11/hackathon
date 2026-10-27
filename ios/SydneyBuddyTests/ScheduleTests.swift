@@ -4,6 +4,33 @@ import MapKit
 @testable import SydneyBuddy
 
 @MainActor final class ScheduleTests:XCTestCase {
+    func testSydneyDestinationUsesInterfaceLanguageWithoutRewritingOtherCities() {
+        for alias in ["悉尼","雪梨","Sydney","SYDNEY"] {
+            XCTAssertEqual(GuidedTripDetails.destinationDisplay(alias,language:.english),"Sydney")
+        }
+        XCTAssertEqual(GuidedTripDetails.destinationDisplay("Sydney",language:.simplified),"悉尼")
+        XCTAssertEqual(GuidedTripDetails.destinationDisplay("墨尔本",language:.english),"墨尔本")
+        XCTAssertEqual(GuidedTripDetails.destinationDisplay("",language:.english),"")
+    }
+
+    func testBudgetAmountNormalizesFullwidthNumbersAndChineseDecimalPoint() {
+        XCTAssertEqual(BudgetAmountInput.canonicalAmount("１２５。５０"),"125.50")
+        XCTAssertEqual(BudgetAmountInput.canonicalAmount(" ０ "),"0")
+        XCTAssertEqual(BudgetAmountInput.canonicalAmount("12.50"),"12.50")
+    }
+
+    func testProposalReviewDoesNotPresentUnknownZeroPriceAsFree() throws {
+        var plan=try fixture();plan.days[0].estimatedCost=0;plan.days[0].stops[0].costKnown=false
+        XCTAssertEqual(ProposalReviewPresentation.cost([plan.days[0]]),"Cost to confirm")
+        plan.recommendationStatus="partial"
+        XCTAssertTrue(ProposalReviewPresentation.checks(plan).contains("Some requested experiences couldn’t fit this draft yet."))
+        XCTAssertTrue(ProposalReviewPresentation.checks(plan).contains("Prices still to confirm."))
+        plan.days[0].stops[0].costKnown=nil
+        XCTAssertEqual(ProposalReviewPresentation.cost([plan.days[0]]),"Cost to confirm")
+        plan.days[0].stops=[]
+        XCTAssertEqual(ProposalReviewPresentation.cost([plan.days[0]]),"Cost to confirm")
+    }
+
     func testDiscoveryZoomUsesCurrentCameraAndDoesNotRepeatWhenResultsRefresh() throws {
         let center=CLLocationCoordinate2D(latitude:-33.865,longitude:151.212)
         let map=MKMapView(frame:CGRect(x:0,y:0,width:390,height:700))
@@ -35,6 +62,45 @@ import MapKit
         XCTAssertTrue(map.visibleMapRect.contains(MKMapPoint(center)))
         XCTAssertGreaterThan(map.visibleMapRect.width*MKMetersPerMapPointAtLatitude(center.latitude),649)
     }
+    func testMealReplacementDoesNotRecommendAnAttraction() {
+        let museum=ScheduleCandidate(id:"museum",name:"Museum",category:"文化",indoor:true,visitMinutes:60,cost:0,lat:-33.86,lng:151.21,reason:"")
+        var restaurant=museum;restaurant.id="restaurant";restaurant.category="美食";restaurant.activityType="meal"
+        XCTAssertFalse(ScheduleSwapOptions.matches(museum,replacingKind:"meal"))
+        XCTAssertTrue(ScheduleSwapOptions.matches(restaurant,replacingKind:"meal"))
+        XCTAssertTrue(ScheduleSwapOptions.matches(museum,replacingKind:nil))
+    }
+
+    func testInlineUndoDoesNotOpenTheGlobalLoadingScreen() async throws {
+        let store=AppStore();var value=try fixture();value.id="inline-undo-test";value.revision=1
+        store.trip=value;store.saved=[value];store.lastAdjustment=value
+        var accepted=value;accepted.revision=2
+        let data=try JSONEncoder().encode(accepted)
+        store.loader={request in XCTAssertFalse(store.busy);return(data,HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)}
+        let result=await store.undoLastAdjustment(inline:true)
+        XCTAssertTrue(result);XCTAssertFalse(store.busy);XCTAssertNil(store.lastAdjustment);XCTAssertEqual(store.trip?.revision,2)
+    }
+
+    func testSmallEditNeverAutoSavesAnExistingManualDraftOrLegacyDemo() {
+        XCTAssertTrue(ExperienceEditPolicy.automatic(unified:true,hasDraft:false,alreadyAutomatic:false))
+        XCTAssertTrue(ExperienceEditPolicy.automatic(unified:true,hasDraft:true,alreadyAutomatic:true))
+        XCTAssertFalse(ExperienceEditPolicy.automatic(unified:true,hasDraft:true,alreadyAutomatic:false))
+        XCTAssertFalse(ExperienceEditPolicy.automatic(unified:false,hasDraft:false,alreadyAutomatic:false))
+    }
+
+    func testWorkspaceAdjustmentStaysInlineButNewTripsAndAdvancedEditorStillPresent() throws {
+        let store=AppStore();var plan=try fixture();plan.id="workspace-trip"
+        store.workspaceTripID=plan.id;store.proposalIsSuggestion=true;store.proposal=plan
+        XCTAssertEqual(store.workspaceAdjustment?.id,plan.id);XCTAssertFalse(store.shouldPresentProposalSheet)
+        store.proposalFromNewTrip=true
+        XCTAssertNil(store.workspaceAdjustment);XCTAssertTrue(store.shouldPresentProposalSheet)
+        store.proposalFromNewTrip=false;store.proposalIsSuggestion=false
+        XCTAssertTrue(store.shouldPresentProposalSheet)
+        store.proposalIsSuggestion=true;store.workspaceTripID="another-trip"
+        XCTAssertTrue(store.shouldPresentProposalSheet)
+        store.proposal=nil
+        XCTAssertFalse(store.shouldPresentProposalSheet)
+    }
+
     func testPersonalConversationSkipPreservesTripDraftAndDoesNotClaimMemoryWasSaved() throws {
         let defaults=UserDefaults.standard
         let keys=["koko.personalChat.finished","pendingTripFields","userTravelProfile","personalPreferences.v2.completed","personalPreferences.completed","onboarded","travelPlanningTask"]
@@ -78,6 +144,51 @@ import MapKit
         XCTAssertFalse(ScheduleAnchorEdit.apply(&state,day:0,kind:.end,minute:600,point:.quay))
         XCTAssertEqual(state.days[0].startMinute,660)
         XCTAssertEqual(ScheduleClock.minute(ScheduleClock.date(665)),665)
+    }
+    func testTripsHomeOpensTodayInsteadOfAlwaysDayOne() throws {
+        var trip=try fixture();var first=trip.days[0];first.date="2026-10-27"
+        var second=first;second.date="2026-10-28"
+        var third=first;third.date="2026-10-30"
+        trip.days=[first,second,third]
+        XCTAssertEqual(TripHomePresentation.dayIndex(trip,today:"2026-10-28"),1)
+        XCTAssertEqual(TripHomePresentation.dayIndex(trip,today:"2026-10-29"),2)
+        XCTAssertEqual(TripHomePresentation.dayIndex(trip,today:"2026-10-31"),0)
+        trip.days=[];XCTAssertEqual(TripHomePresentation.dayIndex(trip,today:"2026-10-28"),0)
+    }
+    func testTripsHomePreviewKeepsFeaturedOutAndPrefersUpcomingTrips() throws {
+        var featured=try fixture();featured.id="featured";featured.profile.date="2026-10-27";featured.days[0].date="2026-10-27"
+        var next=featured;next.id="next";next.profile.date="2026-10-29";next.days[0].date="2026-10-29"
+        var past=featured;past.id="past";past.profile.date="2026-10-20";past.days[0].date="2026-10-20"
+        let trips=[past,featured,next]
+        XCTAssertEqual(TripHomePresentation.previewTrips(trips,featuredID:"featured",limit:2,today:"2026-10-27").map(\.id),["next","past"])
+        XCTAssertEqual(TripHomePresentation.previewTrips(trips,featuredID:"featured",limit:1,today:"2026-10-27").map(\.id),["next"])
+        XCTAssertTrue(TripHomePresentation.previewTrips(trips,featuredID:"featured",limit:0,today:"2026-10-27").isEmpty)
+        XCTAssertEqual(TripHomePresentation.previewTrips(trips,featuredID:"featured",limit:1,today:"2026-10-27",priorityID:"past").map(\.id),["past"])
+    }
+    func testTripsShareStableOrderingAndReleaseNewTripPriority() throws {
+        var current=try fixture();current.id="current";current.profile.date="2026-10-27";current.days=Array(current.days.prefix(1));current.days[0].date="2026-10-27"
+        var future=current;future.id="future";future.profile.date="2026-11-01";future.days[0].date="2026-11-01"
+        var past=current;past.id="past";past.profile.date="2026-10-20";past.days[0].date="2026-10-20"
+        let trips=[past,future,current]
+        XCTAssertEqual(TripHomePresentation.orderedTrips(trips,today:"2026-10-27",priorityID:"future").map(\.id),["future","current","past"])
+        XCTAssertEqual(TripHomePresentation.orderedTrips(trips,today:"2026-10-27").map(\.id),["current","future","past"])
+        XCTAssertEqual(TripHomePresentation.orderedTrips(trips,today:"2026-10-27",priorityID:"deleted").map(\.id),["current","future","past"])
+        var earlier=current;earlier.id="earlier";earlier.profile.date="2026-10-25";earlier.days[0].date="2026-10-29"
+        XCTAssertEqual(TripHomePresentation.orderedTrips([earlier,current,future],today:"2026-10-27").map(\.id),["current","earlier","future"])
+        var same=current;same.id="newer";same.createdAt="2099-01-01T00:00:00Z"
+        XCTAssertEqual(TripHomePresentation.orderedTrips([current,same],today:"2026-10-27").first?.id,"newer")
+    }
+    func testOnlyGeneratedTripTitlesAreLocalized() throws {
+        var trip=try fixture();trip.title="悉尼 · 风景与自然 · 2天"
+        XCTAssertEqual(TripHomePresentation.title(trip,language:.english),"Sydney · Nature · 2 days")
+        XCTAssertTrue(TripLibrary.matches(trip,query:"Nature",date:nil))
+        XCTAssertTrue(TripLibrary.matches(trip,query:"风景",date:nil))
+        trip.title="Sydney · Food · 1天"
+        XCTAssertEqual(TripHomePresentation.title(trip,language:.english),"Sydney · Food · 1 day")
+        trip.title="我的毕业旅行"
+        XCTAssertEqual(TripHomePresentation.title(trip,language:.english),"我的毕业旅行")
+        XCTAssertEqual(TripHomePresentation.planningAction("review"),"Review draft")
+        XCTAssertEqual(TripHomePresentation.planningAction("failed"),"View options & retry")
     }
     func testHomeFocusResumesCurrentTripAndDoesNotChoosePastOrDuplicateFuture() throws {
         var today=try fixture();today.id="current";today.profile.date="2026-10-25";today.days=Array(today.days.prefix(1));today.days[0].date="2026-10-25"

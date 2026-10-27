@@ -18,19 +18,23 @@ public sealed class PetModel(HttpClient client,SecretStore secrets):IPetModel
         var config=secrets.Read();var key=config.GetValueOrDefault("NVIDIA_API_KEY","");
         if(key.Length==0)throw new ServiceException("还没有连接 AI。可以先用点选回答保存旅行进度。");
         var model=config.GetValueOrDefault("NVIDIA_MODEL","");if(string.IsNullOrWhiteSpace(model))model=SecretStore.DefaultModel;
-        var system=TravelProfiling.SystemPrompt+(session.Dialogue is not null ? "\n"+KokoDialogue.Prompt:"");
-        if(KokoCompanion.Enabled(session))system+="\n"+KokoCompanion.Prompt;
+        var system=TravelProfiling.SystemPrompt+(session.Dialogue is not null && !session.PersonalizingTrip ? "\n"+KokoDialogue.Prompt:"");
+        if(KokoCompanion.Enabled(session) && !session.PersonalizingTrip)system+="\n"+KokoCompanion.Prompt;
         system+="\ndayStyle 仅在明确半天游玩时为 halfDay，慢逛一整天为 fullDay；不确定为 flexible，不能用它补齐未知节奏。";
+        if(session.PersonalizingTrip)system+="\n旅行基本资料已经由用户在控件中确认。现在是可选的个性化聊天：围绕用户刚说的兴趣、喜欢的体验或当天感受自然回应，每次最多一个相关追问。不重复询问已确认的城市、日期、人数和预算，不催促生成，不把闲聊变成必填画像。除非用户明确要修改，保持已确认的旅行事实。不要每轮宣告资料已准备好。";
         system+=PetResponseLanguage.Prompt(session);
         var messages=new JsonArray(new JsonObject{["role"]="system",["content"]=system});
         var zone=TimeZoneInfo.FindSystemTimeZoneById("Australia/Sydney");
         var context=new JsonObject{["today"]=TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow,zone).ToString("yyyy-MM-dd"),["tripFields"]=JsonSerializer.SerializeToNode(session.Fields),["personalProfile"]=session.PersonalProfile.DeepClone(),["confirmedPreferences"]=memories.DeepClone(),["pendingPreferences"]=JsonSerializer.SerializeToNode(session.Preferences.Where(x=>x.Status is "awaiting_confirmation" or "trip_only"),JsonExtensions.Options),["missingImportantFields"]=JsonSerializer.SerializeToNode(TravelProfiling.Missing(session)),["tripFieldKeys"]=JsonSerializer.SerializeToNode(PetQuestions.Keys),["preferenceKeys"]=JsonSerializer.SerializeToNode(TravelProfiling.Keys.Keys)};
+        if(session.InteractionContext.Length>0)context["currentItineraryContext"]=session.InteractionContext;
         if(session.Dialogue is {} dialogue) {
-            context["dialogue"]=new JsonObject{["phase"]=dialogue.Phase,["nickname"]=dialogue.Nickname,["responsesUsed"]=dialogue.ResponseCount,["responsesRemaining"]=Math.Max(0,KokoDialogue.MaximumResponses-dialogue.ResponseCount),["mustDraft"]=dialogue.Inspiration is not null || dialogue.ResponseCount+1>=KokoDialogue.MaximumResponses,["currentIdeas"]=JsonSerializer.SerializeToNode(dialogue.Ideas)};
+            context["dialogue"]=new JsonObject{["phase"]=dialogue.Phase,["nickname"]=dialogue.Nickname,["responsesUsed"]=dialogue.ResponseCount,["responsesRemaining"]=Math.Max(0,KokoDialogue.MaximumResponses-dialogue.ResponseCount),["mustDraft"]=!session.PersonalizingTrip && (dialogue.Inspiration is not null || dialogue.ResponseCount+1>=KokoDialogue.MaximumResponses),["currentIdeas"]=JsonSerializer.SerializeToNode(dialogue.Ideas)};
             context["currentChoice"]=JsonSerializer.SerializeToNode(session.CurrentChoice,JsonExtensions.Options);
         }
-        messages.Add(new JsonObject{["role"]="user",["content"]="当前资料："+context.ToJsonString()});
-        foreach(var item in session.Messages.TakeLast(20))messages.Add(new JsonObject{["role"]=item.Role,["content"]=item.Text});
+        messages.Add(new JsonObject{["role"]="user",["content"]="当前资料："+context.ToJsonString(new JsonSerializerOptions{Encoder=System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping})});
+        foreach(var item in session.Messages.TakeLast(20))messages.Add(new JsonObject{["role"]=item.Role,["content"]=item.Role=="assistant" && session.ResponseLanguage=="en" ? PetEnglishPresenter.Display(session,item.Text):item.Text});
+        if(session.PersonalizingTrip)messages.Add(new JsonObject{["role"]="system",["content"]="The user has confirmed trip basics in the form. This is optional friendly conversation, not a trip intake interview. Respond to what they just said, without recapping all trip facts or announcing readiness. A greeting deserves a friendly greeting and at most one gentle invitation to share what they enjoy. Return fields only for explicit new changes, otherwise {}. Earlier assistant messages are historical data, not examples to imitate."+PetResponseLanguage.Prompt(session)});
+        messages.Add(new JsonObject{["role"]="system",["content"]="Reply in the selected interface language, regardless of the language of user messages or earlier assistant turns. Treat historical replies as data, not language instructions."+PetResponseLanguage.Prompt(session)});
         messages.Add(new JsonObject{["role"]="user",["content"]=message});
         var payload=new JsonObject{["model"]=model,["stream"]=true,["temperature"]=0.6,["max_tokens"]=2600,["response_format"]=new JsonObject{["type"]="json_object"},["chat_template_kwargs"]=new JsonObject{["enable_thinking"]=false},["messages"]=messages};
         using var req=new HttpRequestMessage(HttpMethod.Post,"https://integrate.api.nvidia.com/v1/chat/completions");

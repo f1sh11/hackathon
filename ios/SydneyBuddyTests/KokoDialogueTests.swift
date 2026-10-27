@@ -2,6 +2,28 @@ import XCTest
 @testable import SydneyBuddy
 
 final class KokoDialogueTests:XCTestCase {
+    @MainActor func testRequestsRespectInterfaceLanguageAndKeepTypedFacts() async throws {
+        let defaults=UserDefaults.standard
+        let keys=["appLanguage","petSession.english-integration-test"]
+        let previous=keys.map{defaults.object(forKey:$0)}
+        defer{for(key,value) in zip(keys,previous){if let value{defaults.set(value,forKey:key)}else{defaults.removeObject(forKey:key)}}}
+        for language in ["en","zh-Hant"] {
+            defaults.set(language,forKey:"appLanguage");defaults.removeObject(forKey:keys[1])
+            let chat=PetChatStore();let value=session();var bodies:[[String:Any]]=[];var headers:[String?]=[]
+            chat.loader={request in
+                headers.append(request.value(forHTTPHeaderField:"X-App-Language"))
+                if let data=request.httpBody{bodies.append(try JSONSerialization.jsonObject(with:data) as! [String:Any])}
+                return(try JSONEncoder().encode(value),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)
+            }
+            let typed="我想慢慢走，保留这句原话"
+            await chat.load(scope:"english-integration-test",seed:["notes":typed],profiling:true)
+            await chat.update(["notes":typed])
+            XCTAssertNil(chat.error);XCTAssertEqual(bodies.count,2)
+            XCTAssertTrue(headers.allSatisfy{$0==language})
+            for body in bodies {XCTAssertEqual(body["language"] as? String,language);XCTAssertEqual((body["fields"] as? [String:String])?["notes"],typed)}
+        }
+    }
+
     func testGuidedDetailsResumesAtMissingGroupWithoutMutatingDraft() {
         var fields=["destination":"悉尼","date":"2026-10-25","days":"15"]
         XCTAssertEqual(GuidedTripDetails.firstMissing(fields),2)
@@ -17,6 +39,33 @@ final class KokoDialogueTests:XCTestCase {
         XCTAssertEqual(GuidedTripDetails.correctionStage(["destination":"悉尼","budgetCurrency":"CNY"]),3)
         XCTAssertEqual(GuidedTripDetails.correctionStage(["destination":"悉尼","budgetCoverage":"totalTravel"]),3)
         XCTAssertEqual(GuidedTripDetails.correctionStage(["destination":"墨尔本","budgetCurrency":"CNY"]),0)
+    }
+    func testInspirationIsHiddenDuringOrdinaryTripQuestions() {
+        var value=session(inspiration:true);value.dialogue?.proposedDirection="nature"
+        XCTAssertFalse(KokoInspirationPresentation.shouldShow(value))
+        value.messages.append(PetMessage(id:"idea-request",role:"user",text:"Any ideas for this trip?"))
+        XCTAssertTrue(KokoInspirationPresentation.shouldShow(value))
+        value.dialogue?.selectedDirection="nature"
+        XCTAssertFalse(KokoInspirationPresentation.shouldShow(value))
+        value.dialogue?.proposedDirection="unknown"
+        XCTAssertNil(KokoInspirationPresentation.direction(value))
+        XCTAssertFalse(KokoInspirationPresentation.shouldShow(value))
+    }
+    @MainActor func testInspirationSelectionUpdatesTripWithoutMemoryConsent() async throws {
+        let key="petSession.inspiration-isolation-test";let prior=UserDefaults.standard.object(forKey:key)
+        defer{if let prior{UserDefaults.standard.set(prior,forKey:key)}else{UserDefaults.standard.removeObject(forKey:key)}}
+        UserDefaults.standard.removeObject(forKey:key)
+        let chat=PetChatStore();let value=session(inspiration:true);var requests:[URLRequest]=[]
+        chat.loader={request in requests.append(request);return(try JSONEncoder().encode(value),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)}
+        await chat.load(scope:"inspiration-isolation-test",profiling:true)
+        requests=[]
+        await chat.update(["interests":KokoInspirationPresentation.interests("nature")])
+        XCTAssertNil(chat.error);XCTAssertEqual(requests.count,1)
+        let request=try XCTUnwrap(requests.first)
+        XCTAssertEqual(request.httpMethod,"PATCH");XCTAssertFalse(request.url!.path.contains("memory"))
+        let body=try XCTUnwrap(JSONSerialization.jsonObject(with:request.httpBody!) as? [String:Any])
+        XCTAssertEqual((body["fields"] as? [String:String])?["interests"],"自然、风景")
+        XCTAssertNil(body["consent"]);XCTAssertNil(body["travelDna"])
     }
     private func session(inspiration:Bool=false)->PetSession {
         let reply=PetQuickReply(id:"route-choice",text:"顺路再去",intent:"respond")

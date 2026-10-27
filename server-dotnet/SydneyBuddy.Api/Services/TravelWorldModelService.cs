@@ -74,7 +74,9 @@ public sealed class TravelWorldModelService(WorldRepository worlds)
             var day = days[d];
             var scheduleDay = trip.Object("schedule")?.Array("days")?.OfType<JsonObject>().FirstOrDefault(x=>x.Str("date")==day.Str("date"));
             var limit = Math.Max(1, scheduleDay?.Int("maxSteps",settings?.Int("maxSteps",profile.Int("maxSteps",10000)) ?? profile.Int("maxSteps",10000)) ?? settings?.Int("maxSteps",profile.Int("maxSteps",10000)) ?? profile.Int("maxSteps",10000));
-            var budget = Math.Max(0, scheduleDay?.Number("dailyBudget",settings?.Number("dailyBudget",profile.Number("budget")) ?? profile.Number("budget")) ?? settings?.Number("dailyBudget",profile.Number("budget")) ?? profile.Number("budget"));
+            var rawBudget = scheduleDay?.Number("dailyBudget",settings?.Number("dailyBudget",profile.Number("budget",double.NaN)) ?? profile.Number("budget",double.NaN)) ?? settings?.Number("dailyBudget",profile.Number("budget",double.NaN)) ?? profile.Number("budget",double.NaN);
+            var budgetKnown = double.IsFinite(rawBudget) && rawBudget>=0;
+            var budget = budgetKnown ? rawBudget:0;
             var stops = day.Array("stops")?.OfType<JsonObject>().ToArray() ?? [];
             var legs = day.Array("legs")?.OfType<JsonObject>().ToArray() ?? [];
             var steps = Math.Max(0, day.Int("estimatedSteps")); var cost = Math.Max(0, day.Number("estimatedCost"));
@@ -86,7 +88,7 @@ public sealed class TravelWorldModelService(WorldRepository worlds)
             var outdoor = stops.Where(x => !x.Bool("indoor") && x["indoorKnown"]?.ToString() != "false").Sum(x => Math.Max(0, x.Int("visitMinutes")));
             var costKnown = stops.All(x => x["costKnown"]?.ToString() != "false");
             var indoorKnown = stops.All(x => x["indoorKnown"]?.ToString() != "false");
-            var energyRisk = Risk(steps, limit); var budgetRisk = budget <= 0 ? "unknown" : costKnown ? Risk(cost, budget) : cost > budget ? "high" : "unknown";
+            var energyRisk = Risk(steps, limit); var budgetRisk = !budgetKnown ? "unknown" : cost>budget ? "high" : costKnown ? Risk(cost, budget) : "unknown";
             var weatherRisk = !weatherKnown || !indoorKnown ? "unknown" : rainy && outdoor > 0 ? "high" : "low";
             var row = new JsonObject { ["day"] = d + 1, ["date"] = day.Str("date"), ["walkingSteps"] = steps, ["cost"] = cost,
                 ["transportMinutes"] = transport, ["outdoorMinutes"] = outdoor, ["energyRisk"] = energyRisk, ["budgetRisk"] = budgetRisk,
