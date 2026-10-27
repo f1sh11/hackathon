@@ -1,0 +1,757 @@
+{
+  "scope": "Local public catalog and OSM snapshot; raw sources retained, duplicate entries suppressed at query/planning time",
+  "recordsChecked": 13565,
+  "confirmedPairs": [
+    {
+      "firstId": "qvb",
+      "firstName": "\u7EF4\u591A\u5229\u4E9A\u5973\u738B\u5927\u53A6",
+      "secondId": "osm:node:2250356920",
+      "secondName": "Queen Victoria Building",
+      "meters": 23.3
+    },
+    {
+      "firstId": "osm:node:13530572999",
+      "firstName": "Guzman y Gomez",
+      "secondId": "osm:node:13530607400",
+      "secondName": "Guzman y Gomez",
+      "meters": 0
+    },
+    {
+      "firstId": "qvb",
+      "firstName": "\u7EF4\u591A\u5229\u4E9A\u5973\u738B\u5927\u53A6",
+      "secondId": "osm:way:40717424",
+      "secondName": "\u7EF4\u591A\u5229\u4E9A\u5973\u738B\u5927\u53A6",
+      "meters": 14.5
+    },
+    {
+      "firstId": "osm:node:2250356920",
+      "firstName": "Queen Victoria Building",
+      "secondId": "osm:way:40717424",
+      "secondName": "\u7EF4\u591A\u5229\u4E9A\u5973\u738B\u5927\u53A6",
+      "meters": 12.9
+    },
+    {
+      "firstId": "osm:node:13689735768",
+      "firstName": "Lloyd Rees Lookout",
+      "secondId": "osm:way:73539053",
+      "secondName": "Lloyd Rees Lookout",
+      "meters": 2.7
+    },
+    {
+      "firstId": "osm:node:11539802286",
+      "firstName": "Railway Institute Building",
+      "secondId": "osm:way:183111027",
+      "secondName": "Railway Institute Building",
+      "meters": 22.5
+    },
+    {
+      "firstId": "osm:node:12688744703",
+      "firstName": "Ennui",
+      "secondId": "osm:way:485291597",
+      "secondName": "Ennui",
+      "meters": 3.9
+    },
+    {
+      "firstId": "osm:node:6237520685",
+      "firstName": "Market city",
+      "secondId": "osm:way:485298607",
+      "secondName": "Market City",
+      "meters": 19.5
+    },
+    {
+      "firstId": "osm:node:2312254908",
+      "firstName": "IGA",
+      "secondId": "osm:way:514947290",
+      "secondName": "IGA",
+      "meters": 14.1
+    },
+    {
+      "firstId": "osm:node:3464317841",
+      "firstName": "Brewtown",
+      "secondId": "osm:way:682335548",
+      "secondName": "Brewtown",
+      "meters": 8.5
+    },
+    {
+      "firstId": "osm:node:2300457845",
+      "firstName": "Seaton Arms Motor Inn",
+      "secondId": "osm:way:443532937",
+      "secondName": "Seaton Arms Motor Inn",
+      "meters": 10
+    },
+    {
+      "firstId": "osm:node:3003966266",
+      "firstName": "Dan Murphy\u0027s",
+      "secondId": "osm:way:488123787",
+      "secondName": "Dan Murphy\u0027s",
+      "meters": 20.9
+    },
+    {
+      "firstId": "osm:node:5965476825",
+      "firstName": "Cartech Australia",
+      "secondId": "osm:way:631737726",
+      "secondName": "Cartech Australia",
+      "meters": 12.3
+    },
+    {
+      "firstId": "osm:node:14184285701",
+      "firstName": "The Miners Arms, 1888",
+      "secondId": "osm:node:14184287001",
+      "secondName": "The Miners Arms, 1888",
+      "meters": 0
+    },
+    {
+      "firstId": "osm:node:7234412849",
+      "firstName": "The Imperial",
+      "secondId": "osm:way:775440927",
+      "secondName": "The Imperial",
+      "meters": 6.3
+    },
+    {
+      "firstId": "osm:way:1111290895",
+      "firstName": "Day Dream Motel",
+      "secondId": "osm:way:1111290896",
+      "secondName": "Day Dream Motel",
+      "meters": 24.7
+    },
+    {
+      "firstId": "osm:node:3506283588",
+      "firstName": "Uptown Local",
+      "secondId": "osm:node:3506310993",
+      "secondName": "Uptown Local",
+      "meters": 11.2
+    },
+    {
+      "firstId": "osm:node:13088449401",
+      "firstName": "Peach \u0026 Wolf Cafe \u0026 Bakery",
+      "secondId": "osm:node:13088452901",
+      "secondName": "Peach \u0026 Wolf Cafe \u0026 Bakery",
+      "meters": 0
+    },
+    {
+      "firstId": "osm:node:20973940",
+      "firstName": "Lurline Star",
+      "secondId": "osm:way:598239533",
+      "secondName": "Lurline Star",
+      "meters": 0.6
+    },
+    {
+      "firstId": "osm:node:20976822",
+      "firstName": "Cottage On The Mall",
+      "secondId": "osm:way:841537347",
+      "secondName": "Cottage on the mall",
+      "meters": 3.1
+    },
+    {
+      "firstId": "osm:node:10221131194",
+      "firstName": "Mudgee Nursery",
+      "secondId": "osm:way:1412736088",
+      "secondName": "Mudgee Nursery",
+      "meters": 14.4
+    },
+    {
+      "firstId": "osm:node:7018244317",
+      "firstName": "Observation Post",
+      "secondId": "osm:way:904905654",
+      "secondName": "Observation Post",
+      "meters": 0.6
+    },
+    {
+      "firstId": "osm:node:1270756536",
+      "firstName": "Royal Hotel",
+      "secondId": "osm:way:533074224",
+      "secondName": "Royal Hotel",
+      "meters": 24
+    },
+    {
+      "firstId": "osm:node:11518809292",
+      "firstName": "Camellia Railway Bridge 1896",
+      "secondId": "osm:way:1239865758",
+      "secondName": "Camellia Railway Bridge 1896",
+      "meters": 3.3
+    },
+    {
+      "firstId": "osm:node:13865636323",
+      "firstName": "St Peter\u0027s Park",
+      "secondId": "osm:way:34910350",
+      "secondName": "St Peter\u0027s Park",
+      "meters": 5.7
+    },
+    {
+      "firstId": "osm:node:13122105023",
+      "firstName": "Savers",
+      "secondId": "osm:way:291725580",
+      "secondName": "Savers",
+      "meters": 17.9
+    },
+    {
+      "firstId": "osm:node:13789100090",
+      "firstName": "Gannura Reserve",
+      "secondId": "osm:way:441713375",
+      "secondName": "Gannura Reserve",
+      "meters": 8.1
+    },
+    {
+      "firstId": "osm:node:11230035543",
+      "firstName": "Womerah Gardens",
+      "secondId": "osm:way:579983827",
+      "secondName": "Womerah Gardens",
+      "meters": 14.7
+    },
+    {
+      "firstId": "osm:node:11175526717",
+      "firstName": "Solander Garden",
+      "secondId": "osm:way:1309960028",
+      "secondName": "Solander Garden",
+      "meters": 14.2
+    },
+    {
+      "firstId": "osm:node:13463306562",
+      "firstName": "Smitties Tyres and More",
+      "secondId": "osm:node:13463306563",
+      "secondName": "Smitties Tyres and More",
+      "meters": 10.4
+    },
+    {
+      "firstId": "osm:node:9494715056",
+      "firstName": "Aldi",
+      "secondId": "osm:way:1248719559",
+      "secondName": "Aldi",
+      "meters": 18
+    },
+    {
+      "firstId": "osm:node:9494715058",
+      "firstName": "Liquorland",
+      "secondId": "osm:way:1280780826",
+      "secondName": "Liquorland",
+      "meters": 9.9
+    },
+    {
+      "firstId": "osm:node:621793354",
+      "firstName": "The Astor",
+      "secondId": "osm:way:622494769",
+      "secondName": "The Astor",
+      "meters": 20.5
+    }
+  ],
+  "ambiguousPairsKept": [
+    {
+      "firstId": "osm:node:497587534",
+      "firstName": "La Tazzina",
+      "secondId": "osm:node:497587535",
+      "secondName": "La Tazzina",
+      "meters": 5.6
+    },
+    {
+      "firstId": "fine-food-rocks",
+      "firstName": "The Fine Food Store",
+      "secondId": "osm:node:743324238",
+      "secondName": "The Fine Food Store",
+      "meters": 14.3
+    },
+    {
+      "firstId": "osm:node:4265330854",
+      "firstName": "Trinity",
+      "secondId": "osm:node:4265330855",
+      "secondName": "Trinity",
+      "meters": 4.9
+    },
+    {
+      "firstId": "osm:node:4242650074",
+      "firstName": "7-Eleven",
+      "secondId": "osm:node:6590135738",
+      "secondName": "7-Eleven",
+      "meters": 22
+    },
+    {
+      "firstId": "osm:node:4242642657",
+      "firstName": "\u559C\u8336",
+      "secondId": "osm:node:9908602451",
+      "secondName": "\u559C\u8336",
+      "meters": 2
+    },
+    {
+      "firstId": "osm:node:8221264414",
+      "firstName": "Kagoshima Master",
+      "secondId": "osm:node:11332608569",
+      "secondName": "Kagoshima Master",
+      "meters": 8
+    },
+    {
+      "firstId": "osm:node:11875384319",
+      "firstName": "Chapter E",
+      "secondId": "osm:node:11914754269",
+      "secondName": "Chapter E",
+      "meters": 13.6
+    },
+    {
+      "firstId": "osm:node:4939491426",
+      "firstName": "Unique Hair",
+      "secondId": "osm:node:12048042150",
+      "secondName": "Unique Hair",
+      "meters": 24.2
+    },
+    {
+      "firstId": "osm:node:12319797699",
+      "firstName": "Sharetea",
+      "secondId": "osm:node:12319821007",
+      "secondName": "\u6B47\u8173\u4EAD",
+      "meters": 3.9
+    },
+    {
+      "firstId": "osm:node:764902263",
+      "firstName": "Hills Cafe \u0026 Bakery",
+      "secondId": "osm:node:12491957686",
+      "secondName": "Hills Cafe \u0026 Bakery",
+      "meters": 1.7
+    },
+    {
+      "firstId": "osm:node:5887572197",
+      "firstName": "Cadrys",
+      "secondId": "osm:node:12709185010",
+      "secondName": "Cadrys",
+      "meters": 24.9
+    },
+    {
+      "firstId": "osm:node:6474887526",
+      "firstName": "Roma Espresso",
+      "secondId": "osm:node:13751606239",
+      "secondName": "Roma Espresso",
+      "meters": 9.1
+    },
+    {
+      "firstId": "osm:node:13928818901",
+      "firstName": "Citadines Walker North Sydney",
+      "secondId": "osm:node:13928818902",
+      "secondName": "Citadines Walker North Sydney",
+      "meters": 0
+    },
+    {
+      "firstId": "osm:node:5973408633",
+      "firstName": "Big John\u0027s Retreads",
+      "secondId": "osm:node:7133996628",
+      "secondName": "Big John\u0027s Retreads",
+      "meters": 4.1
+    },
+    {
+      "firstId": "osm:node:8846152283",
+      "firstName": "Dick Harris Lookout",
+      "secondId": "osm:node:11149111526",
+      "secondName": "Dick Harris Lookout",
+      "meters": 10.5
+    },
+    {
+      "firstId": "osm:node:5526424693",
+      "firstName": "Combi",
+      "secondId": "osm:node:10755230205",
+      "secondName": "Combi",
+      "meters": 15.5
+    },
+    {
+      "firstId": "osm:node:5495565252",
+      "firstName": "The Mez Club",
+      "secondId": "osm:node:10755244705",
+      "secondName": "The Mez Club",
+      "meters": 3.5
+    },
+    {
+      "firstId": "osm:node:12692533110",
+      "firstName": "Beach Byron Bay",
+      "secondId": "osm:node:12692533111",
+      "secondName": "Beach Byron Bay",
+      "meters": 8.3
+    },
+    {
+      "firstId": "osm:node:3237769394",
+      "firstName": "Bellbowrie Motors",
+      "secondId": "osm:node:3237769395",
+      "secondName": "Bellbowrie Motors",
+      "meters": 24.2
+    },
+    {
+      "firstId": "osm:way:593936385",
+      "firstName": "Coffs Hotel Bottleshop",
+      "secondId": "osm:way:1465109044",
+      "secondName": "Coffs Hotel Bottleshop",
+      "meters": 17.6
+    },
+    {
+      "firstId": "osm:node:20976363",
+      "firstName": "Leura Cascades",
+      "secondId": "osm:node:411232095",
+      "secondName": "Leura Cascades",
+      "meters": 14.6
+    },
+    {
+      "firstId": "osm:node:400988444",
+      "firstName": "Cahills Lookout",
+      "secondId": "osm:node:6403857795",
+      "secondName": "Cahills Lookout",
+      "meters": 23
+    },
+    {
+      "firstId": "osm:node:6403857792",
+      "firstName": "Cahills Lookout",
+      "secondId": "osm:node:6403857795",
+      "secondName": "Cahills Lookout",
+      "meters": 22.2
+    },
+    {
+      "firstId": "osm:node:8354045697",
+      "firstName": "Bunnings Warehouse",
+      "secondId": "osm:way:615402710",
+      "secondName": "Bunnings Warehouse",
+      "meters": 17
+    },
+    {
+      "firstId": "osm:node:13059212194",
+      "firstName": "Giant",
+      "secondId": "osm:way:368378031",
+      "secondName": "Giant",
+      "meters": 7.6
+    },
+    {
+      "firstId": "osm:node:7732650427",
+      "firstName": "The Sonic",
+      "secondId": "osm:node:8320768817",
+      "secondName": "The Sonic",
+      "meters": 12
+    },
+    {
+      "firstId": "osm:way:910657447",
+      "firstName": "Harrisford House",
+      "secondId": "osm:way:914277260",
+      "secondName": "Harrisford House",
+      "meters": 7.2
+    },
+    {
+      "firstId": "osm:way:442978971",
+      "firstName": "Lennox House",
+      "secondId": "osm:way:955273558",
+      "secondName": "Lennox House",
+      "meters": 6.7
+    },
+    {
+      "firstId": "osm:node:9924609764",
+      "firstName": "Burger Urge",
+      "secondId": "osm:node:9934792749",
+      "secondName": "Burger Urge",
+      "meters": 2.4
+    },
+    {
+      "firstId": "osm:node:20980074",
+      "firstName": "Oporto",
+      "secondId": "osm:node:5890562175",
+      "secondName": "Oporto",
+      "meters": 22.4
+    },
+    {
+      "firstId": "osm:node:5110562425",
+      "firstName": "Funky Pies",
+      "secondId": "osm:node:9349953121",
+      "secondName": "Funky Pies",
+      "meters": 3.8
+    },
+    {
+      "firstId": "osm:node:20979860",
+      "firstName": "Cafe Bondi",
+      "secondId": "osm:node:10035832514",
+      "secondName": "Cafe Bondi",
+      "meters": 14.6
+    },
+    {
+      "firstId": "osm:node:6004908335",
+      "firstName": "Waverley Bakery",
+      "secondId": "osm:node:14051107083",
+      "secondName": "Waverley Bakery",
+      "meters": 23.3
+    },
+    {
+      "firstId": "osm:node:1813233201",
+      "firstName": "Southern Wok",
+      "secondId": "osm:node:5641254424",
+      "secondName": "Southern Wok",
+      "meters": 5.6
+    },
+    {
+      "firstId": "osm:node:4860772923",
+      "firstName": "Industrie Clothing",
+      "secondId": "osm:node:5931284400",
+      "secondName": "Industrie Clothing",
+      "meters": 2.7
+    },
+    {
+      "firstId": "osm:node:4860772923",
+      "firstName": "Industrie Clothing",
+      "secondId": "osm:node:5931284403",
+      "secondName": "Industrie Clothing",
+      "meters": 7.5
+    },
+    {
+      "firstId": "osm:node:5931284400",
+      "firstName": "Industrie Clothing",
+      "secondId": "osm:node:5931284403",
+      "secondName": "Industrie Clothing",
+      "meters": 4.7
+    },
+    {
+      "firstId": "osm:way:186090189",
+      "firstName": "Plate Bending Machine",
+      "secondId": "osm:way:186090190",
+      "secondName": "Plate Bending Machine",
+      "meters": 5.1
+    },
+    {
+      "firstId": "osm:way:186090189",
+      "firstName": "Plate Bending Machine",
+      "secondId": "osm:way:186090191",
+      "secondName": "Plate Bending Machine",
+      "meters": 4.9
+    },
+    {
+      "firstId": "osm:way:186090190",
+      "firstName": "Plate Bending Machine",
+      "secondId": "osm:way:186090191",
+      "secondName": "Plate Bending Machine",
+      "meters": 10
+    },
+    {
+      "firstId": "osm:way:186090189",
+      "firstName": "Plate Bending Machine",
+      "secondId": "osm:way:186090192",
+      "secondName": "Plate Bending Machine",
+      "meters": 9.8
+    },
+    {
+      "firstId": "osm:way:186090190",
+      "firstName": "Plate Bending Machine",
+      "secondId": "osm:way:186090192",
+      "secondName": "Plate Bending Machine",
+      "meters": 15
+    },
+    {
+      "firstId": "osm:way:186090191",
+      "firstName": "Plate Bending Machine",
+      "secondId": "osm:way:186090192",
+      "secondName": "Plate Bending Machine",
+      "meters": 4.9
+    },
+    {
+      "firstId": "osm:way:584894046",
+      "firstName": "Green Valley Spices",
+      "secondId": "osm:way:584896804",
+      "secondName": "Green Valley Spices",
+      "meters": 18.4
+    },
+    {
+      "firstId": "osm:way:708159309",
+      "firstName": "Tudor Street Reserve",
+      "secondId": "osm:way:708159310",
+      "secondName": "Tudor Street Reserve",
+      "meters": 15.6
+    },
+    {
+      "firstId": "osm:way:46379795",
+      "firstName": "Law Lawns",
+      "secondId": "osm:way:866164404",
+      "secondName": "Law Lawns",
+      "meters": 22.6
+    },
+    {
+      "firstId": "osm:way:866164404",
+      "firstName": "Law Lawns",
+      "secondId": "osm:way:866164405",
+      "secondName": "Law Lawns",
+      "meters": 14.9
+    },
+    {
+      "firstId": "osm:way:866164404",
+      "firstName": "Law Lawns",
+      "secondId": "osm:way:866164406",
+      "secondName": "Law Lawns",
+      "meters": 9.8
+    },
+    {
+      "firstId": "osm:way:866164405",
+      "firstName": "Law Lawns",
+      "secondId": "osm:way:866164406",
+      "secondName": "Law Lawns",
+      "meters": 21.4
+    },
+    {
+      "firstId": "osm:way:866164404",
+      "firstName": "Law Lawns",
+      "secondId": "osm:way:866164407",
+      "secondName": "Law Lawns",
+      "meters": 20.6
+    },
+    {
+      "firstId": "osm:way:866164405",
+      "firstName": "Law Lawns",
+      "secondId": "osm:way:866164407",
+      "secondName": "Law Lawns",
+      "meters": 16.8
+    },
+    {
+      "firstId": "osm:way:866164406",
+      "firstName": "Law Lawns",
+      "secondId": "osm:way:866164407",
+      "secondName": "Law Lawns",
+      "meters": 18.7
+    },
+    {
+      "firstId": "osm:way:866164404",
+      "firstName": "Law Lawns",
+      "secondId": "osm:way:866164408",
+      "secondName": "Law Lawns",
+      "meters": 20.4
+    },
+    {
+      "firstId": "osm:way:866164405",
+      "firstName": "Law Lawns",
+      "secondId": "osm:way:866164408",
+      "secondName": "Law Lawns",
+      "meters": 23.5
+    },
+    {
+      "firstId": "osm:way:866164406",
+      "firstName": "Law Lawns",
+      "secondId": "osm:way:866164408",
+      "secondName": "Law Lawns",
+      "meters": 13.8
+    },
+    {
+      "firstId": "osm:way:866164407",
+      "firstName": "Law Lawns",
+      "secondId": "osm:way:866164408",
+      "secondName": "Law Lawns",
+      "meters": 10
+    },
+    {
+      "firstId": "osm:way:866164404",
+      "firstName": "Law Lawns",
+      "secondId": "osm:way:866164409",
+      "secondName": "Law Lawns",
+      "meters": 17.8
+    },
+    {
+      "firstId": "osm:way:866164406",
+      "firstName": "Law Lawns",
+      "secondId": "osm:way:866164409",
+      "secondName": "Law Lawns",
+      "meters": 8.1
+    },
+    {
+      "firstId": "osm:way:866164407",
+      "firstName": "Law Lawns",
+      "secondId": "osm:way:866164409",
+      "secondName": "Law Lawns",
+      "meters": 19.1
+    },
+    {
+      "firstId": "osm:way:866164408",
+      "firstName": "Law Lawns",
+      "secondId": "osm:way:866164409",
+      "secondName": "Law Lawns",
+      "meters": 10.4
+    },
+    {
+      "firstId": "osm:way:46379795",
+      "firstName": "Law Lawns",
+      "secondId": "osm:way:866164411",
+      "secondName": "Law Lawns",
+      "meters": 16.3
+    },
+    {
+      "firstId": "osm:way:866164405",
+      "firstName": "Law Lawns",
+      "secondId": "osm:way:866164411",
+      "secondName": "Law Lawns",
+      "meters": 22.2
+    },
+    {
+      "firstId": "osm:way:875980318",
+      "firstName": "The Green",
+      "secondId": "osm:way:875980319",
+      "secondName": "The Green",
+      "meters": 12.4
+    },
+    {
+      "firstId": "osm:way:46379795",
+      "firstName": "Law Lawns",
+      "secondId": "osm:way:1204079400",
+      "secondName": "Law Lawns",
+      "meters": 9.8
+    },
+    {
+      "firstId": "osm:way:866164404",
+      "firstName": "Law Lawns",
+      "secondId": "osm:way:1204079400",
+      "secondName": "Law Lawns",
+      "meters": 12.9
+    },
+    {
+      "firstId": "osm:way:866164405",
+      "firstName": "Law Lawns",
+      "secondId": "osm:way:1204079400",
+      "secondName": "Law Lawns",
+      "meters": 17.4
+    },
+    {
+      "firstId": "osm:way:866164406",
+      "firstName": "Law Lawns",
+      "secondId": "osm:way:1204079400",
+      "secondName": "Law Lawns",
+      "meters": 22.6
+    },
+    {
+      "firstId": "osm:way:866164411",
+      "firstName": "Law Lawns",
+      "secondId": "osm:way:1204079400",
+      "secondName": "Law Lawns",
+      "meters": 19.1
+    },
+    {
+      "firstId": "osm:way:1227340651",
+      "firstName": "White Bay Power Station Cooling Water Inlet",
+      "secondId": "osm:way:1227340652",
+      "secondName": "White Bay Power Station Cooling Water Inlet",
+      "meters": 14.7
+    },
+    {
+      "firstId": "osm:way:100584806",
+      "firstName": "Convict Barracks",
+      "secondId": "osm:way:1284738973",
+      "secondName": "Convict Barracks",
+      "meters": 23.8
+    },
+    {
+      "firstId": "osm:node:1653476536",
+      "firstName": "East Esplanade Public Amenities",
+      "secondId": "osm:node:11555338792",
+      "secondName": "East Esplanade Public Amenities",
+      "meters": 3
+    },
+    {
+      "firstId": "osm:node:13463306581",
+      "firstName": "RC Barber \u0026 Son",
+      "secondId": "osm:node:13463306582",
+      "secondName": "RC Barber \u0026 Son",
+      "meters": 12.4
+    },
+    {
+      "firstId": "osm:node:13463419245",
+      "firstName": "RC Barber \u0026 Son",
+      "secondId": "osm:node:13463419246",
+      "secondName": "RC Barber \u0026 Son",
+      "meters": 8
+    },
+    {
+      "firstId": "osm:way:346881850",
+      "firstName": "Collins Park",
+      "secondId": "osm:relation:2432878",
+      "secondName": "Collins Park",
+      "meters": 2.7
+    }
+  ]
+}

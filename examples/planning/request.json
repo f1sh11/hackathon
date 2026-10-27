@@ -1,0 +1,18 @@
+{
+  "date": "2026-10-28",
+  "days": 1,
+  "mode": "demo",
+  "language": "zh-Hant",
+  "budget": 180,
+  "maxSteps": 10000,
+  "startMinute": 600,
+  "endMinute": 1200,
+  "interests": ["文化", "自然"],
+  "mustVisit": [],
+  "transportPreference": "walk",
+  "energy": "中精力",
+  "accommodationStatus": "unknown",
+  "start": {"name": "Circular Quay", "lat": -33.8611, "lng": 151.2126},
+  "end": {"name": "Circular Quay", "lat": -33.8611, "lng": 151.2126},
+  "request": "測試行程規劃；景點不重複，準時用餐。住宿尚未選定，不宣稱已訂房。"
+}

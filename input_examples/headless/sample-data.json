@@ -1,0 +1,8 @@
+{
+  "notice": "Synthetic offline rehearsal inputs, not verified venue prices, opening hours or measured routes. Never submitted as live route evidence.",
+  "places": [
+    {"id": "opera", "name": "Sydney Opera House exterior (sample)", "cost": 0, "visitMinutes": 60},
+    {"id": "mca", "name": "MCA visit (sample price, not a quote)", "cost": 25, "visitMinutes": 75},
+    {"id": "garden", "name": "Royal Botanic Garden (sample)", "cost": 0, "visitMinutes": 60}
+  ]
+}

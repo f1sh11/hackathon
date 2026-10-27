@@ -60,11 +60,11 @@ public sealed class PlanningRunMiddleware(RequestDelegate next)
     {
         var path=context.Request.Path.Value ?? "";
         if(path.StartsWith("/planning/runs/",StringComparison.Ordinal)) {await next(context);return;}
-        var track=context.Request.Headers.ContainsKey(PlanningRunJournal.Header) || path is "/plan" or "/plan/prepare" or "/plan/remaining" or "/schedule/editor" || path.StartsWith("/pet/sessions/",StringComparison.Ordinal) || path.StartsWith("/agents/feasibility/",StringComparison.Ordinal);
+        var track=context.Request.Headers.ContainsKey(PlanningRunJournal.Header) || path is "/planning/test" or "/plan" or "/plan/prepare" or "/plan/remaining" or "/schedule/editor" || path.StartsWith("/pet/sessions/",StringComparison.Ordinal) || path.StartsWith("/agents/feasibility/",StringComparison.Ordinal);
         if(!track){await next(context);return;}
         journal.Begin(context);
         var route=path.StartsWith("/pet/sessions/",StringComparison.Ordinal)?"pet_turn":path switch {
-            "/poi/search"=>"place_search","/plan/prepare"=>"prepare","/plan"=>"plan","/plan/remaining"=>"remaining","/schedule/editor"=>"schedule_check",_=>"related_request"};
+            "/planning/test"=>"planning_test","/poi/search"=>"place_search","/plan/prepare"=>"prepare","/plan"=>"plan","/plan/remaining"=>"remaining","/schedule/editor"=>"schedule_check",_=>"related_request"};
         var started=Stopwatch.GetTimestamp();
         journal.Record("Orchestrator","application","request_started","running",new(){["operation"]=route});
         try {await next(context);journal.Record("Orchestrator","application","request_completed",context.Response.StatusCode<400?"success":"failed",new(){["operation"]=route,["http_status"]=context.Response.StatusCode,["elapsed_ms"]=(long)Stopwatch.GetElapsedTime(started).TotalMilliseconds});}

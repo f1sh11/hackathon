@@ -27,7 +27,7 @@ public static class PlanningEndpoints
         });
         routes.MapGet("/planning/agent/status",async (PlanningAgentSettings settings,MeterlessRuntime runtime,PlanningAgent agent,HttpContext context)=>{
             context.Response.Headers.CacheControl="no-store";
-            return Results.Json(new JsonObject{["provider"]=settings.Provider,["skillVersion"]=ItinerarySkill.Version,["configured"]=agent.Configured,
+            return Results.Json(new JsonObject{["provider"]=settings.Provider,["skillVersion"]=ItinerarySkill.Version,["skillSource"]=ItinerarySkill.Source,["baseSkillVersion"]=ItinerarySkill.BaseVersion,["configured"]=agent.Configured,
                 ["cloudModel"]=settings.Provider=="meterless-cloud"?new JsonObject{["provider"]="nvidia",["status"]=agent.Configured?"configured_not_probed":"not_configured",["memoryEngine"]="Meterless H-MEM",["stateEngine"]="Meterless World Model / application implementation"}:null,
                 ["runtime"]=settings.Provider=="meterless"?await runtime.StatusAsync(context.RequestAborted):new JsonObject{["status"]="not_selected"}});
         });
@@ -58,15 +58,7 @@ public static class PlanningEndpoints
         routes.MapPost("/plan/prepare",async (HttpContext context,Planner planner)=>Results.Json(await planner.PrepareWalkingAsync(await RequestJson.ReadAsync(context),context.RequestAborted)));
         routes.MapPost("/plan", async (HttpContext context, Planner planner, PaidServicePolicy paidServices,PlanningAgent agent) =>
         {
-            var input = await RequestJson.ReadAsync(context);
-            if (input.ContainsKey("mode") &&
-                (input["mode"] is not JsonValue value || !value.TryGetValue<string>(out _)))
-                throw new ServiceException("模式不合法");
-            var mode = input.Str("mode", "demo");
-            if (mode is not ("demo" or "assisted" or "live")) throw new ServiceException("模式不合法");
-            if (mode != "demo" && !(mode=="assisted"&&agent.CloudCallsAllowed)) paidServices.RequireAllowed();
-            input.Remove("mode");
-            return Results.Json(await planner.PlanAsync(input, mode, context.RequestAborted));
+            return Results.Json(await CreateDraftAsync(await RequestJson.ReadAsync(context),planner,paidServices,agent,context.RequestAborted));
         });
         routes.MapPost("/weather", async (HttpContext context, Planner planner, PaidServicePolicy paidServices,TravelDataContext travel) =>
         {
@@ -75,4 +67,17 @@ public static class PlanningEndpoints
             return Results.Json(await planner.WeatherAsync(await RequestJson.ReadAsync(context), context.RequestAborted));
         });
     }
+    // Both App and file tests use the same mode validation and paid-service policy.
+    public static Task<JsonObject> CreateDraftAsync(JsonObject input,Planner planner,PaidServicePolicy paidServices,PlanningAgent agent,CancellationToken ct)
+    {
+        input=input.DeepClone().AsObject();
+        if(input.ContainsKey("mode") && (input["mode"] is not JsonValue value || !value.TryGetValue<string>(out _)))
+            throw new ServiceException("模式不合法");
+        var mode=input.Str("mode","demo");
+        if(mode is not ("demo" or "assisted" or "live"))throw new ServiceException("模式不合法");
+        if(mode!="demo" && !(mode=="assisted"&&agent.CloudCallsAllowed))paidServices.RequireAllowed();
+        input.Remove("mode");
+        return planner.PlanAsync(input,mode,ct);
+    }
+
 }

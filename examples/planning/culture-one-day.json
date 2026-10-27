@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-28",
+  "days": 1,
+  "mode": "assisted",
+  "language": "zh-Hant",
+  "budget": 120,
+  "maxSteps": 10000,
+  "startMinute": 600,
+  "endMinute": 1200,
+  "interests": [
+    "文化"
+  ],
+  "mustVisit": [
+    "opera"
+  ],
+  "transportPreference": "walk",
+  "energy": "中精力",
+  "accommodationStatus": "unknown",
+  "start": {
+    "name": "Circular Quay",
+    "lat": -33.8611,
+    "lng": 151.2126
+  },
+  "end": {
+    "name": "Circular Quay",
+    "lat": -33.8611,
+    "lng": 151.2126
+  },
+  "request": "文化主題測試，優先博物館與歷史景點，景點不要重複，準時用餐。"
+}

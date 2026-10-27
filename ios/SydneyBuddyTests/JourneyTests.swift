@@ -142,6 +142,30 @@ private final class JourneyStub:URLProtocol {
         XCTAssertEqual(navigator.message,MKError(.directionsNotFound).localizedDescription)
     }
 
+    /// Opt-in deployment check: config arrives in a private simulator file, never arguments.
+    func testCloudColocationUsesManagedDataThroughPathPrefix() async throws {
+        let file=FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("backend-public-smoke.private.json")
+        try XCTSkipUnless(FileManager.default.fileExists(atPath:file.path),"Private live-test configuration was not supplied")
+        let config=try JSONDecoder().decode([String:String].self,from:Data(contentsOf:file))
+        try FileManager.default.removeItem(at:file)
+        let address=try XCTUnwrap(config["url"]),code=try XCTUnwrap(config["accessCode"])
+        let base=try XCTUnwrap(BackendConnection.validated(address))
+        XCTAssertEqual(base.scheme,"https");XCTAssertEqual(base.path,"/sydneybuddy")
+        let (_,anonymous)=try await URLSession.shared.data(from:base.appendingPathComponent("health"))
+        XCTAssertEqual((anonymous as? HTTPURLResponse)?.statusCode,401)
+        let store=AppStore()
+        await store.chooseBackend("cloud",address:address,accessCode:code)
+        XCTAssertEqual(store.health?.status,"ok")
+        XCTAssertEqual(store.health?.managedTravelDataSource,"zetaris-cloud")
+        XCTAssertEqual(store.travelDataSource,.zetarisCloud)
+        XCTAssertFalse(store.mapLayerIDs?.isEmpty ?? true)
+        XCTAssertEqual(store.health?.nvidiaConfigured,true)
+        XCTAssertNil(store.errorMessage)
+        struct LiveAgentStatus:Decodable {let skillVersion:String}
+        let status:LiveAgentStatus=try await store.api("planning/agent/status")
+        XCTAssertEqual(status.skillVersion,"2026-10-27.3")
+    }
+
     func testCloudAccessCodeOnlyGoesToConfiguredHTTPSOrigin() throws {
         let prefs=UserDefaults.standard;let previous=prefs.object(forKey:"cloudBackendURL");let previousMode=prefs.object(forKey:"backendMode")
         let base=URL(string:"https://backend-test.example.invalid")!;let code="synthetic-test-access-code-123456789"

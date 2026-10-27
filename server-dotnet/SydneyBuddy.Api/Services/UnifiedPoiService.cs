@@ -66,13 +66,22 @@ public sealed class UnifiedPoiService(TravelDataContext travel,OverturePoiProvid
             if(!tokens.All(q=>CultureInfo.InvariantCulture.CompareInfo.IndexOf(point.Str("searchText")+" "+point.Str("name")+" "+point.Str("nameEn")+" "+point.Str("description")+" "+point.Str("descriptionEn")+" "+point.Str("address"),q,CompareOptions.IgnoreCase|CompareOptions.IgnoreNonSpace)>=0))continue;
             if(!identifiers.Add(point.Str("id")))continue;
             var meters=RouteService.Distance(origin,point);if(meters>radius)continue;
-            var name=NameKey(point.Str("name"))+":"+point.Str("category");if(!groups.TryGetValue(name,out var group))groups[name]=group=[];
-            // Same name alone is insufficient: branches can be near each other.
-            var existing=group.FirstOrDefault(match=>RouteService.Distance(match.Point,point)<=25 && (match.Point.Str("source")!=point.Str("source") || match.Point.Str("id")==point.Str("id") || match.Point.Str("matchedPlaceId").Length>0&&match.Point.Str("matchedPlaceId")==point.Str("matchedPlaceId")));
-            if(existing is not null){existing.Duplicates.Add(point);continue;}
-            group.Add(new Match(point,Math.Round(meters),kind));
+            var keys=PlaceIdentity.MatchKeys(point);
+            Match? existing=null;
+            foreach(var key in keys){
+                if(!groups.TryGetValue(key,out var candidates))continue;
+                foreach(var candidate in candidates)if(PlaceIdentity.Same(candidate.Point,point)){existing=candidate;break;}
+                if(existing is not null)break;
+            }
+            if(existing is not null){
+                existing.Duplicates.Add(point);
+                foreach(var key in keys){if(!groups.TryGetValue(key,out var aliases))groups[key]=aliases=[];if(!aliases.Contains(existing))aliases.Add(existing);}
+                continue;
+            }
+            var added=new Match(point,Math.Round(meters),kind);
+            foreach(var key in keys.Length>0?keys:["id:"+point.Str("id")]){if(!groups.TryGetValue(key,out var group))groups[key]=group=[];group.Add(added);}
         }
-        var ordered=groups.Values.SelectMany(x=>x).OrderBy(p=>p.Meters).ThenBy(p=>p.Point.Str("id")).ToList();
+        var ordered=groups.Values.SelectMany(x=>x).Distinct().OrderBy(p=>p.Meters).ThenBy(p=>p.Point.Str("id")).ToList();
         // Keep references while filtering and ranking; clone only the bounded response.
         // Cloning every nearby POI exhausted the managed heap on the free Oracle VM.
         var chosen=category=="all"&&text.Length==0?ordered.GroupBy(p=>p.Kind).SelectMany(g=>g.Take(13)).OrderBy(p=>p.Meters).Take(80):ordered.Take(80);

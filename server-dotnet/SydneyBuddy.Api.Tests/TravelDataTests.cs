@@ -12,6 +12,9 @@ public sealed class TravelDataTests {
         public Task<TravelSnapshot> ReadAsync(CancellationToken token){Calls++;if(fail)throw new ServiceException("warehouse unavailable");return Task.FromResult(Snapshot());}
     }
     [Theory]
+    [InlineData("POST","/planning/test",1)]
+    [InlineData("GET","/planning/test/example",0)]
+    [InlineData("GET","/planning/skills",0)]
     [InlineData("POST","/agents/feasibility/reviews",1)]
     [InlineData("GET","/agents/feasibility/reviews/receipt",0)]
     [InlineData("POST","/agents/feasibility/reviews/receipt/confirm",0)]

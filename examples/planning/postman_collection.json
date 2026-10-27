@@ -1,0 +1,128 @@
+{
+  "info": {
+    "name": "SydneyBuddy AWS 行程規劃測試",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{app_access_code}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://api.a6c43f1d-2765-487d-89af-99b612b39de9.cloud.zetaris.com/sydneybuddy"
+    },
+    {
+      "key": "app_access_code",
+      "value": ""
+    },
+    {
+      "key": "travel_date",
+      "value": "2026-10-28"
+    },
+    {
+      "key": "days",
+      "value": "1"
+    },
+    {
+      "key": "budget",
+      "value": "180"
+    },
+    {
+      "key": "transport",
+      "value": "walk"
+    }
+  ],
+  "item": [
+    {
+      "name": "下載需求範例",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-Travel-Data-Source",
+            "value": "zetaris-cloud"
+          }
+        ],
+        "url": "{{base_url}}/planning/test/example"
+      }
+    },
+    {
+      "name": "調整參數並規劃",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Travel-Data-Source",
+            "value": "zetaris-cloud"
+          }
+        ],
+        "url": "{{base_url}}/planning/test?download=true",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"date\": \"{{travel_date}}\",\n  \"days\": {{days}},\n  \"mode\": \"assisted\",\n  \"language\": \"zh-Hant\",\n  \"budget\": {{budget}},\n  \"maxSteps\": 10000,\n  \"startMinute\": 600,\n  \"endMinute\": 1200,\n  \"interests\": [\n    \"文化\",\n    \"自然\"\n  ],\n  \"mustVisit\": [],\n  \"transportPreference\": \"{{transport}}\",\n  \"energy\": \"中精力\",\n  \"accommodationStatus\": \"unknown\",\n  \"start\": {\n    \"name\": \"Circular Quay\",\n    \"lat\": -33.8611,\n    \"lng\": 151.2126\n  },\n  \"end\": {\n    \"name\": \"Circular Quay\",\n    \"lat\": -33.8611,\n    \"lng\": 151.2126\n  },\n  \"request\": \"測試行程規劃；景點不重複，準時用餐。住宿尚未選定，不宣稱已訂房。\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "上傳 JSON 檔案",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Travel-Data-Source",
+            "value": "zetaris-cloud"
+          }
+        ],
+        "url": "{{base_url}}/planning/test?download=true",
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": []
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "查看有效 Skill",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-Travel-Data-Source",
+            "value": "zetaris-cloud"
+          }
+        ],
+        "url": "{{base_url}}/planning/skills?language=zh-Hant"
+      }
+    },
+    {
+      "name": "下載英文 Skill",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-Travel-Data-Source",
+            "value": "zetaris-cloud"
+          }
+        ],
+        "url": "{{base_url}}/planning/skills?language=en&download=true"
+      }
+    }
+  ]
+}

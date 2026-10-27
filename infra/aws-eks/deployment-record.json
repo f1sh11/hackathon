@@ -1,0 +1,149 @@
+{
+  "verifiedAt": "2026-10-27T21:06:22.146856+11:00",
+  "status": "running_low_load_trial",
+  "backendRevision": "4ffebbe",
+  "cluster": "zetaris-sydneybuddy-demo-a6c43f1d",
+  "region": "ap-southeast-2",
+  "namespace": "zetaris",
+  "pod": "sydneybuddy-0",
+  "existingNode": "ip-10-0-11-101.ap-southeast-2.compute.internal",
+  "newComputeHosts": 0,
+  "newLoadBalancers": 0,
+  "url": "https://api.a6c43f1d-2765-487d-89af-99b612b39de9.cloud.zetaris.com/sydneybuddy",
+  "images": {
+    "api": "560570264527.dkr.ecr.ap-southeast-2.amazonaws.com/sydneybuddy-api@sha256:26f5d88ff7f97dce233a0b9039796eb228fa33c4499b70fe326ed55b55060fac",
+    "db": "docker.io/library/postgres@sha256:b8faeff7712663c2773a190181e1246e37e364b887611c04658c28b44e2408fe",
+    "gateway": "docker.io/library/caddy@sha256:504a44d7d74bd2bc28a66afc4774912fc21223ca8a67734af1c54ab2f999b489"
+  },
+  "volumes": [
+    {
+      "id": "vol-077945841c2831da8",
+      "purpose": "app_state",
+      "GiB": 2,
+      "encrypted": true
+    },
+    {
+      "id": "vol-0890bb676b7e87d1e",
+      "purpose": "postgres",
+      "GiB": 5,
+      "encrypted": true
+    }
+  ],
+  "approximateAdditionalStorageUSDPerMonth": 0.87,
+  "pricingBasis": {
+    "gp2GiBMonth": 0.12,
+    "ecrGBMonth": 0.1,
+    "excludes": "tax, existing compute and usage-dependent traffic"
+  },
+  "checks": {
+    "isolatedRestoreRehearsal": true,
+    "databaseTables": 11,
+    "restoredTotalRows": 7,
+    "applicationStateFiles": 13,
+    "gatewayAuthAndSetupBlock": true,
+    "cloudZetaris": true,
+    "nvidiaPlanningDraft": true,
+    "planningSeconds": 14.4,
+    "skillVersion": "2026-10-27.5",
+    "planningSmokeSaved": false,
+    "iosAppLiveTest": true,
+    "androidAppLiveTest": true,
+    "physicalPhoneLiveTest": false,
+    "nodeSetUnchanged": true,
+    "encryptedVolumesVerifiedByEC2": true,
+    "oracleApiAndDatabaseActive": true,
+    "temporaryAdminRevoked": true,
+    "accessKeysCreated": 0,
+    "temporaryCloudTransferArchivesRemoved": true,
+    "skillAdminApi": true,
+    "skillAdminJsonUpload": true,
+    "skillAdminMarkdownUpload": true,
+    "skillAdminPostmanStatus": true,
+    "skillContentUnchanged": true,
+    "backendTestsPassed": 632,
+    "pythonTestsPassed": 68
+  },
+  "limitations": [
+    "Shared CPU: test does not establish production capacity or availability",
+    "Oracle and AWS are independent snapshots after migration",
+    "Physical phone not attached; same public HTTPS address and App access code are required"
+  ],
+  "dataSeparation": "Dedicated application PostgreSQL and state PVCs; existing Zetaris database/PVCs not reused",
+  "backendBaseRevision": "98346521f07456c750caf5ca3e24b0e8c787a001",
+  "skillVersion": "2026-10-27.5",
+  "lastSkillUpdate": {
+    "verifiedAt": "2026-10-27T18:28:44.006354+11:00",
+    "skillVersion": "2026-10-27.5",
+    "previousApiImage": "560570264527.dkr.ecr.ap-southeast-2.amazonaws.com/sydneybuddy-api@sha256:6bbae74b55ec130dd6243a26021c37ce2553dafc25bc15cbf193843bedd5e6b3",
+    "apiImage": "560570264527.dkr.ecr.ap-southeast-2.amazonaws.com/sydneybuddy-api@sha256:fe125b4b652778a3a4b97ab97098f9597ee46028d04ba6ef8eac133f15f88f20",
+    "existingNodePreserved": true,
+    "dataVolumesAndRoutingPreserved": true,
+    "localRegressionTestsPassed": 89,
+    "publicHealthPassed": true,
+    "anonymousAccessRejected": true,
+    "cloudQvbAliasesConsolidated": true,
+    "nvidiaDraftPassed": true,
+    "draftSeconds": 13.4,
+    "draftSaved": false,
+    "temporaryNamespaceEditPolicyRevoked": true,
+    "remainingEksPolicy": "AmazonEKSViewPolicy",
+    "runtimeStepPolicy": "Existing deterministic caps remain; this release updates the Skill and identity deduplication."
+  },
+  "lastApiUpdate": {
+    "verifiedAt": "2026-10-27T19:27:16.037671+11:00",
+    "apiImage": "560570264527.dkr.ecr.ap-southeast-2.amazonaws.com/sydneybuddy-api@sha256:b358bb2ae60ccd96c48deeccc4205b0de48fa019908d101a803d616c71096360",
+    "previousKnownWorkingApiImage": "560570264527.dkr.ecr.ap-southeast-2.amazonaws.com/sydneybuddy-api@sha256:fe125b4b652778a3a4b97ab97098f9597ee46028d04ba6ef8eac133f15f88f20",
+    "features": [
+      "planning_json_body_and_file_test",
+      "downloadable_json_results",
+      "read_only_effective_skills",
+      "operator_append_only_skill_hot_reload"
+    ],
+    "regressionTestsPassed": 135,
+    "publicParameterCases": [
+      {
+        "case": "culture-one-day",
+        "multipartUpload": true,
+        "downloadedResult": true,
+        "days": 1,
+        "dailyBudget": 120,
+        "maxSteps": 10000,
+        "interests": [
+          "\u6587\u5316"
+        ],
+        "stops": 4,
+        "provider": "meterless-cloud",
+        "seconds": 10.2,
+        "runId": "ba02e37c-e314-4468-9f6f-e40168e58956"
+      },
+      {
+        "case": "nature-two-days",
+        "multipartUpload": false,
+        "downloadedResult": true,
+        "days": 2,
+        "dailyBudget": 180,
+        "maxSteps": 15000,
+        "interests": [
+          "\u81ea\u7136"
+        ],
+        "stops": 8,
+        "provider": "meterless-cloud",
+        "seconds": 10.1,
+        "runId": "c19de454-f8b3-46ec-a816-d71ddf7b1f91"
+      }
+    ],
+    "skillHotReloadAndRollbackVerified": true,
+    "currentSkillVersion": "2026-10-27.5",
+    "currentSkillSource": "embedded",
+    "temporaryNamespaceEditPolicyRevoked": true,
+    "existingNodeDataAndRoutingPreserved": true,
+    "cloudTestRouteLoadsZetarisSnapshot": true
+  },
+  "skillAdmin": {
+    "credentialStorage": "existing app PVC private file, 0600; local Postman Vault",
+    "sharedAppCodeAloneCanManage": false,
+    "candidateUploaded": "deployment-check-20261027",
+    "candidateActivated": false,
+    "activeVersion": "2026-10-27.5"
+  }
+}

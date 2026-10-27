@@ -7,6 +7,8 @@ public static class ApiEndpoints
     {
         var routes = app.MapGroup(prefix);
         routes.MapPlanningEndpoints();
+        routes.MapPlanningTestEndpoints();
+        routes.MapSkillAdminEndpoints();
         routes.MapFeasibilityEndpoints();
         routes.MapTripEndpoints();
         routes.MapWorldEndpoints();

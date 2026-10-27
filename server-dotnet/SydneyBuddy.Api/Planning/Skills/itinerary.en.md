@@ -284,3 +284,34 @@ Preserve every earlier rule and the full supplied specification. This explicit u
 - Meal and hotel-return targets never override allergy/dietary, reservation, budget, opening-hour, or safety constraints.
 
 Keep the existing JSON output contract. Hotel identity, logistics tasks, steps, meal windows, and final routing are validated downstream against supplied evidence. Never return unsupported stay/logistics IDs or claim a reservation was made.
+
+
+## Additive rules — 2026-10-27.4: transit first, rest-separated walking, and fuller days
+
+Preserve all earlier rules. This explicit user update changes transport ranking, default step references, and continuous-walking reminders. This section takes precedence over conflicting older preferences; other hard constraints remain unchanged.
+
+### Transport ranking
+- Use feasible public transport as the default backbone: compare train, metro, light rail, bus, and ferry using applicable routes, timetables, and service evidence, then adapt to personal transport preferences, transfer tolerance, and accessibility. Explicitly prohibited modes remain prohibited.
+- Assess transit first between activities and use an entirely walking leg as the final alternative. Include necessary station access, interchange, and on-site walking. Preserve explicitly requested trails or walks as experiences.
+- Do not introduce major detours, excessive transfers, or long waits merely to take transit. For short distances or unavailable services, suggest walking and explain why. Unknown services are not connected services; taxis and rental cars still require permission.
+- Within hard constraints, prioritize full-day experiences, interests, smooth routing, and reasonable total travel time, then reduce unnecessary walking. Do not sacrifice substantial usable sightseeing time solely to minimize steps. Include access, waiting, transfers, and hotel return in comparisons.
+
+### Step references and rest-separated walking
+- Low/moderate/high energy references of about 8,000/10,000/15,000 steps are soft guidance, not automatic daily rejection thresholds. Do not remove suitable activities or finish early solely because a default reference is exceeded. Explicit personal hard step caps, mobility restrictions, and health needs remain binding. Do not assume an existing number with unknown provenance is a relaxable default.
+- About 6,000 steps is a reminder to consider rest within one continuous walking segment, not a daily cap or a universal physiological safety boundary. Include actual road access and on-site walking. Never substitute the hypothetical all-visit-time walking scenario for estimated load.
+- An actual scheduled seated meal, afternoon tea, or seated rest with sufficient duration can end one walking segment and start a new one. Do not reject the day solely because steps before and after that rest sum to more than 6,000. Preserve daily total steps and completed history; rest does not erase accumulated fatigue.
+- Only seated rest with actual duration qualifies. Passing restaurants, takeaway while walking, queues, and momentary stops do not qualify. If duration is unspecified, use approximately 45–60 minutes for a seated meal and 20–30 minutes for tea/seated rest as adjustable planning assumptions, adapted to traveler needs and service hours, not medical recovery thresholds.
+- Planned qualifying rests may separate forecast segments; during live replanning reset the continuous counter only after rest is actually completed. Do not assume recovery without evidence or despite reported fatigue. Near the continuous-walking reference, prefer rest or transit before removing the rest of the day.
+
+### Optimize for fuller days
+- Fill usable time with suitable morning, afternoon, timely meals, reasonable rest, and feasible evening experiences, aiming for arrival at the selected hotel around 20:00. No fixed daily stop count applies. Default step references alone should not leave large avoidable gaps.
+- Fuller days means reducing avoidable gaps, not 100% time utilization. Preserve realistic visits, travel, queues, and buffers. Do not compress meals, fabricate activities, repeat attractions, omit luggage collection, or invent evening hours. Explain genuine coverage limits and missing evidence.
+- Adapt unfinished activities to current energy feedback: add compatible nearby experiences when energetic; when tired, first consider transit, seated rest, or lower-load experiences, then remove optional activities or return early as needed. Required visits, bookings, budget, weather, hours, and health constraints remain authoritative.
+
+Keep the existing JSON contract and backend validation boundary without unsupported fields. Skill preferences cannot override backend rejection. If the backend still treats default steps as hard caps, report that execution limitation rather than claiming the new policy has passed route validation.
+
+
+## Additive rules — 2026-10-27.5: physical attraction uniqueness
+- Do not repeat a physical attraction across the trip, including different dates, source IDs, translated names, official aliases, or punctuation variants. Explicitly requested revisits may be proposed only with backend support and validation.
+- Verify stable place identifiers, aliases, address, coordinates, and branches before merging candidates. Same or similar names alone do not prove identity. Preserve separate branches, businesses in shared buildings, and independently visitable attractions within precincts. Flag ambiguous matches rather than deleting them.
+- Merge confirmed duplicates into one discovery/planning entry, preserving source IDs, attribution, and evidence. Never fill days with repeated attractions. Accommodation, necessary transfers, and luggage drop-off/collection are not duplicate sightseeing.

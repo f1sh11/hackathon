@@ -1,0 +1,565 @@
+{
+  "info": {
+    "name": "SydneyBuddy — Skill 管理 API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "已部署 AWS。skill_admin_base_url 指向既有 /sydneybuddy 網址；本機測試可另改為 http://127.0.0.1:8787，並設定獨立管理憑證。App Bearer 沿用 Vault，管理憑證放本機 Vault 的 sydneybuddy-skill-admin-token。上傳不啟用；先預覽再啟用。不得對整組執行 Runner。"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{vault:sydneybuddy-app-access-code}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "skill_admin_base_url",
+      "value": "https://api.a6c43f1d-2765-487d-89af-99b612b39de9.cloud.zetaris.com/sydneybuddy",
+      "type": "string"
+    },
+    {
+      "key": "skill_version",
+      "value": "2026-10-27.6",
+      "type": "string"
+    },
+    {
+      "key": "active_fingerprint",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "rollback_version",
+      "value": "2026-10-27.5",
+      "type": "string"
+    },
+    {
+      "key": "confirm_removal",
+      "value": "false",
+      "type": "string"
+    },
+    {
+      "key": "allow_writes",
+      "value": "no",
+      "type": "string"
+    },
+    {
+      "key": "data_source",
+      "value": "local",
+      "type": "string"
+    },
+    {
+      "key": "language",
+      "value": "zh-Hant",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 管理狀態與目前版本指紋",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-Travel-Data-Source",
+            "value": "{{data_source}}"
+          },
+          {
+            "key": "X-App-Language",
+            "value": "{{language}}"
+          },
+          {
+            "key": "X-Skill-Admin-Token",
+            "value": "{{vault:sydneybuddy-skill-admin-token}}"
+          }
+        ],
+        "url": "{{skill_admin_base_url}}/admin/planning/skills/status",
+        "description": ""
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });",
+              "if (pm.response.code >= 200 && pm.response.code < 300) { const d = pm.response.json(); if(d.activeFingerprint) pm.collectionVariables.set('active_fingerprint',d.activeFingerprint); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 已保存版本清單",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-Travel-Data-Source",
+            "value": "{{data_source}}"
+          },
+          {
+            "key": "X-App-Language",
+            "value": "{{language}}"
+          },
+          {
+            "key": "X-Skill-Admin-Token",
+            "value": "{{vault:sydneybuddy-skill-admin-token}}"
+          }
+        ],
+        "url": "{{skill_admin_base_url}}/admin/planning/skills/versions",
+        "description": ""
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 下載累積規則 JSON 範本",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-Travel-Data-Source",
+            "value": "{{data_source}}"
+          },
+          {
+            "key": "X-App-Language",
+            "value": "{{language}}"
+          },
+          {
+            "key": "X-Skill-Admin-Token",
+            "value": "{{vault:sydneybuddy-skill-admin-token}}"
+          }
+        ],
+        "url": "{{skill_admin_base_url}}/admin/planning/skills/template",
+        "description": "保留既有 appendices，再追加規則並使用新 version；下載不會啟用。"
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 上傳 JSON 檔（不啟用）",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Travel-Data-Source",
+            "value": "{{data_source}}"
+          },
+          {
+            "key": "X-App-Language",
+            "value": "{{language}}"
+          },
+          {
+            "key": "X-Skill-Admin-Token",
+            "value": "{{vault:sydneybuddy-skill-admin-token}}"
+          }
+        ],
+        "url": "{{skill_admin_base_url}}/admin/planning/skills/versions",
+        "description": "Body 的 file 選擇 skill-bundle.json；純上傳驗證，不會立即啟用。",
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": []
+            }
+          ]
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });",
+              "if (pm.response.code >= 200 && pm.response.code < 300) { const d = pm.response.json(); if(d.activeFingerprint) pm.collectionVariables.set('active_fingerprint',d.activeFingerprint); if(d.version) pm.collectionVariables.set('skill_version',d.version); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04b 貼上 JSON（不啟用）",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Travel-Data-Source",
+            "value": "{{data_source}}"
+          },
+          {
+            "key": "X-App-Language",
+            "value": "{{language}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Skill-Admin-Token",
+            "value": "{{vault:sydneybuddy-skill-admin-token}}"
+          }
+        ],
+        "url": "{{skill_admin_base_url}}/admin/planning/skills/versions",
+        "description": "",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"version\": \"{{skill_version}}\",\n  \"baseVersion\": \"2026-10-27.5\",\n  \"enAppendix\": \"Keep all existing appendices, then add your new rules here.\",\n  \"zhHantAppendix\": \"保留先前追加規則，再把新增規則寫在這裡。\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (!pm.variables.get('skill_version')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 skill_version'); }"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });",
+              "if (pm.response.code >= 200 && pm.response.code < 300) { const d = pm.response.json(); if(d.activeFingerprint) pm.collectionVariables.set('active_fingerprint',d.activeFingerprint); if(d.version) pm.collectionVariables.set('skill_version',d.version); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04c 上傳完整中英文 Markdown（不啟用）",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Travel-Data-Source",
+            "value": "{{data_source}}"
+          },
+          {
+            "key": "X-App-Language",
+            "value": "{{language}}"
+          },
+          {
+            "key": "X-Skill-Admin-Token",
+            "value": "{{vault:sydneybuddy-skill-admin-token}}"
+          }
+        ],
+        "url": "{{skill_admin_base_url}}/admin/planning/skills/documents",
+        "description": "先下載目前完整中英文 Skill，僅在檔案尾端新增規則。version 使用新版本，不能刪改內建基底；是否保留所有已啟用追加規則，仍需在預覽檢查。",
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "version",
+              "type": "text",
+              "value": "{{skill_version}}"
+            },
+            {
+              "key": "baseVersion",
+              "type": "text",
+              "value": "2026-10-27.5"
+            },
+            {
+              "key": "en",
+              "type": "file",
+              "src": []
+            },
+            {
+              "key": "zhHant",
+              "type": "file",
+              "src": []
+            }
+          ]
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (!pm.variables.get('skill_version')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 skill_version'); }"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });",
+              "if (pm.response.code >= 200 && pm.response.code < 300) { const d = pm.response.json(); if(d.activeFingerprint) pm.collectionVariables.set('active_fingerprint',d.activeFingerprint); if(d.version) pm.collectionVariables.set('skill_version',d.version); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 預覽候選版本與將移除的規則",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-Travel-Data-Source",
+            "value": "{{data_source}}"
+          },
+          {
+            "key": "X-App-Language",
+            "value": "{{language}}"
+          },
+          {
+            "key": "X-Skill-Admin-Token",
+            "value": "{{vault:sydneybuddy-skill-admin-token}}"
+          }
+        ],
+        "url": "{{skill_admin_base_url}}/admin/planning/skills/versions/{{skill_version}}",
+        "description": ""
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (!pm.variables.get('skill_version')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 skill_version'); }"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });",
+              "if (pm.response.code >= 200 && pm.response.code < 300) { const d = pm.response.json(); if(d.activeFingerprint) pm.collectionVariables.set('active_fingerprint',d.activeFingerprint); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 ⚠ 啟用候選版本",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Travel-Data-Source",
+            "value": "{{data_source}}"
+          },
+          {
+            "key": "X-App-Language",
+            "value": "{{language}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Skill-Admin-Token",
+            "value": "{{vault:sydneybuddy-skill-admin-token}}"
+          }
+        ],
+        "url": "{{skill_admin_base_url}}/admin/planning/skills/versions/{{skill_version}}/activate",
+        "description": "確認 appendOnly=true 才啟用；若回 409，重新預覽與比較後再決定。",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"expectedActiveFingerprint\": \"{{active_fingerprint}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (!pm.variables.get('skill_version')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 skill_version'); }",
+              "if (!pm.variables.get('active_fingerprint')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 active_fingerprint'); }",
+              "if (pm.variables.get('allow_writes') !== 'yes') { pm.execution.skipRequest(); throw new Error('此請求會修改資料；確認後將 allow_writes 設為 yes，再單獨傳送。'); }"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });",
+              "if (pm.response.code >= 200 && pm.response.code < 300) { const d = pm.response.json(); if(d.activeFingerprint) pm.collectionVariables.set('active_fingerprint',d.activeFingerprint); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 ⚠ 明確回復舊版",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Travel-Data-Source",
+            "value": "{{data_source}}"
+          },
+          {
+            "key": "X-App-Language",
+            "value": "{{language}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Skill-Admin-Token",
+            "value": "{{vault:sydneybuddy-skill-admin-token}}"
+          }
+        ],
+        "url": "{{skill_admin_base_url}}/admin/planning/skills/rollback",
+        "description": "先將 skill_version 設為目標舊版並執行 05，審閱 removedRules。與使用者討論後，才將 confirm_removal 改 true；allow_writes 也需 yes。",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"version\":\"{{rollback_version}}\",\"expectedActiveFingerprint\":\"{{active_fingerprint}}\",\"confirmRemoval\":{{confirm_removal}}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (!pm.variables.get('rollback_version')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 rollback_version'); }",
+              "if (!pm.variables.get('active_fingerprint')) { pm.execution.skipRequest(); throw new Error('請先完成前置請求，或填入 active_fingerprint'); }",
+              "if (pm.variables.get('allow_writes') !== 'yes') { pm.execution.skipRequest(); throw new Error('此請求會修改資料；確認後將 allow_writes 設為 yes，再單獨傳送。'); }"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });",
+              "if (pm.response.code >= 200 && pm.response.code < 300) { const d = pm.response.json(); if(d.activeFingerprint) pm.collectionVariables.set('active_fingerprint',d.activeFingerprint); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 下載目前完整中文 Skill",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-Travel-Data-Source",
+            "value": "{{data_source}}"
+          },
+          {
+            "key": "X-App-Language",
+            "value": "{{language}}"
+          },
+          {
+            "key": "X-Skill-Admin-Token",
+            "value": "{{vault:sydneybuddy-skill-admin-token}}"
+          }
+        ],
+        "url": "{{skill_admin_base_url}}/planning/skills?language=zh-Hant&download=true",
+        "description": ""
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 下載目前完整英文 Skill",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-Travel-Data-Source",
+            "value": "{{data_source}}"
+          },
+          {
+            "key": "X-App-Language",
+            "value": "{{language}}"
+          },
+          {
+            "key": "X-Skill-Admin-Token",
+            "value": "{{vault:sydneybuddy-skill-admin-token}}"
+          }
+        ],
+        "url": "{{skill_admin_base_url}}/planning/skills?language=en&download=true",
+        "description": ""
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 2xx', function () { pm.expect(pm.response.code).to.be.within(200,299); });"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
