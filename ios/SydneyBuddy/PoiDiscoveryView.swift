@@ -296,8 +296,8 @@ enum ExplorePresentation {
     @State private var initialized=false
     @State private var resumeSearch=false
     @FocusState private var searching:Bool
-    private let blue=Color(red:0.20,green:0.36,blue:0.79)
-    private let ink=Color(red:0.09,green:0.15,blue:0.24)
+    private let blue=Palette.primary
+    private let ink=Palette.ink
     private var searchProvider:MapProvider {addingToDay ? localProvider:store.mapProvider}
     private var visiblePlaces:[ScheduleCandidate] {model.provider==searchProvider && model.dataSource==store.travelDataSource ? model.places:[]}
     private var orderedPlaces:[ScheduleCandidate] {ExplorePresentation.ranked(visiblePlaces,interests:model.category=="all" ? store.personalProfile.interests ?? []:[],center:model.center,selected:model.selected)}
@@ -333,7 +333,7 @@ enum ExplorePresentation {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(embedded ? .hidden:.visible,for:.navigationBar)
             .toolbar{if !embedded{ToolbarItem(placement:.topBarTrailing){Button(uiText("完成")){dismiss()}}}}
-        }.tint(blue)
+        }.buddySurface()
         .overlay{if featureLoading{ProgressView(uiText("Loading place…")).padding(16).background(.regularMaterial,in:Capsule()).accessibilityIdentifier("map-feature-loading")}}
         .alert(uiText("地點資料暫時無法載入"),isPresented:Binding(get:{featureError != nil},set:{if !$0{featureError=nil}})){Button(uiText("完成")){featureError=nil}}message:{Text(uiText(featureError ?? ""))}
         .sheet(item:$detail){SchedulePlaceDetail(candidate:$0)}
@@ -366,9 +366,9 @@ enum ExplorePresentation {
         VStack(spacing:10){
             HStack(spacing:8){
                 HStack(spacing:8){
-                    Image(systemName:"magnifyingglass").foregroundStyle(.secondary)
+                    Image(systemName:"magnifyingglass").foregroundStyle(Palette.muted)
                     TextField(uiText("Find a place"),text:$model.query).focused($searching).submitLabel(.search).onSubmit{search()}.accessibilityIdentifier("poi-search")
-                    if !model.query.isEmpty{Button{model.query="";search()}label:{Image(systemName:"xmark.circle.fill").foregroundStyle(.secondary)}.accessibilityLabel(uiText("清空搜索"))}
+                    if !model.query.isEmpty{Button{model.query="";search()}label:{Image(systemName:"xmark.circle.fill").foregroundStyle(Palette.muted)}.accessibilityLabel(uiText("清空搜索"))}
                 }.padding(14).background(.white,in:RoundedRectangle(cornerRadius:18))
                 Button{searching=false;savedOpen=true}label:{Image(systemName:"bookmark").frame(width:44,height:48).background(.white,in:RoundedRectangle(cornerRadius:16))}.accessibilityLabel(uiText("Saved places")).accessibilityIdentifier("poi-saved-places")
                 Button{searching=false;filtersOpen=true}label:{Image(systemName:"slider.horizontal.3").frame(width:44,height:48).background(.white,in:RoundedRectangle(cornerRadius:16))}.accessibilityLabel(uiText("Filters and map options")).accessibilityIdentifier("poi-filters")
@@ -419,23 +419,23 @@ enum ExplorePresentation {
     }
     private func results(height:CGFloat)->some View {
         VStack(spacing:0){
-            Button{setDrawer(drawer.toggled(resultCount:visiblePlaces.count))}label:{VStack(spacing:9){Capsule().fill(Color.secondary.opacity(0.3)).frame(width:34,height:4);HStack{Text(uiText(model.busy ? "Finding places…":"Explore nearby")).font(.system(.headline,design:.rounded));Text(String(visiblePlaces.count)).font(.caption).foregroundStyle(.secondary);Spacer();Image(systemName:drawer == .expanded || (visiblePlaces.count==1 && drawer == .preview) ? "chevron.down":"chevron.up").font(.caption.bold())}}.padding(.horizontal,20).padding(.top,10).padding(.bottom,12)}
+            Button{setDrawer(drawer.toggled(resultCount:visiblePlaces.count))}label:{VStack(spacing:9){Capsule().fill(Color.secondary.opacity(0.3)).frame(width:34,height:4);HStack{Text(uiText(model.busy ? "Finding places…":"Explore nearby")).font(.system(.headline,design:.rounded));Text(String(visiblePlaces.count)).font(.caption).foregroundStyle(Palette.muted);Spacer();Image(systemName:drawer == .expanded || (visiblePlaces.count==1 && drawer == .preview) ? "chevron.down":"chevron.up").font(.caption.bold())}}.padding(.horizontal,20).padding(.top,10).padding(.bottom,12)}
                 .buttonStyle(.plain).accessibilityIdentifier("poi-drawer-toggle").accessibilityLabel(uiText(drawer == .expanded || (visiblePlaces.count==1 && drawer == .preview) ? "收起地点列表":"展开地点列表"))
                 .gesture(DragGesture(minimumDistance:15).onEnded{value in if abs(value.translation.height)>20{setDrawer(visiblePlaces.count==1 && value.translation.height<0 ? .preview:drawer.dragged(up:value.translation.height<0))}})
             if drawer != .collapsed {
                 if model.busy{ProgressView().padding(12)}
-                if let error=model.error{ScrollView{VStack(spacing:10){Text(uiText("暂时没找到地点资料")).font(.headline);Text(uiText(error)).font(.caption).foregroundStyle(.secondary);Button(uiText("重新搜索")){search()}}.padding(20)}}
-                else if !model.busy && visiblePlaces.isEmpty{VStack(spacing:10){Image(systemName:"magnifyingglass").font(.title2);Text(uiText("No places here yet")).font(.headline);Text(uiText(model.category=="drinking_water" && model.provider == .apple && model.dataSource == .direct ? "Apple Maps doesn’t list drinking-water points. Switch to OpenStreetMap in Filters.":"Try a name, another category, or search a different area.")).font(.caption).foregroundStyle(.secondary)}.frame(maxWidth:.infinity,maxHeight:.infinity).padding(20)}
+                if let error=model.error{ScrollView{VStack(spacing:10){Text(uiText("暂时没找到地点资料")).font(.headline);Text(uiText(error)).font(.caption).foregroundStyle(Palette.muted);Button(uiText("重新搜索")){search()}}.padding(20)}}
+                else if !model.busy && visiblePlaces.isEmpty{VStack(spacing:10){Image(systemName:"magnifyingglass").font(.title2);Text(uiText("No places here yet")).font(.headline);Text(uiText(model.category=="drinking_water" && model.provider == .apple && model.dataSource == .direct ? "Apple Maps doesn’t list drinking-water points. Switch to OpenStreetMap in Filters.":"Try a name, another category, or search a different area.")).font(.caption).foregroundStyle(Palette.muted)}.frame(maxWidth:.infinity,maxHeight:.infinity).padding(20)}
                 else {
                     ScrollViewReader{proxy in ScrollView{LazyVStack(spacing:0){
-                        if model.truncated{Text(uiText("Showing a selection. Search a name or narrow the category.")).font(.caption).foregroundStyle(.secondary).padding(.horizontal,20).padding(.bottom,6).accessibilityIdentifier("poi-search-summary")}
+                        if model.truncated{Text(uiText("Showing a selection. Search a name or narrow the category.")).font(.caption).foregroundStyle(Palette.muted).padding(.horizontal,20).padding(.bottom,6).accessibilityIdentifier("poi-search-summary")}
                         ForEach(orderedPlaces){point in placeRow(point).id(point.id);Divider().padding(.leading,68)}
                     }}.scrollDismissesKeyboard(.interactively).onChange(of:model.selected){_,id in if let id{proxy.scrollTo(id,anchor:.top)}}}
                 }
             }
             Spacer(minLength:0)
-            Button{creditsOpen=true}label:{HStack(spacing:8){Label(uiText("Data credits"),systemImage:"info.circle").font(.caption);Spacer(minLength:8);Text(verbatim:compactCredit).font(.caption2).multilineTextAlignment(.trailing)}.foregroundStyle(.secondary).frame(maxWidth:.infinity,minHeight:44).padding(.horizontal,18)}.buttonStyle(.plain).accessibilityIdentifier("poi-data-credits")
-        }.frame(height:height).frame(maxWidth:.infinity).background(Color(red:0.99,green:0.985,blue:0.97),in:UnevenRoundedRectangle(topLeadingRadius:24,topTrailingRadius:24)).shadow(color:.black.opacity(0.08),radius:12,y:-3)
+            Button{creditsOpen=true}label:{HStack(spacing:8){Label(uiText("Data credits"),systemImage:"info.circle").font(.caption);Spacer(minLength:8);Text(verbatim:compactCredit).font(.caption2).multilineTextAlignment(.trailing)}.foregroundStyle(Palette.muted).frame(maxWidth:.infinity,minHeight:44).padding(.horizontal,18)}.buttonStyle(.plain).accessibilityIdentifier("poi-data-credits")
+        }.frame(height:height).frame(maxWidth:.infinity).background(Palette.cream,in:UnevenRoundedRectangle(topLeadingRadius:24,topTrailingRadius:24)).shadow(color:.black.opacity(0.08),radius:12,y:-3)
     }
     private func placeRow(_ point:ScheduleCandidate)->some View {
         HStack(spacing:12){
@@ -443,10 +443,10 @@ enum ExplorePresentation {
                 Image(systemName:point.discoverySymbol).font(.title3).foregroundStyle(blue).frame(width:40,height:44).background(blue.opacity(0.07),in:RoundedRectangle(cornerRadius:12))
                 VStack(alignment:.leading,spacing:4){
                     Text(point.displayName).font(.subheadline.weight(.semibold)).foregroundStyle(ink).lineLimit(2)
-                    Text(uiText(point.category)+" · "+uiText(ExplorePresentation.distance(point,from:model.searchCenter))).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
-                    if let ticket=ticketSummaries[point.id]{Text(uiText("Reference price")+" · "+ticket.label(store.language)).font(.caption2).foregroundStyle(.secondary).lineLimit(1)}
-                    else if let price=ExplorePresentation.price(point){Text(uiText(price)).font(.caption2).foregroundStyle(.secondary).lineLimit(1)}
-                    if point.hasSourcedRating{Text(uiText(point.mappedRatingLabel)).font(.caption2).foregroundStyle(.secondary)}
+                    Text(uiText(point.category)+" · "+uiText(ExplorePresentation.distance(point,from:model.searchCenter))).font(.caption2).foregroundStyle(Palette.muted).lineLimit(1)
+                    if let ticket=ticketSummaries[point.id]{Text(uiText("Reference price")+" · "+ticket.label(store.language)).font(.caption2).foregroundStyle(Palette.muted).lineLimit(1)}
+                    else if let price=ExplorePresentation.price(point){Text(uiText(price)).font(.caption2).foregroundStyle(Palette.muted).lineLimit(1)}
+                    if point.hasSourcedRating{Text(uiText(point.mappedRatingLabel)).font(.caption2).foregroundStyle(Palette.muted)}
                 }.frame(maxWidth:.infinity,alignment:.leading)
             }}.buttonStyle(.plain).accessibilityLabel(uiText("查看地点："+point.displayName)).accessibilityIdentifier("poi-detail-"+point.id)
             Button{save(point)}label:{Label(uiText(point.source=="Google Places" ? "Details":addingToDay ? (replacingPlace ? "Use":"Add"):isAdded(point) ? "Saved":"Save"),systemImage:addingToDay ? "plus":isAdded(point) ? "checkmark":"plus").font(.caption.weight(.semibold)).padding(.horizontal,10).frame(minHeight:44).background(blue.opacity(0.08),in:Capsule())}.buttonStyle(BuddyPressStyle()).accessibilityLabel(uiText("Save ")+point.displayName).accessibilityIdentifier("poi-toggle-"+point.id)
@@ -463,7 +463,7 @@ enum ExplorePresentation {
                 Button{requestInsights=true;filtersOpen=false}label:{Label(uiText("交通・人潮・費用"),systemImage:"info.circle")}.accessibilityIdentifier("travel-insights-open")
             }
             Section{Button(uiText("Places & data sources")){requestCredits=true;filtersOpen=false}.accessibilityIdentifier("poi-filter-credits")}
-        }.navigationTitle(uiText("Filters")).navigationBarTitleDisplayMode(.inline).toolbar{Button(uiText("Done")){filtersOpen=false}}}.tint(blue).presentationDetents([.medium,.large])
+        }.navigationTitle(uiText("Filters")).navigationBarTitleDisplayMode(.inline).toolbar{Button(uiText("Done")){filtersOpen=false}}}.buddySurface().presentationDetents([.medium,.large])
     }
     private var compactCredit:String {
         if model.attribution.contains("OpenStreetMap") || searchProvider == .osm{return model.attribution.contains("Overture") ? "© OpenStreetMap · Overture":"© OpenStreetMap"}
@@ -479,13 +479,13 @@ enum ExplorePresentation {
             if model.attribution.contains("Wikivoyage"){Link("Wikivoyage · CC BY-SA 4.0",destination:URL(string:"https://creativecommons.org/licenses/by-sa/4.0/")!)}
             Text(uiText("Prices marked Est. are planning estimates. Ratings appear only when a review source and review count are available. Distance is measured from the last search centre, not a verified walking route.")).font(.subheadline)
             if let summary=model.searchSummary{DisclosureGroup(uiText("Original provider note")){Text(verbatim:summary).font(.caption)}}
-        }.padding(24)}.navigationTitle(uiText("Data credits")).navigationBarTitleDisplayMode(.inline).toolbar{Button(uiText("Done")){creditsOpen=false}}}.tint(blue)
+        }.padding(24)}.navigationTitle(uiText("Data credits")).navigationBarTitleDisplayMode(.inline).toolbar{Button(uiText("Done")){creditsOpen=false}}}.buddySurface()
     }
     private var savedSheet:some View {
         NavigationStack{List{
-            if toolbox.places.isEmpty{Text(uiText("Save a place here, then add it to a trip whenever you’re ready.")).foregroundStyle(.secondary)}
-            ForEach(toolbox.places){point in Button{savedFocus=point;savedOpen=false}label:{VStack(alignment:.leading,spacing:5){Text(point.displayName).font(.headline);Text(uiText(point.category)).font(.caption).foregroundStyle(.secondary)}}.swipeActions{Button(uiText("Remove"),role:.destructive){toolbox.remove(point.id)}}}
-        }.navigationTitle(uiText("Saved places")).toolbar{Button(uiText("Done")){savedOpen=false}}}.tint(blue)
+            if toolbox.places.isEmpty{Text(uiText("Save a place here, then add it to a trip whenever you’re ready.")).foregroundStyle(Palette.muted)}
+            ForEach(toolbox.places){point in Button{savedFocus=point;savedOpen=false}label:{VStack(alignment:.leading,spacing:5){Text(point.displayName).font(.headline);Text(uiText(point.category)).font(.caption).foregroundStyle(Palette.muted)}}.swipeActions{Button(uiText("Remove"),role:.destructive){toolbox.remove(point.id)}}}
+        }.navigationTitle(uiText("Saved places")).toolbar{Button(uiText("Done")){savedOpen=false}}}.buddySurface()
     }
     @ViewBuilder private func map(bottomInset:CGFloat)->some View {
         switch searchProvider {
@@ -541,14 +541,14 @@ enum ExplorePresentation {
         NavigationStack{List{
             Section{Text(candidate.displayName).font(.title3.bold());Button{toolbox.add(candidate);onSaved("Saved for later. We can make room for it when you’re ready.")}label:{Label(uiText(toolbox.places.contains(where:{$0.id==candidate.id}) ? "Keep in saved places":"Save for later"),systemImage:"bookmark")}.accessibilityIdentifier("poi-save-later")}
             Section(uiText("Add to a trip")){
-                if candidate.category=="住宿"{Text(uiText("Save this stay for later, then choose it in your trip’s Preferences & stays. It won’t be added as a sightseeing stop.")).font(.subheadline).foregroundStyle(.secondary)}
-                else if store.saved.isEmpty{Text(uiText("No trips yet. Save it for later, then plan a trip from Trips.")).foregroundStyle(.secondary)}
+                if candidate.category=="住宿"{Text(uiText("Save this stay for later, then choose it in your trip’s Preferences & stays. It won’t be added as a sightseeing stop.")).font(.subheadline).foregroundStyle(Palette.muted)}
+                else if store.saved.isEmpty{Text(uiText("No trips yet. Save it for later, then plan a trip from Trips.")).foregroundStyle(Palette.muted)}
                 ForEach(TripHomePresentation.orderedTrips(store.saved,today:TripProfile.dateString(Date())).filter{!$0.days.isEmpty && candidate.category != "住宿"}){trip in
-                    NavigationLink{ExploreAddToTripView(candidate:candidate,original:trip,onSaved:onSaved).environmentObject(store)}label:{VStack(alignment:.leading,spacing:4){Text(TripHomePresentation.title(trip,language:store.language));Text(trip.profile.date).font(.caption).foregroundStyle(.secondary)}}.accessibilityIdentifier("poi-save-trip-"+(trip.id ?? ""))
+                    NavigationLink{ExploreAddToTripView(candidate:candidate,original:trip,onSaved:onSaved).environmentObject(store)}label:{VStack(alignment:.leading,spacing:4){Text(TripHomePresentation.title(trip,language:store.language));Text(trip.profile.date).font(.caption).foregroundStyle(Palette.muted)}}.accessibilityIdentifier("poi-save-trip-"+(trip.id ?? ""))
                 }
             }
             if toolbox.places.contains(where:{$0.id==candidate.id}){Section{Button(uiText("Remove from saved places"),role:.destructive){toolbox.remove(candidate.id);dismiss()}}}
-        }.navigationTitle(uiText("Save this place")).navigationBarTitleDisplayMode(.inline).toolbar{Button(uiText("Cancel")){dismiss()}}}.tint(Color(red:0.20,green:0.36,blue:0.79))
+        }.navigationTitle(uiText("Save this place")).navigationBarTitleDisplayMode(.inline).toolbar{Button(uiText("Cancel")){dismiss()}}}.tint(Palette.primary)
     }
 }
 
@@ -567,11 +567,11 @@ enum ExplorePresentation {
     var body:some View {
         ScrollView{VStack(alignment:.leading,spacing:18){
             Text(candidate.displayName).font(.title2.bold())
-            Text(TripHomePresentation.title(original,language:store.language)).font(.subheadline).foregroundStyle(.secondary)
+            Text(TripHomePresentation.title(original,language:store.language)).font(.subheadline).foregroundStyle(Palette.muted)
             if alreadyAdded{Label(uiText("This place is already in this trip."),systemImage:"checkmark.circle")}
             else{
                 Picker(uiText("Choose a day"),selection:$selectedDay){ForEach(original.days.indices,id:\.self){index in Text("Day \(index+1) · \(original.days[index].date)").tag(index)}}.pickerStyle(.menu).accessibilityIdentifier("poi-save-day")
-                Text(uiText("We’ll check travel time and how it fits before changing your trip.")).font(.subheadline).foregroundStyle(.secondary)
+                Text(uiText("We’ll check travel time and how it fits before changing your trip.")).font(.subheadline).foregroundStyle(Palette.muted)
                 if editor.busy{ProgressView(uiText("Checking the route and timing…"))}
                 if let state=editor.state,checked,!editor.busy,state.days.indices.contains(selectedDay){
                     let day=state.days[selectedDay]
@@ -582,11 +582,11 @@ enum ExplorePresentation {
                     ForEach(checks.filter(\.blocking)){check in Label(uiText(check.text),systemImage:"exclamationmark.triangle").font(.caption).foregroundStyle(.red)}
                     if checks.contains(where:{!$0.blocking}){DisclosureGroup(uiText("Things to keep in mind")){ForEach(checks.filter{!$0.blocking}){check in Text(uiText(check.text)).font(.caption).padding(.vertical,3)}}}
                     DisclosureGroup(uiText("Original calculation notes")){ForEach(state.issues.filter{$0.day==selectedDay || $0.day == -1}){issue in Text(verbatim:issue.message).font(.caption)}}
-                    Text(uiText("Prices and opening hours may still need checking.")).font(.caption).foregroundStyle(.secondary)
+                    Text(uiText("Prices and opening hours may still need checking.")).font(.caption).foregroundStyle(Palette.muted)
                 }
                 if let error=editor.error ?? saveError{Text(uiText("Couldn’t complete this change. Your original trip is unchanged. Try again, or refresh Trips before retrying a save.")).font(.caption).foregroundStyle(.red);DisclosureGroup(uiText("Technical details")){Text(verbatim:error).font(.caption)}}
-                Button(uiText(checked ? "Check again":"Check fit")){check()}.buttonStyle(.bordered).disabled(editor.busy || saving).accessibilityIdentifier("poi-check-fit")
-                Button{save()}label:{Text(uiText(saving ? "Saving…":"Confirm and add")).font(.headline).frame(maxWidth:.infinity,minHeight:50)}.buttonStyle(.borderedProminent).disabled(!canSave).accessibilityIdentifier("poi-confirm-add")
+                Button(uiText(checked ? "Check again":"Check fit")){check()}.buttonStyle(BuddySecondaryStyle()).disabled(editor.busy || saving).accessibilityIdentifier("poi-check-fit")
+                Button{save()}label:{Text(uiText(saving ? "Saving…":"Confirm and add")).font(.headline).frame(maxWidth:.infinity,minHeight:50)}.buttonStyle(KokoPrimaryStyle()).disabled(!canSave).accessibilityIdentifier("poi-confirm-add")
                 if checked,!editor.busy,!saving,!canSave{Button(uiText("Keep saved for later")){PoiToolbox.shared.add(candidate);onSaved("Saved for later. We can find a better fit together.")}.accessibilityIdentifier("poi-save-instead")}
             }
         }.padding(24)}.disabled(saving).navigationTitle(uiText("Add to trip")).navigationBarTitleDisplayMode(.inline)

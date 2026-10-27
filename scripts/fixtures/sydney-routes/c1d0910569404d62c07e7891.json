@@ -1,0 +1,2795 @@
+{
+  "url": "https://routing.openstreetmap.de/routed-bike/route/v1/driving/151.229299,-33.902562;151.229369,-33.902364;151.227916,-33.898178;151.228712,-33.897281;151.232898,-33.894293;151.237740,-33.895058;151.241120,-33.900245;151.237852,-33.902852;151.233188,-33.904675;151.229369,-33.902364;151.229299,-33.902562?overview=full&geometries=geojson&steps=true",
+  "request": null,
+  "fetchedAt": "2026-10-27T08:06:34.356859+00:00",
+  "response": {
+    "code": "Ok",
+    "routes": [
+      {
+        "legs": [
+          {
+            "steps": [
+              {
+                "intersections": [
+                  {
+                    "out": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      139
+                    ],
+                    "location": [
+                      151.229299,
+                      -33.902562
+                    ]
+                  },
+                  {
+                    "out": 0,
+                    "in": 2,
+                    "entry": [
+                      true,
+                      true,
+                      false
+                    ],
+                    "bearings": [
+                      135,
+                      225,
+                      315
+                    ],
+                    "location": [
+                      151.229355,
+                      -33.902616
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.229299,
+                      -33.902562
+                    ],
+                    [
+                      151.229355,
+                      -33.902616
+                    ],
+                    [
+                      151.229521,
+                      -33.902776
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 139,
+                  "bearing_before": 0,
+                  "location": [
+                    151.229299,
+                    -33.902562
+                  ],
+                  "type": "depart"
+                },
+                "name": "",
+                "mode": "cycling",
+                "weight": 15.8,
+                "duration": 15.8,
+                "distance": 31.4
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 0,
+                    "in": 2,
+                    "entry": [
+                      true,
+                      true,
+                      false
+                    ],
+                    "bearings": [
+                      45,
+                      225,
+                      315
+                    ],
+                    "location": [
+                      151.229521,
+                      -33.902776
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.229521,
+                      -33.902776
+                    ],
+                    [
+                      151.229692,
+                      -33.902646
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 46,
+                  "bearing_before": 137,
+                  "location": [
+                    151.229521,
+                    -33.902776
+                  ],
+                  "modifier": "left",
+                  "type": "end of road"
+                },
+                "name": "",
+                "mode": "cycling",
+                "weight": 13.3,
+                "duration": 13.3,
+                "distance": 21.4
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 3,
+                    "in": 2,
+                    "entry": [
+                      true,
+                      true,
+                      false,
+                      true
+                    ],
+                    "bearings": [
+                      45,
+                      135,
+                      225,
+                      315
+                    ],
+                    "location": [
+                      151.229692,
+                      -33.902646
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.229692,
+                      -33.902646
+                    ],
+                    [
+                      151.229645,
+                      -33.902604
+                    ],
+                    [
+                      151.229369,
+                      -33.902364
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 316,
+                  "bearing_before": 46,
+                  "location": [
+                    151.229692,
+                    -33.902646
+                  ],
+                  "modifier": "left",
+                  "type": "turn"
+                },
+                "name": "Grand Drive",
+                "mode": "cycling",
+                "weight": 10.4,
+                "duration": 10.4,
+                "distance": 43.2
+              },
+              {
+                "intersections": [
+                  {
+                    "in": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      136
+                    ],
+                    "location": [
+                      151.229369,
+                      -33.902364
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.229369,
+                      -33.902364
+                    ],
+                    [
+                      151.229369,
+                      -33.902364
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 0,
+                  "bearing_before": 316,
+                  "location": [
+                    151.229369,
+                    -33.902364
+                  ],
+                  "type": "arrive"
+                },
+                "name": "Grand Drive",
+                "mode": "cycling",
+                "weight": 0,
+                "duration": 0,
+                "distance": 0
+              }
+            ],
+            "weight": 39.5,
+            "summary": "Grand Drive",
+            "duration": 39.5,
+            "distance": 96
+          },
+          {
+            "steps": [
+              {
+                "intersections": [
+                  {
+                    "out": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      321
+                    ],
+                    "location": [
+                      151.229369,
+                      -33.902364
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.229369,
+                      -33.902364
+                    ],
+                    [
+                      151.229239,
+                      -33.90223
+                    ],
+                    [
+                      151.228996,
+                      -33.901977
+                    ],
+                    [
+                      151.228628,
+                      -33.90159
+                    ],
+                    [
+                      151.228207,
+                      -33.901084
+                    ],
+                    [
+                      151.227978,
+                      -33.900774
+                    ],
+                    [
+                      151.227829,
+                      -33.90043
+                    ],
+                    [
+                      151.227722,
+                      -33.900097
+                    ],
+                    [
+                      151.227666,
+                      -33.899863
+                    ],
+                    [
+                      151.227656,
+                      -33.899636
+                    ],
+                    [
+                      151.227678,
+                      -33.899415
+                    ],
+                    [
+                      151.227722,
+                      -33.899196
+                    ],
+                    [
+                      151.227809,
+                      -33.898948
+                    ],
+                    [
+                      151.227873,
+                      -33.898809
+                    ],
+                    [
+                      151.227923,
+                      -33.898658
+                    ],
+                    [
+                      151.227957,
+                      -33.898432
+                    ],
+                    [
+                      151.227936,
+                      -33.898272
+                    ],
+                    [
+                      151.227916,
+                      -33.898178
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 321,
+                  "bearing_before": 0,
+                  "location": [
+                    151.229369,
+                    -33.902364
+                  ],
+                  "type": "depart"
+                },
+                "name": "Grand Drive",
+                "mode": "cycling",
+                "weight": 123.5,
+                "duration": 123.5,
+                "distance": 514.5
+              },
+              {
+                "intersections": [
+                  {
+                    "in": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      170
+                    ],
+                    "location": [
+                      151.227916,
+                      -33.898178
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.227916,
+                      -33.898178
+                    ],
+                    [
+                      151.227916,
+                      -33.898178
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 0,
+                  "bearing_before": 350,
+                  "location": [
+                    151.227916,
+                    -33.898178
+                  ],
+                  "type": "arrive"
+                },
+                "name": "Grand Drive",
+                "mode": "cycling",
+                "weight": 0,
+                "duration": 0,
+                "distance": 0
+              }
+            ],
+            "weight": 123.5,
+            "summary": "Grand Drive",
+            "duration": 123.5,
+            "distance": 514.5
+          },
+          {
+            "steps": [
+              {
+                "intersections": [
+                  {
+                    "out": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      347
+                    ],
+                    "location": [
+                      151.227916,
+                      -33.898178
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.227916,
+                      -33.898178
+                    ],
+                    [
+                      151.227883,
+                      -33.898062
+                    ],
+                    [
+                      151.227834,
+                      -33.897946
+                    ],
+                    [
+                      151.227766,
+                      -33.897796
+                    ],
+                    [
+                      151.227741,
+                      -33.897739
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 347,
+                  "bearing_before": 0,
+                  "location": [
+                    151.227916,
+                    -33.898178
+                  ],
+                  "type": "depart"
+                },
+                "name": "Grand Drive",
+                "mode": "cycling",
+                "weight": 12.4,
+                "duration": 12.4,
+                "distance": 51.4
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 2,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      165,
+                      330,
+                      345
+                    ],
+                    "location": [
+                      151.227741,
+                      -33.897739
+                    ]
+                  },
+                  {
+                    "out": 0,
+                    "in": 1,
+                    "entry": [
+                      true,
+                      false,
+                      false
+                    ],
+                    "bearings": [
+                      90,
+                      240,
+                      270
+                    ],
+                    "location": [
+                      151.227973,
+                      -33.897323
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.227741,
+                      -33.897739
+                    ],
+                    [
+                      151.227726,
+                      -33.897652
+                    ],
+                    [
+                      151.227727,
+                      -33.897578
+                    ],
+                    [
+                      151.227739,
+                      -33.897515
+                    ],
+                    [
+                      151.227759,
+                      -33.897478
+                    ],
+                    [
+                      151.227803,
+                      -33.89742
+                    ],
+                    [
+                      151.227855,
+                      -33.897376
+                    ],
+                    [
+                      151.227902,
+                      -33.897351
+                    ],
+                    [
+                      151.227973,
+                      -33.897323
+                    ],
+                    [
+                      151.228115,
+                      -33.897319
+                    ],
+                    [
+                      151.228292,
+                      -33.89732
+                    ],
+                    [
+                      151.228464,
+                      -33.897317
+                    ],
+                    [
+                      151.228623,
+                      -33.897295
+                    ],
+                    [
+                      151.228712,
+                      -33.897281
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 351,
+                  "bearing_before": 340,
+                  "location": [
+                    151.227741,
+                    -33.897739
+                  ],
+                  "modifier": "slight right",
+                  "type": "fork"
+                },
+                "name": "Grand Drive",
+                "mode": "cycling",
+                "weight": 30.3,
+                "duration": 30.3,
+                "distance": 125.2
+              },
+              {
+                "intersections": [
+                  {
+                    "in": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      259
+                    ],
+                    "location": [
+                      151.228712,
+                      -33.897281
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.228712,
+                      -33.897281
+                    ],
+                    [
+                      151.228712,
+                      -33.897281
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 0,
+                  "bearing_before": 79,
+                  "location": [
+                    151.228712,
+                    -33.897281
+                  ],
+                  "type": "arrive"
+                },
+                "name": "Grand Drive",
+                "mode": "cycling",
+                "weight": 0,
+                "duration": 0,
+                "distance": 0
+              }
+            ],
+            "weight": 42.7,
+            "summary": "Grand Drive",
+            "duration": 42.7,
+            "distance": 176.5
+          },
+          {
+            "steps": [
+              {
+                "intersections": [
+                  {
+                    "out": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      78
+                    ],
+                    "location": [
+                      151.228712,
+                      -33.897281
+                    ]
+                  },
+                  {
+                    "out": 0,
+                    "in": 2,
+                    "entry": [
+                      true,
+                      true,
+                      false
+                    ],
+                    "bearings": [
+                      45,
+                      120,
+                      240
+                    ],
+                    "location": [
+                      151.230347,
+                      -33.896638
+                    ]
+                  },
+                  {
+                    "out": 1,
+                    "in": 2,
+                    "entry": [
+                      true,
+                      true,
+                      false
+                    ],
+                    "bearings": [
+                      0,
+                      45,
+                      210
+                    ],
+                    "location": [
+                      151.231831,
+                      -33.894937
+                    ]
+                  },
+                  {
+                    "out": 0,
+                    "in": 1,
+                    "entry": [
+                      true,
+                      false,
+                      true
+                    ],
+                    "bearings": [
+                      45,
+                      225,
+                      270
+                    ],
+                    "location": [
+                      151.232005,
+                      -33.894781
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.228712,
+                      -33.897281
+                    ],
+                    [
+                      151.228747,
+                      -33.897275
+                    ],
+                    [
+                      151.228919,
+                      -33.897237
+                    ],
+                    [
+                      151.229225,
+                      -33.897167
+                    ],
+                    [
+                      151.229372,
+                      -33.897126
+                    ],
+                    [
+                      151.229562,
+                      -33.897054
+                    ],
+                    [
+                      151.229815,
+                      -33.896937
+                    ],
+                    [
+                      151.230347,
+                      -33.896638
+                    ],
+                    [
+                      151.230606,
+                      -33.896449
+                    ],
+                    [
+                      151.23079,
+                      -33.896219
+                    ],
+                    [
+                      151.231124,
+                      -33.895785
+                    ],
+                    [
+                      151.231473,
+                      -33.895336
+                    ],
+                    [
+                      151.231831,
+                      -33.894937
+                    ],
+                    [
+                      151.232005,
+                      -33.894781
+                    ],
+                    [
+                      151.232223,
+                      -33.894636
+                    ],
+                    [
+                      151.232463,
+                      -33.894495
+                    ],
+                    [
+                      151.232752,
+                      -33.894346
+                    ],
+                    [
+                      151.232898,
+                      -33.894293
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 78,
+                  "bearing_before": 0,
+                  "location": [
+                    151.228712,
+                    -33.897281
+                  ],
+                  "type": "depart"
+                },
+                "name": "Grand Drive",
+                "mode": "cycling",
+                "weight": 126,
+                "duration": 126,
+                "distance": 526
+              },
+              {
+                "intersections": [
+                  {
+                    "in": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      246
+                    ],
+                    "location": [
+                      151.232898,
+                      -33.894293
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.232898,
+                      -33.894293
+                    ],
+                    [
+                      151.232898,
+                      -33.894293
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 0,
+                  "bearing_before": 66,
+                  "location": [
+                    151.232898,
+                    -33.894293
+                  ],
+                  "type": "arrive"
+                },
+                "name": "Grand Drive",
+                "mode": "cycling",
+                "weight": 0,
+                "duration": 0,
+                "distance": 0
+              }
+            ],
+            "weight": 126,
+            "summary": "Grand Drive",
+            "duration": 126,
+            "distance": 526
+          },
+          {
+            "steps": [
+              {
+                "intersections": [
+                  {
+                    "out": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      66
+                    ],
+                    "location": [
+                      151.232898,
+                      -33.894293
+                    ]
+                  },
+                  {
+                    "out": 1,
+                    "in": 3,
+                    "entry": [
+                      true,
+                      true,
+                      true,
+                      false
+                    ],
+                    "bearings": [
+                      30,
+                      75,
+                      180,
+                      240
+                    ],
+                    "location": [
+                      151.23304,
+                      -33.89424
+                    ]
+                  },
+                  {
+                    "out": 0,
+                    "in": 1,
+                    "entry": [
+                      true,
+                      false,
+                      true
+                    ],
+                    "bearings": [
+                      105,
+                      270,
+                      330
+                    ],
+                    "location": [
+                      151.235009,
+                      -33.894059
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.232898,
+                      -33.894293
+                    ],
+                    [
+                      151.23304,
+                      -33.89424
+                    ],
+                    [
+                      151.233532,
+                      -33.894116
+                    ],
+                    [
+                      151.233761,
+                      -33.894079
+                    ],
+                    [
+                      151.233996,
+                      -33.894057
+                    ],
+                    [
+                      151.234303,
+                      -33.894039
+                    ],
+                    [
+                      151.234652,
+                      -33.894042
+                    ],
+                    [
+                      151.235009,
+                      -33.894059
+                    ],
+                    [
+                      151.235285,
+                      -33.894095
+                    ],
+                    [
+                      151.235584,
+                      -33.894144
+                    ],
+                    [
+                      151.235685,
+                      -33.894164
+                    ],
+                    [
+                      151.236037,
+                      -33.894251
+                    ],
+                    [
+                      151.236339,
+                      -33.894344
+                    ],
+                    [
+                      151.236693,
+                      -33.894479
+                    ],
+                    [
+                      151.236762,
+                      -33.894505
+                    ],
+                    [
+                      151.237253,
+                      -33.894757
+                    ],
+                    [
+                      151.23754,
+                      -33.894917
+                    ],
+                    [
+                      151.23774,
+                      -33.895058
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 66,
+                  "bearing_before": 0,
+                  "location": [
+                    151.232898,
+                    -33.894293
+                  ],
+                  "type": "depart"
+                },
+                "name": "Grand Drive",
+                "mode": "cycling",
+                "weight": 115,
+                "duration": 115,
+                "distance": 479.2
+              },
+              {
+                "intersections": [
+                  {
+                    "in": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      310
+                    ],
+                    "location": [
+                      151.23774,
+                      -33.895058
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.23774,
+                      -33.895058
+                    ],
+                    [
+                      151.23774,
+                      -33.895058
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 0,
+                  "bearing_before": 130,
+                  "location": [
+                    151.23774,
+                    -33.895058
+                  ],
+                  "type": "arrive"
+                },
+                "name": "Grand Drive",
+                "mode": "cycling",
+                "weight": 0,
+                "duration": 0,
+                "distance": 0
+              }
+            ],
+            "weight": 115,
+            "summary": "Grand Drive",
+            "duration": 115,
+            "distance": 479.2
+          },
+          {
+            "steps": [
+              {
+                "intersections": [
+                  {
+                    "out": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      133
+                    ],
+                    "location": [
+                      151.23774,
+                      -33.895058
+                    ]
+                  },
+                  {
+                    "out": 1,
+                    "in": 3,
+                    "entry": [
+                      true,
+                      true,
+                      true,
+                      false
+                    ],
+                    "bearings": [
+                      45,
+                      135,
+                      225,
+                      315
+                    ],
+                    "location": [
+                      151.239058,
+                      -33.896114
+                    ]
+                  },
+                  {
+                    "out": 1,
+                    "in": 2,
+                    "entry": [
+                      true,
+                      true,
+                      false
+                    ],
+                    "bearings": [
+                      105,
+                      150,
+                      330
+                    ],
+                    "location": [
+                      151.24044,
+                      -33.897655
+                    ]
+                  },
+                  {
+                    "out": 1,
+                    "in": 2,
+                    "entry": [
+                      true,
+                      true,
+                      false
+                    ],
+                    "bearings": [
+                      30,
+                      150,
+                      330
+                    ],
+                    "location": [
+                      151.240612,
+                      -33.897972
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.23774,
+                      -33.895058
+                    ],
+                    [
+                      151.238802,
+                      -33.895877
+                    ],
+                    [
+                      151.239058,
+                      -33.896114
+                    ],
+                    [
+                      151.239517,
+                      -33.896549
+                    ],
+                    [
+                      151.239965,
+                      -33.89701
+                    ],
+                    [
+                      151.24018,
+                      -33.897272
+                    ],
+                    [
+                      151.240359,
+                      -33.897548
+                    ],
+                    [
+                      151.24044,
+                      -33.897655
+                    ],
+                    [
+                      151.240508,
+                      -33.897771
+                    ],
+                    [
+                      151.240612,
+                      -33.897972
+                    ],
+                    [
+                      151.240754,
+                      -33.89821
+                    ],
+                    [
+                      151.240858,
+                      -33.898469
+                    ],
+                    [
+                      151.240948,
+                      -33.898834
+                    ],
+                    [
+                      151.241023,
+                      -33.899206
+                    ],
+                    [
+                      151.241062,
+                      -33.899634
+                    ],
+                    [
+                      151.241108,
+                      -33.900065
+                    ],
+                    [
+                      151.241115,
+                      -33.900166
+                    ],
+                    [
+                      151.241121,
+                      -33.900245
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 133,
+                  "bearing_before": 0,
+                  "location": [
+                    151.23774,
+                    -33.895058
+                  ],
+                  "type": "depart"
+                },
+                "name": "Grand Drive",
+                "mode": "cycling",
+                "weight": 163.4,
+                "duration": 163.4,
+                "distance": 680.5
+              },
+              {
+                "intersections": [
+                  {
+                    "in": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      356
+                    ],
+                    "location": [
+                      151.241121,
+                      -33.900245
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.241121,
+                      -33.900245
+                    ],
+                    [
+                      151.241121,
+                      -33.900245
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 0,
+                  "bearing_before": 176,
+                  "location": [
+                    151.241121,
+                    -33.900245
+                  ],
+                  "type": "arrive"
+                },
+                "name": "Grand Drive",
+                "mode": "cycling",
+                "weight": 0,
+                "duration": 0,
+                "distance": 0
+              }
+            ],
+            "weight": 163.4,
+            "summary": "Grand Drive",
+            "duration": 163.4,
+            "distance": 680.5
+          },
+          {
+            "steps": [
+              {
+                "intersections": [
+                  {
+                    "out": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      187
+                    ],
+                    "location": [
+                      151.241121,
+                      -33.900245
+                    ]
+                  },
+                  {
+                    "out": 1,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      15,
+                      195,
+                      330
+                    ],
+                    "location": [
+                      151.241038,
+                      -33.900656
+                    ]
+                  },
+                  {
+                    "out": 2,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      45,
+                      180,
+                      240
+                    ],
+                    "location": [
+                      151.239852,
+                      -33.901984
+                    ]
+                  },
+                  {
+                    "out": 2,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      60,
+                      90,
+                      240
+                    ],
+                    "location": [
+                      151.239555,
+                      -33.902133
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.241121,
+                      -33.900245
+                    ],
+                    [
+                      151.241091,
+                      -33.900441
+                    ],
+                    [
+                      151.241071,
+                      -33.900558
+                    ],
+                    [
+                      151.241038,
+                      -33.900656
+                    ],
+                    [
+                      151.240989,
+                      -33.900781
+                    ],
+                    [
+                      151.240921,
+                      -33.90091
+                    ],
+                    [
+                      151.240837,
+                      -33.901041
+                    ],
+                    [
+                      151.240814,
+                      -33.901071
+                    ],
+                    [
+                      151.240752,
+                      -33.901149
+                    ],
+                    [
+                      151.240285,
+                      -33.901635
+                    ],
+                    [
+                      151.240196,
+                      -33.901706
+                    ],
+                    [
+                      151.239852,
+                      -33.901984
+                    ],
+                    [
+                      151.239555,
+                      -33.902133
+                    ],
+                    [
+                      151.239489,
+                      -33.902164
+                    ],
+                    [
+                      151.239296,
+                      -33.902248
+                    ],
+                    [
+                      151.239029,
+                      -33.90236
+                    ],
+                    [
+                      151.238435,
+                      -33.902611
+                    ],
+                    [
+                      151.237852,
+                      -33.902852
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 187,
+                  "bearing_before": 0,
+                  "location": [
+                    151.241121,
+                    -33.900245
+                  ],
+                  "type": "depart"
+                },
+                "name": "Grand Drive",
+                "mode": "cycling",
+                "weight": 105.6,
+                "duration": 105.6,
+                "distance": 440.7
+              },
+              {
+                "intersections": [
+                  {
+                    "in": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      64
+                    ],
+                    "location": [
+                      151.237852,
+                      -33.902852
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.237852,
+                      -33.902852
+                    ],
+                    [
+                      151.237852,
+                      -33.902852
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 0,
+                  "bearing_before": 244,
+                  "location": [
+                    151.237852,
+                    -33.902852
+                  ],
+                  "type": "arrive"
+                },
+                "name": "Grand Drive",
+                "mode": "cycling",
+                "weight": 0,
+                "duration": 0,
+                "distance": 0
+              }
+            ],
+            "weight": 105.6,
+            "summary": "Grand Drive",
+            "duration": 105.6,
+            "distance": 440.7
+          },
+          {
+            "steps": [
+              {
+                "intersections": [
+                  {
+                    "out": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      243
+                    ],
+                    "location": [
+                      151.237852,
+                      -33.902852
+                    ]
+                  },
+                  {
+                    "out": 2,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      45,
+                      150,
+                      240,
+                      330
+                    ],
+                    "location": [
+                      151.235875,
+                      -33.904103
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.237852,
+                      -33.902852
+                    ],
+                    [
+                      151.237772,
+                      -33.902886
+                    ],
+                    [
+                      151.237321,
+                      -33.903076
+                    ],
+                    [
+                      151.237068,
+                      -33.903197
+                    ],
+                    [
+                      151.23686,
+                      -33.903335
+                    ],
+                    [
+                      151.236566,
+                      -33.903553
+                    ],
+                    [
+                      151.23624,
+                      -33.903845
+                    ],
+                    [
+                      151.235875,
+                      -33.904103
+                    ],
+                    [
+                      151.235411,
+                      -33.904364
+                    ],
+                    [
+                      151.234973,
+                      -33.904526
+                    ],
+                    [
+                      151.234764,
+                      -33.904589
+                    ],
+                    [
+                      151.234507,
+                      -33.904647
+                    ],
+                    [
+                      151.233929,
+                      -33.904709
+                    ],
+                    [
+                      151.233777,
+                      -33.904711
+                    ],
+                    [
+                      151.233645,
+                      -33.904712
+                    ],
+                    [
+                      151.233504,
+                      -33.904706
+                    ],
+                    [
+                      151.233347,
+                      -33.904694
+                    ],
+                    [
+                      151.233188,
+                      -33.904675
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 243,
+                  "bearing_before": 0,
+                  "location": [
+                    151.237852,
+                    -33.902852
+                  ],
+                  "type": "depart"
+                },
+                "name": "Grand Drive",
+                "mode": "cycling",
+                "weight": 118.7,
+                "duration": 118.7,
+                "distance": 495.3
+              },
+              {
+                "intersections": [
+                  {
+                    "in": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      98
+                    ],
+                    "location": [
+                      151.233188,
+                      -33.904675
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.233188,
+                      -33.904675
+                    ],
+                    [
+                      151.233188,
+                      -33.904675
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 0,
+                  "bearing_before": 278,
+                  "location": [
+                    151.233188,
+                    -33.904675
+                  ],
+                  "type": "arrive"
+                },
+                "name": "Grand Drive",
+                "mode": "cycling",
+                "weight": 0,
+                "duration": 0,
+                "distance": 0
+              }
+            ],
+            "weight": 118.7,
+            "summary": "Grand Drive",
+            "duration": 118.7,
+            "distance": 495.3
+          },
+          {
+            "steps": [
+              {
+                "intersections": [
+                  {
+                    "out": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      281
+                    ],
+                    "location": [
+                      151.233188,
+                      -33.904675
+                    ]
+                  },
+                  {
+                    "out": 2,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      105,
+                      240,
+                      285
+                    ],
+                    "location": [
+                      151.232851,
+                      -33.904617
+                    ]
+                  },
+                  {
+                    "out": 2,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      105,
+                      165,
+                      300
+                    ],
+                    "location": [
+                      151.232433,
+                      -33.904509
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.233188,
+                      -33.904675
+                    ],
+                    [
+                      151.233051,
+                      -33.904652
+                    ],
+                    [
+                      151.232851,
+                      -33.904617
+                    ],
+                    [
+                      151.232433,
+                      -33.904509
+                    ],
+                    [
+                      151.232379,
+                      -33.904488
+                    ],
+                    [
+                      151.232019,
+                      -33.904345
+                    ],
+                    [
+                      151.23181,
+                      -33.904249
+                    ],
+                    [
+                      151.23161,
+                      -33.904141
+                    ],
+                    [
+                      151.231445,
+                      -33.904038
+                    ],
+                    [
+                      151.231291,
+                      -33.903929
+                    ],
+                    [
+                      151.231146,
+                      -33.90383
+                    ],
+                    [
+                      151.231004,
+                      -33.903719
+                    ],
+                    [
+                      151.230781,
+                      -33.903527
+                    ],
+                    [
+                      151.230561,
+                      -33.903355
+                    ],
+                    [
+                      151.229995,
+                      -33.902909
+                    ],
+                    [
+                      151.229918,
+                      -33.902842
+                    ],
+                    [
+                      151.229692,
+                      -33.902646
+                    ],
+                    [
+                      151.229645,
+                      -33.902604
+                    ],
+                    [
+                      151.229369,
+                      -33.902364
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 281,
+                  "bearing_before": 0,
+                  "location": [
+                    151.233188,
+                    -33.904675
+                  ],
+                  "type": "depart"
+                },
+                "name": "Grand Drive",
+                "mode": "cycling",
+                "weight": 106.8,
+                "duration": 106.8,
+                "distance": 445.1
+              },
+              {
+                "intersections": [
+                  {
+                    "in": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      136
+                    ],
+                    "location": [
+                      151.229369,
+                      -33.902364
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.229369,
+                      -33.902364
+                    ],
+                    [
+                      151.229369,
+                      -33.902364
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 0,
+                  "bearing_before": 316,
+                  "location": [
+                    151.229369,
+                    -33.902364
+                  ],
+                  "type": "arrive"
+                },
+                "name": "Grand Drive",
+                "mode": "cycling",
+                "weight": 0,
+                "duration": 0,
+                "distance": 0
+              }
+            ],
+            "weight": 106.8,
+            "summary": "Grand Drive",
+            "duration": 106.8,
+            "distance": 445.1
+          },
+          {
+            "steps": [
+              {
+                "intersections": [
+                  {
+                    "out": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      136
+                    ],
+                    "location": [
+                      151.229369,
+                      -33.902364
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.229369,
+                      -33.902364
+                    ],
+                    [
+                      151.229645,
+                      -33.902604
+                    ],
+                    [
+                      151.229692,
+                      -33.902646
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 136,
+                  "bearing_before": 0,
+                  "location": [
+                    151.229369,
+                    -33.902364
+                  ],
+                  "type": "depart"
+                },
+                "name": "Grand Drive",
+                "mode": "pushing bike",
+                "weight": 43.2,
+                "duration": 43.2,
+                "distance": 43.2
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 2,
+                    "in": 3,
+                    "entry": [
+                      true,
+                      true,
+                      true,
+                      false
+                    ],
+                    "bearings": [
+                      45,
+                      135,
+                      225,
+                      315
+                    ],
+                    "location": [
+                      151.229692,
+                      -33.902646
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.229692,
+                      -33.902646
+                    ],
+                    [
+                      151.229521,
+                      -33.902776
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 226,
+                  "bearing_before": 136,
+                  "location": [
+                    151.229692,
+                    -33.902646
+                  ],
+                  "modifier": "right",
+                  "type": "turn"
+                },
+                "name": "",
+                "mode": "cycling",
+                "weight": 9.2,
+                "duration": 9.2,
+                "distance": 21.4
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 2,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      45,
+                      225,
+                      315
+                    ],
+                    "location": [
+                      151.229521,
+                      -33.902776
+                    ]
+                  },
+                  {
+                    "out": 2,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      135,
+                      225,
+                      315
+                    ],
+                    "location": [
+                      151.229355,
+                      -33.902616
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.229521,
+                      -33.902776
+                    ],
+                    [
+                      151.229355,
+                      -33.902616
+                    ],
+                    [
+                      151.229299,
+                      -33.902562
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 317,
+                  "bearing_before": 226,
+                  "location": [
+                    151.229521,
+                    -33.902776
+                  ],
+                  "modifier": "right",
+                  "type": "turn"
+                },
+                "name": "",
+                "mode": "cycling",
+                "weight": 7.2,
+                "duration": 7.2,
+                "distance": 31.4
+              },
+              {
+                "intersections": [
+                  {
+                    "in": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      139
+                    ],
+                    "location": [
+                      151.229299,
+                      -33.902562
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.229299,
+                      -33.902562
+                    ],
+                    [
+                      151.229299,
+                      -33.902562
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 0,
+                  "bearing_before": 319,
+                  "location": [
+                    151.229299,
+                    -33.902562
+                  ],
+                  "type": "arrive"
+                },
+                "name": "",
+                "mode": "cycling",
+                "weight": 0,
+                "duration": 0,
+                "distance": 0
+              }
+            ],
+            "weight": 59.6,
+            "summary": "Grand Drive",
+            "duration": 59.6,
+            "distance": 96
+          }
+        ],
+        "weight_name": "duration",
+        "geometry": {
+          "coordinates": [
+            [
+              151.229299,
+              -33.902562
+            ],
+            [
+              151.229355,
+              -33.902616
+            ],
+            [
+              151.229521,
+              -33.902776
+            ],
+            [
+              151.229692,
+              -33.902646
+            ],
+            [
+              151.229645,
+              -33.902604
+            ],
+            [
+              151.229369,
+              -33.902364
+            ],
+            [
+              151.229239,
+              -33.90223
+            ],
+            [
+              151.228996,
+              -33.901977
+            ],
+            [
+              151.228628,
+              -33.90159
+            ],
+            [
+              151.228207,
+              -33.901084
+            ],
+            [
+              151.227978,
+              -33.900774
+            ],
+            [
+              151.227829,
+              -33.90043
+            ],
+            [
+              151.227722,
+              -33.900097
+            ],
+            [
+              151.227666,
+              -33.899863
+            ],
+            [
+              151.227656,
+              -33.899636
+            ],
+            [
+              151.227678,
+              -33.899415
+            ],
+            [
+              151.227722,
+              -33.899196
+            ],
+            [
+              151.227809,
+              -33.898948
+            ],
+            [
+              151.227873,
+              -33.898809
+            ],
+            [
+              151.227923,
+              -33.898658
+            ],
+            [
+              151.227957,
+              -33.898432
+            ],
+            [
+              151.227936,
+              -33.898272
+            ],
+            [
+              151.227916,
+              -33.898178
+            ],
+            [
+              151.227883,
+              -33.898062
+            ],
+            [
+              151.227834,
+              -33.897946
+            ],
+            [
+              151.227766,
+              -33.897796
+            ],
+            [
+              151.227741,
+              -33.897739
+            ],
+            [
+              151.227726,
+              -33.897652
+            ],
+            [
+              151.227727,
+              -33.897578
+            ],
+            [
+              151.227739,
+              -33.897515
+            ],
+            [
+              151.227759,
+              -33.897478
+            ],
+            [
+              151.227803,
+              -33.89742
+            ],
+            [
+              151.227855,
+              -33.897376
+            ],
+            [
+              151.227902,
+              -33.897351
+            ],
+            [
+              151.227973,
+              -33.897323
+            ],
+            [
+              151.228115,
+              -33.897319
+            ],
+            [
+              151.228292,
+              -33.89732
+            ],
+            [
+              151.228464,
+              -33.897317
+            ],
+            [
+              151.228623,
+              -33.897295
+            ],
+            [
+              151.228712,
+              -33.897281
+            ],
+            [
+              151.228747,
+              -33.897275
+            ],
+            [
+              151.228919,
+              -33.897237
+            ],
+            [
+              151.229225,
+              -33.897167
+            ],
+            [
+              151.229372,
+              -33.897126
+            ],
+            [
+              151.229562,
+              -33.897054
+            ],
+            [
+              151.229815,
+              -33.896937
+            ],
+            [
+              151.230347,
+              -33.896638
+            ],
+            [
+              151.230606,
+              -33.896449
+            ],
+            [
+              151.23079,
+              -33.896219
+            ],
+            [
+              151.231124,
+              -33.895785
+            ],
+            [
+              151.231473,
+              -33.895336
+            ],
+            [
+              151.231831,
+              -33.894937
+            ],
+            [
+              151.232005,
+              -33.894781
+            ],
+            [
+              151.232223,
+              -33.894636
+            ],
+            [
+              151.232463,
+              -33.894495
+            ],
+            [
+              151.232752,
+              -33.894346
+            ],
+            [
+              151.232898,
+              -33.894293
+            ],
+            [
+              151.23304,
+              -33.89424
+            ],
+            [
+              151.233532,
+              -33.894116
+            ],
+            [
+              151.233761,
+              -33.894079
+            ],
+            [
+              151.233996,
+              -33.894057
+            ],
+            [
+              151.234303,
+              -33.894039
+            ],
+            [
+              151.234652,
+              -33.894042
+            ],
+            [
+              151.235009,
+              -33.894059
+            ],
+            [
+              151.235285,
+              -33.894095
+            ],
+            [
+              151.235584,
+              -33.894144
+            ],
+            [
+              151.235685,
+              -33.894164
+            ],
+            [
+              151.236037,
+              -33.894251
+            ],
+            [
+              151.236339,
+              -33.894344
+            ],
+            [
+              151.236693,
+              -33.894479
+            ],
+            [
+              151.236762,
+              -33.894505
+            ],
+            [
+              151.237253,
+              -33.894757
+            ],
+            [
+              151.23754,
+              -33.894917
+            ],
+            [
+              151.23774,
+              -33.895058
+            ],
+            [
+              151.238802,
+              -33.895877
+            ],
+            [
+              151.239058,
+              -33.896114
+            ],
+            [
+              151.239517,
+              -33.896549
+            ],
+            [
+              151.239965,
+              -33.89701
+            ],
+            [
+              151.24018,
+              -33.897272
+            ],
+            [
+              151.240359,
+              -33.897548
+            ],
+            [
+              151.24044,
+              -33.897655
+            ],
+            [
+              151.240508,
+              -33.897771
+            ],
+            [
+              151.240612,
+              -33.897972
+            ],
+            [
+              151.240754,
+              -33.89821
+            ],
+            [
+              151.240858,
+              -33.898469
+            ],
+            [
+              151.240948,
+              -33.898834
+            ],
+            [
+              151.241023,
+              -33.899206
+            ],
+            [
+              151.241062,
+              -33.899634
+            ],
+            [
+              151.241108,
+              -33.900065
+            ],
+            [
+              151.241115,
+              -33.900166
+            ],
+            [
+              151.241121,
+              -33.900245
+            ],
+            [
+              151.241091,
+              -33.900441
+            ],
+            [
+              151.241071,
+              -33.900558
+            ],
+            [
+              151.241038,
+              -33.900656
+            ],
+            [
+              151.240989,
+              -33.900781
+            ],
+            [
+              151.240921,
+              -33.90091
+            ],
+            [
+              151.240837,
+              -33.901041
+            ],
+            [
+              151.240814,
+              -33.901071
+            ],
+            [
+              151.240752,
+              -33.901149
+            ],
+            [
+              151.240285,
+              -33.901635
+            ],
+            [
+              151.240196,
+              -33.901706
+            ],
+            [
+              151.239852,
+              -33.901984
+            ],
+            [
+              151.239555,
+              -33.902133
+            ],
+            [
+              151.239489,
+              -33.902164
+            ],
+            [
+              151.239296,
+              -33.902248
+            ],
+            [
+              151.239029,
+              -33.90236
+            ],
+            [
+              151.238435,
+              -33.902611
+            ],
+            [
+              151.237852,
+              -33.902852
+            ],
+            [
+              151.237772,
+              -33.902886
+            ],
+            [
+              151.237321,
+              -33.903076
+            ],
+            [
+              151.237068,
+              -33.903197
+            ],
+            [
+              151.23686,
+              -33.903335
+            ],
+            [
+              151.236566,
+              -33.903553
+            ],
+            [
+              151.23624,
+              -33.903845
+            ],
+            [
+              151.235875,
+              -33.904103
+            ],
+            [
+              151.235411,
+              -33.904364
+            ],
+            [
+              151.234973,
+              -33.904526
+            ],
+            [
+              151.234764,
+              -33.904589
+            ],
+            [
+              151.234507,
+              -33.904647
+            ],
+            [
+              151.233929,
+              -33.904709
+            ],
+            [
+              151.233777,
+              -33.904711
+            ],
+            [
+              151.233645,
+              -33.904712
+            ],
+            [
+              151.233504,
+              -33.904706
+            ],
+            [
+              151.233347,
+              -33.904694
+            ],
+            [
+              151.233188,
+              -33.904675
+            ],
+            [
+              151.233051,
+              -33.904652
+            ],
+            [
+              151.232851,
+              -33.904617
+            ],
+            [
+              151.232433,
+              -33.904509
+            ],
+            [
+              151.232379,
+              -33.904488
+            ],
+            [
+              151.232019,
+              -33.904345
+            ],
+            [
+              151.23181,
+              -33.904249
+            ],
+            [
+              151.23161,
+              -33.904141
+            ],
+            [
+              151.231445,
+              -33.904038
+            ],
+            [
+              151.231291,
+              -33.903929
+            ],
+            [
+              151.231146,
+              -33.90383
+            ],
+            [
+              151.231004,
+              -33.903719
+            ],
+            [
+              151.230781,
+              -33.903527
+            ],
+            [
+              151.230561,
+              -33.903355
+            ],
+            [
+              151.229995,
+              -33.902909
+            ],
+            [
+              151.229918,
+              -33.902842
+            ],
+            [
+              151.229692,
+              -33.902646
+            ],
+            [
+              151.229645,
+              -33.902604
+            ],
+            [
+              151.229369,
+              -33.902364
+            ],
+            [
+              151.229645,
+              -33.902604
+            ],
+            [
+              151.229692,
+              -33.902646
+            ],
+            [
+              151.229521,
+              -33.902776
+            ],
+            [
+              151.229355,
+              -33.902616
+            ],
+            [
+              151.229299,
+              -33.902562
+            ]
+          ],
+          "type": "LineString"
+        },
+        "weight": 1000.8,
+        "duration": 1000.8,
+        "distance": 3949.8
+      }
+    ],
+    "waypoints": [
+      {
+        "hint": "admciXbZnIkBAAAAEwAAAAAAAAAAAAAAMc9dP5Vd_UAAAAAAAAAAAAEAAAATAAAAAAAAAAAAAADTAwAAc5MDCR6w-v1zkwMJHrD6_QAAvwgAAAAA",
+        "location": [
+          151.229299,
+          -33.902562
+        ],
+        "name": "",
+        "distance": 0
+      },
+      {
+        "hint": "WtmciV3ZnIlZAAAAAAAAAAAAAACsAAAA_IITQgAAAAAAAAAAPO2YQVkAAAAAAAAAAAAAAKwAAADTAwAAuZMDCeSw-v25kwMJ5LD6_QAAzxMAAAAA",
+        "location": [
+          151.229369,
+          -33.902364
+        ],
+        "name": "Grand Drive",
+        "distance": 0
+      },
+      {
+        "hint": "zwAAgJYyAIB3AAAAAAAAAFgBAADMAwAAk5VTQQAAAAD2pRhCq1LKQ3cAAAAAAAAAWAEAAMwDAADTAwAADI4DCT7B-v0MjgMJPsH6_QYAbwoAAAAA",
+        "location": [
+          151.227916,
+          -33.898178
+        ],
+        "name": "Grand Drive",
+        "distance": 0
+      },
+      {
+        "hint": "0gAAgKL6vIsUAAAAAAAAAJEAAAAAAAAAGRIGQQAAAAC0ZnFCAAAAABQAAAAAAAAAkQAAAAAAAADTAwAAKJEDCb_E-v0okQMJv8T6_QgA_wQAAAAAhzIAgKH6vIseAAAAAAAAANIFAAAAAAAAg5NTQAAAAAA8lSVDAAAAAB4AAAAAAAAA0gUAAAAAAADTAwAAKJEDCb_E-v0okQMJv8T6_QwALxAAAAAAo_q8i6b6vIsAAAAATwAAAAAAAADGAwAAAAAAALR7U0EAAAAATgghQwAAAABPAAAAAAAAAMYDAADTAwAAKJEDCb_E-v0okQMJv8T6_QAAnwIAAAAA",
+        "location": [
+          151.228712,
+          -33.897281
+        ],
+        "name": "Grand Drive / Grand Drive",
+        "distance": 0
+      },
+      {
+        "hint": "eTIAgEeimoqCAAAAAAAAAAAAAAAAAAAAR0pmQQAAAAAAAAAAAAAAAIIAAAAAAAAAAAAAAAAAAADTAwAAgqEDCWvQ-v2CoQMJa9D6_QAAXw8AAAAARaKaikiimooeAAAAAAAAAOYJAAAAAAAA1WigQAAAAADOFNNDAAAAAB4AAAAAAAAA5gkAAAAAAADTAwAAgqEDCWvQ-v2CoQMJa9D6_Q4A7woAAAAAzjoAgEaimoojAAAAAAAAAMoAAAAAAAAAGLVrQQAAAADex6hCAAAAACMAAAAAAAAAygAAAAAAAADTAwAAgqEDCWvQ-v2CoQMJa9D6_QYALwQAAAAA",
+        "location": [
+          151.232898,
+          -33.894293
+        ],
+        "name": "Grand Drive / Grand Drive",
+        "distance": 0
+      },
+      {
+        "hint": "0joAgC8xaoq0BAAAAAAAAD4BAAAYAQAA_tAFQwAAAAB9iQ1CrgTpQrQEAAAAAAAAPgEAABgBAADTAwAAbLQDCW7N-v1stAMJbs36_QIAjxMAAAAA",
+        "location": [
+          151.23774,
+          -33.895058
+        ],
+        "name": "Grand Drive",
+        "distance": 0
+      },
+      {
+        "hint": "izIAgENuzorEAAAAAQAAANwAAAAVAAAAkVWvQQAAAAC4McNBI3wMQcQAAAABAAAA3AAAABUAAADTAwAAocEDCSu5-v2gwQMJK7n6_QQAfwAAAAAA",
+        "location": [
+          151.241121,
+          -33.900245
+        ],
+        "name": "Grand Drive",
+        "distance": 0.09246589974
+      },
+      {
+        "hint": "hDIAgDDy3YpLAAAAAAAAANgHAAAkAQAAvdkEQQAAAACoJ19D3n_zQksAAAAAAAAA2AcAACQBAADTAwAA3LQDCfyu-v3ctAMJ_K76_QwA7wMAAAAA",
+        "location": [
+          151.237852,
+          -33.902852
+        ],
+        "name": "Grand Drive",
+        "distance": 0
+      },
+      {
+        "hint": "gzIAgJUyAIAkAAAAAAAAAFQCAAAeAQAARqNtQQAAAAAPBHlDMIz-QSQAAAAAAAAAVAIAAB4BAADTAwAApKIDCd2n-v2kogMJ3af6_RIAbxEAAAAA",
+        "location": [
+          151.233188,
+          -33.904675
+        ],
+        "name": "Grand Drive",
+        "distance": 0
+      },
+      {
+        "hint": "WtmciV3ZnIlZAAAAAAAAAAAAAACsAAAA_IITQgAAAAAAAAAAPO2YQVkAAAAAAAAAAAAAAKwAAADTAwAAuZMDCeSw-v25kwMJ5LD6_QAAzxMAAAAA",
+        "location": [
+          151.229369,
+          -33.902364
+        ],
+        "name": "Grand Drive",
+        "distance": 0
+      },
+      {
+        "hint": "admciXbZnIkBAAAAEwAAAAAAAAAAAAAAMc9dP5Vd_UAAAAAAAAAAAAEAAAATAAAAAAAAAAAAAADTAwAAc5MDCR6w-v1zkwMJHrD6_QAAvwgAAAAA",
+        "location": [
+          151.229299,
+          -33.902562
+        ],
+        "name": "",
+        "distance": 0
+      }
+    ]
+  }
+}

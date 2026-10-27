@@ -1,0 +1,23 @@
+{
+  "url": "https://routing.openstreetmap.de/routed-foot/nearest/v1/driving/151.274330,-33.895170?number=1",
+  "request": null,
+  "fetchedAt": "2026-10-27T07:53:17.559625+00:00",
+  "response": {
+    "code": "Ok",
+    "waypoints": [
+      {
+        "nodes": [
+          4472302154,
+          1840918382
+        ],
+        "hint": "c1iegYZYnoFiAAAAJwAAAKkDAABdAQAAqTAuQZv0hEBQWM5CDYoZQlYAAAAiAAAAOgMAADMBAAAEAAAAAUMECeLM-v1aQwQJ_sz6_QoA_wkAAAAA",
+        "location": [
+          151.274241,
+          -33.895198
+        ],
+        "name": "Notts Avenue",
+        "distance": 8.800509666
+      }
+    ]
+  }
+}

@@ -5,6 +5,18 @@
   };
   objectVersion = 56;
   objects = {
+    D3E001000000000000000003 = {isa = PBXFileReference;lastKnownFileType = folder;path = "Resources/map-thumbnails";sourceTree = SOURCE_ROOT;};
+    D3E001000000000000000004 = {isa = PBXBuildFile;fileRef = D3E001000000000000000003;};
+    D3E001000000000000000001 = {
+      isa = PBXFileReference;
+      lastKnownFileType = text.json;
+      path = "Resources/sydney-mixed-transport.json";
+      sourceTree = SOURCE_ROOT;
+    };
+    D3E001000000000000000002 = {
+      isa = PBXBuildFile;
+      fileRef = D3E001000000000000000001;
+    };
     33C504449079AE5FD13DFF89 = {
       isa = "PBXFileReference";
       lastKnownFileType = "sourcecode.swift";
@@ -311,12 +323,13 @@
     0189424A5A60FED329FA868E = {
       isa = "PBXResourcesBuildPhase";
       buildActionMask = 2147483647;
-      files = ("AE752C455879F50FA81E3B9C", "7C1A8C4FA73442A73EB033B9");
+      files = ("AE752C455879F50FA81E3B9C", "7C1A8C4FA73442A73EB033B9", "D3E001000000000000000002", "D3E001000000000000000004");
       runOnlyForDeploymentPostprocessing = 0;
     };
     89E1FD6268CC0F221A2BE178 = {
       isa = "XCBuildConfiguration";
       buildSettings = {
+        SYDNEY_BUDDY_BUNDLE_IDENTIFIER = "com.sydneybuddy.travel";
         SDKROOT = "iphoneos";
         IPHONEOS_DEPLOYMENT_TARGET = "17.0";
         CLANG_ENABLE_MODULES = "YES";
@@ -330,6 +343,7 @@
     E6DE6C99132752C914FEF632 = {
       isa = "XCBuildConfiguration";
       buildSettings = {
+        SYDNEY_BUDDY_BUNDLE_IDENTIFIER = "com.sydneybuddy.travel";
         SDKROOT = "iphoneos";
         IPHONEOS_DEPLOYMENT_TARGET = "17.0";
         CLANG_ENABLE_MODULES = "YES";
@@ -347,7 +361,7 @@
     7082CC0B6FC1282FCEABD07A = {
       isa = "XCBuildConfiguration";
       buildSettings = {
-        PRODUCT_BUNDLE_IDENTIFIER = "com.sydneybuddy.travel";
+        PRODUCT_BUNDLE_IDENTIFIER = "$(SYDNEY_BUDDY_BUNDLE_IDENTIFIER)";
         PRODUCT_NAME = "$(TARGET_NAME)";
         INFOPLIST_FILE = "Config/Info.plist";
         TARGETED_DEVICE_FAMILY = "1";
@@ -368,7 +382,7 @@
     639A7CA24D39909E713B47F7 = {
       isa = "XCBuildConfiguration";
       buildSettings = {
-        PRODUCT_BUNDLE_IDENTIFIER = "com.sydneybuddy.travel";
+        PRODUCT_BUNDLE_IDENTIFIER = "$(SYDNEY_BUDDY_BUNDLE_IDENTIFIER)";
         PRODUCT_NAME = "$(TARGET_NAME)";
         INFOPLIST_FILE = "Config/Info.plist";
         TARGETED_DEVICE_FAMILY = "1";
@@ -524,7 +538,7 @@
       isa = "XCBuildConfiguration";
       buildSettings = {
         PRODUCT_NAME = "$(TARGET_NAME)";
-        PRODUCT_BUNDLE_IDENTIFIER = "com.sydneybuddy.travel.tests";
+        PRODUCT_BUNDLE_IDENTIFIER = "$(SYDNEY_BUDDY_BUNDLE_IDENTIFIER).tests";
         GENERATE_INFOPLIST_FILE = "YES";
         SDKROOT = "iphonesimulator";
         IPHONEOS_DEPLOYMENT_TARGET = "17.0";
@@ -542,7 +556,7 @@
       isa = "XCBuildConfiguration";
       buildSettings = {
         PRODUCT_NAME = "$(TARGET_NAME)";
-        PRODUCT_BUNDLE_IDENTIFIER = "com.sydneybuddy.travel.tests";
+        PRODUCT_BUNDLE_IDENTIFIER = "$(SYDNEY_BUDDY_BUNDLE_IDENTIFIER).tests";
         GENERATE_INFOPLIST_FILE = "YES";
         SDKROOT = "iphonesimulator";
         IPHONEOS_DEPLOYMENT_TARGET = "17.0";

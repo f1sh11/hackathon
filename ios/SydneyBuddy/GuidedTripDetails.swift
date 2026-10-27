@@ -49,7 +49,7 @@ struct GuidedTripDetails: View {
         return firstMissing(fields)
     }
     private static func extraKey(_ index:Int)->String {[4:"origin",5:"mustDo",6:"avoid",7:"companionNeeds"][index] ?? ""}
-    private let detailsBlue=Color(red:0.20,green:0.36,blue:0.79)
+    private let detailsBlue=Palette.primary
     private var pageTitle:String {["Destination","Dates & duration","Travel companions","Activity budget","Starting point","Must-do plans","Things to avoid","Travel needs"][stage]}
     private var question:String {["Where shall we go?","When are we going?","Who’s coming along?","What feels right for activities?","Where shall we start?","What’s on your wish list?","Anything you’d rather skip?","What would make the trip easier?"][stage]}
     var body:some View {
@@ -61,8 +61,8 @@ struct GuidedTripDetails: View {
                 VStack(alignment:.leading,spacing:20) {
                     switch stage {
                     case 0:
-                        TextField(uiText("城市或地区"),text:$destination).textFieldStyle(.roundedBorder).accessibilityIdentifier("details-destination")
-                        Button(uiText("悉尼")){destination=Self.destinationDisplay("Sydney",language:AppLanguage.current)}.buttonStyle(.bordered)
+                        TextField(uiText("城市或地区"),text:$destination).textFieldStyle(BuddyFieldStyle()).accessibilityIdentifier("details-destination")
+                        Button(uiText("悉尼")){destination=Self.destinationDisplay("Sydney",language:AppLanguage.current)}.buttonStyle(BuddySecondaryStyle())
                         Text(uiText("目前可生成悉尼路线；其他目的地可以先保存想法。")).font(.caption).foregroundStyle(Palette.muted)
                     case 1:
                         DatePicker(uiText("出发日期"),selection:$date,displayedComponents:.date).datePickerStyle(.compact)
@@ -83,20 +83,20 @@ struct GuidedTripDetails: View {
                         Picker(uiText("预算范围"),selection:$basis){ForEach(TravelRequirements.budgetBases,id:\.0){Text(uiText($0.1)).tag($0.0)}}
                         Text(uiText("这是活动预算，不包含住宿、交通及全部餐饮。选择每人或全体、每天或全程。")).font(.caption).foregroundStyle(Palette.muted)
                     default:
-                        TextField(uiText("暂未确定，可以留空"),text:$extra,axis:.vertical).lineLimit(3...6).textFieldStyle(.roundedBorder)
+                        TextField(uiText("暂未确定，可以留空"),text:$extra,axis:.vertical).lineLimit(3...6).textFieldStyle(BuddyFieldStyle())
                         if stage==4{Text(uiText("暂未确定时，生成路线会明确提示采用的临时起点。")).font(.caption).foregroundStyle(Palette.muted)}
                     }
                 }.padding(16).background(Color.gray.opacity(0.035),in:RoundedRectangle(cornerRadius:16))
                 if let error {Text(uiText(error)).font(.subheadline).foregroundStyle(.red)}
                 Text(uiText("Just for this trip. Your other details stay as they are.")).font(.caption).foregroundStyle(Palette.muted)
                 if stage>0 && !single{Button(uiText("上一步")){error=nil;stage-=1}.frame(maxWidth:.infinity).disabled(busy)}
-            }.padding(20)}.background(Color.white).foregroundStyle(Color(red:0.09,green:0.15,blue:0.24))
+            }.padding(20)}.background(Palette.cream).foregroundStyle(Palette.ink)
                 .navigationTitle(uiText(pageTitle)).navigationBarTitleDisplayMode(.inline)
                 .toolbar{ToolbarItem(placement:.topBarTrailing){Button(uiText(single ? "取消":"稍后继续")){dismiss()}.disabled(busy)}}
                 .safeAreaInset(edge:.bottom){
-                    Button{Task{await advance()}}label:{HStack(spacing:8){if busy{ProgressView().tint(.white)};Text(uiText(busy ? "正在收好…":single ? "保存修改":stage==3 ? "完成，回到聊天":"确认，下一步"));if !busy{Image(systemName:"checkmark")}}.font(.headline).frame(maxWidth:.infinity,minHeight:52)}.buttonStyle(TripsCreateButtonStyle()).disabled(busy).padding(.horizontal,20).padding(.top,12).padding(.bottom,12).background(.white).accessibilityIdentifier("details-save")
+                    Button{Task{await advance()}}label:{HStack(spacing:8){if busy{ProgressView().tint(.white)};Text(uiText(busy ? "正在收好…":single ? "保存修改":stage==3 ? "完成，回到聊天":"确认，下一步"));if !busy{Image(systemName:"checkmark")}}.font(.headline).frame(maxWidth:.infinity,minHeight:52)}.buttonStyle(TripsCreateButtonStyle()).disabled(busy).padding(.horizontal,20).padding(.top,12).padding(.bottom,12).background(Palette.cream).accessibilityIdentifier("details-save")
                 }
-        }.tint(detailsBlue).interactiveDismissDisabled(busy)
+        }.buddySurface().interactiveDismissDisabled(busy)
             .presentationDetents(single ? [.height(520),.large]:[.large])
             .presentationDragIndicator(.visible)
     }
@@ -157,7 +157,7 @@ struct TripDetailsSummary:View {
                 .navigationTitle(uiText("旅行资料")).navigationBarTitleDisplayMode(.inline).toolbar{Button(uiText("回到聊天")){dismiss()}}
                 .sheet(item:$editing){item in GuidedTripDetails(fields:fields,startStage:item.id,single:true,save:save)}
                 .sheet(isPresented:$continuing){GuidedTripDetails(fields:fields,save:save)}
-        }.tint(Color(red:0.20,green:0.36,blue:0.79))
+        }.tint(Palette.primary)
     }
     private func row(_ title:String,_ detail:String,_ stage:Int)->some View {
         Button{editing=TripDetailSelection(id:stage)}label:{HStack {VStack(alignment:.leading,spacing:5){Text(uiText(title)).font(.subheadline.bold());Text(uiText(detail)).font(.caption).foregroundStyle(Palette.muted)};Spacer();Image(systemName:"chevron.right").font(.caption)}}.foregroundStyle(Palette.ink).accessibilityIdentifier("trip-detail-\(stage)")
@@ -178,7 +178,15 @@ struct BudgetAmountInput:UIViewRepresentable {
     func makeCoordinator()->Coordinator {Coordinator(self)}
     func makeUIView(context:Context)->BudgetAmountTextField {
         let field=BudgetAmountTextField()
-        field.borderStyle = .roundedRect
+        field.borderStyle = .none
+        field.backgroundColor=UIColor(Palette.field)
+        field.textColor=UIColor(Palette.ink)
+        field.tintColor=UIColor(Palette.primary)
+        field.layer.cornerRadius=BuddyLayout.control
+        field.layer.borderWidth=1
+        field.layer.borderColor=UIColor(Palette.border).cgColor
+        field.leftView=UIView(frame:CGRect(x:0,y:0,width:14,height:1));field.leftViewMode = .always
+        field.rightView=UIView(frame:CGRect(x:0,y:0,width:10,height:1));field.rightViewMode = .unlessEditing
         field.font = .preferredFont(forTextStyle:.body)
         field.adjustsFontForContentSizeCategory=true
         field.keyboardType = .decimalPad

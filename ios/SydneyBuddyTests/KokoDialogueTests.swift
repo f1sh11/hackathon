@@ -108,6 +108,75 @@ final class KokoDialogueTests:XCTestCase {
         XCTAssertNil(chat.error);XCTAssertEqual(created.count,1)
         XCTAssertEqual(chat.session?.contextualReplies.map(\.id),["personal-1","personal-2","personal-3"])
     }
+    @MainActor func testPersonalAgentDoesNotResumeAnOldTripConversation() async throws {
+        let defaults=UserDefaults.standard;let key="petSession.personalProfileAgent";let prior=defaults.object(forKey:key)
+        defer{if let prior{defaults.set(prior,forKey:key)}else{defaults.removeObject(forKey:key)}}
+        defaults.set("legacy-session",forKey:key)
+        var legacy=session();legacy.id="legacy-session";legacy.purpose=nil
+        var fresh=session();fresh.id="personal-session";fresh.purpose="personal_profile"
+        let chat=PetChatStore();var creates=0;var patches=0
+        chat.loader={request in
+            if request.httpMethod=="POST"{creates+=1;let body=try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:Any];XCTAssertEqual(body["purpose"] as? String,"personal_profile");XCTAssertNil(body["fields"])}
+            if request.httpMethod=="PATCH"{patches+=1}
+            let data=request.url!.path.hasSuffix("/memories") ? Data("[]".utf8):try JSONEncoder().encode(request.httpMethod=="GET" ? legacy:fresh)
+            return(data,HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)
+        }
+        await chat.load(scope:"personalProfileAgent",profiling:true)
+        XCTAssertNil(chat.error);XCTAssertEqual(chat.session?.id,"personal-session");XCTAssertEqual(creates,1);XCTAssertEqual(patches,0)
+        XCTAssertEqual(defaults.string(forKey:key),"personal-session")
+    }
+    @MainActor func testResumeDraftRestoresOnlyMissingFieldsAndKeepsChatEdits() async throws {
+        let defaults=UserDefaults.standard;let key="petSession.draft";let prior=defaults.object(forKey:key)
+        defer{if let prior{defaults.set(prior,forKey:key)}else{defaults.removeObject(forKey:key)}}
+        defaults.set("resume-session",forKey:key)
+        var value=session();value.id="resume-session";value.fields=["destination":"Sydney","budget":"80"];value.planningFields=value.fields
+        value.dialogue=ProfilingDialogueState(version:2,responseCount:1,phase:"collect",nickname:"",ideas:[],inspiration:nil);value.dialogue?.companionVersion=1
+        let chat=PetChatStore();var patches:[[String:Any]]=[]
+        chat.loader={request in
+            if request.httpMethod=="PATCH"{let body=try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:Any];patches.append(body);if let fields=body["fields"] as? [String:String]{value.fields.merge(fields){_,new in new};value.planningFields=value.fields}}
+            return(try JSONEncoder().encode(value),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)
+        }
+        await chat.load(scope:"draft",seed:["destination":"Sydney","days":"2","budget":"40"],profiling:true)
+        XCTAssertNil(chat.error);XCTAssertEqual(patches.count,1)
+        XCTAssertEqual(patches.first?["fields"] as? [String:String],["days":"2"])
+        XCTAssertEqual(chat.session?.effectiveFields["budget"],"80");XCTAssertEqual(chat.session?.effectiveFields["days"],"2")
+    }
+    @MainActor func testNetworkFailureUsesEnglishAndKeepsExistingSessionForRetry() async {
+        let defaults=UserDefaults.standard,key="petSession.network-failure-test"
+        let previous=defaults.object(forKey:key),language=defaults.object(forKey:"appLanguage")
+        defer{for (name,value) in [(key,previous),("appLanguage",language)]{if let value{defaults.set(value,forKey:name)}else{defaults.removeObject(forKey:name)}}}
+        defaults.set("existing-session",forKey:key);defaults.set("en",forKey:"appLanguage")
+        for code in [NSURLErrorTimedOut,NSURLErrorNotConnectedToInternet] {
+            let chat=PetChatStore();var requests=0
+            chat.loader={_ in requests+=1;throw NSError(domain:NSURLErrorDomain,code:code,userInfo:[NSLocalizedDescriptionKey:"请求超时。"])}
+            await chat.load(scope:"network-failure-test")
+            XCTAssertEqual(requests,1);XCTAssertFalse(chat.busy)
+            XCTAssertEqual(defaults.string(forKey:key),"existing-session")
+            XCTAssertEqual(chat.error,code == NSURLErrorTimedOut ? "Koko took too long to reply. Please try again.":"I couldn’t reach Koko. Check your connection and try again.")
+        }
+    }
+
+    @MainActor func testMissingCloudSessionRecoversDraftButAuthenticationAndServerErrorsDoNotResetIt() async throws {
+        for status in [400,404,422,401,500] {
+            let scope="backend-recovery-test",key="petSession."+scope,archive=key+".previousIDs"
+            let defaults=UserDefaults.standard,prior=defaults.object(forKey:key),priorArchive=defaults.object(forKey:archive)
+            defer{for (name,value) in [(key,prior),(archive,priorArchive)]{if let value{defaults.set(value,forKey:name)}else{defaults.removeObject(forKey:name)}}}
+            defaults.set("local-session",forKey:key)
+            let chat=PetChatStore();var creates=0;var value=session();value.id="cloud-session";value.dialogue?.companionVersion=1
+            value.fields=["destination":"Sydney","days":"2"];value.planningFields=value.fields
+            chat.loader={request in
+                if request.httpMethod=="GET"{return(Data("{\"error\":\"This conversation has been cleared. Start a new one.\"}".utf8),HTTPURLResponse(url:request.url!,statusCode:status,httpVersion:nil,headerFields:nil)!)}
+                creates+=1
+                let body=try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:Any]
+                XCTAssertEqual(body["fields"] as? [String:String],["destination":"Sydney","days":"2"])
+                return(try JSONEncoder().encode(value),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)
+            }
+            await chat.load(scope:scope,seed:["destination":"Sydney","days":"2"],profiling:true)
+            if status==400 || status==404 || status==422{XCTAssertNil(chat.error);XCTAssertEqual(creates,1);XCTAssertEqual(chat.session?.id,"cloud-session");XCTAssertTrue(defaults.stringArray(forKey:archive)?.contains("local-session")==true)}
+            else{XCTAssertNotNil(chat.error);XCTAssertEqual(creates,0);XCTAssertEqual(defaults.string(forKey:key),"local-session")}
+        }
+    }
+
     func testV2DraftRestoresContextualChoicesWithoutMakingUnknownTravelDataReady() throws {
         let original=session(inspiration:true)
         let restored=try JSONDecoder().decode(PetSession.self,from:JSONEncoder().encode(original))

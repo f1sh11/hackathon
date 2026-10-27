@@ -1,0 +1,205 @@
+{
+  "url": "https://routing.openstreetmap.de/routed-foot/route/v1/driving/151.209642,-33.862776;151.209428,-33.862509?overview=full&geometries=geojson&steps=true",
+  "request": null,
+  "fetchedAt": "2026-10-27T07:55:02.612004+00:00",
+  "response": {
+    "code": "Ok",
+    "routes": [
+      {
+        "legs": [
+          {
+            "steps": [
+              {
+                "intersections": [
+                  {
+                    "out": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      319
+                    ],
+                    "location": [
+                      151.209642,
+                      -33.862776
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.209642,
+                      -33.862776
+                    ],
+                    [
+                      151.209582,
+                      -33.862718
+                    ],
+                    [
+                      151.209506,
+                      -33.862662
+                    ],
+                    [
+                      151.209504,
+                      -33.862634
+                    ],
+                    [
+                      151.209493,
+                      -33.862626
+                    ],
+                    [
+                      151.209507,
+                      -33.862613
+                    ],
+                    [
+                      151.209444,
+                      -33.862562
+                    ],
+                    [
+                      151.209434,
+                      -33.862537
+                    ],
+                    [
+                      151.209428,
+                      -33.862509
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 319,
+                  "bearing_before": 0,
+                  "location": [
+                    151.209642,
+                    -33.862776
+                  ],
+                  "type": "depart"
+                },
+                "name": "",
+                "mode": "walking",
+                "weight": 3.2,
+                "duration": 30.9,
+                "distance": 38.5
+              },
+              {
+                "intersections": [
+                  {
+                    "in": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      170
+                    ],
+                    "location": [
+                      151.209428,
+                      -33.862509
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.209428,
+                      -33.862509
+                    ],
+                    [
+                      151.209428,
+                      -33.862509
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 0,
+                  "bearing_before": 350,
+                  "location": [
+                    151.209428,
+                    -33.862509
+                  ],
+                  "type": "arrive"
+                },
+                "name": "",
+                "mode": "walking",
+                "weight": 0,
+                "duration": 0,
+                "distance": 0
+              }
+            ],
+            "weight": 3.2,
+            "summary": "",
+            "duration": 30.9,
+            "distance": 38.5
+          }
+        ],
+        "weight_name": "routability",
+        "geometry": {
+          "coordinates": [
+            [
+              151.209642,
+              -33.862776
+            ],
+            [
+              151.209582,
+              -33.862718
+            ],
+            [
+              151.209506,
+              -33.862662
+            ],
+            [
+              151.209504,
+              -33.862634
+            ],
+            [
+              151.209493,
+              -33.862626
+            ],
+            [
+              151.209507,
+              -33.862613
+            ],
+            [
+              151.209444,
+              -33.862562
+            ],
+            [
+              151.209434,
+              -33.862537
+            ],
+            [
+              151.209428,
+              -33.862509
+            ]
+          ],
+          "type": "LineString"
+        },
+        "weight": 3.2,
+        "duration": 30.9,
+        "distance": 38.5
+      }
+    ],
+    "waypoints": [
+      {
+        "hint": "nabJgIiMUotdAAAARwAAAC8AAADfAAAAnX0zQej0B0EfArRASJ_WQVkAAABFAAAALQAAANcAAAAEAAAAqkYDCYhL-_2qRgMJiEv7_QIA7xMAAAAA",
+        "location": [
+          151.209642,
+          -33.862776
+        ],
+        "name": "",
+        "distance": 0
+      },
+      {
+        "hint": "hoxSi4qMUosAAAAAOAAAAAAAAAAAAAAAAAAAAOPo10AAAAAAAAAAAAAAAAA2AAAAAAAAAAAAAAAEAAAA1EUDCZNM-_3URQMJk0z7_QAA7xUAAAAAhYxSi4eMUosAAAAAGgAAAAAAAAAAAAAAAAAAAEPrSUAAAAAAAAAAAAAAAAAZAAAAAAAAAAAAAAAEAAAA1EUDCZNM-_3URQMJk0z7_QAAnwoAAAAA0YFsioSMUos9AAAAAAAAALcAAAAAAAAAJS_XQAAAAAC-SqFBAAAAADYAAAAAAAAAogAAAAAAAAAEAAAA1EUDCZNM-_3URQMJk0z7_QYAjwgAAAAAoKbJgIOMUouCAQAAAAAAAAAAAAAAAAAAVUI5QgAAAAAAAAAAAAAAAHMBAAAAAAAAAAAAAAAAAAAEAAAA1EUDCZNM-_3URQMJk0z7_QAA3xMAAAAA",
+        "location": [
+          151.209428,
+          -33.862509
+        ],
+        "name": "Bulletin Place / Bulletin Place",
+        "distance": 0
+      }
+    ]
+  }
+}

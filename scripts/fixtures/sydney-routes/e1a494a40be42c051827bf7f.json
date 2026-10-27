@@ -1,0 +1,23 @@
+{
+  "url": "https://routing.openstreetmap.de/routed-foot/nearest/v1/driving/151.208500,-33.859200?number=1",
+  "request": null,
+  "fetchedAt": "2026-10-27T07:52:15.239830+00:00",
+  "response": {
+    "code": "Ok",
+    "waypoints": [
+      {
+        "nodes": [
+          5644995810,
+          26526477
+        ],
+        "hint": "rZMCgJn4ZYUzAAAAAgAAAAAAAAAAAAAAQBnFQBF7PT4AAAAAAAAAADEAAAACAAAAAAAAAAAAAAAEAAAANEIDCYBZ-_00QgMJgFn7_QAAbwYAAAAA",
+        "location": [
+          151.2085,
+          -33.8592
+        ],
+        "name": "Argyle Street",
+        "distance": 0
+      }
+    ]
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "url": "https://routing.openstreetmap.de/routed-foot/nearest/v1/driving/151.211600,-33.861400?number=1",
+  "request": null,
+  "fetchedAt": "2026-10-27T07:52:31.132914+00:00",
+  "response": {
+    "code": "Ok",
+    "waypoints": [
+      {
+        "nodes": [
+          3944060780,
+          33364261
+        ],
+        "hint": "GagFgANOsoosAwAADwMAAAAAAAAnDAAA446iQo5qnEIAAAAAboebQ4oCAAByAgAAAAAAALkJAAAEAAAAV04DCRhR-_1QTgMJ6FD7_QAATxEAAAAA",
+        "location": [
+          151.211607,
+          -33.861352
+        ],
+        "name": "Cahill Walk",
+        "distance": 5.363411491
+      }
+    ]
+  }
+}

@@ -63,6 +63,20 @@ import MapKit
         XCTAssertEqual(ProposalReviewPresentation.cost([plan.days[0]]),"Cost to confirm")
     }
 
+    func testScheduleAndReviewShareHonestUnknownCostSummary() {
+        XCTAssertEqual(ProposalReviewPresentation.cost(amount:0,known:[nil,false]),"Cost to confirm")
+        XCTAssertEqual(ProposalReviewPresentation.cost(amount:0,known:[true]),AppLanguage.current.text("Est. A${0}","0"))
+        XCTAssertEqual(ProposalReviewPresentation.cost(amount:60,known:[true,nil]),AppLanguage.current.text("Est. A${0} + unconfirmed costs","60"))
+    }
+
+    func testNewlySavedPartialTripIsNeverLabelledReady() throws {
+        var plan=try fixture();plan.recommendationStatus="partial"
+        XCTAssertEqual(TripHomePresentation.status(plan,today:plan.profile.date,dayIndex:0,justGenerated:true),"Draft saved · Review details")
+        XCTAssertEqual(TripHomePresentation.status(plan,today:plan.profile.date,dayIndex:0),"Draft saved · Review details")
+        plan.recommendationStatus=nil
+        XCTAssertEqual(TripHomePresentation.status(plan,today:plan.profile.date,dayIndex:0,justGenerated:true),"Ready · View itinerary")
+    }
+
     func testExploreSearchControlsDoNotInterceptMapGestures() async throws {
         let restore=preservePlanningDefaults();defer{restore()}
         let store=AppStore();store.mapProvider = .apple;store.travelDataSource = .direct
@@ -946,9 +960,13 @@ import MapKit
         XCTAssertEqual(overviewTransportLegs(day,route:overview.route,plan:nil).first?.transport,"同一位置")
     }
     func testHomeTransportLegsUseActualBusNumberInsteadOfCallingItWalking() throws {
+        let language=UserDefaults.standard.object(forKey:"appLanguage")
+        defer{if let language{UserDefaults.standard.set(language,forKey:"appLanguage")}else{UserDefaults.standard.removeObject(forKey:"appLanguage")}}
+        UserDefaults.standard.set("en",forKey:"appLanguage")
+
         let plan=try JSONDecoder().decode(JourneyPlan.self,from:Data(contentsOf:Bundle(for:Self.self).url(forResource:"journey-plan-test",withExtension:"json")!))
         let rows=overviewTransportLegs(try fixture().days[0],route:plan.overview,plan:plan)
-        XCTAssertTrue(rows.contains{$0.transport.contains("TEST") && $0.transport.contains("公车")})
+        XCTAssertTrue(rows.contains{$0.transport.contains("TEST") && $0.transport.contains("Bus")})
         XCTAssertEqual(rows.count,plan.legs.count)
     }
     func testOpeningLegacyRouteAndRestoringDoNotReselectOrReschedule() async throws {

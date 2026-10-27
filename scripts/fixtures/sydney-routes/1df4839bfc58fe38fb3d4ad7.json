@@ -1,0 +1,23 @@
+{
+  "url": "https://routing.openstreetmap.de/routed-foot/nearest/v1/driving/151.164535,-33.935691?number=1",
+  "request": null,
+  "fetchedAt": "2026-10-27T07:52:04.530303+00:00",
+  "response": {
+    "code": "Ok",
+    "waypoints": [
+      {
+        "nodes": [
+          5518142249,
+          5518142248
+        ],
+        "hint": "KoYxhSyGMYVTBAAABAAAAAAAAAAKAAAAL2fdQuGzxT4AAAAAXZ-EP3UDAAAEAAAAAAAAAAgAAAAEAAAAdpYCCbMu-v13lgIJtS76_QAADwcAAAAA",
+        "location": [
+          151.164534,
+          -33.935693
+        ],
+        "name": "Sydney Airport International Terminal T1 footbridge / cycleway",
+        "distance": 0.2403410995
+      }
+    ]
+  }
+}

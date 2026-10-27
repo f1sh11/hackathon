@@ -1,0 +1,62 @@
+Wikimedia Commons photographs, displayed as cropped map thumbnails. Tap a photo marker for attribution and its source page.
+
+Sydney Opera House
+BAVhah
+CC BY-SA 4.0
+https://commons.wikimedia.org/wiki/File:Sydney_Opera_House_2026.jpg
+https://creativecommons.org/licenses/by-sa/4.0
+
+Royal Botanic Garden, Sydney
+Bidgee
+CC BY-SA 3.0 au
+https://commons.wikimedia.org/wiki/File:Gates_at_Royal_Botanic_Gardens_viewed_from_Art_Gallery_Road.jpg
+https://creativecommons.org/licenses/by-sa/3.0/au/deed.en
+
+The Rocks, New South Wales
+Dietmar Rabich
+CC BY-SA 4.0
+https://commons.wikimedia.org/wiki/File:Sydney_(AU),_The_Rocks_--_2019_--_2133.jpg
+https://creativecommons.org/licenses/by-sa/4.0
+
+Centennial Park, New South Wales
+Sardaka
+CC BY-SA 4.0
+https://commons.wikimedia.org/wiki/File:Afternoon_light_Centennial_Park_005.jpg
+https://creativecommons.org/licenses/by-sa/4.0
+
+Bondi Beach
+Nick Ang
+CC BY-SA 4.0
+https://commons.wikimedia.org/wiki/File:Bondi_from_above.jpg
+https://creativecommons.org/licenses/by-sa/4.0
+
+Bondi Icebergs Club
+Kristina D.C. Hoeppner
+CC BY-SA 2.0
+https://commons.wikimedia.org/wiki/File:Bondi_Icebergs_pools.jpg
+https://creativecommons.org/licenses/by-sa/2.0
+
+Manly, New South Wales
+File:2007-08-04 Manly, New South Wales.jpg: Maksym Kozlenko
+derivative work: Georgfotoart
+CC BY-SA 4.0
+https://commons.wikimedia.org/wiki/File:2007-08-04_Manly,_New_South_Wales_b_(cropped).jpg
+https://creativecommons.org/licenses/by-sa/4.0
+
+Shelly Beach (Manly)
+J Bar
+CC BY-SA 3.0
+https://commons.wikimedia.org/wiki/File:Shelly_Beach_Manly.JPG
+http://creativecommons.org/licenses/by-sa/3.0/
+
+Art Gallery of New South Wales
+Chris Olszewski
+CC BY-SA 4.0
+https://commons.wikimedia.org/wiki/File:Art_Gallery_of_New_South_Wales,_2022,_09.jpg
+https://creativecommons.org/licenses/by-sa/4.0
+
+Circular Quay
+DXR
+CC BY-SA 4.0
+https://commons.wikimedia.org/wiki/File:North_view_of_Sydney_Opera_House,_the_Rocks_and_Sydney_CBD_20230223_1.jpg
+https://creativecommons.org/licenses/by-sa/4.0

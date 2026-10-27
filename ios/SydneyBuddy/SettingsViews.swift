@@ -35,7 +35,7 @@ struct JournalView:View {
                     if entries.isEmpty {Text(uiText("还没有记录，先享受这段旅程吧。")).foregroundStyle(Palette.muted)}
                 }
                 Section {Text(uiText("遇到不能整除的金额，余下的分按成员顺序分配，合计始终等于原始金额。此版本未关联成员账户或多人同步。")).font(.caption).foregroundStyle(Palette.muted)}
-            }.scrollContentBackground(.hidden).background(Palette.cream).navigationTitle(uiText("预算与花费")).onAppear{if let trip{people=min(10,max(1,trip.profile.travelers ?? 1))}}.toolbar{ToolbarItem(placement:.confirmationAction){Button(uiText("完成")){dismiss()}}}
+            }.listSectionSpacing(20).scrollContentBackground(.hidden).background(Palette.cream).navigationTitle(uiText("预算与花费")).onAppear{if let trip{people=min(10,max(1,trip.profile.travelers ?? 1))}}.toolbar{ToolbarItem(placement:.confirmationAction){Button(uiText("完成")){dismiss()}}}
         }
     }
 }
@@ -48,37 +48,55 @@ struct SettingsView:View {
     @State private var socialImport=false
     @State private var restaurantImport=false
     @State private var showingLedger=false
-    private var personalProfileSummary:String {
-        ([store.personalProfile.summary]+store.memories.filter{$0.profile.travelDna != nil}.map(\.summary))
-            .filter{!$0.isEmpty}.joined(separator:"\n")
+    private var extraPreferences:[Memory] {
+        store.memories.filter{memory in
+            guard memory.profile.habits==nil else{return false}
+            guard let fact=memory.profile.travelDna else{return memory.profile.interests.isEmpty}
+            return !fact.condition.isEmpty || !["daily_steps","queue_tolerance_minutes","rhythm","interests"].contains(fact.key)
+        }
     }
+    private var personalProfileSummary:String {store.personalProfile.summary}
     var body:some View {
         let _=interfaceLocale
         NavigationStack {
             Form {
-                Section { HStack(spacing:18){Robot(size:65);VStack(alignment:.leading,spacing:6){Text(uiText("你好，旅行家")).font(.title2.bold());Text(uiText("按自己的节奏，发现悉尼")).font(.caption).foregroundStyle(Palette.muted)}}.padding(.vertical,10) }
-                Section {Button(uiText("匯入社群靈感"),systemImage:"square.and.arrow.down"){socialImport=true}.accessibilityIdentifier("social-import-open").sheet(isPresented:$socialImport){SocialImportView()}}
-                Section {Button(uiText("匯入菜單與餐廳資料")){restaurantImport=true}.sheet(isPresented:$restaurantImport){RestaurantImportView()}}
+                Section { HStack(spacing:18){PetAvatar(mood:.relaxed,size:56).frame(width:56,height:64);VStack(alignment:.leading,spacing:6){Text(uiText("你好，旅行家")).font(.system(.title2,design:.rounded,weight:.bold));Text(uiText("按自己的节奏，发现悉尼")).font(.caption).foregroundStyle(Palette.muted)}}.padding(.vertical,10) }
                 Section(uiText("我的旅行偏好")) {
                     Text(uiText(personalProfileSummary.isEmpty ? "还没认识你的旅行习惯，来告诉 Buddy 吧。":personalProfileSummary)).font(.subheadline)
                     Button { editingPersonalPreferences=true } label:{Label(uiText("修改旅行习惯"),systemImage:"slider.horizontal.3")}
                     Text(uiText("新旅行会参考这些习惯；这次旅行的要求始终优先。修改不会改变已有行程或当前草稿。")).font(.caption).foregroundStyle(Palette.muted)
-                    DisclosureGroup(uiText("聊天中另外记住的偏好（\(store.memories.count)）")) {
+                    DisclosureGroup(uiText("聊天中另外记住的偏好（\(extraPreferences.count)）")) {
                         Text(uiText("这里只显示你同意长期保存的聊天补充，可以逐条删除。")).font(.caption).foregroundStyle(Palette.muted)
-                        if store.memories.isEmpty{Text(uiText("还没有额外保存的偏好。")).foregroundStyle(Palette.muted)}
-                        ForEach(store.memories){memory in HStack(alignment:.top){Text(uiText(memory.summary)).font(.subheadline);Spacer();Button(uiText("删除"),role:.destructive){deletingMemory=memory}.font(.subheadline).frame(minHeight:44)}}
+                        if extraPreferences.isEmpty{Text(uiText("还没有额外保存的偏好。")).foregroundStyle(Palette.muted)}
+                        ForEach(extraPreferences){memory in HStack(alignment:.top){Text(memory.profile.travelDna?.displaySummary ?? uiText(memory.summary)).font(.subheadline);Spacer();Button(uiText("删除"),role:.destructive){deletingMemory=memory}.font(.subheadline).frame(minHeight:44)}}
                     }
+                    let history=store.memories.filter{$0.profile.habits != nil || ($0.profile.travelDna==nil && !$0.profile.interests.isEmpty)}
+                    if !history.isEmpty {
+                        DisclosureGroup("Earlier preference snapshots (\(history.count))") {
+                            Text("Kept as history. Your current preferences above take priority.").font(.caption).foregroundStyle(Palette.muted)
+                            ForEach(history){memory in Text(memory.profile.habits.map{uiText($0.summary)} ?? "About \(memory.profile.maxSteps) steps/day · "+memory.profile.interests.map{uiText($0)}.joined(separator:", ")).font(.caption).foregroundStyle(Palette.muted)}
+                        }
+                    }
+
                 }
-                backendSection
-                travelDataSection
+                Section("Bring your ideas") {
+                    Button(uiText("匯入社群靈感"),systemImage:"square.and.arrow.down"){socialImport=true}.accessibilityIdentifier("social-import-open").sheet(isPresented:$socialImport){SocialImportView()}
+                    Button(uiText("匯入菜單與餐廳資料"),systemImage:"fork.knife"){restaurantImport=true}.sheet(isPresented:$restaurantImport){RestaurantImportView()}
+                }
                 Section(uiText("设置")) {
                     Picker(uiText("界面语言"),selection:$store.language){ForEach(AppLanguage.allCases){language in Text(verbatim:language.label).tag(language)}}.accessibilityIdentifier("app-language-picker")
+                }
+                Section("Demo") {
+                    Toggle("Demo mode",isOn:$store.demoEnabled).tint(Palette.primary).disabled(store.busy || store.isGeneratingTrip).accessibilityIdentifier("demo-mode-toggle")
+                    Text(store.demoEnabled ? "On · New 1–3 day Sydney trips use preset places, estimated transport and illustrative paths. No live verification is claimed. Koko chat and memory consent stay unchanged.":"Off · Normal planning and route services. Preset transport paths are not loaded.").font(.caption).foregroundStyle(Palette.muted)
                 }
                 Section(uiText("体验与帮助")) {
                     Button(uiText("全部消费记录")){showingLedger=true}
                     Button(uiText("创建一次新的旅行")){store.newTrip()}
                     Text(uiText("询问这次的日期、天数、同行人和预算，个人偏好会自动带入。")).font(.caption).foregroundStyle(Palette.muted)
                 }
+                backendSection
+                travelDataSection
                 Section {
                     DisclosureGroup(uiText("高级设置与开发测试")) {
                         Group {
@@ -104,7 +122,7 @@ struct SettingsView:View {
                         Text(uiText("Sydney Buddy · iOS 测试版本。路线来源和待确认信息可在行程详情中查看。")).font(.caption).foregroundStyle(Palette.muted)
                     }
                 }
-            }.scrollContentBackground(.hidden).background(Palette.cream).navigationTitle(uiText(store.language.text("我的 Buddy"))).tint(Palette.green)
+            }.listSectionSpacing(20).scrollContentBackground(.hidden).background(Palette.cream).navigationTitle(uiText(store.language.text("我的 Buddy"))).navigationBarTitleDisplayMode(.inline).buddySurface()
             .sheet(isPresented:$editingPersonalPreferences){PersonalPreferencesView(editing:true)}
             .sheet(isPresented:$showingLedger){JournalView()}
             .confirmationDialog(uiText("删除这条长期偏好？以后的旅行将不再参考它。"),isPresented:Binding(get:{deletingMemory != nil},set:{if !$0{deletingMemory=nil}}),titleVisibility:.visible){Button(uiText("删除偏好"),role:.destructive){if let memory=deletingMemory{Task{await store.deleteMemory(memory);deletingMemory=nil}}}}

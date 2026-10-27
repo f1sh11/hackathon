@@ -1,0 +1,23 @@
+{
+  "url": "https://routing.openstreetmap.de/routed-foot/nearest/v1/driving/151.296800,-33.800500?number=1",
+  "request": null,
+  "fetchedAt": "2026-10-27T07:53:28.436142+00:00",
+  "response": {
+    "code": "Ok",
+    "waypoints": [
+      {
+        "nodes": [
+          5404835128,
+          8948257882
+        ],
+        "hint": "vluMhiyWp4oRAAAAIgAAANMCAAAyBgAA_oEDQCztgUCwmq1CD2g-QxAAAAAhAAAAtwIAAPQFAAAEAAAAkpoECYw9_P0gmwQJzD78_QwALxIAAAAA",
+        "location": [
+          151.296658,
+          -33.80082
+        ],
+        "name": "Marine Parade",
+        "distance": 37.8502123
+      }
+    ]
+  }
+}

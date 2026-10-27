@@ -48,6 +48,34 @@ struct OverviewRoute {
     }
 }
 
+enum CachedDemoRoutes {
+    static let source="Estimated schedule · cached OSM / TfNSW routes"
+    static let steps:[JourneyStep] = {
+        guard let url=Bundle.main.url(forResource:"sydney-mixed-transport",withExtension:"json"),let data=try? Data(contentsOf:url),let trip=try? JSONDecoder().decode(Trip.self,from:data) else{return []}
+        return trip.days.flatMap{$0.estimatedTransportPlan?.legs.flatMap(\.steps) ?? []}
+    }()
+    static func close(_ a:JourneyCoordinate,_ b:JourneyCoordinate)->Bool {
+        CLLocation(latitude:a.lat,longitude:a.lng).distance(from:CLLocation(latitude:b.lat,longitude:b.lng))<=3
+    }
+    static func validated(_ day:DayPlan)->JourneyPlan? {
+        guard let plan=day.estimatedTransportPlan,plan.source==source,plan.legs.count==day.stops.count+1 else{return nil}
+        let anchors=[day.start.location]+day.stops.map(\.coordinate)+[day.end.location]
+        let names=[day.start.name]+day.stops.map(\.name)+[day.end.name]
+        for (i,leg) in plan.legs.enumerated() {
+            guard leg.index==i,leg.from==names[i],leg.to==names[i+1],let first=leg.steps.first?.geometry.first,let last=leg.steps.last?.geometry.last,
+                  close(first,JourneyCoordinate(lat:anchors[i].latitude,lng:anchors[i].longitude)),close(last,JourneyCoordinate(lat:anchors[i+1].latitude,lng:anchors[i+1].longitude)) else{return nil}
+            for step in leg.steps {
+                // Match the complete cached shape, not just its endpoints or a provider label.
+                guard steps.contains(where: {cached in cached.mode==step.mode && cached.geometry.count==step.geometry.count && zip(cached.geometry,step.geometry).allSatisfy{abs($0.lat-$1.lat)<0.0000001 && abs($0.lng-$1.lng)<0.0000001}}) else{return nil}
+            }
+            for (left,right) in zip(leg.steps,leg.steps.dropFirst()) {
+                guard let a=left.geometry.last,let b=right.geometry.first,close(a,b) else{return nil}
+            }
+        }
+        return plan
+    }
+}
+
 @MainActor final class ItineraryOverview: ObservableObject {
     @Published var key = ""
     @Published var route: OverviewRoute?
@@ -68,13 +96,13 @@ struct OverviewRoute {
         try await AppleJourneyProvider.plan(day:day,modes:day.transportModes,departure:departure)
     }) {self.applePlan=applePlan}
     var summary:String {route.map{"路线约 \(Int($0.meters.rounded())) 米 · \(Int(ceil($0.seconds/60))) 分钟"} ?? "显示步行路线"}
-    func loadHome(_ day:DayPlan,provider:MapProvider,contentSource:String) {
-        let identity=mapSceneKey(day)+"|"+provider.rawValue+"|"+contentSource
+    func loadHome(_ day:DayPlan,provider:MapProvider,contentSource:String,allowEstimated:Bool=DemoMode.enabled) {
+        let identity=mapSceneKey(day)+"|"+provider.rawValue+"|"+contentSource+"|"+String(allowEstimated)
         guard homeIdentity != identity else{return};homeIdentity=identity
         // Updating display times or undoing a calibration does not change the walking path.
         if provider == .apple,contentSource != "google",routeProvider == .apple,route != nil,plan?.source=="Apple Maps / MapKit",plan?.legs.flatMap(\.steps).allSatisfy({$0.mode=="walk"})==true,routeIdentity==walkingIdentity(day){key=mapSceneKey(day);return}
         clear();key=mapSceneKey(day)
-        if day.hasWalkingJourney,contentSource != "google" && (provider == .osm || provider == .apple){load(day,provider:provider)}
+        if day.hasWalkingJourney,contentSource != "google" && (provider == .osm || provider == .apple){load(day,provider:provider,allowEstimated:allowEstimated)}
     }
     func clear(){cancel();route=nil;plan=nil;message=nil}
     func accept(_ result:JourneyPlan,day:DayPlan) {
@@ -88,7 +116,15 @@ struct OverviewRoute {
         guard key != newKey else { return }
         clear(); key = newKey
     }
-    func load(_ day: DayPlan,provider:MapProvider = .osm) {
+    func load(_ day: DayPlan,provider:MapProvider = .osm,allowEstimated:Bool=DemoMode.enabled) {
+        if day.estimatedTransportPlan != nil && !allowEstimated{clear();message="This trip uses preset transport. Turn on Demo mode in Me to view its estimated paths.";return}
+        if day.estimatedTransportPlan != nil {
+            guard let verified=CachedDemoRoutes.validated(day) else {
+                clear();message="This saved Demo has outdated or disconnected route shapes. Preview the corrected Demo routes or create a new Demo trip. Your saved trip stays unchanged until you confirm.";return
+            }
+            accept(verified,day:day);message="Cached road and transit routes · Estimated schedule";return
+        }
+
         if routeProvider != provider {clear();routeProvider=provider}
         reset(mapSceneKey(day)); guard !busy, route == nil else { return }
         guard provider == .osm || provider == .apple else {message="请从交通路线规划选择对应的路线服务。";return}
@@ -141,16 +177,60 @@ struct OverviewRoute {
 }
 
 /// Pins stay numbered without opening a callout. Start and return share one badge on loop trips.
+struct MapLandmarkPhoto:Decodable {
+    let asset:String;let aliases:[String];let lat:Double;let lng:Double;let radius:Double
+    let title:String;let artist:String;let license:String;let sourceURL:String;let licenseURL:String
+    static let all:[Self] = {
+        guard let url=Bundle.main.url(forResource:"manifest",withExtension:"json",subdirectory:"map-thumbnails"),let data=try? Data(contentsOf:url) else{return []}
+        return (try? JSONDecoder().decode([Self].self,from:data)) ?? []
+    }()
+    private static let images=NSCache<NSString,UIImage>()
+    var image:UIImage? {
+        if let hit=Self.images.object(forKey:asset as NSString){return hit}
+        guard let path=Bundle.main.path(forResource:asset,ofType:nil,inDirectory:"map-thumbnails"),let image=UIImage(contentsOfFile:path) else{return nil}
+        Self.images.setObject(image,forKey:asset as NSString);return image
+    }
+    static func matching(_ stop:Stop)->Self? {
+        all.first{photo in photo.aliases.contains{stop.name.localizedCaseInsensitiveContains($0)} && CLLocation(latitude:photo.lat,longitude:photo.lng).distance(from:CLLocation(latitude:stop.lat,longitude:stop.lng))<photo.radius}
+    }
+}
+func itineraryBadge(_ pin:ItineraryPin)->UIImage {
+    guard !pin.direction,let image=pin.photo?.image else{
+        guard let symbol=pin.symbol else{return overviewBadge(pin.badge,direction:pin.direction)}
+        return UIGraphicsImageRenderer(size:CGSize(width:30,height:35)).image{_ in
+            UIColor.white.setFill();UIBezierPath(roundedRect:CGRect(x:1,y:1,width:28,height:28),cornerRadius:9).fill()
+            UIImage(systemName:symbol)?.withTintColor(UIColor(Palette.primary),renderingMode:.alwaysOriginal).draw(in:CGRect(x:7,y:7,width:16,height:16))
+            let text=pin.badge as NSString;let a:[NSAttributedString.Key:Any]=[.font:UIFont.boldSystemFont(ofSize:8),.foregroundColor:UIColor(Palette.primary)]
+            text.draw(at:CGPoint(x:16,y:25),withAttributes:a)
+        }
+    }
+    return UIGraphicsImageRenderer(size:CGSize(width:34,height:40)).image{renderer in
+        let context=renderer.cgContext,card=CGRect(x:1,y:1,width:32,height:32),photo=card.insetBy(dx:2,dy:2)
+        context.setShadow(offset:CGSize(width:0,height:2),blur:3,color:UIColor.black.withAlphaComponent(0.18).cgColor)
+        UIColor.white.setFill();UIBezierPath(roundedRect:card,cornerRadius:9).fill();context.setShadow(offset:.zero,blur:0)
+        context.saveGState();UIBezierPath(roundedRect:photo,cornerRadius:7).addClip()
+        let scale=max(photo.width/image.size.width,photo.height/image.size.height),size=CGSize(width:image.size.width*scale,height:image.size.height*scale)
+        image.draw(in:CGRect(x:photo.midX-size.width/2,y:photo.midY-size.height/2,width:size.width,height:size.height));context.restoreGState()
+        let badge=CGRect(x:18,y:25,width:16,height:14)
+        UIColor.white.setStroke();UIColor(Palette.primary).setFill();let pill=UIBezierPath(roundedRect:badge,cornerRadius:7);pill.lineWidth=2;pill.fill();pill.stroke()
+        let attributes:[NSAttributedString.Key:Any]=[.font:UIFont.boldSystemFont(ofSize:8),.foregroundColor:UIColor.white]
+        let text=pin.badge as NSString,sizeText=text.size(withAttributes:attributes)
+        text.draw(at:CGPoint(x:badge.midX-sizeText.width/2,y:badge.midY-sizeText.height/2),withAttributes:attributes)
+    }
+}
+
 final class ItineraryPin: MKPointAnnotation {
     let badge: String
     let direction: Bool
-    init(_ coordinate: CLLocationCoordinate2D, badge: String, title: String, detail: String? = nil, direction: Bool = false) {
-        self.badge = badge; self.direction = direction
-        super.init(); self.coordinate = coordinate; self.title = title; self.subtitle = detail
+    let photo:MapLandmarkPhoto?
+    let symbol:String?
+    init(_ coordinate: CLLocationCoordinate2D, badge: String, title: String, detail: String? = nil, direction: Bool = false,photo:MapLandmarkPhoto?=nil,symbol:String?=nil) {
+        self.badge = badge; self.direction = direction;self.photo=photo;self.symbol=symbol
+        super.init(); self.coordinate = coordinate; self.title = title; self.subtitle = [detail,photo.map{"Photo: \($0.artist) · \($0.license)"}].compactMap{$0}.joined(separator:"\n")
     }
 }
 func overviewBadge(_ text: String, direction: Bool = false) -> UIImage {
-    let size = CGSize(width: direction ? 24 : text == "●" ? 24 : 42, height: direction ? 24 : text == "●" ? 24 : 42)
+    let size = CGSize(width: direction ? 18 : text == "●" ? 12 : 28, height: direction ? 18 : text == "●" ? 12 : 28)
     return UIGraphicsImageRenderer(size:size).image {_ in
         let rect=CGRect(origin:.zero,size:size).insetBy(dx:3,dy:3)
         let start=text.contains("起"),end=text == "终"
@@ -161,8 +241,8 @@ func overviewBadge(_ text: String, direction: Bool = false) -> UIImage {
         UIColor.white.setFill();UIBezierPath(ovalIn:CGRect(origin:.zero,size:size)).fill()
         (start ? UIColor.systemBlue : direction ? UIColor(Palette.green) : UIColor.white).setFill()
         let circle=UIBezierPath(ovalIn:rect);circle.fill()
-        if !start && !direction {UIColor.darkGray.setStroke();circle.lineWidth=2;circle.stroke()}
-        let attrs:[NSAttributedString.Key:Any]=[.font:UIFont.boldSystemFont(ofSize:direction ? 16 : text.count>2 ? 10 : 15),.foregroundColor:start || direction ? UIColor.white : UIColor.darkGray]
+        if !start && !direction {UIColor.darkGray.setStroke();circle.lineWidth=1.2;circle.stroke()}
+        let attrs:[NSAttributedString.Key:Any]=[.font:UIFont.boldSystemFont(ofSize:direction ? 12 : text.count>2 ? 8 : 11),.foregroundColor:start || direction ? UIColor.white : UIColor.darkGray]
         let label=text == "●" ? "" : uiText(text)
         let measured=(label as NSString).size(withAttributes:attrs)
         (label as NSString).draw(at:CGPoint(x:(size.width-measured.width)/2,y:(size.height-measured.height)/2),withAttributes:attrs)
@@ -170,15 +250,17 @@ func overviewBadge(_ text: String, direction: Bool = false) -> UIImage {
 }
 func overviewPins(_ day: DayPlan) -> [ItineraryPin] {
     let loop = CLLocation(latitude: day.start.lat, longitude: day.start.lng).distance(from: CLLocation(latitude: day.end.lat, longitude: day.end.lng)) < 3
-    var pins = [ItineraryPin(day.start.location, badge: loop ? "起/终" : "起", title: uiText(day.start.name) + uiText(loop ? " · 起点 / 返回点" : " · 起点"))]
+    func at(_ a:Coordinate,_ stop:Stop)->Bool {CLLocation(latitude:a.lat,longitude:a.lng).distance(from:CLLocation(latitude:stop.lat,longitude:stop.lng))<3}
+    let startHasStop=day.stops.contains{at(day.start,$0)},endHasStop=day.stops.contains{at(day.end,$0)}
+    var pins:[ItineraryPin] = startHasStop ? []:[ItineraryPin(day.start.location, badge: loop ? "起/终" : "起", title: uiText(day.start.name) + uiText(loop ? " · 起点 / 返回点" : " · 起点"))]
     var consumed=Set<Int>()
     for (i,stop) in day.stops.enumerated() where !consumed.contains(i) {
         let origin=CLLocation(latitude:stop.lat,longitude:stop.lng)
         let group=day.stops.indices.filter {j in !consumed.contains(j) && origin.distance(from:CLLocation(latitude:day.stops[j].lat,longitude:day.stops[j].lng)) < 20}
         consumed.formUnion(group)
-        pins.append(ItineraryPin(stop.coordinate,badge:group.map{String($0+1)}.joined(separator:"/"),title:group.map{"\($0+1). \(uiText(day.stops[$0].name))"}.joined(separator:" → "),detail:group.map{"\(day.stops[$0].arrival)–\(day.stops[$0].departure)"}.joined(separator:" · ")))
+        pins.append(ItineraryPin(stop.coordinate,badge:group.map{String($0+1)}.joined(separator:"/"),title:group.map{"\($0+1). \(uiText(day.stops[$0].name))"}.joined(separator:" → ")+(at(day.start,stop) ? uiText(" · 起点"):"")+(at(day.end,stop) ? uiText(" · 返回点"):""),detail:group.map{"\(day.stops[$0].arrival)–\(day.stops[$0].departure)"}.joined(separator:" · "),photo:MapLandmarkPhoto.matching(stop),symbol:stop.category=="住宿" ? "bed.double.fill":stop.symbol))
     }
-    if !loop { pins.append(ItineraryPin(day.end.location, badge: "终", title: uiText(day.end.name) + uiText(" · 返回点"))) }
+    if !loop && !endHasStop { pins.append(ItineraryPin(day.end.location, badge: "终", title: uiText(day.end.name) + uiText(" · 返回点"))) }
     return pins
 }
 func overviewDirections(_ coordinates: [CLLocationCoordinate2D]) -> [ItineraryPin] {

@@ -86,6 +86,17 @@ confirmedPreferences 是当前有效的已确认记忆，pendingPreferences 只�
                 break;
             }
         }
+        // Recover an explicitly stated English walking limit when a model acknowledges it
+        // but omits the candidate. Never infer a number from an activity choice or a range.
+        if(PersonalProfileAgent.Enabled(session) && session.CurrentChoice is null &&
+           Regex.IsMatch(message,@"\b(usual|usually|regular|normally|daily|every day)\b",RegexOptions.IgnoreCase) &&
+           !Regex.IsMatch(message,@"\b(if|unless|between|about|around)\b|\d\s*[-–]\s*\d",RegexOptions.IgnoreCase)) {
+            var match=Regex.Match(message,@"(?<![\d,])([1-9][\d,]{2,6})\s*steps\b",RegexOptions.IgnoreCase);
+            if(match.Success && int.TryParse(match.Groups[1].Value.Replace(",",""),out var count) && count is >=500 and <=60000) {
+                foreach(var old in candidates.OfType<JsonObject>().Where(x=>x.Str("key")=="daily_steps").ToArray())candidates.Remove(old);
+                candidates.Add(new JsonObject{["key"]="daily_steps",["value"]=count.ToString(),["condition"]="",["scope"]="long_term",["evidence"]=message,["confidence"]=1.0});
+            }
+        }
         foreach(var item in candidates.OfType<JsonObject>().Take(12))
         {
             var key=item.Str("key");var value=item.Str("value").Trim();var evidence=item.Str("evidence").Trim();

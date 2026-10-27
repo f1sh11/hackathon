@@ -24,7 +24,7 @@ public sealed class FeasibilityReasoner(HttpClient http,SecretStore secrets,Plan
         using var timeout=CancellationTokenSource.CreateLinkedTokenSource(ct);timeout.CancelAfter(TimeSpan.FromSeconds(45));
         try {
             journal?.Record("FeasibilityAgent","model","model_request","running",new(){["provider"]=provider.Provider,["model"]=provider.Model});
-            using var response=await http.SendAsync(request,timeout.Token);
+            using var response=await SendWithRetryAsync(request,timeout.Token);
             if(!response.IsSuccessStatusCode){journal?.Record("FeasibilityAgent","model","model_response","failed",new(){["http_status"]=(int)response.StatusCode});throw new ServiceException("Feasibility model is unavailable.");}
             var data=JsonNode.Parse(await response.Content.ReadAsStringAsync(timeout.Token))?.AsObject();
             var choice=data?.Array("choices")?.FirstOrDefault();
@@ -38,6 +38,18 @@ public sealed class FeasibilityReasoner(HttpClient http,SecretStore secrets,Plan
         }catch(OperationCanceledException)when(!ct.IsCancellationRequested){throw new ServiceException("Feasibility model timed out.");}
         catch(Exception error)when(error is HttpRequestException or System.Text.Json.JsonException){throw new ServiceException("Feasibility model returned invalid data.");}
     }
+    private async Task<HttpResponseMessage> SendWithRetryAsync(HttpRequestMessage request,CancellationToken ct) {
+        var response=await http.SendAsync(request,ct);
+        if((int)response.StatusCode is not (408 or 429 or 502 or 503 or 504))return response;
+        journal?.Record("FeasibilityAgent","model","model_retry","retrying",new(){["http_status"]=(int)response.StatusCode},attempt:1);
+        response.Dispose();
+        await Task.Delay(TimeSpan.FromSeconds(1),ct);
+        using var retry=new HttpRequestMessage(request.Method,request.RequestUri);
+        foreach(var header in request.Headers)retry.Headers.TryAddWithoutValidation(header.Key,header.Value);
+        if(request.Content is not null){retry.Content=new StringContent(await request.Content.ReadAsStringAsync(ct));retry.Content.Headers.Clear();foreach(var header in request.Content.Headers)retry.Content.Headers.TryAddWithoutValidation(header.Key,header.Value);}
+        return await http.SendAsync(retry,ct);
+    }
+
 }
 
 public sealed class FeasibilityAgent(IFeasibilityReasoner reasoner,IFeasibilityTools tools,FeasibilityReviewStore store,PlanningRunJournal journal)

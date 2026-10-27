@@ -1,0 +1,729 @@
+{
+  "url": "https://routing.openstreetmap.de/routed-foot/route/v1/driving/151.276279,-33.891124;151.274241,-33.895198?overview=full&geometries=geojson&steps=true",
+  "request": null,
+  "fetchedAt": "2026-10-27T07:55:35.528220+00:00",
+  "response": {
+    "code": "Ok",
+    "routes": [
+      {
+        "legs": [
+          {
+            "steps": [
+              {
+                "intersections": [
+                  {
+                    "out": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      328
+                    ],
+                    "location": [
+                      151.276279,
+                      -33.891124
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.276279,
+                      -33.891124
+                    ],
+                    [
+                      151.276264,
+                      -33.891104
+                    ],
+                    [
+                      151.276185,
+                      -33.891146
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 328,
+                  "bearing_before": 0,
+                  "location": [
+                    151.276279,
+                    -33.891124
+                  ],
+                  "type": "depart"
+                },
+                "name": "",
+                "mode": "walking",
+                "weight": 0.94,
+                "duration": 9,
+                "distance": 11.3
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 2,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      60,
+                      240,
+                      330
+                    ],
+                    "location": [
+                      151.276185,
+                      -33.891146
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.276185,
+                      -33.891146
+                    ],
+                    [
+                      151.276163,
+                      -33.891115
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 329,
+                  "bearing_before": 244,
+                  "location": [
+                    151.276185,
+                    -33.891146
+                  ],
+                  "modifier": "right",
+                  "type": "turn"
+                },
+                "name": "",
+                "mode": "walking",
+                "weight": 0.33,
+                "duration": 3.2,
+                "distance": 4
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 2,
+                    "in": 1,
+                    "entry": [
+                      true,
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      60,
+                      150,
+                      240,
+                      300
+                    ],
+                    "location": [
+                      151.276163,
+                      -33.891115
+                    ]
+                  },
+                  {
+                    "out": 1,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      45,
+                      225,
+                      315
+                    ],
+                    "location": [
+                      151.274872,
+                      -33.891914
+                    ]
+                  },
+                  {
+                    "out": 2,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      45,
+                      135,
+                      225
+                    ],
+                    "location": [
+                      151.274852,
+                      -33.891927
+                    ]
+                  },
+                  {
+                    "out": 1,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      45,
+                      225,
+                      300
+                    ],
+                    "location": [
+                      151.274808,
+                      -33.891958
+                    ]
+                  },
+                  {
+                    "out": 1,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      45,
+                      225,
+                      330
+                    ],
+                    "location": [
+                      151.274594,
+                      -33.892164
+                    ]
+                  },
+                  {
+                    "out": 1,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      30,
+                      210,
+                      315
+                    ],
+                    "location": [
+                      151.274079,
+                      -33.892719
+                    ]
+                  },
+                  {
+                    "out": 2,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      15,
+                      135,
+                      210
+                    ],
+                    "location": [
+                      151.27373,
+                      -33.893461
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.276163,
+                      -33.891115
+                    ],
+                    [
+                      151.275789,
+                      -33.891301
+                    ],
+                    [
+                      151.275455,
+                      -33.891514
+                    ],
+                    [
+                      151.27514,
+                      -33.891722
+                    ],
+                    [
+                      151.274872,
+                      -33.891914
+                    ],
+                    [
+                      151.274852,
+                      -33.891927
+                    ],
+                    [
+                      151.274808,
+                      -33.891958
+                    ],
+                    [
+                      151.274594,
+                      -33.892164
+                    ],
+                    [
+                      151.274293,
+                      -33.892476
+                    ],
+                    [
+                      151.274079,
+                      -33.892719
+                    ],
+                    [
+                      151.274051,
+                      -33.89275
+                    ],
+                    [
+                      151.273869,
+                      -33.89307
+                    ],
+                    [
+                      151.273756,
+                      -33.893324
+                    ],
+                    [
+                      151.27373,
+                      -33.893461
+                    ],
+                    [
+                      151.273701,
+                      -33.893509
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 239,
+                  "bearing_before": 329,
+                  "location": [
+                    151.276163,
+                    -33.891115
+                  ],
+                  "modifier": "left",
+                  "type": "turn"
+                },
+                "name": "Eastern Beaches Coastal Walk",
+                "mode": "walking",
+                "weight": 30.02,
+                "duration": 287.7,
+                "distance": 359.8
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 1,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      30,
+                      180,
+                      210
+                    ],
+                    "location": [
+                      151.273701,
+                      -33.893509
+                    ]
+                  },
+                  {
+                    "out": 1,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      0,
+                      180,
+                      315
+                    ],
+                    "location": [
+                      151.273719,
+                      -33.894164
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.273701,
+                      -33.893509
+                    ],
+                    [
+                      151.273682,
+                      -33.893692
+                    ],
+                    [
+                      151.273686,
+                      -33.89383
+                    ],
+                    [
+                      151.273703,
+                      -33.893959
+                    ],
+                    [
+                      151.273735,
+                      -33.894086
+                    ],
+                    [
+                      151.273726,
+                      -33.894114
+                    ],
+                    [
+                      151.273719,
+                      -33.894164
+                    ],
+                    [
+                      151.273751,
+                      -33.894187
+                    ],
+                    [
+                      151.273718,
+                      -33.894223
+                    ],
+                    [
+                      151.27377,
+                      -33.894258
+                    ],
+                    [
+                      151.273762,
+                      -33.894265
+                    ],
+                    [
+                      151.273733,
+                      -33.894294
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 184,
+                  "bearing_before": 206,
+                  "location": [
+                    151.273701,
+                    -33.893509
+                  ],
+                  "modifier": "slight left",
+                  "type": "continue"
+                },
+                "name": "Eastern Beaches Coastal Walk",
+                "mode": "walking",
+                "weight": 7.88,
+                "duration": 74.9,
+                "distance": 93.7
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 1,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      45,
+                      135,
+                      300
+                    ],
+                    "location": [
+                      151.273733,
+                      -33.894294
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.273733,
+                      -33.894294
+                    ],
+                    [
+                      151.273852,
+                      -33.894381
+                    ],
+                    [
+                      151.274015,
+                      -33.894534
+                    ],
+                    [
+                      151.274048,
+                      -33.894594
+                    ],
+                    [
+                      151.274167,
+                      -33.894998
+                    ],
+                    [
+                      151.2742,
+                      -33.895106
+                    ],
+                    [
+                      151.274241,
+                      -33.895198
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 130,
+                  "bearing_before": 219,
+                  "location": [
+                    151.273733,
+                    -33.894294
+                  ],
+                  "modifier": "left",
+                  "type": "end of road"
+                },
+                "name": "Notts Avenue",
+                "mode": "walking",
+                "weight": 10.36,
+                "duration": 91.2,
+                "distance": 114.1
+              },
+              {
+                "intersections": [
+                  {
+                    "in": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      340
+                    ],
+                    "location": [
+                      151.274241,
+                      -33.895198
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.274241,
+                      -33.895198
+                    ],
+                    [
+                      151.274241,
+                      -33.895198
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 0,
+                  "bearing_before": 160,
+                  "location": [
+                    151.274241,
+                    -33.895198
+                  ],
+                  "type": "arrive"
+                },
+                "name": "Notts Avenue",
+                "mode": "walking",
+                "weight": 0,
+                "duration": 0,
+                "distance": 0
+              }
+            ],
+            "weight": 49.53,
+            "summary": "Eastern Beaches Coastal Walk, Notts Avenue",
+            "duration": 466,
+            "distance": 582.8
+          }
+        ],
+        "weight_name": "routability",
+        "geometry": {
+          "coordinates": [
+            [
+              151.276279,
+              -33.891124
+            ],
+            [
+              151.276264,
+              -33.891104
+            ],
+            [
+              151.276185,
+              -33.891146
+            ],
+            [
+              151.276163,
+              -33.891115
+            ],
+            [
+              151.275789,
+              -33.891301
+            ],
+            [
+              151.275455,
+              -33.891514
+            ],
+            [
+              151.27514,
+              -33.891722
+            ],
+            [
+              151.274872,
+              -33.891914
+            ],
+            [
+              151.274852,
+              -33.891927
+            ],
+            [
+              151.274808,
+              -33.891958
+            ],
+            [
+              151.274594,
+              -33.892164
+            ],
+            [
+              151.274293,
+              -33.892476
+            ],
+            [
+              151.274079,
+              -33.892719
+            ],
+            [
+              151.274051,
+              -33.89275
+            ],
+            [
+              151.273869,
+              -33.89307
+            ],
+            [
+              151.273756,
+              -33.893324
+            ],
+            [
+              151.27373,
+              -33.893461
+            ],
+            [
+              151.273701,
+              -33.893509
+            ],
+            [
+              151.273682,
+              -33.893692
+            ],
+            [
+              151.273686,
+              -33.89383
+            ],
+            [
+              151.273703,
+              -33.893959
+            ],
+            [
+              151.273735,
+              -33.894086
+            ],
+            [
+              151.273726,
+              -33.894114
+            ],
+            [
+              151.273719,
+              -33.894164
+            ],
+            [
+              151.273751,
+              -33.894187
+            ],
+            [
+              151.273718,
+              -33.894223
+            ],
+            [
+              151.27377,
+              -33.894258
+            ],
+            [
+              151.273762,
+              -33.894265
+            ],
+            [
+              151.273733,
+              -33.894294
+            ],
+            [
+              151.273852,
+              -33.894381
+            ],
+            [
+              151.274015,
+              -33.894534
+            ],
+            [
+              151.274048,
+              -33.894594
+            ],
+            [
+              151.274167,
+              -33.894998
+            ],
+            [
+              151.2742,
+              -33.895106
+            ],
+            [
+              151.274241,
+              -33.895198
+            ]
+          ],
+          "type": "LineString"
+        },
+        "weight": 49.53,
+        "duration": 466,
+        "distance": 582.8
+      }
+    ],
+    "waypoints": [
+      {
+        "hint": "hFiegToPTowWAAAAAAAAAEgAAAAAAAAAkHgnQAAAAAARrgpBAAAAABUAAAAAAAAARQAAAAAAAAAEAAAA90oECczc-v33SgQJzNz6_QIAPwkAAAAA",
+        "location": [
+          151.276279,
+          -33.891124
+        ],
+        "name": "",
+        "distance": 0
+      },
+      {
+        "hint": "c1iegYZYnoFjAAAAJgAAAKkDAABdAQAAqTAuQZv0hEBQWM5CDYoZQlYAAAAiAAAAOgMAADMBAAAEAAAAAUMECeLM-v0BQwQJ4sz6_QoA_wkAAAAA",
+        "location": [
+          151.274241,
+          -33.895198
+        ],
+        "name": "Notts Avenue",
+        "distance": 0
+      }
+    ]
+  }
+}

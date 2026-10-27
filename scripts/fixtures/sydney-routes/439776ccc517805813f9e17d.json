@@ -1,0 +1,204 @@
+{
+  "url": "https://routing.openstreetmap.de/routed-foot/route/v1/driving/151.284697,-33.800707;151.284619,-33.800737?overview=full&geometries=geojson&steps=true",
+  "request": null,
+  "fetchedAt": "2026-10-27T08:00:35.822172+00:00",
+  "response": {
+    "code": "Ok",
+    "routes": [
+      {
+        "legs": [
+          {
+            "steps": [
+              {
+                "intersections": [
+                  {
+                    "out": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      157
+                    ],
+                    "location": [
+                      151.284691,
+                      -33.800709
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.284691,
+                      -33.800709
+                    ],
+                    [
+                      151.284696,
+                      -33.800719
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 157,
+                  "bearing_before": 0,
+                  "location": [
+                    151.284691,
+                    -33.800709
+                  ],
+                  "type": "depart"
+                },
+                "name": "",
+                "mode": "walking",
+                "weight": 0.1,
+                "duration": 1,
+                "distance": 1.2
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 2,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      0,
+                      75,
+                      270
+                    ],
+                    "location": [
+                      151.284696,
+                      -33.800719
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.284696,
+                      -33.800719
+                    ],
+                    [
+                      151.284619,
+                      -33.800737
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 272,
+                  "bearing_before": 175,
+                  "location": [
+                    151.284696,
+                    -33.800719
+                  ],
+                  "modifier": "right",
+                  "type": "turn"
+                },
+                "name": "",
+                "mode": "walking",
+                "weight": 0.74,
+                "duration": 5.9,
+                "distance": 7.4
+              },
+              {
+                "intersections": [
+                  {
+                    "in": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      74
+                    ],
+                    "location": [
+                      151.284619,
+                      -33.800737
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.284619,
+                      -33.800737
+                    ],
+                    [
+                      151.284619,
+                      -33.800737
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 0,
+                  "bearing_before": 254,
+                  "location": [
+                    151.284619,
+                    -33.800737
+                  ],
+                  "type": "arrive"
+                },
+                "name": "",
+                "mode": "walking",
+                "weight": 0,
+                "duration": 0,
+                "distance": 0
+              }
+            ],
+            "weight": 0.84,
+            "summary": "",
+            "duration": 6.9,
+            "distance": 8.6
+          }
+        ],
+        "weight_name": "routability",
+        "geometry": {
+          "coordinates": [
+            [
+              151.284691,
+              -33.800709
+            ],
+            [
+              151.284696,
+              -33.800719
+            ],
+            [
+              151.284619,
+              -33.800737
+            ]
+          ],
+          "type": "LineString"
+        },
+        "weight": 0.84,
+        "duration": 6.9,
+        "distance": 8.6
+      }
+    ],
+    "waypoints": [
+      {
+        "hint": "DhnTgxEZ04MgAAAACgAAAHsBAAAAAAAAkQRyQL_XmT8I-zRCAAAAAB4AAAAKAAAAagEAAAAAAAAEAAAA02sECfs9_P3ZawQJ_T38_QgAvwkAAAAA",
+        "location": [
+          151.284691,
+          -33.800709
+        ],
+        "name": "",
+        "distance": 0.5981045364
+      },
+      {
+        "hint": "EBnTgy5toYtKAAAAAAAAAAAAAACVAgAAYuHsQAAAAAAAAAAAdBOEQjsAAAAAAAAAAAAAAA8CAAAEAAAAi2sECd89_P2LawQJ3z38_QAA7w8AAAAA",
+        "location": [
+          151.284619,
+          -33.800737
+        ],
+        "name": "",
+        "distance": 0
+      }
+    ]
+  }
+}

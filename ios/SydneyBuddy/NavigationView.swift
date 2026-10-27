@@ -504,12 +504,12 @@ struct UnifiedWalkingControls:View {
             if navigator.simulation{Text(uiText("模拟位置 · 快速演示 · 不记录实际行程进度")).font(.caption).foregroundStyle(.orange)}
             HStack {
                 if navigator.active {
-                    Button(uiText("我已到达")){navigator.arrived()}.buttonStyle(.borderedProminent)
+                    Button(uiText("我已到达")){navigator.arrived()}.buttonStyle(KokoPrimaryStyle())
                     Button(uiText("暂停导航")){navigator.pause()}
                 }else if navigator.progress.arrived && !navigator.progress.finished {
-                    Button(uiText(navigator.progress.leg+1==navigator.count ? "完成今天行程":"前往下一站")){navigator.next()}.buttonStyle(.borderedProminent)
+                    Button(uiText(navigator.progress.leg+1==navigator.count ? "完成今天行程":"前往下一站")){navigator.next()}.buttonStyle(KokoPrimaryStyle())
                 }else if !navigator.progress.finished {
-                    Button(uiText(navigator.simulation ? "开始模拟导航":navigator.message != nil ? "Try location again":"Navigate from my location")){navigator.start()}.buttonStyle(.borderedProminent)
+                    Button(uiText(navigator.simulation ? "开始模拟导航":navigator.message != nil ? "Try location again":"Navigate from my location")){navigator.start()}.buttonStyle(KokoPrimaryStyle())
                 }
                 Spacer()
                 Menu {

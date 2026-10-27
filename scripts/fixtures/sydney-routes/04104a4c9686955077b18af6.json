@@ -1,0 +1,4892 @@
+{
+  "url": "https://routing.openstreetmap.de/routed-bike/route/v1/driving/151.235024,-33.904247;151.232000,-33.901500;151.231700,-33.897400;151.234400,-33.895100;151.239300,-33.895500;151.242500,-33.898600;151.242000,-33.903000;151.239400,-33.906100;151.235024,-33.904247?overview=full&geometries=geojson&steps=true",
+  "request": null,
+  "fetchedAt": "2026-10-27T07:55:13.878162+00:00",
+  "response": {
+    "code": "Ok",
+    "routes": [
+      {
+        "legs": [
+          {
+            "steps": [
+              {
+                "intersections": [
+                  {
+                    "out": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      67
+                    ],
+                    "location": [
+                      151.235024,
+                      -33.904247
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.235024,
+                      -33.904247
+                    ],
+                    [
+                      151.23519,
+                      -33.904189
+                    ],
+                    [
+                      151.235505,
+                      -33.904044
+                    ],
+                    [
+                      151.235623,
+                      -33.903976
+                    ],
+                    [
+                      151.235716,
+                      -33.903911
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 67,
+                  "bearing_before": 0,
+                  "location": [
+                    151.235024,
+                    -33.904247
+                  ],
+                  "type": "depart"
+                },
+                "name": "",
+                "mode": "cycling",
+                "weight": 51,
+                "duration": 51,
+                "distance": 74.4
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 2,
+                    "in": 1,
+                    "entry": [
+                      true,
+                      false,
+                      true
+                    ],
+                    "bearings": [
+                      150,
+                      225,
+                      330
+                    ],
+                    "location": [
+                      151.235716,
+                      -33.903911
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.235716,
+                      -33.903911
+                    ],
+                    [
+                      151.23487,
+                      -33.902557
+                    ],
+                    [
+                      151.234464,
+                      -33.901881
+                    ],
+                    [
+                      151.234017,
+                      -33.901135
+                    ],
+                    [
+                      151.233945,
+                      -33.900994
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 331,
+                  "bearing_before": 49,
+                  "location": [
+                    151.235716,
+                    -33.903911
+                  ],
+                  "modifier": "left",
+                  "type": "turn"
+                },
+                "name": "Parkes Drive",
+                "mode": "pushing bike",
+                "weight": 326.4,
+                "duration": 326.4,
+                "distance": 362.7
+              },
+              {
+                "intersections": [
+                  {
+                    "in": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      157
+                    ],
+                    "location": [
+                      151.233945,
+                      -33.900994
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.233945,
+                      -33.900994
+                    ],
+                    [
+                      151.233945,
+                      -33.900994
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 0,
+                  "bearing_before": 337,
+                  "location": [
+                    151.233945,
+                    -33.900994
+                  ],
+                  "modifier": "left",
+                  "type": "arrive"
+                },
+                "name": "Parkes Drive",
+                "mode": "pushing bike",
+                "weight": 0,
+                "duration": 0,
+                "distance": 0
+              }
+            ],
+            "weight": 377.4,
+            "summary": "Parkes Drive",
+            "duration": 377.4,
+            "distance": 437.1
+          },
+          {
+            "steps": [
+              {
+                "intersections": [
+                  {
+                    "out": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      344
+                    ],
+                    "location": [
+                      151.233945,
+                      -33.900994
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.233945,
+                      -33.900994
+                    ],
+                    [
+                      151.23391,
+                      -33.900895
+                    ],
+                    [
+                      151.233896,
+                      -33.900842
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 344,
+                  "bearing_before": 0,
+                  "location": [
+                    151.233945,
+                    -33.900994
+                  ],
+                  "modifier": "left",
+                  "type": "depart"
+                },
+                "name": "Parkes Drive",
+                "mode": "pushing bike",
+                "weight": 20.4,
+                "duration": 20.4,
+                "distance": 17.5
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 0,
+                    "in": 1,
+                    "entry": [
+                      true,
+                      false,
+                      true
+                    ],
+                    "bearings": [
+                      90,
+                      165,
+                      345
+                    ],
+                    "location": [
+                      151.233896,
+                      -33.900842
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.233896,
+                      -33.900842
+                    ],
+                    [
+                      151.233977,
+                      -33.900834
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 82,
+                  "bearing_before": 347,
+                  "location": [
+                    151.233896,
+                    -33.900842
+                  ],
+                  "modifier": "right",
+                  "type": "turn"
+                },
+                "name": "",
+                "mode": "cycling",
+                "weight": 13.2,
+                "duration": 13.2,
+                "distance": 7.5
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 3,
+                    "in": 2,
+                    "entry": [
+                      true,
+                      true,
+                      false,
+                      true
+                    ],
+                    "bearings": [
+                      90,
+                      165,
+                      270,
+                      345
+                    ],
+                    "location": [
+                      151.233977,
+                      -33.900834
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.233977,
+                      -33.900834
+                    ],
+                    [
+                      151.23383,
+                      -33.900014
+                    ],
+                    [
+                      151.233801,
+                      -33.899897
+                    ],
+                    [
+                      151.233721,
+                      -33.899641
+                    ],
+                    [
+                      151.233626,
+                      -33.899412
+                    ],
+                    [
+                      151.233122,
+                      -33.898338
+                    ],
+                    [
+                      151.233087,
+                      -33.898256
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 351,
+                  "bearing_before": 82,
+                  "location": [
+                    151.233977,
+                    -33.900834
+                  ],
+                  "modifier": "left",
+                  "type": "turn"
+                },
+                "name": "",
+                "mode": "cycling",
+                "weight": 180.2,
+                "duration": 180.2,
+                "distance": 299
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 2,
+                    "in": 1,
+                    "entry": [
+                      true,
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      135,
+                      165,
+                      315,
+                      345
+                    ],
+                    "location": [
+                      151.233087,
+                      -33.898256
+                    ]
+                  },
+                  {
+                    "out": 2,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      135,
+                      165,
+                      315,
+                      345
+                    ],
+                    "location": [
+                      151.232941,
+                      -33.898138
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.233087,
+                      -33.898256
+                    ],
+                    [
+                      151.232941,
+                      -33.898138
+                    ],
+                    [
+                      151.232777,
+                      -33.897978
+                    ],
+                    [
+                      151.232555,
+                      -33.89776
+                    ],
+                    [
+                      151.232187,
+                      -33.897443
+                    ],
+                    [
+                      151.231882,
+                      -33.897225
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 313,
+                  "bearing_before": 340,
+                  "location": [
+                    151.233087,
+                    -33.898256
+                  ],
+                  "modifier": "slight left",
+                  "type": "turn"
+                },
+                "name": "Dickens Drive",
+                "mode": "pushing bike",
+                "weight": 144.1,
+                "duration": 144.1,
+                "distance": 160
+              },
+              {
+                "intersections": [
+                  {
+                    "in": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      131
+                    ],
+                    "location": [
+                      151.231882,
+                      -33.897225
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.231882,
+                      -33.897225
+                    ],
+                    [
+                      151.231882,
+                      -33.897225
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 0,
+                  "bearing_before": 311,
+                  "location": [
+                    151.231882,
+                    -33.897225
+                  ],
+                  "modifier": "left",
+                  "type": "arrive"
+                },
+                "name": "Dickens Drive",
+                "mode": "pushing bike",
+                "weight": 0,
+                "duration": 0,
+                "distance": 0
+              }
+            ],
+            "weight": 357.9,
+            "summary": "Parkes Drive, Dickens Drive",
+            "duration": 357.9,
+            "distance": 484
+          },
+          {
+            "steps": [
+              {
+                "intersections": [
+                  {
+                    "out": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      310
+                    ],
+                    "location": [
+                      151.231882,
+                      -33.897225
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.231882,
+                      -33.897225
+                    ],
+                    [
+                      151.231844,
+                      -33.897198
+                    ],
+                    [
+                      151.231682,
+                      -33.897116
+                    ],
+                    [
+                      151.231569,
+                      -33.897064
+                    ],
+                    [
+                      151.23146,
+                      -33.897016
+                    ],
+                    [
+                      151.231337,
+                      -33.896969
+                    ],
+                    [
+                      151.231192,
+                      -33.89693
+                    ],
+                    [
+                      151.231146,
+                      -33.896919
+                    ],
+                    [
+                      151.230826,
+                      -33.896847
+                    ],
+                    [
+                      151.230713,
+                      -33.896818
+                    ],
+                    [
+                      151.230618,
+                      -33.896784
+                    ],
+                    [
+                      151.230554,
+                      -33.896753
+                    ],
+                    [
+                      151.230485,
+                      -33.896719
+                    ],
+                    [
+                      151.230413,
+                      -33.896679
+                    ],
+                    [
+                      151.230347,
+                      -33.896638
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 310,
+                  "bearing_before": 0,
+                  "location": [
+                    151.231882,
+                    -33.897225
+                  ],
+                  "modifier": "left",
+                  "type": "depart"
+                },
+                "name": "Dickens Drive",
+                "mode": "pushing bike",
+                "weight": 147.7,
+                "duration": 147.7,
+                "distance": 157.6
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 0,
+                    "in": 1,
+                    "entry": [
+                      true,
+                      false,
+                      true
+                    ],
+                    "bearings": [
+                      45,
+                      120,
+                      240
+                    ],
+                    "location": [
+                      151.230347,
+                      -33.896638
+                    ]
+                  },
+                  {
+                    "out": 1,
+                    "in": 2,
+                    "entry": [
+                      true,
+                      true,
+                      false
+                    ],
+                    "bearings": [
+                      0,
+                      45,
+                      210
+                    ],
+                    "location": [
+                      151.231831,
+                      -33.894937
+                    ]
+                  },
+                  {
+                    "out": 0,
+                    "in": 1,
+                    "entry": [
+                      true,
+                      false,
+                      true
+                    ],
+                    "bearings": [
+                      45,
+                      225,
+                      270
+                    ],
+                    "location": [
+                      151.232005,
+                      -33.894781
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.230347,
+                      -33.896638
+                    ],
+                    [
+                      151.230606,
+                      -33.896449
+                    ],
+                    [
+                      151.23079,
+                      -33.896219
+                    ],
+                    [
+                      151.231124,
+                      -33.895785
+                    ],
+                    [
+                      151.231473,
+                      -33.895336
+                    ],
+                    [
+                      151.231831,
+                      -33.894937
+                    ],
+                    [
+                      151.232005,
+                      -33.894781
+                    ],
+                    [
+                      151.232223,
+                      -33.894636
+                    ],
+                    [
+                      151.232463,
+                      -33.894495
+                    ],
+                    [
+                      151.232752,
+                      -33.894346
+                    ],
+                    [
+                      151.232898,
+                      -33.894293
+                    ],
+                    [
+                      151.23304,
+                      -33.89424
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 47,
+                  "bearing_before": 302,
+                  "location": [
+                    151.230347,
+                    -33.896638
+                  ],
+                  "modifier": "right",
+                  "type": "turn"
+                },
+                "name": "Grand Drive",
+                "mode": "cycling",
+                "weight": 96.8,
+                "duration": 96.8,
+                "distance": 371.5
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 2,
+                    "in": 3,
+                    "entry": [
+                      true,
+                      true,
+                      true,
+                      false
+                    ],
+                    "bearings": [
+                      30,
+                      75,
+                      180,
+                      240
+                    ],
+                    "location": [
+                      151.23304,
+                      -33.89424
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.23304,
+                      -33.89424
+                    ],
+                    [
+                      151.233025,
+                      -33.894343
+                    ],
+                    [
+                      151.233012,
+                      -33.894448
+                    ],
+                    [
+                      151.233002,
+                      -33.894512
+                    ],
+                    [
+                      151.232982,
+                      -33.894635
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 185,
+                  "bearing_before": 64,
+                  "location": [
+                    151.23304,
+                    -33.89424
+                  ],
+                  "modifier": "sharp right",
+                  "type": "turn"
+                },
+                "name": "Parkes Drive",
+                "mode": "cycling",
+                "weight": 16.9,
+                "duration": 16.9,
+                "distance": 44.1
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 1,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      15,
+                      105,
+                      195
+                    ],
+                    "location": [
+                      151.232982,
+                      -33.894635
+                    ]
+                  },
+                  {
+                    "out": 0,
+                    "in": 2,
+                    "entry": [
+                      true,
+                      true,
+                      false
+                    ],
+                    "bearings": [
+                      120,
+                      210,
+                      285
+                    ],
+                    "location": [
+                      151.233109,
+                      -33.894672
+                    ]
+                  },
+                  {
+                    "out": 0,
+                    "in": 2,
+                    "entry": [
+                      true,
+                      true,
+                      false
+                    ],
+                    "bearings": [
+                      120,
+                      210,
+                      300
+                    ],
+                    "location": [
+                      151.233245,
+                      -33.894755
+                    ]
+                  },
+                  {
+                    "out": 1,
+                    "in": 3,
+                    "entry": [
+                      true,
+                      true,
+                      true,
+                      false
+                    ],
+                    "bearings": [
+                      90,
+                      135,
+                      225,
+                      315
+                    ],
+                    "location": [
+                      151.233541,
+                      -33.894945
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.232982,
+                      -33.894635
+                    ],
+                    [
+                      151.233109,
+                      -33.894672
+                    ],
+                    [
+                      151.233245,
+                      -33.894755
+                    ],
+                    [
+                      151.233361,
+                      -33.894826
+                    ],
+                    [
+                      151.233541,
+                      -33.894945
+                    ],
+                    [
+                      151.233659,
+                      -33.895023
+                    ],
+                    [
+                      151.233699,
+                      -33.895051
+                    ],
+                    [
+                      151.233755,
+                      -33.895091
+                    ],
+                    [
+                      151.233876,
+                      -33.895197
+                    ],
+                    [
+                      151.233891,
+                      -33.89521
+                    ],
+                    [
+                      151.233924,
+                      -33.895254
+                    ],
+                    [
+                      151.233954,
+                      -33.895323
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 108,
+                  "bearing_before": 187,
+                  "location": [
+                    151.232982,
+                    -33.894635
+                  ],
+                  "modifier": "left",
+                  "type": "turn"
+                },
+                "name": "Banksia Way",
+                "mode": "cycling",
+                "weight": 32.4,
+                "duration": 32.4,
+                "distance": 120.3
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 0,
+                    "in": 2,
+                    "entry": [
+                      true,
+                      true,
+                      false
+                    ],
+                    "bearings": [
+                      105,
+                      165,
+                      345
+                    ],
+                    "location": [
+                      151.233954,
+                      -33.895323
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.233954,
+                      -33.895323
+                    ],
+                    [
+                      151.234006,
+                      -33.895338
+                    ],
+                    [
+                      151.234115,
+                      -33.895342
+                    ],
+                    [
+                      151.234221,
+                      -33.895357
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 99,
+                  "bearing_before": 157,
+                  "location": [
+                    151.233954,
+                    -33.895323
+                  ],
+                  "modifier": "left",
+                  "type": "turn"
+                },
+                "name": "",
+                "mode": "cycling",
+                "weight": 6,
+                "duration": 6,
+                "distance": 25.1
+              },
+              {
+                "intersections": [
+                  {
+                    "in": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      280
+                    ],
+                    "location": [
+                      151.234221,
+                      -33.895357
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.234221,
+                      -33.895357
+                    ],
+                    [
+                      151.234221,
+                      -33.895357
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 0,
+                  "bearing_before": 100,
+                  "location": [
+                    151.234221,
+                    -33.895357
+                  ],
+                  "modifier": "left",
+                  "type": "arrive"
+                },
+                "name": "",
+                "mode": "cycling",
+                "weight": 0,
+                "duration": 0,
+                "distance": 0
+              }
+            ],
+            "weight": 299.8,
+            "summary": "Dickens Drive, Grand Drive",
+            "duration": 299.8,
+            "distance": 718.7
+          },
+          {
+            "steps": [
+              {
+                "intersections": [
+                  {
+                    "out": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      280
+                    ],
+                    "location": [
+                      151.234221,
+                      -33.895357
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.234221,
+                      -33.895357
+                    ],
+                    [
+                      151.234115,
+                      -33.895342
+                    ],
+                    [
+                      151.234006,
+                      -33.895338
+                    ],
+                    [
+                      151.233954,
+                      -33.895323
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 280,
+                  "bearing_before": 0,
+                  "location": [
+                    151.234221,
+                    -33.895357
+                  ],
+                  "modifier": "right",
+                  "type": "depart"
+                },
+                "name": "",
+                "mode": "cycling",
+                "weight": 7.7,
+                "duration": 7.7,
+                "distance": 25.1
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 2,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      105,
+                      165,
+                      345
+                    ],
+                    "location": [
+                      151.233954,
+                      -33.895323
+                    ]
+                  },
+                  {
+                    "out": 3,
+                    "in": 1,
+                    "entry": [
+                      true,
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      90,
+                      135,
+                      225,
+                      315
+                    ],
+                    "location": [
+                      151.233541,
+                      -33.894945
+                    ]
+                  },
+                  {
+                    "out": 2,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      120,
+                      210,
+                      300
+                    ],
+                    "location": [
+                      151.233245,
+                      -33.894755
+                    ]
+                  },
+                  {
+                    "out": 2,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      120,
+                      210,
+                      285
+                    ],
+                    "location": [
+                      151.233109,
+                      -33.894672
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.233954,
+                      -33.895323
+                    ],
+                    [
+                      151.233924,
+                      -33.895254
+                    ],
+                    [
+                      151.233891,
+                      -33.89521
+                    ],
+                    [
+                      151.233876,
+                      -33.895197
+                    ],
+                    [
+                      151.233755,
+                      -33.895091
+                    ],
+                    [
+                      151.233699,
+                      -33.895051
+                    ],
+                    [
+                      151.233659,
+                      -33.895023
+                    ],
+                    [
+                      151.233541,
+                      -33.894945
+                    ],
+                    [
+                      151.233361,
+                      -33.894826
+                    ],
+                    [
+                      151.233245,
+                      -33.894755
+                    ],
+                    [
+                      151.233109,
+                      -33.894672
+                    ],
+                    [
+                      151.232982,
+                      -33.894635
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 337,
+                  "bearing_before": 279,
+                  "location": [
+                    151.233954,
+                    -33.895323
+                  ],
+                  "modifier": "right",
+                  "type": "turn"
+                },
+                "name": "Banksia Way",
+                "mode": "cycling",
+                "weight": 32.3,
+                "duration": 32.3,
+                "distance": 120.3
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 0,
+                    "in": 1,
+                    "entry": [
+                      true,
+                      false,
+                      true
+                    ],
+                    "bearings": [
+                      15,
+                      105,
+                      195
+                    ],
+                    "location": [
+                      151.232982,
+                      -33.894635
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.232982,
+                      -33.894635
+                    ],
+                    [
+                      151.233002,
+                      -33.894512
+                    ],
+                    [
+                      151.233012,
+                      -33.894448
+                    ],
+                    [
+                      151.233025,
+                      -33.894343
+                    ],
+                    [
+                      151.23304,
+                      -33.89424
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 7,
+                  "bearing_before": 288,
+                  "location": [
+                    151.232982,
+                    -33.894635
+                  ],
+                  "modifier": "right",
+                  "type": "end of road"
+                },
+                "name": "Parkes Drive",
+                "mode": "pushing bike",
+                "weight": 42,
+                "duration": 42,
+                "distance": 44.1
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 1,
+                    "in": 2,
+                    "entry": [
+                      true,
+                      true,
+                      false,
+                      true
+                    ],
+                    "bearings": [
+                      30,
+                      75,
+                      180,
+                      240
+                    ],
+                    "location": [
+                      151.23304,
+                      -33.89424
+                    ]
+                  },
+                  {
+                    "out": 0,
+                    "in": 1,
+                    "entry": [
+                      true,
+                      false,
+                      true
+                    ],
+                    "bearings": [
+                      105,
+                      270,
+                      330
+                    ],
+                    "location": [
+                      151.235009,
+                      -33.894059
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.23304,
+                      -33.89424
+                    ],
+                    [
+                      151.233532,
+                      -33.894116
+                    ],
+                    [
+                      151.233761,
+                      -33.894079
+                    ],
+                    [
+                      151.233996,
+                      -33.894057
+                    ],
+                    [
+                      151.234303,
+                      -33.894039
+                    ],
+                    [
+                      151.234652,
+                      -33.894042
+                    ],
+                    [
+                      151.235009,
+                      -33.894059
+                    ],
+                    [
+                      151.235285,
+                      -33.894095
+                    ],
+                    [
+                      151.235584,
+                      -33.894144
+                    ],
+                    [
+                      151.235685,
+                      -33.894164
+                    ],
+                    [
+                      151.236037,
+                      -33.894251
+                    ],
+                    [
+                      151.236339,
+                      -33.894344
+                    ],
+                    [
+                      151.236693,
+                      -33.894479
+                    ],
+                    [
+                      151.236762,
+                      -33.894505
+                    ],
+                    [
+                      151.237253,
+                      -33.894757
+                    ],
+                    [
+                      151.23754,
+                      -33.894917
+                    ],
+                    [
+                      151.23774,
+                      -33.895058
+                    ],
+                    [
+                      151.238802,
+                      -33.895877
+                    ],
+                    [
+                      151.239058,
+                      -33.896114
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 73,
+                  "bearing_before": 5,
+                  "location": [
+                    151.23304,
+                    -33.89424
+                  ],
+                  "modifier": "right",
+                  "type": "turn"
+                },
+                "name": "Grand Drive",
+                "mode": "cycling",
+                "weight": 161.1,
+                "duration": 161.1,
+                "distance": 634
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 0,
+                    "in": 3,
+                    "entry": [
+                      true,
+                      true,
+                      true,
+                      false
+                    ],
+                    "bearings": [
+                      45,
+                      135,
+                      225,
+                      315
+                    ],
+                    "location": [
+                      151.239058,
+                      -33.896114
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.239058,
+                      -33.896114
+                    ],
+                    [
+                      151.239287,
+                      -33.895921
+                    ],
+                    [
+                      151.239437,
+                      -33.895795
+                    ],
+                    [
+                      151.239557,
+                      -33.89567
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 43,
+                  "bearing_before": 137,
+                  "location": [
+                    151.239058,
+                    -33.896114
+                  ],
+                  "modifier": "left",
+                  "type": "turn"
+                },
+                "name": "Loch Avenue",
+                "mode": "cycling",
+                "weight": 16.2,
+                "duration": 16.2,
+                "distance": 67.6
+              },
+              {
+                "intersections": [
+                  {
+                    "in": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      219
+                    ],
+                    "location": [
+                      151.239557,
+                      -33.89567
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.239557,
+                      -33.89567
+                    ],
+                    [
+                      151.239557,
+                      -33.89567
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 0,
+                  "bearing_before": 39,
+                  "location": [
+                    151.239557,
+                    -33.89567
+                  ],
+                  "modifier": "left",
+                  "type": "arrive"
+                },
+                "name": "Loch Avenue",
+                "mode": "cycling",
+                "weight": 0,
+                "duration": 0,
+                "distance": 0
+              }
+            ],
+            "weight": 259.3,
+            "summary": "Parkes Drive, Grand Drive",
+            "duration": 259.3,
+            "distance": 891.1
+          },
+          {
+            "steps": [
+              {
+                "intersections": [
+                  {
+                    "out": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      39
+                    ],
+                    "location": [
+                      151.239557,
+                      -33.89567
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.239557,
+                      -33.89567
+                    ],
+                    [
+                      151.239786,
+                      -33.895432
+                    ],
+                    [
+                      151.240093,
+                      -33.895063
+                    ],
+                    [
+                      151.240286,
+                      -33.894769
+                    ],
+                    [
+                      151.240489,
+                      -33.894431
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 39,
+                  "bearing_before": 0,
+                  "location": [
+                    151.239557,
+                    -33.89567
+                  ],
+                  "modifier": "left",
+                  "type": "depart"
+                },
+                "name": "Loch Avenue",
+                "mode": "cycling",
+                "weight": 51.8,
+                "duration": 51.8,
+                "distance": 162.8
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 1,
+                    "in": 2,
+                    "entry": [
+                      true,
+                      true,
+                      false
+                    ],
+                    "bearings": [
+                      15,
+                      180,
+                      210
+                    ],
+                    "location": [
+                      151.240489,
+                      -33.894431
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.240489,
+                      -33.894431
+                    ],
+                    [
+                      151.240474,
+                      -33.894769
+                    ],
+                    [
+                      151.240496,
+                      -33.895024
+                    ],
+                    [
+                      151.240536,
+                      -33.895223
+                    ],
+                    [
+                      151.240566,
+                      -33.895374
+                    ],
+                    [
+                      151.240657,
+                      -33.895652
+                    ],
+                    [
+                      151.240706,
+                      -33.895805
+                    ],
+                    [
+                      151.240834,
+                      -33.896352
+                    ],
+                    [
+                      151.240864,
+                      -33.89668
+                    ],
+                    [
+                      151.240906,
+                      -33.896811
+                    ],
+                    [
+                      151.24096,
+                      -33.896879
+                    ],
+                    [
+                      151.24102,
+                      -33.89693
+                    ],
+                    [
+                      151.241123,
+                      -33.896967
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 181,
+                  "bearing_before": 25,
+                  "location": [
+                    151.240489,
+                    -33.894431
+                  ],
+                  "modifier": "sharp right",
+                  "type": "turn"
+                },
+                "name": "Robinson Drive",
+                "mode": "cycling",
+                "weight": 79.7,
+                "duration": 79.7,
+                "distance": 295.5
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 0,
+                    "in": 4,
+                    "entry": [
+                      true,
+                      true,
+                      true,
+                      true,
+                      false
+                    ],
+                    "bearings": [
+                      15,
+                      105,
+                      135,
+                      195,
+                      300
+                    ],
+                    "location": [
+                      151.241123,
+                      -33.896967
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.241123,
+                      -33.896967
+                    ],
+                    [
+                      151.241149,
+                      -33.89691
+                    ],
+                    [
+                      151.241191,
+                      -33.896821
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 21,
+                  "bearing_before": 112,
+                  "location": [
+                    151.241123,
+                    -33.896967
+                  ],
+                  "modifier": "left",
+                  "type": "continue"
+                },
+                "name": "Robinson Drive",
+                "mode": "cycling",
+                "weight": 9.4,
+                "duration": 9.4,
+                "distance": 17.4
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 0,
+                    "in": 1,
+                    "entry": [
+                      true,
+                      false,
+                      true
+                    ],
+                    "bearings": [
+                      120,
+                      195,
+                      330
+                    ],
+                    "location": [
+                      151.241191,
+                      -33.896821
+                    ]
+                  },
+                  {
+                    "out": 1,
+                    "in": 2,
+                    "entry": [
+                      true,
+                      true,
+                      false
+                    ],
+                    "bearings": [
+                      15,
+                      120,
+                      300
+                    ],
+                    "location": [
+                      151.241878,
+                      -33.897171
+                    ]
+                  },
+                  {
+                    "out": 2,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      15,
+                      105,
+                      195
+                    ],
+                    "location": [
+                      151.242337,
+                      -33.898307
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.241191,
+                      -33.896821
+                    ],
+                    [
+                      151.241273,
+                      -33.896873
+                    ],
+                    [
+                      151.241361,
+                      -33.896924
+                    ],
+                    [
+                      151.241542,
+                      -33.897011
+                    ],
+                    [
+                      151.241878,
+                      -33.897171
+                    ],
+                    [
+                      151.24227,
+                      -33.897348
+                    ],
+                    [
+                      151.242352,
+                      -33.897394
+                    ],
+                    [
+                      151.242402,
+                      -33.897438
+                    ],
+                    [
+                      151.242442,
+                      -33.897485
+                    ],
+                    [
+                      151.24246,
+                      -33.897534
+                    ],
+                    [
+                      151.24247,
+                      -33.897581
+                    ],
+                    [
+                      151.242464,
+                      -33.897635
+                    ],
+                    [
+                      151.242389,
+                      -33.898036
+                    ],
+                    [
+                      151.242337,
+                      -33.898307
+                    ],
+                    [
+                      151.242233,
+                      -33.898814
+                    ],
+                    [
+                      151.242128,
+                      -33.899345
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 120,
+                  "bearing_before": 21,
+                  "location": [
+                    151.241191,
+                    -33.896821
+                  ],
+                  "modifier": "right",
+                  "type": "turn"
+                },
+                "name": "York Road",
+                "mode": "cycling",
+                "weight": 86.5,
+                "duration": 86.5,
+                "distance": 347.3
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 1,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      15,
+                      105,
+                      195
+                    ],
+                    "location": [
+                      151.242128,
+                      -33.899345
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.242128,
+                      -33.899345
+                    ],
+                    [
+                      151.242228,
+                      -33.899359
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 98,
+                  "bearing_before": 188,
+                  "location": [
+                    151.242128,
+                    -33.899345
+                  ],
+                  "modifier": "left",
+                  "type": "turn"
+                },
+                "name": "",
+                "mode": "cycling",
+                "weight": 10.6,
+                "duration": 10.6,
+                "distance": 9.4
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 0,
+                    "in": 2,
+                    "entry": [
+                      true,
+                      true,
+                      false
+                    ],
+                    "bearings": [
+                      15,
+                      105,
+                      285
+                    ],
+                    "location": [
+                      151.242228,
+                      -33.899359
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.242228,
+                      -33.899359
+                    ],
+                    [
+                      151.242256,
+                      -33.899225
+                    ],
+                    [
+                      151.242372,
+                      -33.898584
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 8,
+                  "bearing_before": 98,
+                  "location": [
+                    151.242228,
+                    -33.899359
+                  ],
+                  "modifier": "left",
+                  "type": "turn"
+                },
+                "name": "",
+                "mode": "cycling",
+                "weight": 52.3,
+                "duration": 52.3,
+                "distance": 87
+              },
+              {
+                "intersections": [
+                  {
+                    "in": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      189
+                    ],
+                    "location": [
+                      151.242372,
+                      -33.898584
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.242372,
+                      -33.898584
+                    ],
+                    [
+                      151.242372,
+                      -33.898584
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 0,
+                  "bearing_before": 9,
+                  "location": [
+                    151.242372,
+                    -33.898584
+                  ],
+                  "modifier": "right",
+                  "type": "arrive"
+                },
+                "name": "",
+                "mode": "cycling",
+                "weight": 0,
+                "duration": 0,
+                "distance": 0
+              }
+            ],
+            "weight": 290.3,
+            "summary": "Robinson Drive, York Road",
+            "duration": 290.3,
+            "distance": 919.3
+          },
+          {
+            "steps": [
+              {
+                "intersections": [
+                  {
+                    "out": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      189
+                    ],
+                    "location": [
+                      151.242372,
+                      -33.898584
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.242372,
+                      -33.898584
+                    ],
+                    [
+                      151.242256,
+                      -33.899225
+                    ],
+                    [
+                      151.242228,
+                      -33.899359
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 189,
+                  "bearing_before": 0,
+                  "location": [
+                    151.242372,
+                    -33.898584
+                  ],
+                  "modifier": "left",
+                  "type": "depart"
+                },
+                "name": "",
+                "mode": "cycling",
+                "weight": 56.5,
+                "duration": 56.5,
+                "distance": 87
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 2,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      15,
+                      105,
+                      285
+                    ],
+                    "location": [
+                      151.242228,
+                      -33.899359
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.242228,
+                      -33.899359
+                    ],
+                    [
+                      151.242128,
+                      -33.899345
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 278,
+                  "bearing_before": 188,
+                  "location": [
+                    151.242228,
+                    -33.899359
+                  ],
+                  "modifier": "right",
+                  "type": "turn"
+                },
+                "name": "",
+                "mode": "cycling",
+                "weight": 10.7,
+                "duration": 10.7,
+                "distance": 9.4
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 2,
+                    "in": 1,
+                    "entry": [
+                      true,
+                      false,
+                      true
+                    ],
+                    "bearings": [
+                      15,
+                      105,
+                      195
+                    ],
+                    "location": [
+                      151.242128,
+                      -33.899345
+                    ]
+                  },
+                  {
+                    "out": 1,
+                    "in": 2,
+                    "entry": [
+                      true,
+                      true,
+                      false
+                    ],
+                    "bearings": [
+                      75,
+                      105,
+                      285
+                    ],
+                    "location": [
+                      151.243865,
+                      -33.901068
+                    ]
+                  },
+                  {
+                    "out": 1,
+                    "in": 2,
+                    "entry": [
+                      true,
+                      true,
+                      false
+                    ],
+                    "bearings": [
+                      15,
+                      105,
+                      285
+                    ],
+                    "location": [
+                      151.244122,
+                      -33.9011
+                    ]
+                  },
+                  {
+                    "out": 2,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      15,
+                      105,
+                      195,
+                      285
+                    ],
+                    "location": [
+                      151.244824,
+                      -33.902831
+                    ]
+                  },
+                  {
+                    "out": 2,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      15,
+                      105,
+                      195,
+                      285
+                    ],
+                    "location": [
+                      151.24481,
+                      -33.902911
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.242128,
+                      -33.899345
+                    ],
+                    [
+                      151.241995,
+                      -33.900022
+                    ],
+                    [
+                      151.241975,
+                      -33.900127
+                    ],
+                    [
+                      151.24197,
+                      -33.900215
+                    ],
+                    [
+                      151.241976,
+                      -33.900304
+                    ],
+                    [
+                      151.241987,
+                      -33.900358
+                    ],
+                    [
+                      151.242004,
+                      -33.900413
+                    ],
+                    [
+                      151.242028,
+                      -33.900471
+                    ],
+                    [
+                      151.242058,
+                      -33.900529
+                    ],
+                    [
+                      151.242088,
+                      -33.900576
+                    ],
+                    [
+                      151.242124,
+                      -33.900621
+                    ],
+                    [
+                      151.24218,
+                      -33.900684
+                    ],
+                    [
+                      151.242248,
+                      -33.900745
+                    ],
+                    [
+                      151.242327,
+                      -33.900797
+                    ],
+                    [
+                      151.242407,
+                      -33.900843
+                    ],
+                    [
+                      151.242498,
+                      -33.900881
+                    ],
+                    [
+                      151.242583,
+                      -33.900909
+                    ],
+                    [
+                      151.242675,
+                      -33.900928
+                    ],
+                    [
+                      151.242765,
+                      -33.900938
+                    ],
+                    [
+                      151.243274,
+                      -33.900995
+                    ],
+                    [
+                      151.243645,
+                      -33.901041
+                    ],
+                    [
+                      151.24373,
+                      -33.901051
+                    ],
+                    [
+                      151.243865,
+                      -33.901068
+                    ],
+                    [
+                      151.244122,
+                      -33.9011
+                    ],
+                    [
+                      151.244274,
+                      -33.901119
+                    ],
+                    [
+                      151.244665,
+                      -33.901166
+                    ],
+                    [
+                      151.244934,
+                      -33.901196
+                    ],
+                    [
+                      151.244976,
+                      -33.901212
+                    ],
+                    [
+                      151.24501,
+                      -33.901231
+                    ],
+                    [
+                      151.245047,
+                      -33.901259
+                    ],
+                    [
+                      151.245076,
+                      -33.901291
+                    ],
+                    [
+                      151.245093,
+                      -33.901326
+                    ],
+                    [
+                      151.245099,
+                      -33.901365
+                    ],
+                    [
+                      151.245095,
+                      -33.90141
+                    ],
+                    [
+                      151.245051,
+                      -33.901624
+                    ],
+                    [
+                      151.244865,
+                      -33.902616
+                    ],
+                    [
+                      151.244846,
+                      -33.902716
+                    ],
+                    [
+                      151.244843,
+                      -33.902735
+                    ],
+                    [
+                      151.244824,
+                      -33.902831
+                    ],
+                    [
+                      151.24481,
+                      -33.902911
+                    ],
+                    [
+                      151.244806,
+                      -33.902932
+                    ],
+                    [
+                      151.244757,
+                      -33.903188
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 188,
+                  "bearing_before": 278,
+                  "location": [
+                    151.242128,
+                    -33.899345
+                  ],
+                  "modifier": "left",
+                  "type": "turn"
+                },
+                "name": "York Road",
+                "mode": "cycling",
+                "weight": 197.3,
+                "duration": 197.3,
+                "distance": 649.8
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 2,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      15,
+                      195,
+                      285
+                    ],
+                    "location": [
+                      151.244757,
+                      -33.903188
+                    ]
+                  },
+                  {
+                    "out": 3,
+                    "in": 1,
+                    "entry": [
+                      true,
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      15,
+                      105,
+                      195,
+                      285
+                    ],
+                    "location": [
+                      151.24466,
+                      -33.903173
+                    ]
+                  },
+                  {
+                    "out": 2,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      90,
+                      150,
+                      270
+                    ],
+                    "location": [
+                      151.243056,
+                      -33.903046
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.244757,
+                      -33.903188
+                    ],
+                    [
+                      151.24466,
+                      -33.903173
+                    ],
+                    [
+                      151.243672,
+                      -33.903028
+                    ],
+                    [
+                      151.243452,
+                      -33.903032
+                    ],
+                    [
+                      151.243056,
+                      -33.903046
+                    ],
+                    [
+                      151.242464,
+                      -33.90306
+                    ],
+                    [
+                      151.242387,
+                      -33.903077
+                    ],
+                    [
+                      151.242306,
+                      -33.903155
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 279,
+                  "bearing_before": 188,
+                  "location": [
+                    151.244757,
+                    -33.903188
+                  ],
+                  "modifier": "right",
+                  "type": "turn"
+                },
+                "name": "Darley Lane",
+                "mode": "cycling",
+                "weight": 59.7,
+                "duration": 59.7,
+                "distance": 232.5
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 3,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      45,
+                      120,
+                      225,
+                      300
+                    ],
+                    "location": [
+                      151.242306,
+                      -33.903155
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.242306,
+                      -33.903155
+                    ],
+                    [
+                      151.24202,
+                      -33.902977
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 306,
+                  "bearing_before": 219,
+                  "location": [
+                    151.242306,
+                    -33.903155
+                  ],
+                  "modifier": "right",
+                  "type": "turn"
+                },
+                "name": "",
+                "mode": "cycling",
+                "weight": 19.7,
+                "duration": 19.7,
+                "distance": 33
+              },
+              {
+                "intersections": [
+                  {
+                    "in": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      127
+                    ],
+                    "location": [
+                      151.24202,
+                      -33.902977
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.24202,
+                      -33.902977
+                    ],
+                    [
+                      151.24202,
+                      -33.902977
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 0,
+                  "bearing_before": 307,
+                  "location": [
+                    151.24202,
+                    -33.902977
+                  ],
+                  "type": "arrive"
+                },
+                "name": "",
+                "mode": "cycling",
+                "weight": 0,
+                "duration": 0,
+                "distance": 0
+              }
+            ],
+            "weight": 343.9,
+            "summary": "York Road, Darley Lane",
+            "duration": 343.9,
+            "distance": 1011.7
+          },
+          {
+            "steps": [
+              {
+                "intersections": [
+                  {
+                    "out": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      307
+                    ],
+                    "location": [
+                      151.24202,
+                      -33.902977
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.24202,
+                      -33.902977
+                    ],
+                    [
+                      151.241801,
+                      -33.902841
+                    ],
+                    [
+                      151.241788,
+                      -33.902824
+                    ],
+                    [
+                      151.241772,
+                      -33.902787
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 307,
+                  "bearing_before": 0,
+                  "location": [
+                    151.24202,
+                    -33.902977
+                  ],
+                  "type": "depart"
+                },
+                "name": "",
+                "mode": "cycling",
+                "weight": 24.2,
+                "duration": 24.2,
+                "distance": 31.9
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 2,
+                    "in": 1,
+                    "entry": [
+                      true,
+                      false,
+                      true
+                    ],
+                    "bearings": [
+                      75,
+                      150,
+                      255
+                    ],
+                    "location": [
+                      151.241772,
+                      -33.902787
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.241772,
+                      -33.902787
+                    ],
+                    [
+                      151.241742,
+                      -33.902793
+                    ],
+                    [
+                      151.241664,
+                      -33.902809
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 255,
+                  "bearing_before": 324,
+                  "location": [
+                    151.241772,
+                    -33.902787
+                  ],
+                  "modifier": "left",
+                  "type": "turn"
+                },
+                "name": "",
+                "mode": "cycling",
+                "weight": 10.4,
+                "duration": 10.4,
+                "distance": 10.3
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 3,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      75,
+                      150,
+                      255,
+                      345
+                    ],
+                    "location": [
+                      151.241664,
+                      -33.902809
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.241664,
+                      -33.902809
+                    ],
+                    [
+                      151.24164,
+                      -33.902734
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 344,
+                  "bearing_before": 254,
+                  "location": [
+                    151.241664,
+                    -33.902809
+                  ],
+                  "modifier": "right",
+                  "type": "turn"
+                },
+                "name": "Clovelly Road",
+                "mode": "cycling",
+                "weight": 10,
+                "duration": 10,
+                "distance": 8.6
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 2,
+                    "in": 1,
+                    "entry": [
+                      true,
+                      false,
+                      true
+                    ],
+                    "bearings": [
+                      75,
+                      165,
+                      255
+                    ],
+                    "location": [
+                      151.24164,
+                      -33.902734
+                    ]
+                  },
+                  {
+                    "out": 2,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      75,
+                      165,
+                      255
+                    ],
+                    "location": [
+                      151.241405,
+                      -33.902778
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.24164,
+                      -33.902734
+                    ],
+                    [
+                      151.241584,
+                      -33.902743
+                    ],
+                    [
+                      151.241405,
+                      -33.902778
+                    ],
+                    [
+                      151.240796,
+                      -33.902883
+                    ],
+                    [
+                      151.240529,
+                      -33.902934
+                    ],
+                    [
+                      151.240381,
+                      -33.902962
+                    ],
+                    [
+                      151.240294,
+                      -33.902968
+                    ],
+                    [
+                      151.240204,
+                      -33.902975
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 255,
+                  "bearing_before": 344,
+                  "location": [
+                    151.24164,
+                    -33.902734
+                  ],
+                  "modifier": "left",
+                  "type": "turn"
+                },
+                "name": "Darley Road",
+                "mode": "cycling",
+                "weight": 36.4,
+                "duration": 36.4,
+                "distance": 135.6
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 1,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      false
+                    ],
+                    "bearings": [
+                      75,
+                      180,
+                      345
+                    ],
+                    "location": [
+                      151.240204,
+                      -33.902975
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.240204,
+                      -33.902975
+                    ],
+                    [
+                      151.240202,
+                      -33.902993
+                    ],
+                    [
+                      151.240193,
+                      -33.90301
+                    ],
+                    [
+                      151.240178,
+                      -33.903023
+                    ],
+                    [
+                      151.240159,
+                      -33.903032
+                    ],
+                    [
+                      151.240137,
+                      -33.903035
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "exit": 1,
+                  "bearing_after": 184,
+                  "bearing_before": 258,
+                  "location": [
+                    151.240204,
+                    -33.902975
+                  ],
+                  "modifier": "left",
+                  "type": "roundabout"
+                },
+                "name": "Dangar Street",
+                "mode": "cycling",
+                "weight": 7.9,
+                "duration": 7.9,
+                "distance": 10.1
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 1,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      75,
+                      195,
+                      285
+                    ],
+                    "location": [
+                      151.240137,
+                      -33.903035
+                    ]
+                  },
+                  {
+                    "out": 1,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      15,
+                      195,
+                      270
+                    ],
+                    "location": [
+                      151.239957,
+                      -33.903949
+                    ]
+                  },
+                  {
+                    "out": 2,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      15,
+                      105,
+                      195,
+                      285
+                    ],
+                    "location": [
+                      151.239865,
+                      -33.904435
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.240137,
+                      -33.903035
+                    ],
+                    [
+                      151.24013,
+                      -33.903079
+                    ],
+                    [
+                      151.240056,
+                      -33.903502
+                    ],
+                    [
+                      151.239957,
+                      -33.903949
+                    ],
+                    [
+                      151.239865,
+                      -33.904435
+                    ],
+                    [
+                      151.239606,
+                      -33.905739
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "exit": 1,
+                  "bearing_after": 187,
+                  "bearing_before": 260,
+                  "location": [
+                    151.240137,
+                    -33.903035
+                  ],
+                  "modifier": "left",
+                  "type": "exit roundabout"
+                },
+                "name": "Dangar Street",
+                "mode": "cycling",
+                "weight": 72.6,
+                "duration": 72.6,
+                "distance": 303.9
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 2,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      15,
+                      195,
+                      285
+                    ],
+                    "location": [
+                      151.239606,
+                      -33.905739
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.239606,
+                      -33.905739
+                    ],
+                    [
+                      151.239514,
+                      -33.905727
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 278,
+                  "bearing_before": 188,
+                  "location": [
+                    151.239606,
+                    -33.905739
+                  ],
+                  "modifier": "right",
+                  "type": "turn"
+                },
+                "name": "Govett Lane",
+                "mode": "cycling",
+                "weight": 10.3,
+                "duration": 10.3,
+                "distance": 8.6
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 2,
+                    "in": 1,
+                    "entry": [
+                      true,
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      15,
+                      105,
+                      195,
+                      285
+                    ],
+                    "location": [
+                      151.239514,
+                      -33.905727
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.239514,
+                      -33.905727
+                    ],
+                    [
+                      151.23951,
+                      -33.905745
+                    ],
+                    [
+                      151.239443,
+                      -33.906105
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 188,
+                  "bearing_before": 278,
+                  "location": [
+                    151.239514,
+                    -33.905727
+                  ],
+                  "modifier": "left",
+                  "type": "turn"
+                },
+                "name": "",
+                "mode": "cycling",
+                "weight": 25.5,
+                "duration": 25.5,
+                "distance": 42.4
+              },
+              {
+                "intersections": [
+                  {
+                    "in": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      9
+                    ],
+                    "location": [
+                      151.239443,
+                      -33.906105
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.239443,
+                      -33.906105
+                    ],
+                    [
+                      151.239443,
+                      -33.906105
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 0,
+                  "bearing_before": 189,
+                  "location": [
+                    151.239443,
+                    -33.906105
+                  ],
+                  "type": "arrive"
+                },
+                "name": "",
+                "mode": "cycling",
+                "weight": 0,
+                "duration": 0,
+                "distance": 0
+              }
+            ],
+            "weight": 197.3,
+            "summary": "Darley Road, Dangar Street",
+            "duration": 197.3,
+            "distance": 551.5
+          },
+          {
+            "steps": [
+              {
+                "intersections": [
+                  {
+                    "out": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      9
+                    ],
+                    "location": [
+                      151.239443,
+                      -33.906105
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.239443,
+                      -33.906105
+                    ],
+                    [
+                      151.23951,
+                      -33.905745
+                    ],
+                    [
+                      151.239514,
+                      -33.905727
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 9,
+                  "bearing_before": 0,
+                  "location": [
+                    151.239443,
+                    -33.906105
+                  ],
+                  "type": "depart"
+                },
+                "name": "",
+                "mode": "cycling",
+                "weight": 33.9,
+                "duration": 33.9,
+                "distance": 42.4
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 3,
+                    "in": 2,
+                    "entry": [
+                      true,
+                      true,
+                      false,
+                      true
+                    ],
+                    "bearings": [
+                      15,
+                      105,
+                      195,
+                      285
+                    ],
+                    "location": [
+                      151.239514,
+                      -33.905727
+                    ]
+                  },
+                  {
+                    "out": 2,
+                    "in": 1,
+                    "entry": [
+                      true,
+                      false,
+                      true
+                    ],
+                    "bearings": [
+                      15,
+                      105,
+                      285
+                    ],
+                    "location": [
+                      151.238981,
+                      -33.905653
+                    ]
+                  },
+                  {
+                    "out": 2,
+                    "in": 1,
+                    "entry": [
+                      true,
+                      false,
+                      true
+                    ],
+                    "bearings": [
+                      15,
+                      105,
+                      285
+                    ],
+                    "location": [
+                      151.238334,
+                      -33.905564
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.239514,
+                      -33.905727
+                    ],
+                    [
+                      151.238981,
+                      -33.905653
+                    ],
+                    [
+                      151.238334,
+                      -33.905564
+                    ],
+                    [
+                      151.237249,
+                      -33.905417
+                    ],
+                    [
+                      151.237222,
+                      -33.905377
+                    ],
+                    [
+                      151.237195,
+                      -33.905334
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 278,
+                  "bearing_before": 8,
+                  "location": [
+                    151.239514,
+                    -33.905727
+                  ],
+                  "modifier": "left",
+                  "type": "turn"
+                },
+                "name": "Govett Lane",
+                "mode": "cycling",
+                "weight": 57.6,
+                "duration": 57.6,
+                "distance": 222.7
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 2,
+                    "in": 1,
+                    "entry": [
+                      true,
+                      false,
+                      true
+                    ],
+                    "bearings": [
+                      75,
+                      150,
+                      270
+                    ],
+                    "location": [
+                      151.237195,
+                      -33.905334
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.237195,
+                      -33.905334
+                    ],
+                    [
+                      151.237093,
+                      -33.905338
+                    ],
+                    [
+                      151.236661,
+                      -33.905271
+                    ],
+                    [
+                      151.23657,
+                      -33.90523
+                    ],
+                    [
+                      151.236516,
+                      -33.905168
+                    ],
+                    [
+                      151.236467,
+                      -33.905114
+                    ],
+                    [
+                      151.236131,
+                      -33.904666
+                    ],
+                    [
+                      151.236117,
+                      -33.904648
+                    ],
+                    [
+                      151.236083,
+                      -33.9046
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 267,
+                  "bearing_before": 330,
+                  "location": [
+                    151.237195,
+                    -33.905334
+                  ],
+                  "modifier": "left",
+                  "type": "end of road"
+                },
+                "name": "Govett Street",
+                "mode": "cycling",
+                "weight": 38.5,
+                "duration": 38.5,
+                "distance": 142.8
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 0,
+                    "in": 1,
+                    "entry": [
+                      true,
+                      false,
+                      true
+                    ],
+                    "bearings": [
+                      60,
+                      150,
+                      240
+                    ],
+                    "location": [
+                      151.236083,
+                      -33.9046
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.236083,
+                      -33.9046
+                    ],
+                    [
+                      151.236183,
+                      -33.904547
+                    ],
+                    [
+                      151.236202,
+                      -33.904537
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 56,
+                  "bearing_before": 327,
+                  "location": [
+                    151.236083,
+                    -33.9046
+                  ],
+                  "modifier": "right",
+                  "type": "turn"
+                },
+                "name": "Darley Road",
+                "mode": "cycling",
+                "weight": 11.9,
+                "duration": 11.9,
+                "distance": 13
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 2,
+                    "in": 1,
+                    "entry": [
+                      true,
+                      false,
+                      true
+                    ],
+                    "bearings": [
+                      60,
+                      240,
+                      330
+                    ],
+                    "location": [
+                      151.236202,
+                      -33.904537
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.236202,
+                      -33.904537
+                    ],
+                    [
+                      151.236149,
+                      -33.904474
+                    ],
+                    [
+                      151.236144,
+                      -33.904467
+                    ],
+                    [
+                      151.236051,
+                      -33.90434
+                    ],
+                    [
+                      151.235875,
+                      -33.904103
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 324,
+                  "bearing_before": 56,
+                  "location": [
+                    151.236202,
+                    -33.904537
+                  ],
+                  "modifier": "left",
+                  "type": "turn"
+                },
+                "name": "Parkes Drive",
+                "mode": "cycling",
+                "weight": 13.6,
+                "duration": 13.6,
+                "distance": 56.9
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 3,
+                    "in": 1,
+                    "entry": [
+                      true,
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      45,
+                      150,
+                      240,
+                      330
+                    ],
+                    "location": [
+                      151.235875,
+                      -33.904103
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.235875,
+                      -33.904103
+                    ],
+                    [
+                      151.235806,
+                      -33.904035
+                    ],
+                    [
+                      151.23575,
+                      -33.903958
+                    ],
+                    [
+                      151.235716,
+                      -33.903911
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 324,
+                  "bearing_before": 327,
+                  "location": [
+                    151.235875,
+                    -33.904103
+                  ],
+                  "modifier": "straight",
+                  "type": "notification"
+                },
+                "name": "Parkes Drive",
+                "mode": "pushing bike",
+                "weight": 32.7,
+                "duration": 32.7,
+                "distance": 26
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 1,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      150,
+                      225,
+                      330
+                    ],
+                    "location": [
+                      151.235716,
+                      -33.903911
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.235716,
+                      -33.903911
+                    ],
+                    [
+                      151.235623,
+                      -33.903976
+                    ],
+                    [
+                      151.235505,
+                      -33.904044
+                    ],
+                    [
+                      151.23519,
+                      -33.904189
+                    ],
+                    [
+                      151.235024,
+                      -33.904247
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 229,
+                  "bearing_before": 324,
+                  "location": [
+                    151.235716,
+                    -33.903911
+                  ],
+                  "modifier": "left",
+                  "type": "turn"
+                },
+                "name": "",
+                "mode": "cycling",
+                "weight": 44.7,
+                "duration": 44.7,
+                "distance": 74.4
+              },
+              {
+                "intersections": [
+                  {
+                    "in": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      67
+                    ],
+                    "location": [
+                      151.235024,
+                      -33.904247
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.235024,
+                      -33.904247
+                    ],
+                    [
+                      151.235024,
+                      -33.904247
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 0,
+                  "bearing_before": 247,
+                  "location": [
+                    151.235024,
+                    -33.904247
+                  ],
+                  "type": "arrive"
+                },
+                "name": "",
+                "mode": "cycling",
+                "weight": 0,
+                "duration": 0,
+                "distance": 0
+              }
+            ],
+            "weight": 232.9,
+            "summary": "Govett Lane, Parkes Drive",
+            "duration": 232.9,
+            "distance": 578.2
+          }
+        ],
+        "weight_name": "duration",
+        "geometry": {
+          "coordinates": [
+            [
+              151.235024,
+              -33.904247
+            ],
+            [
+              151.23519,
+              -33.904189
+            ],
+            [
+              151.235505,
+              -33.904044
+            ],
+            [
+              151.235623,
+              -33.903976
+            ],
+            [
+              151.235716,
+              -33.903911
+            ],
+            [
+              151.23487,
+              -33.902557
+            ],
+            [
+              151.234464,
+              -33.901881
+            ],
+            [
+              151.234017,
+              -33.901135
+            ],
+            [
+              151.233945,
+              -33.900994
+            ],
+            [
+              151.23391,
+              -33.900895
+            ],
+            [
+              151.233896,
+              -33.900842
+            ],
+            [
+              151.233977,
+              -33.900834
+            ],
+            [
+              151.23383,
+              -33.900014
+            ],
+            [
+              151.233801,
+              -33.899897
+            ],
+            [
+              151.233721,
+              -33.899641
+            ],
+            [
+              151.233626,
+              -33.899412
+            ],
+            [
+              151.233122,
+              -33.898338
+            ],
+            [
+              151.233087,
+              -33.898256
+            ],
+            [
+              151.232941,
+              -33.898138
+            ],
+            [
+              151.232777,
+              -33.897978
+            ],
+            [
+              151.232555,
+              -33.89776
+            ],
+            [
+              151.232187,
+              -33.897443
+            ],
+            [
+              151.231882,
+              -33.897225
+            ],
+            [
+              151.231844,
+              -33.897198
+            ],
+            [
+              151.231682,
+              -33.897116
+            ],
+            [
+              151.231569,
+              -33.897064
+            ],
+            [
+              151.23146,
+              -33.897016
+            ],
+            [
+              151.231337,
+              -33.896969
+            ],
+            [
+              151.231192,
+              -33.89693
+            ],
+            [
+              151.231146,
+              -33.896919
+            ],
+            [
+              151.230826,
+              -33.896847
+            ],
+            [
+              151.230713,
+              -33.896818
+            ],
+            [
+              151.230618,
+              -33.896784
+            ],
+            [
+              151.230554,
+              -33.896753
+            ],
+            [
+              151.230485,
+              -33.896719
+            ],
+            [
+              151.230413,
+              -33.896679
+            ],
+            [
+              151.230347,
+              -33.896638
+            ],
+            [
+              151.230606,
+              -33.896449
+            ],
+            [
+              151.23079,
+              -33.896219
+            ],
+            [
+              151.231124,
+              -33.895785
+            ],
+            [
+              151.231473,
+              -33.895336
+            ],
+            [
+              151.231831,
+              -33.894937
+            ],
+            [
+              151.232005,
+              -33.894781
+            ],
+            [
+              151.232223,
+              -33.894636
+            ],
+            [
+              151.232463,
+              -33.894495
+            ],
+            [
+              151.232752,
+              -33.894346
+            ],
+            [
+              151.232898,
+              -33.894293
+            ],
+            [
+              151.23304,
+              -33.89424
+            ],
+            [
+              151.233025,
+              -33.894343
+            ],
+            [
+              151.233012,
+              -33.894448
+            ],
+            [
+              151.233002,
+              -33.894512
+            ],
+            [
+              151.232982,
+              -33.894635
+            ],
+            [
+              151.233109,
+              -33.894672
+            ],
+            [
+              151.233245,
+              -33.894755
+            ],
+            [
+              151.233361,
+              -33.894826
+            ],
+            [
+              151.233541,
+              -33.894945
+            ],
+            [
+              151.233659,
+              -33.895023
+            ],
+            [
+              151.233699,
+              -33.895051
+            ],
+            [
+              151.233755,
+              -33.895091
+            ],
+            [
+              151.233876,
+              -33.895197
+            ],
+            [
+              151.233891,
+              -33.89521
+            ],
+            [
+              151.233924,
+              -33.895254
+            ],
+            [
+              151.233954,
+              -33.895323
+            ],
+            [
+              151.234006,
+              -33.895338
+            ],
+            [
+              151.234115,
+              -33.895342
+            ],
+            [
+              151.234221,
+              -33.895357
+            ],
+            [
+              151.234115,
+              -33.895342
+            ],
+            [
+              151.234006,
+              -33.895338
+            ],
+            [
+              151.233954,
+              -33.895323
+            ],
+            [
+              151.233924,
+              -33.895254
+            ],
+            [
+              151.233891,
+              -33.89521
+            ],
+            [
+              151.233876,
+              -33.895197
+            ],
+            [
+              151.233755,
+              -33.895091
+            ],
+            [
+              151.233699,
+              -33.895051
+            ],
+            [
+              151.233659,
+              -33.895023
+            ],
+            [
+              151.233541,
+              -33.894945
+            ],
+            [
+              151.233361,
+              -33.894826
+            ],
+            [
+              151.233245,
+              -33.894755
+            ],
+            [
+              151.233109,
+              -33.894672
+            ],
+            [
+              151.232982,
+              -33.894635
+            ],
+            [
+              151.233002,
+              -33.894512
+            ],
+            [
+              151.233012,
+              -33.894448
+            ],
+            [
+              151.233025,
+              -33.894343
+            ],
+            [
+              151.23304,
+              -33.89424
+            ],
+            [
+              151.233532,
+              -33.894116
+            ],
+            [
+              151.233761,
+              -33.894079
+            ],
+            [
+              151.233996,
+              -33.894057
+            ],
+            [
+              151.234303,
+              -33.894039
+            ],
+            [
+              151.234652,
+              -33.894042
+            ],
+            [
+              151.235009,
+              -33.894059
+            ],
+            [
+              151.235285,
+              -33.894095
+            ],
+            [
+              151.235584,
+              -33.894144
+            ],
+            [
+              151.235685,
+              -33.894164
+            ],
+            [
+              151.236037,
+              -33.894251
+            ],
+            [
+              151.236339,
+              -33.894344
+            ],
+            [
+              151.236693,
+              -33.894479
+            ],
+            [
+              151.236762,
+              -33.894505
+            ],
+            [
+              151.237253,
+              -33.894757
+            ],
+            [
+              151.23754,
+              -33.894917
+            ],
+            [
+              151.23774,
+              -33.895058
+            ],
+            [
+              151.238802,
+              -33.895877
+            ],
+            [
+              151.239058,
+              -33.896114
+            ],
+            [
+              151.239287,
+              -33.895921
+            ],
+            [
+              151.239437,
+              -33.895795
+            ],
+            [
+              151.239557,
+              -33.89567
+            ],
+            [
+              151.239786,
+              -33.895432
+            ],
+            [
+              151.240093,
+              -33.895063
+            ],
+            [
+              151.240286,
+              -33.894769
+            ],
+            [
+              151.240489,
+              -33.894431
+            ],
+            [
+              151.240474,
+              -33.894769
+            ],
+            [
+              151.240496,
+              -33.895024
+            ],
+            [
+              151.240536,
+              -33.895223
+            ],
+            [
+              151.240566,
+              -33.895374
+            ],
+            [
+              151.240657,
+              -33.895652
+            ],
+            [
+              151.240706,
+              -33.895805
+            ],
+            [
+              151.240834,
+              -33.896352
+            ],
+            [
+              151.240864,
+              -33.89668
+            ],
+            [
+              151.240906,
+              -33.896811
+            ],
+            [
+              151.24096,
+              -33.896879
+            ],
+            [
+              151.24102,
+              -33.89693
+            ],
+            [
+              151.241123,
+              -33.896967
+            ],
+            [
+              151.241149,
+              -33.89691
+            ],
+            [
+              151.241191,
+              -33.896821
+            ],
+            [
+              151.241273,
+              -33.896873
+            ],
+            [
+              151.241361,
+              -33.896924
+            ],
+            [
+              151.241542,
+              -33.897011
+            ],
+            [
+              151.241878,
+              -33.897171
+            ],
+            [
+              151.24227,
+              -33.897348
+            ],
+            [
+              151.242352,
+              -33.897394
+            ],
+            [
+              151.242402,
+              -33.897438
+            ],
+            [
+              151.242442,
+              -33.897485
+            ],
+            [
+              151.24246,
+              -33.897534
+            ],
+            [
+              151.24247,
+              -33.897581
+            ],
+            [
+              151.242464,
+              -33.897635
+            ],
+            [
+              151.242389,
+              -33.898036
+            ],
+            [
+              151.242337,
+              -33.898307
+            ],
+            [
+              151.242233,
+              -33.898814
+            ],
+            [
+              151.242128,
+              -33.899345
+            ],
+            [
+              151.242228,
+              -33.899359
+            ],
+            [
+              151.242256,
+              -33.899225
+            ],
+            [
+              151.242372,
+              -33.898584
+            ],
+            [
+              151.242256,
+              -33.899225
+            ],
+            [
+              151.242228,
+              -33.899359
+            ],
+            [
+              151.242128,
+              -33.899345
+            ],
+            [
+              151.241995,
+              -33.900022
+            ],
+            [
+              151.241975,
+              -33.900127
+            ],
+            [
+              151.24197,
+              -33.900215
+            ],
+            [
+              151.241976,
+              -33.900304
+            ],
+            [
+              151.241987,
+              -33.900358
+            ],
+            [
+              151.242004,
+              -33.900413
+            ],
+            [
+              151.242028,
+              -33.900471
+            ],
+            [
+              151.242058,
+              -33.900529
+            ],
+            [
+              151.242088,
+              -33.900576
+            ],
+            [
+              151.242124,
+              -33.900621
+            ],
+            [
+              151.24218,
+              -33.900684
+            ],
+            [
+              151.242248,
+              -33.900745
+            ],
+            [
+              151.242327,
+              -33.900797
+            ],
+            [
+              151.242407,
+              -33.900843
+            ],
+            [
+              151.242498,
+              -33.900881
+            ],
+            [
+              151.242583,
+              -33.900909
+            ],
+            [
+              151.242675,
+              -33.900928
+            ],
+            [
+              151.242765,
+              -33.900938
+            ],
+            [
+              151.243274,
+              -33.900995
+            ],
+            [
+              151.243645,
+              -33.901041
+            ],
+            [
+              151.24373,
+              -33.901051
+            ],
+            [
+              151.243865,
+              -33.901068
+            ],
+            [
+              151.244122,
+              -33.9011
+            ],
+            [
+              151.244274,
+              -33.901119
+            ],
+            [
+              151.244665,
+              -33.901166
+            ],
+            [
+              151.244934,
+              -33.901196
+            ],
+            [
+              151.244976,
+              -33.901212
+            ],
+            [
+              151.24501,
+              -33.901231
+            ],
+            [
+              151.245047,
+              -33.901259
+            ],
+            [
+              151.245076,
+              -33.901291
+            ],
+            [
+              151.245093,
+              -33.901326
+            ],
+            [
+              151.245099,
+              -33.901365
+            ],
+            [
+              151.245095,
+              -33.90141
+            ],
+            [
+              151.245051,
+              -33.901624
+            ],
+            [
+              151.244865,
+              -33.902616
+            ],
+            [
+              151.244846,
+              -33.902716
+            ],
+            [
+              151.244843,
+              -33.902735
+            ],
+            [
+              151.244824,
+              -33.902831
+            ],
+            [
+              151.24481,
+              -33.902911
+            ],
+            [
+              151.244806,
+              -33.902932
+            ],
+            [
+              151.244757,
+              -33.903188
+            ],
+            [
+              151.24466,
+              -33.903173
+            ],
+            [
+              151.243672,
+              -33.903028
+            ],
+            [
+              151.243452,
+              -33.903032
+            ],
+            [
+              151.243056,
+              -33.903046
+            ],
+            [
+              151.242464,
+              -33.90306
+            ],
+            [
+              151.242387,
+              -33.903077
+            ],
+            [
+              151.242306,
+              -33.903155
+            ],
+            [
+              151.24202,
+              -33.902977
+            ],
+            [
+              151.241801,
+              -33.902841
+            ],
+            [
+              151.241788,
+              -33.902824
+            ],
+            [
+              151.241772,
+              -33.902787
+            ],
+            [
+              151.241742,
+              -33.902793
+            ],
+            [
+              151.241664,
+              -33.902809
+            ],
+            [
+              151.24164,
+              -33.902734
+            ],
+            [
+              151.241584,
+              -33.902743
+            ],
+            [
+              151.241405,
+              -33.902778
+            ],
+            [
+              151.240796,
+              -33.902883
+            ],
+            [
+              151.240529,
+              -33.902934
+            ],
+            [
+              151.240381,
+              -33.902962
+            ],
+            [
+              151.240294,
+              -33.902968
+            ],
+            [
+              151.240204,
+              -33.902975
+            ],
+            [
+              151.240202,
+              -33.902993
+            ],
+            [
+              151.240193,
+              -33.90301
+            ],
+            [
+              151.240178,
+              -33.903023
+            ],
+            [
+              151.240159,
+              -33.903032
+            ],
+            [
+              151.240137,
+              -33.903035
+            ],
+            [
+              151.24013,
+              -33.903079
+            ],
+            [
+              151.240056,
+              -33.903502
+            ],
+            [
+              151.239957,
+              -33.903949
+            ],
+            [
+              151.239865,
+              -33.904435
+            ],
+            [
+              151.239606,
+              -33.905739
+            ],
+            [
+              151.239514,
+              -33.905727
+            ],
+            [
+              151.23951,
+              -33.905745
+            ],
+            [
+              151.239443,
+              -33.906105
+            ],
+            [
+              151.23951,
+              -33.905745
+            ],
+            [
+              151.239514,
+              -33.905727
+            ],
+            [
+              151.238981,
+              -33.905653
+            ],
+            [
+              151.238334,
+              -33.905564
+            ],
+            [
+              151.237249,
+              -33.905417
+            ],
+            [
+              151.237222,
+              -33.905377
+            ],
+            [
+              151.237195,
+              -33.905334
+            ],
+            [
+              151.237093,
+              -33.905338
+            ],
+            [
+              151.236661,
+              -33.905271
+            ],
+            [
+              151.23657,
+              -33.90523
+            ],
+            [
+              151.236516,
+              -33.905168
+            ],
+            [
+              151.236467,
+              -33.905114
+            ],
+            [
+              151.236131,
+              -33.904666
+            ],
+            [
+              151.236117,
+              -33.904648
+            ],
+            [
+              151.236083,
+              -33.9046
+            ],
+            [
+              151.236183,
+              -33.904547
+            ],
+            [
+              151.236202,
+              -33.904537
+            ],
+            [
+              151.236149,
+              -33.904474
+            ],
+            [
+              151.236144,
+              -33.904467
+            ],
+            [
+              151.236051,
+              -33.90434
+            ],
+            [
+              151.235875,
+              -33.904103
+            ],
+            [
+              151.235806,
+              -33.904035
+            ],
+            [
+              151.23575,
+              -33.903958
+            ],
+            [
+              151.235716,
+              -33.903911
+            ],
+            [
+              151.235623,
+              -33.903976
+            ],
+            [
+              151.235505,
+              -33.904044
+            ],
+            [
+              151.23519,
+              -33.904189
+            ],
+            [
+              151.235024,
+              -33.904247
+            ]
+          ],
+          "type": "LineString"
+        },
+        "weight": 2358.8,
+        "duration": 2358.8,
+        "distance": 5591.6
+      }
+    ],
+    "waypoints": [
+      {
+        "hint": "lWWjiNeZmopkAAAAdQAAAFsBAAB6BAAA9ySFQU-tm0GwCGdCsTtDQ2QAAAB1AAAAWwEAAHoEAADTAwAA0KkDCYmp-v3QqQMJian6_QYAfw8AAAAA",
+        "location": [
+          151.235024,
+          -33.904247
+        ],
+        "name": "",
+        "distance": 0
+      },
+      {
+        "hint": "lGWjiMXpSYqZAAAAAAAAACcMAAApAAAArvuHQQAAAAA-2KxDDr6LQZkAAAAAAAAAJwwAACkAAADTAwAAmaUDCT62-v0AngMJRLT6_QYADxUAAAAA",
+        "location": [
+          151.233945,
+          -33.900994
+        ],
+        "name": "Parkes Drive",
+        "distance": 188.4005824
+      },
+      {
+        "hint": "R5WziLuVs4gKAAAATwEAADgBAADXAgAA8cmTQIilFEJR7gFDiFehQgoAAABPAQAAOAEAANcCAADTAwAAip0DCffE-v3UnAMJSMT6_RQALwgAAAAA",
+        "location": [
+          151.231882,
+          -33.897225
+        ],
+        "name": "Dickens Drive",
+        "distance": 25.69682694
+      },
+      {
+        "hint": "a0pdiAG1YYoYAAAAAAAAACQAAACXAAAA5icfQQAAAADj9XJBkOB8QhgAAAAAAAAAJAAAAJcAAADTAwAAraYDCUPM-v1gpwMJRM36_QQAPwYAAAAA",
+        "location": [
+          151.234221,
+          -33.895357
+        ],
+        "name": "",
+        "distance": 32.96798045
+      },
+      {
+        "hint": "XzIAgM24o4gxAQAAKwAAAIgEAAAvAAAACGYHQlQZjkFg7gBDCZGdQTEBAAArAAAAiAQAAC8AAADTAwAAhbsDCQrL-v2EugMJtMv6_QYArw0AAAAA",
+        "location": [
+          151.239557,
+          -33.89567
+        ],
+        "name": "Loch Avenue",
+        "distance": 30.34698416
+      },
+      {
+        "hint": "rW_3irlv94pQAAAAsAEAAOADAABbAAAALbBVQXzPj0I8XiVD2WVxQVAAAACwAQAA4AMAAFsAAADTAwAAhMYDCai_-v0ExwMJmL_6_RQAzwsAAAAA",
+        "location": [
+          151.242372,
+          -33.898584
+        ],
+        "name": "",
+        "distance": 11.97478707
+      },
+      {
+        "hint": "iEGTgZOKM4vFAAAAmQAAAAAAAAAnAAAAtQIEQrECykEAAAAAcCnTQMUAAACZAAAAAAAAACcAAADTAwAAJMUDCX-u-v0QxQMJaK76_QAALxMAAAAA",
+        "location": [
+          151.24202,
+          -33.902977
+        ],
+        "name": "",
+        "distance": 3.1509547
+      },
+      {
+        "hint": "E6gXijioF4r4AAAA8wAAACQAAAAMAAAAU7IlQh6jIUJSb75AgPQBQPgAAADzAAAAJAAAAAwAAADTAwAAE7sDCUei-v3ougMJTKL6_QIAjwAAAAAA",
+        "location": [
+          151.239443,
+          -33.906105
+        ],
+        "name": "",
+        "distance": 4.014527477
+      },
+      {
+        "hint": "lWWjiNeZmopkAAAAdQAAAFsBAAB6BAAA9ySFQU-tm0GwCGdCsTtDQ2QAAAB1AAAAWwEAAHoEAADTAwAA0KkDCYmp-v3QqQMJian6_QYAfw8AAAAA",
+        "location": [
+          151.235024,
+          -33.904247
+        ],
+        "name": "",
+        "distance": 0
+      }
+    ]
+  }
+}

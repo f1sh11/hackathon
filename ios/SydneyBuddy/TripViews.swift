@@ -39,7 +39,7 @@ struct ProposalView:View {
         if store.proposal?.mode == "demo" && !store.proposalIsSuggestion && store.proposal?.accommodationSuggestions==nil {ScheduleEditorView()} else { legacy }
     }
     @State private var expandedDays:Set<String>=[]
-    private let reviewBlue=Color(red:0.20,green:0.36,blue:0.79)
+    private let reviewBlue=Palette.primary
     var legacy:some View {
         NavigationStack {
             ScrollView {
@@ -49,7 +49,7 @@ struct ProposalView:View {
                             PetAvatar(mood:.thinking,cue:KoalaCue(action:.map,id:"draft-review"),size:78).frame(width:78,height:82)
                             VStack(alignment:.leading,spacing:6){
                                 Text(uiText(unchanged ? "Let’s check what changed.":plan.recommendationStatus=="partial" ? "A little check before we go.":"Your little adventure is ready.")).font(.system(.title2,design:.rounded,weight:.bold))
-                                Text(uiText("Nothing is saved until you confirm.")).font(.subheadline).foregroundStyle(.secondary)
+                                Text(uiText("Nothing is saved until you confirm.")).font(.subheadline).foregroundStyle(Palette.muted)
                             }
                         }
                         HStack(spacing:0){
@@ -64,22 +64,22 @@ struct ProposalView:View {
                                     Spacer(minLength:8)
                                     if store.proposalFromNewTrip{Button{store.resumePendingTrip()}label:{Text(uiText("Edit with Koko")).font(.caption.weight(.semibold)).frame(minHeight:44)}.buttonStyle(.plain).foregroundStyle(reviewBlue).accessibilityIdentifier("proposal-keep-planning")}
                                 }
-                                ForEach(ProposalReviewPresentation.checks(plan),id:\.self){check in Text(uiText(check)).font(.subheadline).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
+                                ForEach(ProposalReviewPresentation.checks(plan),id:\.self){check in Text(uiText(check)).font(.subheadline).foregroundStyle(Palette.muted).fixedSize(horizontal:false,vertical:true)}
                             }.padding(16).frame(maxWidth:.infinity,alignment:.leading).background(Color.orange.opacity(0.065),in:RoundedRectangle(cornerRadius:16)).accessibilityIdentifier("proposal-checks")
                         }
                         if let old=store.trip,!store.proposalFromNewTrip{comparison(old,plan)}
                         Text(uiText("Your days")).font(.headline)
                         ForEach(Array(plan.days.enumerated()),id:\.element.id){index,day in reviewDay(day,index:index)}
-                        Text(uiText("Planned stops only. Unconfirmed costs, transport and stays are extra.")).font(.caption).foregroundStyle(.secondary)
+                        Text(uiText("Planned stops only. Unconfirmed costs, transport and stays are extra.")).font(.caption).foregroundStyle(Palette.muted)
                         if let stays=plan.accommodationSuggestions,!stays.isEmpty {
                             DisclosureGroup {
                                 VStack(alignment:.leading,spacing:16){
-                                    Text(uiText("Stay suggestions are not booked. Availability and rates need confirmation; your start and end points are unchanged.")).font(.caption).foregroundStyle(.secondary)
+                                    Text(uiText("Stay suggestions are not booked. Availability and rates need confirmation; your start and end points are unchanged.")).font(.caption).foregroundStyle(Palette.muted)
                                     ForEach(stays){stay in
                                         VStack(alignment:.leading,spacing:4){
                                             Text(stay.displayName).font(.subheadline.weight(.semibold))
-                                            if let address=stay.address,!address.isEmpty{Text(address).font(.caption).foregroundStyle(.secondary)}
-                                            Text(uiText(stay.source ?? "")).font(.caption2).foregroundStyle(.secondary)
+                                            if let address=stay.address,!address.isEmpty{Text(address).font(.caption).foregroundStyle(Palette.muted)}
+                                            Text(uiText(stay.source ?? "")).font(.caption2).foregroundStyle(Palette.muted)
                                         }.frame(maxWidth:.infinity,alignment:.leading)
                                     }
                                 }.padding(.top,8)
@@ -90,41 +90,41 @@ struct ProposalView:View {
                         }label:{Label(uiText("Weather for your dates"),systemImage:"cloud.sun").font(.subheadline.weight(.semibold))}.padding(16).background(reviewBlue.opacity(0.025),in:RoundedRectangle(cornerRadius:16)).accessibilityIdentifier("proposal-weather")
                         DisclosureGroup(uiText("Planning notes & checks")){
                             VStack(alignment:.leading,spacing:12){
-                                Text(uiText("Source notes are kept in their original language.")).font(.caption).foregroundStyle(.secondary)
+                                Text(uiText("Source notes are kept in their original language.")).font(.caption).foregroundStyle(Palette.muted)
                                 if let agent=plan.planningAgent {
                                     Text(agent.explanation).font(.subheadline)
-                                    ForEach(Array(agent.outstandingChecks.enumerated()),id:\.offset){_,check in Text(check).font(.caption).foregroundStyle(.secondary)}
+                                    ForEach(Array(agent.outstandingChecks.enumerated()),id:\.offset){_,check in Text(check).font(.caption).foregroundStyle(Palette.muted)}
                                 }
                                 Text(uiText(unchanged ? "这次试算没有改变地点、时间或预计步数，也没有减少步行。可以先保留原行程，或返回日程缩短停留、移除可选活动，再重新核对路线。":plan.explanation)).font(.caption)
-                                ForEach(Array(plan.warnings.enumerated()),id:\.offset){_,warning in Text(uiText(warning)).font(.caption).foregroundStyle(.secondary)}
-                                DisclosureGroup(uiText("查看规划依据与验证记录")){ForEach(plan.trace){trace in VStack(alignment:.leading,spacing:5){Text(uiText(trace.title)).font(.subheadline.weight(.semibold));Text(uiText(trace.detail)).font(.caption);Text(trace.source).font(.caption2).foregroundStyle(.secondary)}.padding(.vertical,6)}}
+                                ForEach(Array(plan.warnings.enumerated()),id:\.offset){_,warning in Text(uiText(warning)).font(.caption).foregroundStyle(Palette.muted)}
+                                DisclosureGroup(uiText("查看规划依据与验证记录")){ForEach(plan.trace){trace in VStack(alignment:.leading,spacing:5){Text(uiText(trace.title)).font(.subheadline.weight(.semibold));Text(uiText(trace.detail)).font(.caption);Text(trace.source).font(.caption2).foregroundStyle(Palette.muted)}.padding(.vertical,6)}}
                             }.padding(.top,12)
                         }.font(.subheadline).padding(16).overlay(RoundedRectangle(cornerRadius:16).stroke(Color.gray.opacity(0.15)))
                     }.padding(20)
                 }
-            }.background(.white).foregroundStyle(Color(red:0.09,green:0.15,blue:0.24))
+            }.background(Palette.cream).foregroundStyle(Palette.ink)
             .navigationTitle(uiText("Review your trip")).navigationBarTitleDisplayMode(.inline)
             .toolbar{ToolbarItem(placement:.topBarLeading){Button{store.proposal=nil}label:{Image(systemName:"xmark").frame(width:44,height:44)}.accessibilityLabel(uiText("取消"))}}
             .safeAreaInset(edge:.bottom){
                 VStack(spacing:8){
-                    if store.proposal?.recommendationStatus=="partial"{Text(uiText("You’re saving a draft. Some requests are still open.")).font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)}
+                    if store.proposal?.recommendationStatus=="partial"{Text(uiText("You’re saving a draft. Some requests are still open.")).font(.caption).foregroundStyle(Palette.muted).multilineTextAlignment(.center)}
                     Button{
                         if unchangedRequest{store.proposal=nil}else{Task{await store.acceptProposal()}}
                     }label:{HStack(spacing:8){if store.busy{ProgressView().tint(.white)};Text(uiText(unchangedRequest ? "保留原行程":unchanged ? "保存需求，保留路线":store.proposal?.recommendationStatus=="partial" ? "Save this draft":"确认并保存")).font(.headline);Image(systemName:"checkmark")}.frame(maxWidth:.infinity,minHeight:52)}.buttonStyle(TripsCreateButtonStyle()).disabled(store.busy || store.proposal==nil).accessibilityIdentifier("proposal-save")
                 }.padding(.horizontal,20).padding(.top,12).padding(.bottom,12).background(.white)
-            }.tint(reviewBlue)
+            }.buddySurface()
             .onAppear{if let day=store.proposal?.days.first{expandedDays.insert(day.id)}}
         }
     }
     private func reviewMetric(_ value:String,_ label:String)->some View {
-        VStack(spacing:5){Text(uiText(value)).font(.system(.subheadline,design:.rounded,weight:.bold)).multilineTextAlignment(.center).fixedSize(horizontal:false,vertical:true);Text(uiText(label)).font(.caption2).foregroundStyle(.secondary).multilineTextAlignment(.center)}.frame(maxWidth:.infinity).padding(.horizontal,6)
+        VStack(spacing:5){Text(uiText(value)).font(.system(.subheadline,design:.rounded,weight:.bold)).multilineTextAlignment(.center).fixedSize(horizontal:false,vertical:true);Text(uiText(label)).font(.caption2).foregroundStyle(Palette.muted).multilineTextAlignment(.center)}.frame(maxWidth:.infinity).padding(.horizontal,6)
     }
     private func comparison(_ old:Trip,_ plan:Trip)->some View {
         let before=Set(old.days.flatMap(\.stops).map(\.name)),after=Set(plan.days.flatMap{$0.stops+($0.completedStops ?? [])}.map(\.name))
         return VStack(alignment:.leading,spacing:8){
             Text(uiText("调整对比")).font(.subheadline.weight(.semibold))
             Text(store.language.text("{0} added · {1} removed",String(after.subtracting(before).count),String(before.subtracting(after).count))).font(.subheadline)
-            Text(uiText("预计步数：\(old.days.reduce(0){$0+$1.estimatedSteps}) → \(plan.days.reduce(0){$0+$1.estimatedSteps})")).font(.caption).foregroundStyle(.secondary)
+            Text(uiText("预计步数：\(old.days.reduce(0){$0+$1.estimatedSteps}) → \(plan.days.reduce(0){$0+$1.estimatedSteps})")).font(.caption).foregroundStyle(Palette.muted)
             DisclosureGroup(uiText("View changed places")){Text(uiText("新增："+(after.subtracting(before).sorted().joined(separator:"、").isEmpty ? "无":after.subtracting(before).sorted().joined(separator:"、"))));Text(uiText("移除："+(before.subtracting(after).sorted().joined(separator:"、").isEmpty ? "无":before.subtracting(after).sorted().joined(separator:"、"))))}.font(.caption)
         }.padding(16).frame(maxWidth:.infinity,alignment:.leading).background(reviewBlue.opacity(0.035),in:RoundedRectangle(cornerRadius:16))
     }
@@ -132,43 +132,43 @@ struct ProposalView:View {
         VStack(alignment:.leading,spacing:0){
             Button{withAnimation(.easeOut(duration:0.18)){if expandedDays.contains(day.id){expandedDays.remove(day.id)}else{expandedDays.insert(day.id)}}}label:{
                 HStack(alignment:.top){
-                    VStack(alignment:.leading,spacing:5){Text(store.language.text("Day {0}",String(index+1))+" · "+ProposalReviewPresentation.date(day.date,language:store.language)).font(.subheadline.weight(.bold));Text(store.language.text("{0} stops · About {1} steps",String(day.stops.count),day.estimatedSteps.formatted())).font(.caption).foregroundStyle(.secondary)}
+                    VStack(alignment:.leading,spacing:5){Text(store.language.text("Day {0}",String(index+1))+" · "+ProposalReviewPresentation.date(day.date,language:store.language)).font(.subheadline.weight(.bold));Text(store.language.text("{0} stops · About {1} steps",String(day.stops.count),day.estimatedSteps.formatted())).font(.caption).foregroundStyle(Palette.muted)}
                     Spacer(minLength:8);Image(systemName:expandedDays.contains(day.id) ? "chevron.up":"chevron.down").font(.caption)
                 }.frame(maxWidth:.infinity,alignment:.leading).padding(16).contentShape(Rectangle())
             }.buttonStyle(.plain).accessibilityIdentifier("proposal-day-"+String(index))
             if expandedDays.contains(day.id){
                 VStack(alignment:.leading,spacing:14){
-                    HStack{Label(uiText(day.start.name),systemImage:"location.fill").font(.caption);Spacer();Text(uiText(ProposalReviewPresentation.cost([day]))).font(.caption.weight(.semibold))}.foregroundStyle(.secondary)
+                    HStack{Label(uiText(day.start.name),systemImage:"location.fill").font(.caption);Spacer();Text(uiText(ProposalReviewPresentation.cost([day]))).font(.caption.weight(.semibold))}.foregroundStyle(Palette.muted)
                     if let target=day.targetReturnTime{Text(store.language.text("Return at {0} · Target {1}",day.finishTime,target)).font(.caption)}
-                    if day.returnLocationStatus=="provisional_endpoint"{Text(uiText("Hotel not selected — return endpoint is provisional.")).font(.caption).foregroundStyle(.secondary)}
+                    if day.returnLocationStatus=="provisional_endpoint"{Text(uiText("Hotel not selected — return endpoint is provisional.")).font(.caption).foregroundStyle(Palette.muted)}
                     if let estimate=day.stepEstimate {
                         DisclosureGroup(uiText("Step estimate details")){
                             VStack(alignment:.leading,spacing:8){
                                 Text(store.language.text("Route {0} + on-site {1} ≈ {2} steps",estimate.routeSteps.formatted(),estimate.activitySteps.formatted(),estimate.estimatedSteps.formatted()))
                                 Text(store.language.text("If all visit time were spent walking continuously: about {0} steps. This is a hypothetical scenario.",estimate.continuousWalkingSteps.formatted()))
                                 Text(store.language.text("Assumed speed {0} km/h; step length {1} m. Seated meals, rest, waiting and transit rides are not counted as walking. Not measured steps.",String(estimate.walkingSpeedKmh),String(estimate.stepLengthMeters)))
-                            }.font(.caption).foregroundStyle(.secondary)
+                            }.font(.caption).foregroundStyle(Palette.muted)
                         }.font(.caption).accessibilityIdentifier("proposal-step-estimate-"+String(index))
                     }
-                    if day.stops.isEmpty{Text(uiText("Free time — places still to add.")).font(.subheadline).foregroundStyle(.secondary)}
+                    if day.stops.isEmpty{Text(uiText("Free time — places still to add.")).font(.subheadline).foregroundStyle(Palette.muted)}
                     ForEach(Array(day.stops.enumerated()),id:\.element.id){i,stop in
                         if day.legs.indices.contains(i){reviewLeg(day.legs[i])}
                         HStack(alignment:.top,spacing:10){
-                            Text(stop.arrival).font(.caption).monospacedDigit().foregroundStyle(.secondary).frame(width:43,alignment:.leading)
+                            Text(stop.arrival).font(.caption).monospacedDigit().foregroundStyle(Palette.muted).frame(width:43,alignment:.leading)
                             Text(String(i+1)).font(.caption2.weight(.bold)).foregroundStyle(reviewBlue).frame(width:22,height:22).background(reviewBlue.opacity(0.08),in:Circle())
-                            VStack(alignment:.leading,spacing:5){Text(uiText(stop.name)).font(.subheadline.weight(.semibold));Text(store.language.text("{0} min",String(stop.visitMinutes))+" · "+uiText(stop.costKnown == true ? stop.costLabel:"Price unconfirmed")).font(.caption).foregroundStyle(.secondary);if !stop.hoursVerified{Text(uiText("Hours still to check")).font(.caption2).foregroundStyle(.secondary)}}
+                            VStack(alignment:.leading,spacing:5){Text(uiText(stop.name)).font(.subheadline.weight(.semibold));Text(store.language.text("{0} min",String(stop.visitMinutes))+" · "+uiText(stop.costKnown == true ? stop.costLabel:"Price unconfirmed")).font(.caption).foregroundStyle(Palette.muted);if !stop.hoursVerified{Text(uiText("Hours still to check")).font(.caption2).foregroundStyle(Palette.muted)}}
                         }
                     }
                     if day.legs.count>day.stops.count,let leg=day.legs.last{reviewLeg(leg)}
-                    Label(day.finishTime+" · "+uiText(day.end.name),systemImage:"flag.checkered").font(.caption).foregroundStyle(.secondary)
+                    Label(day.finishTime+" · "+uiText(day.end.name),systemImage:"flag.checkered").font(.caption).foregroundStyle(Palette.muted)
                     DisclosureGroup(uiText("Stop details")){
                         VStack(alignment:.leading,spacing:12){
-                            Text(uiText("Source notes are kept in their original language.")).font(.caption2).foregroundStyle(.secondary)
+                            Text(uiText("Source notes are kept in their original language.")).font(.caption2).foregroundStyle(Palette.muted)
                             ForEach(day.stops){stop in
                                 VStack(alignment:.leading,spacing:4){
                                     Text(uiText(stop.name)).font(.caption.weight(.semibold))
-                                    Text(uiText(stop.indoorLabel)).font(.caption2).foregroundStyle(.secondary)
-                                    if !stop.note.isEmpty{Text(uiText(stop.note)).font(.caption).foregroundStyle(.secondary)}
+                                    Text(uiText(stop.indoorLabel)).font(.caption2).foregroundStyle(Palette.muted)
+                                    if !stop.note.isEmpty{Text(uiText(stop.note)).font(.caption).foregroundStyle(Palette.muted)}
                                 }
                             }
                         }.padding(.top,8)
@@ -178,14 +178,17 @@ struct ProposalView:View {
         }.overlay(RoundedRectangle(cornerRadius:16).stroke(Color.gray.opacity(0.16)))
     }
     private func reviewLeg(_ leg:RouteLeg)->some View {
-        Label(store.language.text("{0} · About {1} min",uiText(leg.mode=="transit" ? "Transit":"Walk"),String(leg.minutes)),systemImage:leg.mode=="transit" ? "tram":"figure.walk").font(.caption2).foregroundStyle(.secondary).padding(.leading,53)
+        Label(store.language.text("{0} · About {1} min",uiText(leg.mode=="transit" ? "Transit":"Walk"),String(leg.minutes)),systemImage:leg.mode=="transit" ? "tram":"figure.walk").font(.caption2).foregroundStyle(Palette.muted).padding(.leading,53)
     }
 }
 enum ProposalReviewPresentation {
     static func cost(_ days:[DayPlan])->String {
-        let amount=days.reduce(0){$0+max(0,$1.estimatedCost.isFinite ? $1.estimatedCost:0)}
-        let unknown=days.flatMap(\.stops).contains{$0.costKnown != true}
-        if days.flatMap(\.stops).isEmpty || amount==0 && unknown{return "Cost to confirm"}
+        cost(amount:days.reduce(0){$0+max(0,$1.estimatedCost.isFinite ? $1.estimatedCost:0)},known:days.flatMap(\.stops).map(\.costKnown))
+    }
+    static func cost(amount:Double,known:[Bool?])->String {
+        let amount=max(0,amount.isFinite ? amount:0)
+        let unknown=known.contains{$0 != true}
+        if known.isEmpty || amount==0 && unknown{return "Cost to confirm"}
         return unknown ? AppLanguage.current.text("Est. A${0} + unconfirmed costs",String(Int(amount.rounded()))):AppLanguage.current.text("Est. A${0}",String(Int(amount.rounded())))
     }
     static func steps(_ plan:Trip)->String {
@@ -255,6 +258,9 @@ struct WorldModelView:View {
     var onAdjust:(WorldSuggestion)->Void
     @EnvironmentObject private var store:AppStore
     @Environment(\.dismiss) private var dismiss
+    @State private var review:FeasibilityUIReport?
+    @State private var reviewing=false
+    @State private var reviewError:String?
     @State private var run:WorldRun?
     @State private var loading=false
     @State private var active=false
@@ -264,8 +270,46 @@ struct WorldModelView:View {
     var body:some View {
         let _=interfaceLocale
         NavigationStack {ScrollView {VStack(alignment:.leading,spacing:18) {
-            HStack(spacing:12){PetAvatar(mood:loading ? .thinking:.curious).frame(width:78,height:90)
-                VStack(alignment:.leading,spacing:6){Text(uiText("出发前，我帮你看看～")).font(.headline);Text(uiText("检查每天的体力、交通、预算和已保存的天气。原行程会好好留着。")).font(.caption).foregroundStyle(Palette.muted)}}
+            HStack(alignment:.center,spacing:14) {
+                PetAvatar(mood:reviewing ? .thinking:review?.canConfirm == true ? .ready:.curious).frame(width:64,height:76)
+                VStack(alignment:.leading,spacing:6){
+                    Text("Let's check your day.").font(.system(.title2,design:.rounded,weight:.bold))
+                    Text("I'll look out for tight timings, tricky routes and budget surprises.").font(.subheadline).foregroundStyle(Palette.muted)
+                }
+            }
+            VStack(alignment:.leading,spacing:16) {
+                if reviewing {
+                    ProgressView("Checking your itinerary…").frame(maxWidth:.infinity,alignment:.leading)
+                    Text("Your saved trip stays just as it is.").font(.caption).foregroundStyle(Palette.muted)
+                }
+                if let review {
+                    Label(review.heading,systemImage:review.canConfirm ? "checkmark.circle.fill":"exclamationmark.circle")
+                        .font(.headline).foregroundStyle(review.canConfirm ? Palette.success:Palette.warning)
+                    Text(review.summary).font(.subheadline).foregroundStyle(Palette.ink)
+                    ForEach(Array(review.issues.filter{$0.severity != "warning"}.enumerated()),id:\.offset){_,issue in
+                        VStack(alignment:.leading,spacing:10){
+                            Text(issue.message).font(.subheadline)
+                            Button(issue.actionLabel){onAdjust(WorldSuggestion(id:UUID().uuidString,dayIndex:max(0,issue.dayIndex ?? 0),title:issue.actionLabel,detail:issue.message,action:issue.targetAgent == "requirements_agent" ? "review":"adjust",status:"pending"))}.buttonStyle(BuddySecondaryStyle())
+                        }.padding(.vertical,4)
+                    }
+                    if review.issues.contains(where:{$0.severity == "warning"}) {
+                        DisclosureGroup("Things to double-check (\(review.issues.filter{$0.severity == "warning"}.count))") {
+                            ForEach(Array(review.issues.filter{$0.severity == "warning"}.enumerated()),id:\.offset){_,issue in
+                                Text(issue.message).font(.subheadline).foregroundStyle(Palette.muted).padding(.vertical,6)
+                            }
+                        }.font(.subheadline.weight(.semibold)).accessibilityIdentifier("feasibility-caveats")
+                    }
+                    DisclosureGroup("About this check") {
+                        Text(review.modelReviewCompleted ? "The Feasibility Agent reviewed the available route, place and constraint evidence. Estimates and unknowns still need your attention.":"Basic constraint checks are available, but the independent Agent hasn't finished. Try again before relying on this review.").font(.caption).foregroundStyle(Palette.muted).padding(.top,8)
+                    }.font(.subheadline).accessibilityIdentifier("feasibility-evidence")
+                } else if !reviewing {
+                    Text("A second look before you head out.").font(.headline)
+                    Text("I'll check this itinerary without changing your plans or preferences.").font(.subheadline).foregroundStyle(Palette.muted)
+                }
+                if let reviewError {Text(reviewError).font(.subheadline).foregroundStyle(.red)}
+                PrimaryButton(title:review == nil ? "Check itinerary":"Check again",symbol:"checkmark.shield"){Task{await checkFeasibility()}}.disabled(reviewing).accessibilityIdentifier("feasibility-check")
+            }.padding(20).background(Palette.surface,in:RoundedRectangle(cornerRadius:BuddyLayout.card))
+            DisclosureGroup("Comfort & weather details") {
             if loading {ProgressView("正在检查已保存的安排…").frame(maxWidth:.infinity).padding()}
             if let error {Text(uiText(error)).font(.subheadline).foregroundStyle(.red).accessibilityIdentifier("world-error")}
             if let run {
@@ -278,20 +322,30 @@ struct WorldModelView:View {
                         VStack(alignment:.leading,spacing:10){Text(uiText("第 \(suggestion.dayIndex+1) 天 · \(suggestion.title)")).font(.subheadline.bold());Text(uiText(suggestion.detail)).font(.caption).foregroundStyle(Palette.muted)
                             if run.decision(for:suggestion)=="rejected" {Label(uiText("这次按你的想法保留，不改这一项。"),systemImage:"heart").font(.caption).foregroundStyle(Palette.green)}
                             else {HStack {
-                                Button(uiText(suggestion.action=="review" ? "问 Koko 怎么确认":"看看怎么调整")) {Task{await decide(suggestion,"accepted")}}.buttonStyle(.borderedProminent).accessibilityIdentifier("world-adjust-"+suggestion.id)
-                                if run.decision(for:suggestion)==nil {Button(uiText("先保留")){Task{await decide(suggestion,"rejected")}}.buttonStyle(.bordered).accessibilityIdentifier("world-keep-"+suggestion.id)}
+                                Button(uiText(suggestion.action=="review" ? "问 Koko 怎么确认":"看看怎么调整")) {Task{await decide(suggestion,"accepted")}}.buttonStyle(KokoPrimaryStyle()).accessibilityIdentifier("world-adjust-"+suggestion.id)
+                                if run.decision(for:suggestion)==nil {Button(uiText("先保留")){Task{await decide(suggestion,"rejected")}}.buttonStyle(BuddySecondaryStyle()).accessibilityIdentifier("world-keep-"+suggestion.id)}
                             }.disabled(loading)}
                         }.padding(16).frame(maxWidth:.infinity,alignment:.leading).background(.white,in:RoundedRectangle(cornerRadius:20))
                     }
                     Text(uiText(run.summary.source)).font(.caption2).foregroundStyle(Palette.muted)
                 }
             }
-            if !loading {Button(uiText(current ? "重新检查":"让 Koko 检查一下")){Task{await check()}}.buttonStyle(.bordered).accessibilityIdentifier("world-check")}
+            if !loading {Button("Update comfort & weather"){Task{await check()}}.buttonStyle(BuddySecondaryStyle()).accessibilityIdentifier("world-check")}
+            }
             Text(uiText("只使用这份行程中的资料，不会自动修改长期偏好。调整仍需预览并保存。")).font(.caption2).foregroundStyle(Palette.muted)
         }.padding(20)}.background(Palette.cream).navigationTitle(uiText("Koko 行程检查")).navigationBarTitleDisplayMode(.inline)
             .toolbar{ToolbarItem(placement:.topBarTrailing){Button(uiText("完成")){dismiss()}}}
             .task {active=true;await load()}.onDisappear{active=false}
-        }.tint(Palette.green)
+        }.buddySurface()
+    }
+    private func checkFeasibility() async {
+        guard let id=trip.id,!reviewing else{return}
+        reviewing=true;reviewError=nil;defer{reviewing=false}
+        do {
+            let body=try JSONSerialization.data(withJSONObject:["tripId":id,"expectedSavedRevision":trip.revision,"planId":"ios-review-"+UUID().uuidString,"planRevision":1,"requirementsRevision":1])
+            let result:FeasibilityUIReport=try await store.api("agents/feasibility/reviews",method:"POST",body:body)
+            review=result
+        }catch{reviewError="I couldn't finish this check. Your trip is safe. Please try again."}
     }
     private func risk(_ value:String)->String {switch value{case "high":return "需留意";case "medium":return "接近上限";case "low":return "未超限";default:return "待确认"}}
     private func load() async {
@@ -401,9 +455,9 @@ struct TripsView:View {
         return KoalaCue(event:.welcome,id:"home-welcome")
     }
     // Trips has its own restrained accent; other screens retain their existing styling.
-    private let tripsBlue=Color(red:0.20,green:0.36,blue:0.79)
-    private let tripsInk=Color(red:0.09,green:0.15,blue:0.24)
-    private let tripsBackground=Color(red:0.985,green:0.985,blue:0.975)
+    private let tripsBlue=Palette.primary
+    private let tripsInk=Palette.ink
+    private let tripsBackground=Palette.cream
     private var homeHeader:some View {
         VStack(alignment:.leading,spacing:20){
             HStack(spacing:16){
@@ -415,6 +469,7 @@ struct TripsView:View {
                 VStack(alignment:.leading,spacing:10){
                     Text(uiText("Where shall we go?")).font(.system(.title,design:.rounded,weight:.bold)).foregroundStyle(tripsInk).fixedSize(horizontal:false,vertical:true)
                     Text(uiText("A little idea is all we need.")).font(.subheadline).foregroundStyle(Palette.muted).fixedSize(horizontal:false,vertical:true)
+                    if store.demoEnabled{Text("Demo mode").font(.caption2.weight(.semibold)).foregroundStyle(Palette.primary).padding(.horizontal,10).padding(.vertical,5).background(Palette.selection,in:Capsule()).accessibilityIdentifier("home-demo-indicator")}
                 }.frame(maxWidth:.infinity,alignment:.leading)
             }.padding(.top,12)
             Button{
@@ -439,7 +494,7 @@ struct TripsView:View {
                     VStack(alignment:.leading,spacing:5){
                         Text(TripHomePresentation.title(trip,language:store.language)).font(.system(.headline,design:.rounded,weight:.bold)).foregroundStyle(tripsInk).lineLimit(2)
                         Text(store.language.text("{0} · {1} days",homeDate(trip.profile.date),String(trip.days.count))).font(.caption).foregroundStyle(Palette.muted)
-                        Text(uiText(priorityTripID==trip.id ? "Ready · View itinerary":TripHomePresentation.status(trip,today:TripProfile.dateString(Date()),dayIndex:index))).font(.caption.weight(.semibold)).foregroundStyle(tripsBlue)
+                        Text(uiText(TripHomePresentation.status(trip,today:TripProfile.dateString(Date()),dayIndex:index,justGenerated:priorityTripID==trip.id))).font(.caption.weight(.semibold)).foregroundStyle(tripsBlue)
                     }
                     Spacer(minLength:0)
                     Image(systemName:"chevron.right").font(.caption.weight(.semibold)).foregroundStyle(Palette.muted)
@@ -624,7 +679,7 @@ private struct PlanningTaskDetails:View {
                 if store.canCancelPlanning{Button(uiText("暂停生成"),role:.destructive){store.cancelPendingGeneration()}.frame(minHeight:44)}
                 if task.status=="generating",task.progress?.phase == .saving{Text(uiText("正在保存最后结果，很快就能在原来的旅行卡上查看。")).font(.caption).foregroundStyle(Palette.muted)}
             }
-        }.padding(24)}.background(Palette.cream).navigationTitle(uiText("这次的小旅行")).navigationBarTitleDisplayMode(.inline).toolbar{Button(uiText("关闭")){action("")}}}.tint(Palette.green)
+        }.padding(24)}.background(Palette.cream).navigationTitle(uiText("这次的小旅行")).navigationBarTitleDisplayMode(.inline).toolbar{Button(uiText("关闭")){action("")}}}.buddySurface()
     }
 }
 
@@ -785,17 +840,17 @@ struct SavedTripWorkspace:View {
                 }
                 workspaceDayHeader(height:geometry.size.height)
                 workspaceTransport
-                workspaceSchedule
+                if !goMode || !transportExpanded {workspaceSchedule}
                 workspaceProposalActions
             }.coordinateSpace(name:"trip-workspace")
-        }.background(.white).tint(workspaceBlue).navigationTitle(TripHomePresentation.title(trip,language:store.language)).navigationBarTitleDisplayMode(.inline)
+        }.background(Palette.cream).tint(workspaceBlue).navigationTitle(TripHomePresentation.title(trip,language:store.language)).navigationBarTitleDisplayMode(.inline)
         .task(id:mapFraction){do{try await Task.sleep(nanoseconds:280_000_000);workspaceCameraAction=RouteMapCameraAction(kind:.fit)}catch{}}
-        .task(id:mapSceneKey(displayDay)+"|"+store.mapProvider.rawValue){refreshedTransport.invalidate();transportRefreshed=false;if let day=displayDay{route.loadHome(day,provider:store.mapProvider,contentSource:trip.mode=="live" ? "google":"open")}}
+        .task(id:mapSceneKey(displayDay)+"|"+store.mapProvider.rawValue+"|"+String(store.demoEnabled)){refreshedTransport.invalidate();transportRefreshed=false;if let day=displayDay{route.loadHome(day,provider:store.mapProvider,contentSource:trip.mode=="live" ? "google":"open")}}
         .onDisappear{route.cancel();refreshedTransport.invalidate();navigator?.pause();if store.workspaceTripID==trip.id{store.workspaceTripID=nil}}
         .onReceive(refreshedTransport.$plan){value in if let value,let day=displayDay{transportRefreshed=true;route.accept(value,day:day)}}
         .onReceive(store.$proposal){value in if let value,store.proposalIsSuggestion,value.id==trip.id{companionRequest=nil;panelSize=1}}
         .onChange(of:scenePhase){_,phase in if phase == .background{navigator?.pause()}}
-        .onChange(of:store.dayIndex){_,_ in preview=nil;transportExpanded=false;transportRefreshed=false;refreshedTransport.invalidate();store.selectedStopID=nil}
+        .onChange(of:store.dayIndex){_,_ in preview=nil;goMode=false;focusedLeg=nil;transportExpanded=false;transportRefreshed=false;refreshedTransport.invalidate();store.selectedStopID=nil}
         .onChange(of:store.selectedStopID){_,id in if id != nil,navigator==nil{withAnimation{mapFraction=max(0.28,mapFraction)}}}
         .toolbar(.hidden,for:.tabBar)
     }
@@ -809,14 +864,26 @@ struct SavedTripWorkspace:View {
     }
     private func workspaceMap(height:CGFloat)->some View {
         ZStack(alignment:.topLeading) {
-                    ProviderRouteMap(overview:route.route,sections:route.plan?.sections ?? [],overviewIsGoogle:trip.mode=="live",showsNearby:showsNearby,expanded:true,bottomInset:20,cameraAction:workspaceCameraAction,dayOverride:displayDay,navigation:navigator)
+                    ProviderRouteMap(overview:route.route,sections:transportExpanded && focusedLeg != nil ? (route.plan?.legs.filter{$0.index==focusedLeg}.flatMap{leg in leg.steps.map{JourneyMapSection(mode:$0.mode,coordinates:$0.geometry.map(\.coordinate),boarding:$0.from,alighting:$0.to,line:$0.line)}} ?? []):(route.plan?.sections ?? []),overviewIsGoogle:trip.mode=="live",showsNearby:showsNearby,expanded:true,bottomInset:20,cameraAction:workspaceCameraAction,dayOverride:displayDay,navigation:navigator)
+                    if route.plan?.source==CachedDemoRoutes.source {Text("Cached routes · Estimated times").font(.caption2.weight(.semibold)).padding(.horizontal,12).padding(.vertical,8).background(.regularMaterial,in:Capsule()).padding(12)}
                     if hasScheduleDraft || workspaceProposal != nil {Text(uiText("修改预览 · 原行程仍保留")).font(.caption.bold()).padding(10).background(.regularMaterial,in:Capsule()).padding(12)}
                     if route.busy && (navigator==nil || navigator?.geometry.isEmpty==true) {ProgressView().padding(12).background(.regularMaterial,in:Circle()).padding(12)}
                     if !route.busy,route.route==nil,navigator?.geometry.isEmpty != false,let message=route.message {
-                        VStack(alignment:.leading,spacing:8){Text(uiText(message)).font(.caption);Button(uiText("Retry route")){if let day=displayDay{route.clear();route.load(day,provider:store.mapProvider)}}}.padding(12).background(.regularMaterial,in:RoundedRectangle(cornerRadius:14)).padding(12)
+                        VStack(alignment:.leading,spacing:8){
+                            Text(uiText(message)).font(.caption)
+                            if canRefreshDemoRoutes {
+                                Button("Preview corrected Demo routes") {previewCorrectedDemoRoutes()}.accessibilityIdentifier("demo-refresh-routes")
+                            } else {
+                                Button(uiText("Retry route")){if let day=displayDay{route.clear();route.load(day,provider:store.mapProvider)}}
+                            }
+                        }.padding(12).background(.regularMaterial,in:RoundedRectangle(cornerRadius:14)).padding(12)
                     }
                 }.overlay(alignment:.topTrailing){
                     Button{store.selectedStopID=nil;workspaceCameraAction=RouteMapCameraAction(kind:.fit)}label:{Image(systemName:"arrow.up.left.and.arrow.down.right").font(.body.weight(.semibold)).frame(width:44,height:44).background(.regularMaterial,in:RoundedRectangle(cornerRadius:12))}.accessibilityLabel(uiText("全日路線")).padding(12)
+                }.overlay(alignment:.bottomLeading){
+                    if route.plan?.source==CachedDemoRoutes.source {
+                        Link("Routes © OSM / FOSSGIS · TfNSW",destination:URL(string:"https://www.openstreetmap.org/copyright")!).font(.caption2).padding(5).background(.regularMaterial,in:RoundedRectangle(cornerRadius:5)).padding(6).padding(.bottom,20)
+                    }
                 }.frame(height:mapHeight(height))
                     .clipped()
                     .animation(reduceMotion ? nil:.easeInOut(duration:0.22),value:goMode)
@@ -835,6 +902,9 @@ struct SavedTripWorkspace:View {
                         mapFraction=min(0.55,max(0.18,(mapDragStart ?? mapFraction)+value.translation.height/max(1,height)))
                     }.onEnded{_ in mapDragStart=nil;withAnimation(reduceMotion ? nil:.easeInOut(duration:0.2)){mapFraction=mapFraction>0.33 ? 0.48:0.18};workspaceCameraAction=RouteMapCameraAction(kind:.fit)})
                 HStack{Text(uiText("Today’s plan")).font(.system(.title3,design:.rounded,weight:.bold));Spacer();Button{resizeMap()}label:{Image(systemName:mapFraction>0.35 ? "chevron.up":"chevron.down").frame(width:44,height:36)}.accessibilityLabel(uiText("Resize map and day plan"))}.padding(.horizontal,20)
+                if store.demoEnabled,let hotel=trip.profile.hotel,displayDay?.estimatedTransportPlan != nil {
+                    HStack(spacing:9){Image(systemName:"bed.double.fill").foregroundStyle(Palette.primary);VStack(alignment:.leading,spacing:2){Text(hotel.name).font(.caption.weight(.semibold)).lineLimit(1);Text("Suggested stay · Not booked").font(.caption2).foregroundStyle(Palette.muted)};Spacer()}.padding(.horizontal,20).padding(.vertical,6).accessibilityIdentifier("demo-hotel-base")
+                }
                 HStack(spacing:10) {
                     Button {companionRequest=TripCompanionRequest(text:TripCompanionContext.request(trip:trip,dayIndex:store.dayIndex,intent:nil),autoSend:false)} label:{
                         HStack(spacing:10){
@@ -849,24 +919,36 @@ struct SavedTripWorkspace:View {
     }
     @ViewBuilder private var workspaceTransport:some View {
         if transportExpanded {
+                    VStack(spacing:0) {
+                        HStack{Text(uiText("当天交通")).font(.headline);Spacer();if focusedLeg != nil{Button("All legs"){focusedLeg=nil}.font(.caption)};Button(uiText("收起")){transportExpanded=false}}.padding(.horizontal,16).padding(.top,10)
+                        if let plan=route.plan,let index=focusedLeg {
+                            HStack {
+                                Button("Previous leg"){focusedLeg=max(0,index-1)}.disabled(index==0).frame(minHeight:44).accessibilityIdentifier("route-previous-leg")
+                                Spacer();Text("Leg \(index+1) of \(plan.legs.count)").font(.caption).foregroundStyle(Palette.muted);Spacer()
+                                Button("Next leg"){focusedLeg=min(plan.legs.count-1,index+1)}.disabled(index>=plan.legs.count-1).frame(minHeight:44).accessibilityIdentifier("route-next-leg")
+                            }.font(.caption.weight(.semibold)).padding(.horizontal,16)
+                        }
                     ScrollView {VStack(alignment:.leading,spacing:12){
-                        HStack{Text(uiText("当天交通")).font(.headline);Spacer();Button(uiText("收起")){transportExpanded=false}}
-                        if displayDay?.hasTransit==true{
+                        if displayDay?.estimatedTransportPlan != nil{Text("Cached OSM / TfNSW routes · Times are illustrative, not live navigation").font(.caption2).foregroundStyle(Palette.muted)}
+                        if displayDay?.estimatedTransportPlan != nil {
+                            HStack(spacing:12){Link("© OpenStreetMap / FOSSGIS",destination:URL(string:"https://www.openstreetmap.org/copyright")!);Link("Fix the map",destination:URL(string:"https://www.openstreetmap.org/fixthemap")!)}.font(.caption2)
+                        }
+                        if displayDay?.hasTransit==true && displayDay?.estimatedTransportPlan==nil{
                             Text(uiText(transportRefreshed ? "这是按新出发时间查询的路线预览；尚未修改已保存日程，票价未知。":"已保存的计划班次，不能保证现在仍能赶上。出发前请刷新交通；票价未知。")).font(.caption2).foregroundStyle(Palette.muted)
                             Button(uiText(refreshedTransport.busy ? "正在查询最新班次…":"刷新交通路线")){refreshTransport()}.disabled(refreshedTransport.busy || workspaceProposal != nil).accessibilityIdentifier("refresh-transit-route")
                             if let error=refreshedTransport.error{Text(uiText(error)).font(.caption).foregroundStyle(.red)}
                             if transportRefreshed{Button(uiText("按最新班次重新安排")){Task{await store.generate("重新核对第 \(store.dayIndex+1) 天剩余行程的公共交通和时间，保留已完成活动与固定安排。",profileOverride:trip.profile)}}.disabled(store.busy || workspaceProposal != nil)}
                         }
-                        if let plan=route.plan{ForEach(plan.legs.filter{!goMode || focusedLeg==nil || $0.index==focusedLeg}){leg in DisclosureGroup(isExpanded:Binding(get:{focusedLeg==leg.index},set:{focusedLeg=$0 ? leg.index:nil})) {ForEach(leg.steps){step in VStack(alignment:.leading,spacing:4){Text(uiText(step.title));Text(uiText(step.from+" → "+step.to)).font(.caption);ForEach(Array((step.walkingDirections ?? []).enumerated()),id:\.offset){_,direction in Text(uiText(direction.text)).font(.caption).foregroundStyle(Palette.muted)};if step.mode != "walk"{Text(uiText(journeyTime(step.departureTime)+"–"+journeyTime(step.arrivalTime)+(step.realtime ? " · 实时预估":" · 时刻表"))).font(.caption)}}} }label:{Text(uiText(leg.from+" → "+leg.to+" · "+leg.walkingSummary)).font(.caption)}}}
+                        if let plan=route.plan{ForEach(plan.legs.filter{focusedLeg==nil || $0.index==focusedLeg}){leg in DisclosureGroup(isExpanded:Binding(get:{focusedLeg==leg.index},set:{focusedLeg=$0 ? leg.index:nil})) {ForEach(leg.steps){step in VStack(alignment:.leading,spacing:4){Text(uiText(step.title));Text(uiText(step.from+" → "+step.to)).font(.caption);ForEach(Array((step.walkingDirections ?? []).enumerated()),id:\.offset){_,direction in Text(uiText(direction.text)).font(.caption).foregroundStyle(Palette.muted)};if step.mode != "walk"{Text(uiText(journeyTime(step.departureTime)+"–"+journeyTime(step.arrivalTime)+(displayDay?.estimatedTransportPlan != nil ? " · Estimated":step.realtime ? " · 实时预估":" · 时刻表"))).font(.caption)}}} }label:{Text(uiText(leg.from+" → "+leg.to+" · "+leg.walkingSummary)).font(.caption)}}}
                         else if route.busy{ProgressView(uiText("正在查询路线…"))}
                         else{Text(uiText(route.message ?? "路线暂时无法确认，请重试。")).font(.caption);Button(uiText("重新查询路线")){if let day=displayDay{route.clear();route.load(day,provider:store.mapProvider)}}}
-                        if goMode,let plan=route.plan{HStack{if (focusedLeg ?? 0)>0{Button(uiText("Previous leg")){focusedLeg=max(0,(focusedLeg ?? 0)-1)}};Spacer();if (focusedLeg ?? 0)<plan.legs.count-1{Button(uiText("Next leg")){focusedLeg=(focusedLeg ?? 0)+1}}}}
                         Button(uiText("选择出发时间与交通方式")){transportOptions=true}
-                    }.padding(16)}.frame(maxHeight:180)
+                    }.padding(16)}
+                    }.frame(maxHeight:goMode ? .infinity:220)
                 }
     }
     private var workspaceSchedule:some View {
-        InlineTripSchedule(trip:trip,onMap:{withAnimation{mapFraction=0.48;goMode=false}},onAdvanced:openEditor,showsDayPicker:false,sharedCompanion:true,compactMapPreview:mapFraction>0.35,onCompanion:{text in companionRequest=TripCompanionRequest(text:text,autoSend:false)},onDraftChange:{hasScheduleDraft=$0;if !$0{preview=nil}},onSavingChange:{savingSchedule=$0},unified:true,canDepart:!goMode && navigator==nil,onPreviewChange:{preview=$0},onTravel:{position in focusedLeg=position;transportExpanded=true},onDepart:{if navigator != nil{goMode=true}else{startJourney()}},reviewingProposal:workspaceProposal != nil)
+        InlineTripSchedule(trip:trip,onMap:{withAnimation{mapFraction=0.48;goMode=false}},onAdvanced:openEditor,showsDayPicker:false,sharedCompanion:true,compactMapPreview:mapFraction>0.35,onCompanion:{text in companionRequest=TripCompanionRequest(text:text,autoSend:false)},onDraftChange:{hasScheduleDraft=$0;if !$0{preview=nil}},onSavingChange:{savingSchedule=$0},unified:true,canDepart:!goMode && navigator==nil,onPreviewChange:{preview=$0},onTravel:{position in focusedLeg=position;transportExpanded=true;withAnimation(reduceMotion ? nil:.easeInOut(duration:0.2)){mapFraction=0.48}},onDepart:{if navigator != nil{goMode=true}else{startJourney()}},reviewingProposal:workspaceProposal != nil,onCheck:{checkingWorld=true})
 
                     .disabled(navigator != nil || workspaceProposal != nil)
     }
@@ -874,12 +956,12 @@ struct SavedTripWorkspace:View {
         if let proposal=workspaceProposal {
                     VStack(spacing:8){
                         if !TripAdjustmentComparison.hasVisibleChanges(trip,proposal,includeConstraints:false){Text(uiText("这次试算没有改变安排")).font(.caption).foregroundStyle(Palette.muted)}
-                        HStack{Button(uiText("保留原行程")){store.proposal=nil};Spacer();if TripAdjustmentComparison.hasVisibleChanges(trip,proposal){Button(uiText(TripAdjustmentComparison.hasVisibleChanges(trip,proposal,includeConstraints:false) ? "确认并保存":"保存需求，保留路线")){Task{await store.acceptProposal()}}.buttonStyle(.borderedProminent)}}
+                        HStack{Button(uiText("保留原行程")){store.proposal=nil};Spacer();if TripAdjustmentComparison.hasVisibleChanges(trip,proposal){Button(uiText(TripAdjustmentComparison.hasVisibleChanges(trip,proposal,includeConstraints:false) ? "确认并保存":"保存需求，保留路线")){Task{await store.acceptProposal()}}.buttonStyle(KokoPrimaryStyle())}}
                     }.padding(16).background(.white).accessibilityIdentifier("trip-proposal-actions")
                 }
     }
 
-    private let workspaceBlue=Color(red:0.20,green:0.36,blue:0.79)
+    private let workspaceBlue=Palette.primary
     private func workspaceDate(_ value:String)->String {
         let parser=DateFormatter();parser.locale=Locale(identifier:"en_US_POSIX");parser.dateFormat="yyyy-MM-dd";parser.timeZone=TimeZone(identifier:"Australia/Sydney")
         guard let date=parser.date(from:value) else{return value}
@@ -895,6 +977,18 @@ struct SavedTripWorkspace:View {
         return "A little exploring, at your pace. I’m right here."
     }
     private var workspaceProposal:Trip? {store.workspaceAdjustment?.id==trip.id ? store.workspaceAdjustment:nil}
+    private var canRefreshDemoRoutes:Bool {
+        store.demoEnabled && (1...3).contains(trip.days.count) && trip.days.allSatisfy{$0.estimatedTransportPlan != nil && $0.stops.allSatisfy{$0.id.hasPrefix("curated-three-day-")}} && workspaceProposal==nil
+    }
+    private func previewCorrectedDemoRoutes() {
+        do {
+            var profile=trip.profile;profile.days=trip.days.count;profile.date=trip.days.first?.date ?? profile.date
+            var corrected=try DemoMode.trip(profile:profile)
+            corrected.id=trip.id;corrected.revision=trip.revision;corrected.title=trip.title;corrected.createdAt=trip.createdAt
+            store.proposalFromNewTrip=false;store.proposalIsSuggestion=true;store.proposal=corrected
+            route.clear();transportExpanded=false;focusedLeg=nil
+        } catch {store.errorMessage=error.localizedDescription}
+    }
     private var displayDay:DayPlan? {let value=workspaceProposal ?? preview ?? trip;return value.days.indices.contains(store.dayIndex) ? value.days[store.dayIndex]:nil}
     private func mapHeight(_ height:CGFloat)->CGFloat {
         let ratio=mapFraction
@@ -917,7 +1011,7 @@ struct SavedTripWorkspace:View {
     }
     private func startJourney(){
         guard !hasScheduleDraft,workspaceProposal==nil,!savingSchedule,let day=displayDay else{return}
-        if day.hasTransit{goMode=true;focusedLeg=0;transportExpanded=true;return}
+        if day.hasTransit || day.estimatedTransportPlan != nil{goMode=true;focusedLeg=0;transportExpanded=true;return}
         guard trip.mode != "live" else{onNavigate();return}
         transportExpanded=false;goMode=true;panelSize=1
         navigator=WalkingNavigator(day:day,tripID:trip.id ?? "draft",endpoint:BackendConnection.url("navigation/route").absoluteString,apple:store.mapProvider == .apple)
@@ -1161,7 +1255,7 @@ struct TripAdjustmentView:View {
             if original.mode == "live" {Text(uiText("Google 来源行程请使用匹配的道路服务调整。")).foregroundStyle(Palette.muted)}
             else {
                 if !focusReplacement{HStack{Button(uiText("再轻松一点")){lighten()}.disabled((day?.activities.count ?? 0)<2);Button(uiText("多一点美食")){addFood()}.disabled(!choices.contains{$0.category=="美食"});Button(uiText("加一段休息")){addRest()}}
-                    .buttonStyle(.bordered).disabled(model.busy || requested)}
+                    .buttonStyle(BuddySecondaryStyle()).disabled(model.busy || requested)}
                 if !focusReplacement,!requested,!choices.contains(where:{$0.category=="美食"}) {
                     Text(uiText("当前没有未安排的餐饮候选。可以直接找一家餐厅，加入后先预览，不会立即保存。")).font(.caption).foregroundStyle(Palette.muted)
                     Button(uiText("寻找餐厅并加入当天"),systemImage:"magnifyingglass"){discoveringFood=true}.disabled(model.busy)
@@ -1170,11 +1264,11 @@ struct TripAdjustmentView:View {
                 if !requested,let day {
                     Text(uiText("换掉某一站")).font(.headline)
                     ForEach(day.activities.filter{$0.locked != true && !original.profile.mustVisit.contains($0.placeId ?? "")}){a in
-                        Button{target=a.id}label:{Label(a.name,systemImage:target==a.id ? "checkmark.circle.fill":"circle")}.buttonStyle(.bordered)
+                        Button{target=a.id}label:{Label(a.name,systemImage:target==a.id ? "checkmark.circle.fill":"circle")}.buttonStyle(BuddySecondaryStyle())
                     }
                     if target != nil {
-                        Button(uiText("搜索替代地点"),systemImage:"magnifyingglass"){discoveringReplacement=true}.buttonStyle(.borderedProminent).disabled(model.busy).accessibilityIdentifier("replace-search-place")
-                        if !focusReplacement{Text(uiText("已有候选")).font(.subheadline.bold());ForEach(choices){candidate in Button(candidate.displayName){replace(with:candidate)}.buttonStyle(.bordered)}}
+                        Button(uiText("搜索替代地点"),systemImage:"magnifyingglass"){discoveringReplacement=true}.buttonStyle(KokoPrimaryStyle()).disabled(model.busy).accessibilityIdentifier("replace-search-place")
+                        if !focusReplacement{Text(uiText("已有候选")).font(.subheadline.bold());ForEach(choices){candidate in Button(candidate.displayName){replace(with:candidate)}.buttonStyle(BuddySecondaryStyle())}}
                     }
                 }
                 if model.busy{ProgressView("正在校验交通、步数和预算…")}
@@ -1200,7 +1294,7 @@ struct TripAdjustmentView:View {
             }
         }.padding(20)}.background(Palette.cream).navigationTitle(uiText("调整这一天")).navigationBarTitleDisplayMode(.inline)
         .toolbar{Button(uiText("保留原行程")){dismiss()}.disabled(store.busy)}
-        .safeAreaInset(edge:.bottom){if requested{PrimaryButton(title:"采用调整",symbol:"checkmark"){Task{if let value=proposedTrip,await store.saveAdjustment(value,original:original,dayIndex:dayIndex){dismiss()}}}.disabled(!canAdopt || store.busy).padding(20).background(Palette.cream)}}.tint(Palette.green)}
+        .safeAreaInset(edge:.bottom){if requested{PrimaryButton(title:"采用调整",symbol:"checkmark"){Task{if let value=proposedTrip,await store.saveAdjustment(value,original:original,dayIndex:dayIndex){dismiss()}}}.disabled(!canAdopt || store.busy).padding(20).background(Palette.cream)}}.buddySurface()}
         .sheet(isPresented:$discoveringReplacement){PoiDiscoveryView(addingToDay:true,replacingPlace:true){candidate in
             discoveringReplacement=false
             guard model.state?.days.flatMap(\.activities).contains(where:{$0.placeId==candidate.id})==false else{notice="这个地点已经在行程里啦，换一个还没安排的地方吧。";return}
@@ -1305,7 +1399,9 @@ enum TripHomePresentation {
     static func planningAction(_ status:String)->String {
         switch status{case "generating":return "View progress";case "review":return "Review draft";case "failed":return "View options & retry";default:return "Continue planning"}
     }
-    static func status(_ trip:Trip,today:String,dayIndex:Int)->String {
+    static func status(_ trip:Trip,today:String,dayIndex:Int,justGenerated:Bool=false)->String {
+        if trip.recommendationStatus=="partial"{return "Draft saved · Review details"}
+        if justGenerated{return "Ready · View itinerary"}
         if (trip.days.last?.date ?? trip.profile.date)<today{return "Past trip"}
         if trip.profile.date>today{return "View itinerary"}
         return AppLanguage.current.text("Day {0} of {1}",String(dayIndex+1),String(max(1,trip.days.count)))
@@ -1451,17 +1547,7 @@ struct TripLibraryCalendar:View {
     private func shift(_ amount:Int){month=calendar.date(byAdding:.month,value:amount,to:first) ?? month}
 }
 
-struct TripsCreateButtonStyle:ButtonStyle {
-    @Environment(\.isEnabled) private var enabled
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    func makeBody(configuration:Configuration)->some View {
-        configuration.label.foregroundStyle(enabled ? Color.white:Color.secondary)
-            .background(enabled ? Color(red:0.20,green:0.36,blue:0.79):Color.gray.opacity(0.12),in:RoundedRectangle(cornerRadius:16))
-            .opacity(configuration.isPressed ? 0.85:1)
-            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.985:1)
-            .animation(reduceMotion ? nil:.easeOut(duration:0.12),value:configuration.isPressed)
-    }
-}
+typealias TripsCreateButtonStyle = KokoPrimaryStyle
 
 private struct NewTripConfirmationHeight:PreferenceKey {
     static var defaultValue:CGFloat=0
@@ -1475,7 +1561,7 @@ private struct NewTripConfirmationSheet:View {
         ScrollView {
             VStack(alignment:.leading,spacing:18){
                 Text(uiText("Start a fresh adventure?")).font(.system(.title2,design:.rounded,weight:.bold)).accessibilityAddTraits(.isHeader)
-                Text(uiText("This will replace your unfinished draft.")+"\n"+uiText("Your saved trips and memories will stay.")).font(.body).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
+                Text(uiText("This will replace your unfinished draft.")+"\n"+uiText("Your saved trips and memories will stay.")).font(.body).foregroundStyle(Palette.muted).fixedSize(horizontal:false,vertical:true)
                 Button(action:confirm){Text(uiText("Start new trip")).font(.headline).frame(maxWidth:.infinity,minHeight:52)}.buttonStyle(TripsCreateButtonStyle()).accessibilityIdentifier("confirm-new-trip")
                 Button{dismiss()}label:{Text(uiText("Keep planning")).font(.headline).frame(maxWidth:.infinity,minHeight:44)}.buttonStyle(BuddyPressStyle()).accessibilityIdentifier("keep-planning")
             }.padding(.horizontal,24).padding(.top,30).padding(.bottom,14)
@@ -1484,10 +1570,18 @@ private struct NewTripConfirmationSheet:View {
             .simultaneousGesture(DragGesture(minimumDistance:20).onEnded{value in
                 if value.startLocation.y<90,value.translation.height>70,abs(value.translation.height)>abs(value.translation.width){dismiss()}
             })
-            .foregroundStyle(Color(red:0.09,green:0.15,blue:0.24)).background(.white)
+            .foregroundStyle(Palette.ink).background(.white)
             .onPreferenceChange(NewTripConfirmationHeight.self){height in if height>0{contentHeight=height}}
             .presentationDetents([.height(contentHeight)])
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(24)
     }
+}
+
+private struct FeasibilityUIReport:Decodable {
+    var decision:String;var canConfirm:Bool;var summary:String;var modelReviewCompleted:Bool;var issues:[FeasibilityUIIssue]
+    var heading:String {switch decision {case "pass":return "Looking good, with a few notes";case "revise":return "Let’s make a little adjustment";case "needs_info":return "A few details need your help";default:return "I couldn’t finish this check"}}
+}
+private struct FeasibilityUIIssue:Decodable {
+    var message:String;var actionLabel:String;var severity:String;var dayIndex:Int?;var targetAgent:String?
 }

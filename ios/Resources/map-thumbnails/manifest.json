@@ -1,0 +1,158 @@
+[
+  {
+    "asset": "opera.jpg",
+    "aliases": [
+      "Sydney Opera House",
+      "悉尼歌剧院",
+      "雪梨歌劇院"
+    ],
+    "lat": -33.8571,
+    "lng": 151.2153,
+    "radius": 500,
+    "title": "Sydney Opera House",
+    "artist": "BAVhah",
+    "license": "CC BY-SA 4.0",
+    "sourceURL": "https://commons.wikimedia.org/wiki/File:Sydney_Opera_House_2026.jpg",
+    "licenseURL": "https://creativecommons.org/licenses/by-sa/4.0"
+  },
+  {
+    "asset": "gardens.jpg",
+    "aliases": [
+      "Royal Botanic Garden",
+      "皇家植物园",
+      "皇家植物園"
+    ],
+    "lat": -33.8642,
+    "lng": 151.2166,
+    "radius": 800,
+    "title": "Royal Botanic Garden, Sydney",
+    "artist": "Bidgee",
+    "license": "CC BY-SA 3.0 au",
+    "sourceURL": "https://commons.wikimedia.org/wiki/File:Gates_at_Royal_Botanic_Gardens_viewed_from_Art_Gallery_Road.jpg",
+    "licenseURL": "https://creativecommons.org/licenses/by-sa/3.0/au/deed.en"
+  },
+  {
+    "asset": "rocks.jpg",
+    "aliases": [
+      "The Rocks",
+      "岩石区",
+      "岩石區"
+    ],
+    "lat": -33.8592,
+    "lng": 151.2085,
+    "radius": 600,
+    "title": "The Rocks, New South Wales",
+    "artist": "Dietmar Rabich",
+    "license": "CC BY-SA 4.0",
+    "sourceURL": "https://commons.wikimedia.org/wiki/File:Sydney_(AU),_The_Rocks_--_2019_--_2133.jpg",
+    "licenseURL": "https://creativecommons.org/licenses/by-sa/4.0"
+  },
+  {
+    "asset": "park.jpg",
+    "aliases": [
+      "Centennial Park",
+      "百年纪念公园",
+      "百年紀念公園"
+    ],
+    "lat": -33.9013,
+    "lng": 151.2359,
+    "radius": 1800,
+    "title": "Centennial Park, New South Wales",
+    "artist": "Sardaka",
+    "license": "CC BY-SA 4.0",
+    "sourceURL": "https://commons.wikimedia.org/wiki/File:Afternoon_light_Centennial_Park_005.jpg",
+    "licenseURL": "https://creativecommons.org/licenses/by-sa/4.0"
+  },
+  {
+    "asset": "bondi.jpg",
+    "aliases": [
+      "Bondi Beach",
+      "邦迪海滩",
+      "邦迪海灘"
+    ],
+    "lat": -33.8915,
+    "lng": 151.2767,
+    "radius": 800,
+    "title": "Bondi Beach",
+    "artist": "Nick Ang",
+    "license": "CC BY-SA 4.0",
+    "sourceURL": "https://commons.wikimedia.org/wiki/File:Bondi_from_above.jpg",
+    "licenseURL": "https://creativecommons.org/licenses/by-sa/4.0"
+  },
+  {
+    "asset": "icebergs.jpg",
+    "aliases": [
+      "Icebergs"
+    ],
+    "lat": -33.8952732,
+    "lng": 151.2744078,
+    "radius": 250,
+    "title": "Bondi Icebergs Club",
+    "artist": "Kristina D.C. Hoeppner",
+    "license": "CC BY-SA 2.0",
+    "sourceURL": "https://commons.wikimedia.org/wiki/File:Bondi_Icebergs_pools.jpg",
+    "licenseURL": "https://creativecommons.org/licenses/by-sa/2.0"
+  },
+  {
+    "asset": "manly.jpg",
+    "aliases": [
+      "Manly Wharf",
+      "Manly waterfront",
+      "曼利"
+    ],
+    "lat": -33.8008,
+    "lng": 151.2844,
+    "radius": 800,
+    "title": "Manly, New South Wales",
+    "artist": "File:2007-08-04 Manly, New South Wales.jpg: Maksym Kozlenko\nderivative work: Georgfotoart",
+    "license": "CC BY-SA 4.0",
+    "sourceURL": "https://commons.wikimedia.org/wiki/File:2007-08-04_Manly,_New_South_Wales_b_(cropped).jpg",
+    "licenseURL": "https://creativecommons.org/licenses/by-sa/4.0"
+  },
+  {
+    "asset": "shelly.jpg",
+    "aliases": [
+      "Shelly Beach"
+    ],
+    "lat": -33.8005,
+    "lng": 151.2968,
+    "radius": 500,
+    "title": "Shelly Beach (Manly)",
+    "artist": "J Bar",
+    "license": "CC BY-SA 3.0",
+    "sourceURL": "https://commons.wikimedia.org/wiki/File:Shelly_Beach_Manly.JPG",
+    "licenseURL": "http://creativecommons.org/licenses/by-sa/3.0/"
+  },
+  {
+    "asset": "gallery.jpg",
+    "aliases": [
+      "Art Gallery of NSW",
+      "Art Gallery of New South Wales",
+      "新南威尔士美术馆"
+    ],
+    "lat": -33.8688,
+    "lng": 151.2173,
+    "radius": 400,
+    "title": "Art Gallery of New South Wales",
+    "artist": "Chris Olszewski",
+    "license": "CC BY-SA 4.0",
+    "sourceURL": "https://commons.wikimedia.org/wiki/File:Art_Gallery_of_New_South_Wales,_2022,_09.jpg",
+    "licenseURL": "https://creativecommons.org/licenses/by-sa/4.0"
+  },
+  {
+    "asset": "quay.jpg",
+    "aliases": [
+      "Circular Quay",
+      "环形码头",
+      "環形碼頭"
+    ],
+    "lat": -33.861,
+    "lng": 151.2111,
+    "radius": 600,
+    "title": "Circular Quay",
+    "artist": "DXR",
+    "license": "CC BY-SA 4.0",
+    "sourceURL": "https://commons.wikimedia.org/wiki/File:North_view_of_Sydney_Opera_House,_the_Rocks_and_Sydney_CBD_20230223_1.jpg",
+    "licenseURL": "https://creativecommons.org/licenses/by-sa/4.0"
+  }
+]

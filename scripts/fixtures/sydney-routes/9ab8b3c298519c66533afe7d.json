@@ -1,0 +1,349 @@
+{
+  "url": "https://routing.openstreetmap.de/routed-foot/route/v1/driving/151.276156,-33.890957;151.276279,-33.891124?overview=full&geometries=geojson&steps=true",
+  "request": null,
+  "fetchedAt": "2026-10-27T07:55:30.246386+00:00",
+  "response": {
+    "code": "Ok",
+    "routes": [
+      {
+        "legs": [
+          {
+            "steps": [
+              {
+                "intersections": [
+                  {
+                    "out": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      238
+                    ],
+                    "location": [
+                      151.276156,
+                      -33.890957
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.276156,
+                      -33.890957
+                    ],
+                    [
+                      151.276068,
+                      -33.891002
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 238,
+                  "bearing_before": 0,
+                  "location": [
+                    151.276156,
+                    -33.890957
+                  ],
+                  "type": "depart"
+                },
+                "name": "Queen Elizabeth Drive",
+                "mode": "walking",
+                "weight": 0.95,
+                "duration": 7.6,
+                "distance": 9.5
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 1,
+                    "in": 0,
+                    "entry": [
+                      false,
+                      true,
+                      true,
+                      true
+                    ],
+                    "bearings": [
+                      60,
+                      150,
+                      240,
+                      330
+                    ],
+                    "location": [
+                      151.276068,
+                      -33.891002
+                    ]
+                  },
+                  {
+                    "out": 1,
+                    "in": 2,
+                    "entry": [
+                      true,
+                      true,
+                      false
+                    ],
+                    "bearings": [
+                      60,
+                      150,
+                      330
+                    ],
+                    "location": [
+                      151.276118,
+                      -33.891085
+                    ]
+                  },
+                  {
+                    "out": 1,
+                    "in": 2,
+                    "entry": [
+                      true,
+                      true,
+                      false
+                    ],
+                    "bearings": [
+                      60,
+                      120,
+                      330
+                    ],
+                    "location": [
+                      151.276125,
+                      -33.891095
+                    ]
+                  },
+                  {
+                    "out": 1,
+                    "in": 3,
+                    "entry": [
+                      true,
+                      true,
+                      true,
+                      false
+                    ],
+                    "bearings": [
+                      60,
+                      150,
+                      240,
+                      300
+                    ],
+                    "location": [
+                      151.276163,
+                      -33.891115
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.276068,
+                      -33.891002
+                    ],
+                    [
+                      151.276118,
+                      -33.891085
+                    ],
+                    [
+                      151.276125,
+                      -33.891095
+                    ],
+                    [
+                      151.276163,
+                      -33.891115
+                    ],
+                    [
+                      151.276185,
+                      -33.891146
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 153,
+                  "bearing_before": 237,
+                  "location": [
+                    151.276068,
+                    -33.891002
+                  ],
+                  "modifier": "left",
+                  "type": "turn"
+                },
+                "name": "",
+                "mode": "walking",
+                "weight": 1.65,
+                "duration": 15.7,
+                "distance": 19.7
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 0,
+                    "in": 2,
+                    "entry": [
+                      true,
+                      true,
+                      false
+                    ],
+                    "bearings": [
+                      60,
+                      240,
+                      330
+                    ],
+                    "location": [
+                      151.276185,
+                      -33.891146
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.276185,
+                      -33.891146
+                    ],
+                    [
+                      151.276264,
+                      -33.891104
+                    ],
+                    [
+                      151.276279,
+                      -33.891124
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 64,
+                  "bearing_before": 149,
+                  "location": [
+                    151.276185,
+                    -33.891146
+                  ],
+                  "modifier": "left",
+                  "type": "end of road"
+                },
+                "name": "",
+                "mode": "walking",
+                "weight": 0.94,
+                "duration": 11,
+                "distance": 11.3
+              },
+              {
+                "intersections": [
+                  {
+                    "in": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      330
+                    ],
+                    "location": [
+                      151.276279,
+                      -33.891124
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.276279,
+                      -33.891124
+                    ],
+                    [
+                      151.276279,
+                      -33.891124
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 0,
+                  "bearing_before": 147,
+                  "location": [
+                    151.276279,
+                    -33.891124
+                  ],
+                  "type": "arrive"
+                },
+                "name": "",
+                "mode": "walking",
+                "weight": 0,
+                "duration": 0,
+                "distance": 0
+              }
+            ],
+            "weight": 3.54,
+            "summary": "Queen Elizabeth Drive",
+            "duration": 34.3,
+            "distance": 40.6
+          }
+        ],
+        "weight_name": "routability",
+        "geometry": {
+          "coordinates": [
+            [
+              151.276156,
+              -33.890957
+            ],
+            [
+              151.276068,
+              -33.891002
+            ],
+            [
+              151.276118,
+              -33.891085
+            ],
+            [
+              151.276125,
+              -33.891095
+            ],
+            [
+              151.276163,
+              -33.891115
+            ],
+            [
+              151.276185,
+              -33.891146
+            ],
+            [
+              151.276264,
+              -33.891104
+            ],
+            [
+              151.276279,
+              -33.891124
+            ]
+          ],
+          "type": "LineString"
+        },
+        "weight": 3.54,
+        "duration": 34.3,
+        "distance": 40.6
+      }
+    ],
+    "waypoints": [
+      {
+        "hint": "S1SegdzGSIJfAAAA8QAAAAAAAABjAwAAvswYQYcIwEEAAAAAf2WtQkwAAADAAAAAAAAAALYCAAAEAAAAfEoECXPd-v18SgQJc936_QAArwMAAAAA",
+        "location": [
+          151.276156,
+          -33.890957
+        ],
+        "name": "Queen Elizabeth Drive",
+        "distance": 0
+      },
+      {
+        "hint": "hFiegToPTowWAAAAAAAAAEgAAAAAAAAAkHgnQAAAAAARrgpBAAAAABUAAAAAAAAARQAAAAAAAAAEAAAA90oECczc-v33SgQJzNz6_QIAPwkAAAAA",
+        "location": [
+          151.276279,
+          -33.891124
+        ],
+        "name": "",
+        "distance": 0
+      }
+    ]
+  }
+}

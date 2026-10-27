@@ -122,7 +122,7 @@ extension ScheduleState {
                 ScheduleActivity(id:stop.id,placeId:stop.placeId ?? stop.id,kind:["meal","bag-drop","bag-pickup"].contains(stop.activityType ?? "") ? stop.activityType!:"attraction",name:stop.name,lat:stop.lat,lng:stop.lng,duration:stop.visitMinutes,cost:stop.cost,confirmed:stop.storageConfirmed,locked:["bag-drop","bag-pickup"].contains(stop.activityType ?? ""),openMinute:stop.openMinute,closeMinute:stop.closeMinute,queueMinutes:nil,queueSource:"未知",arrival:stop.arrival,departure:stop.departure,scheduledStart:minute(stop.arrival),travelMinutes:day.legs.indices.contains(i) ? day.legs[i].minutes : 0,indoor:stop.indoor,hoursVerified:stop.hoursVerified)
             }
             let transport=day.legs.reduce(0){$0+$1.minutes}
-            return ScheduleDay(date:day.date,startMinute:trip.profile.startMinute,endMinute:trip.profile.endMinute,start:day.start,end:day.end,stay:ScheduleStay(name:day.end.name,lat:day.end.lat,lng:day.end.lng,cost:0,confirmed:false,checkIn:900,checkOut:660),activities:activities,transportMinutes:transport,queueMinutes:0,timeUsed:transport,timeRemaining:180-transport,unknownQueue:!activities.isEmpty,estimatedSteps:day.estimatedSteps,estimatedCost:day.estimatedCost,finishTime:day.finishTime)
+            return ScheduleDay(date:day.date,startMinute:day.planningStartMinute ?? trip.profile.startMinute,endMinute:trip.profile.endMinute,start:day.start,end:day.end,stay:ScheduleStay(name:day.end.name,lat:day.end.lat,lng:day.end.lng,cost:0,confirmed:false,checkIn:900,checkOut:660),activities:activities,transportMinutes:transport,queueMinutes:0,timeUsed:transport,timeRemaining:180-transport,unknownQueue:!activities.isEmpty,estimatedSteps:day.estimatedSteps,estimatedCost:day.estimatedCost,finishTime:day.finishTime)
         }
         var seen=Set<String>()
         let candidates=trip.days.flatMap(\.stops).filter{!["bag-drop","bag-pickup"].contains($0.activityType ?? "")&&seen.insert($0.id).inserted}.map{stop in trip.planningCandidates?.first(where:{$0.id==(stop.placeId ?? stop.id)}) ?? ScheduleCandidate(id:stop.id,name:stop.name,category:stop.category,indoor:stop.indoor,visitMinutes:stop.visitMinutes,cost:stop.cost,lat:stop.lat,lng:stop.lng,reason:"原行程地点",note:stop.note,activityType:stop.activityType)}
@@ -339,7 +339,7 @@ struct ScheduleRadarView:View {
                     if let state=model.state {
                         let day=state.days[min(model.dayIndex,state.days.count-1)]
                         ScrollView(.horizontal,showsIndicators:false){HStack{ForEach(state.days.indices,id:\.self){i in
-                            Button(uiText("第 \(i+1) 天")){model.dayIndex=i}.buttonStyle(.bordered).tint(model.dayIndex==i ? Palette.green:Palette.muted)
+                            Button(uiText("第 \(i+1) 天")){model.dayIndex=i}.buttonStyle(BuddySecondaryStyle()).tint(model.dayIndex==i ? Palette.green:Palette.muted)
                         }}}
                         Text(uiText(day.date+" · "+day.start.name+" 出发")).font(.caption).foregroundStyle(Palette.muted)
                         HStack{Text(uiText("当天活动")).font(.headline);Spacer();Button(uiText("添加安排")){candidateSheet=true}.font(.subheadline.bold())}
@@ -555,6 +555,7 @@ struct InlineTripSchedule:View {
     var onTravel:(Int)->Void = {_ in}
     var onDepart:()->Void = {}
     var reviewingProposal=false
+    var onCheck:(()->Void)?=nil
     @State private var showingProposal=false
     @State private var placeDetail:ScheduleCandidate?
     @EnvironmentObject private var store:AppStore
@@ -602,7 +603,7 @@ struct InlineTripSchedule:View {
                         }
                         if !compactMapPreview{connection(position:day.activities.count,minutes:nil)}
                         if unified && !compactMapPreview{
-                            HStack{Image(systemName:"flag.checkered");Text(store.language.text("Back by {0}",day.finishTime));Spacer();Button(uiText("Add a stop")){autoCommit=false;openAdd(day.activities.count)}.font(.subheadline.bold()).disabled(blocked)}.font(.caption).foregroundStyle(Palette.muted).padding(.vertical,20)
+                            HStack{Image(systemName:"flag.checkered");VStack(alignment:.leading,spacing:3){Text(store.language == .english && day.start != day.end ? "Arrive by \(day.finishTime)":store.language.text("Back by {0}",day.finishTime));if day.start != day.end{Text(day.end.name).font(.caption2).lineLimit(2)}};Spacer();Button(uiText("Add a stop")){autoCommit=false;openAdd(day.activities.count)}.font(.subheadline.bold()).disabled(blocked)}.font(.caption).foregroundStyle(Palette.muted).padding(.vertical,20)
                         }else if !unified{endpoint(day.end.name,time:day.finishTime,symbol:"flag.checkered",kind:.end)}
                         if editable && !unified{Text(uiText("点时间修改 · 按住右侧手柄拖动排序")).font(.caption).foregroundStyle(Palette.muted).padding(.top,20)}
                         if !unified{Text(uiText(model.trip?.days.indices.contains(index)==true && model.trip!.days[index].legs.allSatisfy{$0.source.contains("Apple")} ? "交通按路线来源查询安排；费用、停留和未知排队仍为估算。":changed ? "步行和排队会重新校验；道路查询失败时保留草稿。":"时间和费用为估算；修改时将查询 Apple 步行路线。")).font(.caption).foregroundStyle(Palette.muted).padding(.top,10)}
@@ -656,13 +657,18 @@ struct InlineTripSchedule:View {
         .confirmationDialog(uiText("放弃这次尚未保存的调整？"),isPresented:$discard,titleVisibility:.visible){Button(uiText("放弃修改"),role:.destructive){model.restore();expanded=nil};Button(uiText("继续调整"),role:.cancel){}}
         .sensoryFeedback(.success,trigger:savedMessage)
     }
+    private func activityCost(_ day:ScheduleDay)->String {
+        let stops=trip.days.indices.contains(index) ? trip.days[index].stops:[]
+        let summary=ProposalReviewPresentation.cost(amount:day.estimatedCost,known:day.activities.map{activity in stops.first{$0.id==activity.id}?.costKnown})
+        return summary == "Cost to confirm" ? summary:summary+" · "+uiText("per person")
+    }
     private func experienceHeading(_ day:ScheduleDay)->some View {
         VStack(alignment:.leading,spacing:10){
             HStack(spacing:10){
                 Text(uiText("约 \(day.estimatedSteps.formatted()) 步")).foregroundStyle(Palette.muted)
                 Spacer(minLength:4)
-                Button{ledger=true}label:{Text(store.language.text("Est. A${0}/person",String(Int(day.estimatedCost))))}.accessibilityIdentifier("trip-budget")
-                Menu{Button(uiText(reorderMode ? "Done reordering":"Reorder")){reorderMode.toggle()};Button(uiText("完整时间与住宿设置"),action:onAdvanced).disabled(changed)}label:{Image(systemName:"ellipsis").frame(width:44,height:44)}.accessibilityLabel(uiText("Day options"))
+                Button{ledger=true}label:{Text(activityCost(day)).multilineTextAlignment(.trailing).fixedSize(horizontal:false,vertical:true)}.accessibilityIdentifier("trip-budget")
+                Menu{if let onCheck{Button("Check itinerary",systemImage:"checkmark.shield",action:onCheck).disabled(changed)};Button(uiText(reorderMode ? "Done reordering":"Reorder")){reorderMode.toggle()};Button(uiText("完整时间与住宿设置"),action:onAdvanced).disabled(changed)}label:{Image(systemName:"ellipsis").frame(width:44,height:44)}.accessibilityLabel(uiText("Day options"))
             }.font(.caption)
             if savedMessage{HStack{Label(uiText("All tucked in. Your day is updated."),systemImage:"checkmark.circle");Spacer();Button(uiText("Undo")){saving=true;Task{_ = await store.undoLastAdjustment(inline:true);saving=false;savedMessage=false}}.disabled(saving || store.busy || store.lastAdjustment?.id != trip.id)}.font(.caption.bold()).foregroundStyle(Palette.green)}
         }.padding(.bottom,8)
@@ -674,8 +680,8 @@ struct InlineTripSchedule:View {
         VStack(alignment:.leading,spacing:10){
             HStack(alignment:.top,spacing:12){
                 Text(activity.arrival.isEmpty ? "—":activity.arrival).font(.caption.monospacedDigit()).foregroundStyle(Palette.muted).frame(width:48,alignment:.leading).padding(.top,4)
-                Text(String(position+1)).font(.caption.bold()).foregroundStyle(.white).frame(width:22,height:22).background(Color(red:0.20,green:0.36,blue:0.79),in:Circle()).padding(.top,3).accessibilityHidden(true)
-                Button{withAnimation(reduceMotion ? nil:.easeInOut(duration:0.18)){expanded=expanded==activity.id ? nil:activity.id}}label:{VStack(alignment:.leading,spacing:7){if position==0{Text(uiText("First stop")).font(.caption2.bold()).foregroundStyle(Color(red:0.20,green:0.36,blue:0.79))};Text(uiText(activity.name)).font(.system(.headline,design:.rounded)).foregroundStyle(Palette.ink).multilineTextAlignment(.leading);HStack(spacing:8){Text(store.language.text("{0} min",String(activity.duration)));if trip.days[index].stops.first(where:{$0.id==activity.id})?.costKnown==false{Text(uiText("Price unverified"))}else{Text(store.language.text("Est. A${0}",String(Int(activity.cost))))}}.font(.caption).foregroundStyle(Palette.muted)}.frame(maxWidth:.infinity,alignment:.leading)}.buttonStyle(.plain).accessibilityIdentifier("schedule-stop-"+activity.id)
+                Text(String(position+1)).font(.caption.bold()).foregroundStyle(.white).frame(width:22,height:22).background(Palette.primary,in:Circle()).padding(.top,3).accessibilityHidden(true)
+                Button{withAnimation(reduceMotion ? nil:.easeInOut(duration:0.18)){expanded=expanded==activity.id ? nil:activity.id}}label:{VStack(alignment:.leading,spacing:7){if position==0{Text(uiText("First stop")).font(.caption2.bold()).foregroundStyle(Palette.primary)};Text(uiText(activity.name)).font(.system(.headline,design:.rounded)).foregroundStyle(Palette.ink).multilineTextAlignment(.leading);HStack(spacing:8){Text(store.language.text("{0} min",String(activity.duration)));if trip.days[index].stops.first(where:{$0.id==activity.id})?.costKnown != true{Text(uiText("Price unverified"))}else{Text(store.language.text("Est. A${0}",String(Int(activity.cost))))}}.font(.caption).foregroundStyle(Palette.muted)}.frame(maxWidth:.infinity,alignment:.leading)}.buttonStyle(.plain).accessibilityIdentifier("schedule-stop-"+activity.id)
                 if !reorderMode{Button{store.selectedStopID=activity.id;onMap()}label:{Image(systemName:"mappin.and.ellipse").frame(width:44,height:44)}.buttonStyle(.plain).accessibilityLabel(uiText("Map"))}
                 if reorderMode{Button{movingActivity=activity}label:{Image(systemName:"line.3.horizontal").frame(width:44,height:44)}.draggable("koko-schedule|\(trip.id ?? "")|\(index)|\(activity.id)").disabled(blocked || activity.locked==true).accessibilityIdentifier("schedule-reorder-"+activity.id)}
             }
@@ -688,7 +694,7 @@ struct InlineTripSchedule:View {
                         Button(uiText("Ask Koko")){askKoko(activity)}
                         Button(uiText("Remove"),role:.destructive){autoCommit=ExperienceEditPolicy.automatic(unified:unified,hasDraft:changed,alreadyAutomatic:autoCommit);model.edit{$0.days[index].activities.removeAll{$0.id==activity.id}};expanded=nil}.disabled(activity.locked==true || required(activity))
                     }label:{Image(systemName:"ellipsis").frame(minWidth:44,minHeight:32)}.accessibilityLabel(uiText("Stop options"))
-                }.font(.caption.bold()).buttonStyle(.bordered).padding(.leading,60).disabled(blocked)
+                }.font(.caption.bold()).buttonStyle(BuddySecondaryStyle()).padding(.leading,60).disabled(blocked)
             }
         }.padding(.vertical,12).padding(.horizontal,2).background(expanded==activity.id ? Color.blue.opacity(0.035):.clear,in:RoundedRectangle(cornerRadius:12))
         .dropDestination(for:String.self){values,_ in
@@ -699,15 +705,15 @@ struct InlineTripSchedule:View {
         }
     }
     private func compactHeading(_ day:ScheduleDay)->some View {
-        HStack{Button{ledger=true}label:{Label(uiText("每人估算 A$\(Int(day.estimatedCost))"),systemImage:"creditcard")}.accessibilityIdentifier("trip-budget");Spacer();Text(uiText("约 \(day.estimatedSteps.formatted()) 步"))}.font(.caption).foregroundStyle(Palette.muted).padding(.bottom,12)
+        HStack{Button{ledger=true}label:{Label(activityCost(day),systemImage:"creditcard")}.accessibilityIdentifier("trip-budget");Spacer();Text(uiText("约 \(day.estimatedSteps.formatted()) 步"))}.font(.caption).foregroundStyle(Palette.muted).padding(.bottom,12)
     }
     private func heading(_ day:ScheduleDay)->some View {
         VStack(alignment:.leading,spacing:8){
             HStack{Text(uiText("第 \(index+1) 天")).font(.system(.title2,design:.rounded,weight:.bold));Text(uiText(day.date)).font(.subheadline).foregroundStyle(Palette.muted);Spacer();if editable{Menu{Button(uiText("添加安排"),systemImage:"plus"){openAdd(day.activities.count)};Button(uiText("完整时间与住宿设置"),systemImage:"slider.horizontal.3"){onAdvanced()}.disabled(changed)}label:{Image(systemName:"slider.horizontal.3").frame(width:44,height:44)}.accessibilityLabel(uiText("当天调整"))}}
-            HStack(spacing:14){Button{ledger=true}label:{Label(uiText("安排估算 · A$\(Int(day.estimatedCost))/人"),systemImage:"creditcard").frame(minHeight:44)}.buttonStyle(BuddyPressStyle()).accessibilityLabel(uiText("安排费用为每人当天估算 A$\(Int(day.estimatedCost))，点击查看账本")).accessibilityIdentifier("trip-budget");Label(uiText("约 \(day.estimatedSteps.formatted()) 步"),systemImage:"figure.walk")}.font(.caption).foregroundStyle(Palette.muted)
+            HStack(spacing:14){Button{ledger=true}label:{Label(activityCost(day),systemImage:"creditcard").frame(minHeight:44)}.buttonStyle(BuddyPressStyle()).accessibilityLabel(activityCost(day)+" · Per person · Open expense ledger").accessibilityIdentifier("trip-budget");Label(uiText("约 \(day.estimatedSteps.formatted()) 步"),systemImage:"figure.walk")}.font(.caption).foregroundStyle(Palette.muted)
             Text(uiText("估算不是已消费，未核实费用另计；点金额查看预算与账本。")).font(.caption2).foregroundStyle(Palette.muted)
-            if changed{Label(uiText("修改预览 · 原行程仍保留"),systemImage:"pencil.line").font(.caption.bold()).foregroundStyle(Palette.berry)}
-            if savedMessage{Label(uiText("收好啦，新的安排已经保存"),systemImage:"checkmark.circle.fill").font(.caption).foregroundStyle(Palette.berry)}
+            if changed{Label(uiText("修改预览 · 原行程仍保留"),systemImage:"pencil.line").font(.caption.bold()).foregroundStyle(Palette.primary)}
+            if savedMessage{Label(uiText("收好啦，新的安排已经保存"),systemImage:"checkmark.circle.fill").font(.caption).foregroundStyle(Palette.primary)}
         }.padding(.bottom,24)
     }
     private func endpoint(_ name:String,time:String,symbol:String,kind:ScheduleAnchorKind)->some View {
@@ -716,13 +722,17 @@ struct InlineTripSchedule:View {
             VStack(spacing:3){
                 if kind == .start{Button{anchorRequest=ScheduleAnchorRequest(kind:kind,editingPlace:false)}label:{VStack(spacing:3){Text(uiText(time)).font(.caption.monospacedDigit().bold());Text(uiText("出发 ▾")).font(.caption2)}}.buttonStyle(BuddyPressStyle()).frame(minWidth:46,minHeight:44).disabled(!canEdit).accessibilityLabel(uiText("出发时间 "+time+"，点击修改")).accessibilityIdentifier("schedule-start-time")}
                 else{Text(uiText(time)).font(.caption.monospacedDigit());Text(uiText("预计返回")).font(.caption2)}
-            }.foregroundStyle(Palette.berry).frame(width:46,alignment:.leading)
-            Image(systemName:symbol).foregroundStyle(Palette.berry).frame(width:24).padding(.top,12)
+            }.foregroundStyle(Palette.primary).frame(width:46,alignment:.leading)
+            Image(systemName:symbol).foregroundStyle(Palette.primary).frame(width:24).padding(.top,12)
             VStack(alignment:.leading,spacing:4){
                 Button{anchorRequest=ScheduleAnchorRequest(kind:kind,editingPlace:true)}label:{HStack(spacing:7){Text(uiText(name)).font(.subheadline.weight(.semibold)).multilineTextAlignment(.leading);if editable{Image(systemName:"chevron.down").font(.caption2)}}.padding(.horizontal,12).frame(minHeight:44).background(Palette.mint.opacity(0.45),in:RoundedRectangle(cornerRadius:12))}.buttonStyle(BuddyPressStyle()).disabled(!canEdit).accessibilityLabel(uiText((kind == .start ? "出发地点：":"返回地点：")+name+"，点击修改")).accessibilityIdentifier(kind == .start ? "schedule-start-place":"schedule-end-place")
                 if kind == .end,let day{Button{anchorRequest=ScheduleAnchorRequest(kind:kind,editingPlace:false)}label:{Label(uiText("最晚 "+ScheduleClock.text(day.endMinute)+" 结束"),systemImage:"clock").font(.caption).frame(minHeight:44)}.buttonStyle(BuddyPressStyle()).disabled(!canEdit).accessibilityIdentifier("schedule-end-time")}
             };Spacer(minLength:0)
         }.padding(.vertical,8)
+    }
+    private func transportKind(_ position:Int)->String {
+        guard let plan=model.trip,plan.days.indices.contains(index),plan.days[index].legs.indices.contains(position) else{return "walk"}
+        return plan.days[index].legs[position].mode ?? "walk"
     }
     private func transportTitle(_ position:Int)->String {
         if let plan=model.trip,plan.days.indices.contains(index),plan.days[index].legs.indices.contains(position){return plan.days[index].legs[position].label}
@@ -731,17 +741,17 @@ struct InlineTripSchedule:View {
     private func connection(position:Int,minutes:Int?)->some View {
         let travel=minutes ?? (model.trip?.days.indices.contains(index)==true ? model.trip!.days[index].legs.last?.minutes: nil) ?? 0
         let buffer=day.map{ScheduleConnection.buffer(day:$0,position:position,travel:travel)} ?? 0
-        if unified{return AnyView(Button{onTravel(position)}label:{HStack(spacing:10){Image(systemName:"arrow.down");Text(uiText("\(transportTitle(position)) · \(travel) min"));Image(systemName:"chevron.down").font(.caption2)}.font(.caption).foregroundStyle(Palette.muted).padding(.leading,62).frame(minHeight:40)}.buttonStyle(.plain))}
-        return AnyView(HStack(spacing:12){Color.clear.frame(width:46,height:1);Rectangle().fill(Palette.berry.opacity(0.18)).frame(width:1,height:32).frame(width:24);VStack(alignment:.leading,spacing:3){if travel>0{Button{if unified{onTravel(position)}}label:{Text(uiText("\(transportTitle(position))约 \(travel) 分钟"))}.buttonStyle(.plain)};if buffer>0{Text(uiText("休息与衔接 \(buffer) 分钟"))}}.font(.caption).foregroundStyle(Palette.muted);Spacer();if editable{Button{openAdd(position)}label:{Image(systemName:"plus").font(.caption.bold()).frame(width:44,height:44)}.buttonStyle(BuddyPressStyle()).disabled(blocked).accessibilityLabel(uiText("在第 \(position+1) 个位置添加安排")).accessibilityIdentifier("schedule-insert-\(position)")}})
+        if unified{return AnyView(Button{onTravel(position)}label:{HStack(spacing:10){Image(systemName:transportSymbol(transportKind(position)));Text(uiText("\(transportTitle(position)) · \(travel) min"));Image(systemName:"chevron.down").font(.caption2)}.font(.caption).foregroundStyle(transportColor(transportKind(position))).padding(.leading,62).frame(minHeight:40)}.buttonStyle(.plain))}
+        return AnyView(HStack(spacing:12){Color.clear.frame(width:46,height:1);Rectangle().fill(Palette.primary.opacity(0.18)).frame(width:1,height:32).frame(width:24);VStack(alignment:.leading,spacing:3){if travel>0{Button{if unified{onTravel(position)}}label:{Text(uiText("\(transportTitle(position))约 \(travel) 分钟"))}.buttonStyle(.plain)};if buffer>0{Text(uiText("休息与衔接 \(buffer) 分钟"))}}.font(.caption).foregroundStyle(Palette.muted);Spacer();if editable{Button{openAdd(position)}label:{Image(systemName:"plus").font(.caption.bold()).frame(width:44,height:44)}.buttonStyle(BuddyPressStyle()).disabled(blocked).accessibilityLabel(uiText("在第 \(position+1) 个位置添加安排")).accessibilityIdentifier("schedule-insert-\(position)")}})
     }
     private func activityRow(_ activity:ScheduleActivity,position:Int)->some View {
         VStack(alignment:.leading,spacing:0){
             HStack(alignment:.top,spacing:12){
-                Text(uiText(activity.arrival.isEmpty ? "试算中":activity.arrival)).font(.caption.monospacedDigit()).foregroundStyle(Palette.muted).frame(width:46,alignment:.leading).background(timeChanged(activity) ? Palette.blush:.clear,in:RoundedRectangle(cornerRadius:6)).padding(.top,13)
-                Image(systemName:symbol(activity.kind)).font(.subheadline).foregroundStyle(Palette.berry).frame(width:30,height:34).background(activity.kind=="attraction" ? Palette.lavender:Palette.peach,in:RoundedRectangle(cornerRadius:10)).padding(.top,4).accessibilityHidden(true)
+                Text(uiText(activity.arrival.isEmpty ? "试算中":activity.arrival)).font(.caption.monospacedDigit()).foregroundStyle(Palette.muted).frame(width:46,alignment:.leading).background(timeChanged(activity) ? Palette.selection:.clear,in:RoundedRectangle(cornerRadius:6)).padding(.top,13)
+                Image(systemName:symbol(activity.kind)).font(.subheadline).foregroundStyle(Palette.primary).frame(width:30,height:34).background(activity.kind=="attraction" ? Palette.lavender:Palette.peach,in:RoundedRectangle(cornerRadius:10)).padding(.top,4).accessibilityHidden(true)
                 VStack(alignment:.leading,spacing:4){
                     Button{store.selectedStopID=activity.id;withAnimation(reduceMotion ? nil:.easeInOut(duration:0.2)){expanded=expanded==activity.id ? nil:activity.id}}label:{HStack(alignment:.top){Text(uiText(activity.name)).font(.system(.headline,design:.rounded)).multilineTextAlignment(.leading);Spacer(minLength:4);Image(systemName:expanded==activity.id ? "chevron.up":"chevron.down").font(.caption).padding(.top,4)}.frame(minHeight:40)}.buttonStyle(.plain).accessibilityIdentifier("schedule-stop-"+activity.id)
-                    Button{durationActivity=activity}label:{HStack(spacing:5){Text(uiText("停留 \(activity.duration) 分钟"));Image(systemName:activity.locked==true ? "lock.fill":"chevron.down").font(.caption2)}.font(.caption).foregroundStyle(Palette.berry).padding(.horizontal,12).frame(minHeight:44).background(Palette.blush.opacity(0.65),in:Capsule())}.buttonStyle(BuddyPressStyle()).disabled(!editable || blocked || activity.locked==true).accessibilityIdentifier("schedule-duration-"+activity.id)
+                    Button{durationActivity=activity}label:{HStack(spacing:5){Text(uiText("停留 \(activity.duration) 分钟"));Image(systemName:activity.locked==true ? "lock.fill":"chevron.down").font(.caption2)}.font(.caption).foregroundStyle(Palette.primary).padding(.horizontal,12).frame(minHeight:44).background(Palette.selection.opacity(0.65),in:Capsule())}.buttonStyle(BuddyPressStyle()).disabled(!editable || blocked || activity.locked==true).accessibilityIdentifier("schedule-duration-"+activity.id)
                 }
                 if editable {
                     if !blocked && activity.locked != true {
@@ -750,7 +760,7 @@ struct InlineTripSchedule:View {
                 }
             }
             if expanded==activity.id{activityActions(activity,position:position).padding(.leading,58).padding(.top,10)}
-        }.padding(12).background(expanded==activity.id ? Color.white:Color.white.opacity(0.45),in:RoundedRectangle(cornerRadius:20)).overlay(RoundedRectangle(cornerRadius:20).stroke(expanded==activity.id ? Palette.berry.opacity(0.28):.clear))
+        }.padding(12).background(expanded==activity.id ? Color.white:Color.white.opacity(0.45),in:RoundedRectangle(cornerRadius:20)).overlay(RoundedRectangle(cornerRadius:20).stroke(expanded==activity.id ? Palette.primary.opacity(0.28):.clear))
         .dropDestination(for:String.self){values,_ in
             guard editable,!blocked,let value=values.first else{return false}
             let prefix="koko-schedule|\(trip.id ?? "")|\(index)|"
@@ -772,7 +782,7 @@ struct InlineTripSchedule:View {
         }.disabled(blocked)
     }
     @ViewBuilder private var issues:some View {
-        if model.busy{Label(uiText("正在更新当天时间与步数…"),systemImage:"hourglass").font(.caption).foregroundStyle(Palette.berry).padding(.top,16)}
+        if model.busy{Label(uiText("正在更新当天时间与步数…"),systemImage:"hourglass").font(.caption).foregroundStyle(Palette.primary).padding(.top,16)}
         if let error=model.error{VStack(alignment:.leading,spacing:8){Text(uiText(error)).font(.caption);Button(uiText("保留草稿并重试")){model.recompute()}.font(.subheadline.bold())}.padding(14).background(Palette.peach,in:RoundedRectangle(cornerRadius:14)).padding(.top,16)}
         let current=model.state?.issues.filter{$0.day==index || $0.day == -1} ?? []
         ForEach(current.filter(\.blocking)){issue in Label(uiText(store.language.display(issue.message)),systemImage:"exclamationmark.triangle").font(.caption).foregroundStyle(Color.red).padding(.top,10)}
@@ -856,9 +866,9 @@ private struct InlineDurationSheet:View {
         NavigationStack{ScrollView{VStack(alignment:.leading,spacing:24){
             Text(uiText(activity.name)).font(.system(.title3,design:.rounded,weight:.bold))
             Text(uiText("想在这里待多久？")).font(.subheadline).foregroundStyle(Palette.muted)
-            Text(uiText("\(minutes) 分钟")).font(.system(size:38,weight:.bold,design:.rounded)).foregroundStyle(Palette.berry).frame(maxWidth:.infinity)
+            Text(uiText("\(minutes) 分钟")).font(.system(size:38,weight:.bold,design:.rounded)).foregroundStyle(Palette.primary).frame(maxWidth:.infinity)
             Slider(value:Binding(get:{Double(minutes)},set:{minutes=Int($0)}),in:5...240,step:5).accessibilityLabel(uiText("停留分钟数"))
-            HStack{ForEach([30,60,90,120],id:\.self){value in Button(uiText("\(value) 分")){minutes=value}.font(.caption.bold()).frame(maxWidth:.infinity,minHeight:44).background(minutes==value ? Palette.blush:Color.white,in:Capsule()).buttonStyle(BuddyPressStyle())}}
+            HStack{ForEach([30,60,90,120],id:\.self){value in Button(uiText("\(value) 分")){minutes=value}.font(.caption.bold()).frame(maxWidth:.infinity,minHeight:44).background(minutes==value ? Palette.selection:Color.white,in:Capsule()).buttonStyle(BuddyPressStyle())}}
             Stepper(uiText("自定义停留"),value:$minutes,in:5...240,step:5)
             Text(uiText(automatic ? "Your day updates automatically. You can undo.":"应用后先预览当天变化，保存调整才会更新行程。")).font(.caption).foregroundStyle(Palette.muted)
             PrimaryButton(title:automatic ? "Update stop":"预览调整",symbol:"clock"){apply(minutes);dismiss()}.disabled(minutes==activity.duration).accessibilityIdentifier("schedule-duration-apply")
@@ -926,9 +936,9 @@ private struct InlineAnchorSheet:View {
             }.padding(16).background(.white,in:RoundedRectangle(cornerRadius:18))
             VStack(alignment:.leading,spacing:12){
                 Text(uiText(request.kind == .start ? "出发地点":"返回地点")).font(.headline)
-                Label(point.name,systemImage:"checkmark.circle.fill").font(.subheadline).foregroundStyle(Palette.berry).accessibilityIdentifier("anchor-selected-place")
-                TextField(uiText("搜索酒店、车站或地点"),text:$query).textFieldStyle(.roundedBorder).submitLabel(.search).onSubmit{Task{await search()}}.accessibilityIdentifier("anchor-place-query")
-                Button{Task{await search()}}label:{Label(uiText(searching ? "正在找地点…":"搜索地点"),systemImage:"magnifyingglass").frame(minHeight:44)}.buttonStyle(.bordered).disabled(searching || query.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty).accessibilityIdentifier("anchor-place-search")
+                Label(point.name,systemImage:"checkmark.circle.fill").font(.subheadline).foregroundStyle(Palette.primary).accessibilityIdentifier("anchor-selected-place")
+                TextField(uiText("搜索酒店、车站或地点"),text:$query).textFieldStyle(BuddyFieldStyle()).submitLabel(.search).onSubmit{Task{await search()}}.accessibilityIdentifier("anchor-place-query")
+                Button{Task{await search()}}label:{Label(uiText(searching ? "正在找地点…":"搜索地点"),systemImage:"magnifyingglass").frame(minHeight:44)}.buttonStyle(BuddySecondaryStyle()).disabled(searching || query.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty).accessibilityIdentifier("anchor-place-search")
                 if let issue{Text(uiText(issue)).font(.caption).foregroundStyle(.red)}
                 ForEach(places){place in Button{point=Coordinate(name:place.name,lat:place.lat,lng:place.lng);places=[];issue=nil}label:{VStack(alignment:.leading,spacing:5){Text(uiText(place.name)).font(.subheadline.bold());if let price=place.mappedFoodPriceLabel{Text(uiText(price)).font(.caption2).foregroundStyle(Palette.green)};if let address=place.address{Text(uiText(address)).font(.caption).foregroundStyle(Palette.muted)}}.frame(maxWidth:.infinity,alignment:.leading).padding(12).background(Palette.mint.opacity(0.45),in:RoundedRectangle(cornerRadius:12))}.buttonStyle(BuddyPressStyle()).accessibilityIdentifier("anchor-result-"+place.id)}
             }.padding(16).background(.white,in:RoundedRectangle(cornerRadius:18))

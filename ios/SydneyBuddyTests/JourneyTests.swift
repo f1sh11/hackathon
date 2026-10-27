@@ -18,6 +18,117 @@ private final class JourneyStub:URLProtocol {
     override func stopLoading(){}
 }
 @MainActor final class JourneyTests:XCTestCase {
+    func testCachedDemoConnectionsLoadImmediatelyAndRespectDemoSwitch() throws {
+        var profile=TripProfile();profile.days=3;profile.date="2027-06-15"
+        let trip=try DemoMode.trip(profile:profile)
+        var calls=0
+        let overview=ItineraryOverview(applePlan:{_,_ in calls+=1;throw URLError(.badServerResponse)})
+        for day in trip.days {
+            overview.loadHome(day,provider:.apple,contentSource:"open",allowEstimated:true)
+            XCTAssertEqual(calls,0);XCTAssertFalse(overview.busy)
+            XCTAssertEqual(overview.plan?.source,CachedDemoRoutes.source)
+            XCTAssertNotNil(CachedDemoRoutes.validated(day))
+            XCTAssertTrue(overview.message?.contains("Estimated")==true)
+        }
+        overview.loadHome(trip.days[0],provider:.apple,contentSource:"open",allowEstimated:false)
+        XCTAssertNil(overview.route);XCTAssertNil(overview.plan);XCTAssertEqual(calls,0)
+        XCTAssertTrue(overview.message?.contains("Demo mode")==true)
+        overview.loadHome(trip.days[0],provider:.apple,contentSource:"open",allowEstimated:true)
+        XCTAssertNotNil(overview.plan);XCTAssertEqual(calls,0)
+    }
+
+    func testCachedDemoRejectsMovedMarkersAndForgedStraightLines() throws {
+        var profile=TripProfile();profile.days=3
+        let trip=try DemoMode.trip(profile:profile)
+        var moved=trip.days[0];moved.start.lat+=0.01
+        XCTAssertNil(CachedDemoRoutes.validated(moved))
+        var raw=try JSONSerialization.jsonObject(with:JSONEncoder().encode(trip.days[0])) as! [String:Any]
+        var plan=raw["estimatedTransportPlan"] as! [String:Any]
+        var legs=plan["legs"] as! [[String:Any]],steps=legs[0]["steps"] as! [[String:Any]]
+        let geometry=steps[0]["geometry"] as! [[String:Any]]
+        steps[0]["geometry"]=[geometry.first!,geometry.last!];legs[0]["steps"]=steps
+        plan["legs"]=legs;raw["estimatedTransportPlan"]=plan
+        let forged=try JSONDecoder().decode(DayPlan.self,from:JSONSerialization.data(withJSONObject:raw))
+        XCTAssertNil(CachedDemoRoutes.validated(forged))
+        let overview=ItineraryOverview();overview.load(forged,provider:.apple,allowEstimated:true)
+        XCTAssertNil(overview.plan);XCTAssertFalse(overview.busy)
+        XCTAssertTrue(overview.message?.contains("disconnected")==true)
+    }
+
+    func testDemoPresetUsesRequestedDatesAndKeepsItsEvidenceUnverified() throws {
+        var profile=TripProfile();profile.days=1;profile.date="2027-06-15"
+        let before=UserDefaults.standard.data(forKey:"userTravelProfile")
+        let trip=try DemoMode.trip(profile:profile)
+        XCTAssertEqual(trip.days.count,1);XCTAssertEqual(trip.days[0].date,"2027-06-15")
+        XCTAssertEqual(Set(trip.days[0].transportModes),Set(["drive","cycle","walk","transit"]))
+        XCTAssertTrue(trip.days[0].estimatedTransportPlan!.departureTime.hasPrefix("2027-06-15"))
+        XCTAssertTrue(trip.days[0].estimatedTransportPlan!.departureTime.hasSuffix("+10:00"))
+        XCTAssertEqual(trip.mode,"demo");XCTAssertEqual(trip.recommendationStatus,"partial");XCTAssertNil(trip.planningAgent)
+        XCTAssertEqual(UserDefaults.standard.data(forKey:"userTravelProfile"),before)
+        profile.days=2;let two=try DemoMode.trip(profile:profile)
+        XCTAssertEqual(two.days.map(\.date),["2027-06-15","2027-06-16"])
+        profile.days=3;let three=try DemoMode.trip(profile:profile)
+        XCTAssertEqual(three.days.map(\.date),["2027-06-15","2027-06-16","2027-06-17"])
+        XCTAssertLessThan(try JSONEncoder().encode(three).count,230_000, "Keep the complete trip below the cloud request limit")
+        XCTAssertTrue(three.days[0].start.name.contains("Airport"));XCTAssertTrue(three.days[2].end.name.contains("Airport"))
+        XCTAssertEqual(three.days[0].end,three.days[1].start);XCTAssertEqual(three.days[1].end,three.days[2].start)
+        XCTAssertEqual(ScheduleState.preserving(three).days.map(\.startMinute),[600,570,540]);
+        XCTAssertEqual(three.profile.accommodationStatus,"selected");XCTAssertEqual(three.accommodationSuggestions?.count,1)
+        XCTAssertTrue(three.days[2].estimatedTransportPlan!.legs.flatMap(\.steps).contains{$0.mode=="ferry"})
+        profile.days=4;XCTAssertThrowsError(try DemoMode.trip(profile:profile))
+    }
+    func testDemoSwitchDefaultsOffAndPersistsIndependentlyOfBackendSelection() {
+        let prefs=UserDefaults.standard,old=prefs.object(forKey:DemoMode.key),backend=prefs.object(forKey:"backendMode") as? String
+        defer{if let old{prefs.set(old,forKey:DemoMode.key)}else{prefs.removeObject(forKey:DemoMode.key)}}
+        prefs.removeObject(forKey:DemoMode.key);XCTAssertFalse(DemoMode.enabled)
+        let store=AppStore();store.demoEnabled=true;XCTAssertTrue(DemoMode.enabled)
+        XCTAssertTrue(AppStore().demoEnabled)
+        store.demoEnabled=false;XCTAssertFalse(DemoMode.enabled)
+        XCTAssertEqual(prefs.object(forKey:"backendMode") as? String,backend)
+    }
+
+    func testHotelReturnAndHotelVisitsShareOneMapAnchor() throws {
+        var profile=TripProfile();profile.days=3
+        let trip=try DemoMode.trip(profile:profile),day=trip.days[0]
+        let hotel=try XCTUnwrap(trip.profile.hotel)
+        let markers=overviewPins(day).filter{CLLocation(latitude:$0.coordinate.latitude,longitude:$0.coordinate.longitude).distance(from:CLLocation(latitude:hotel.lat,longitude:hotel.lng))<3}
+        XCTAssertEqual(markers.count,1)
+        XCTAssertEqual(markers.first?.symbol,"bed.double.fill")
+        XCTAssertTrue(markers.first?.title?.contains("1.")==true)
+        XCTAssertTrue(markers.first?.title?.contains("5.")==true)
+        XCTAssertEqual(overviewPins(trip.days[2]).filter{CLLocation(latitude:$0.coordinate.latitude,longitude:$0.coordinate.longitude).distance(from:CLLocation(latitude:hotel.lat,longitude:hotel.lng))<3}.count,1)
+    }
+
+    func testMapPhotoRequiresMatchingLandmarkAndCoordinatesAndKeepsCredits() throws {
+        var stop=Stop(id:"photo-opera",name:"Sydney Opera House forecourt",lat:-33.8571,lng:151.2153,category:"文化",indoor:false,visitMinutes:50,cost:0,note:"",arrival:"10:00",departure:"10:50",hoursVerified:false,mapsURL:"",steps:100)
+        let photo=try XCTUnwrap(MapLandmarkPhoto.matching(stop));XCTAssertNotNil(photo.image)
+        XCTAssertFalse(photo.artist.isEmpty);XCTAssertTrue(photo.sourceURL.hasPrefix("https://commons.wikimedia.org/"));XCTAssertTrue(photo.license.hasPrefix("CC"))
+        var value=day();value.stops=[stop]
+        let pin=try XCTUnwrap(overviewPins(value).first{$0.photo != nil})
+        XCTAssertEqual(itineraryBadge(pin).size.width,34);XCTAssertTrue(pin.subtitle?.contains(photo.license)==true)
+        stop.lat = -33.9365;stop.lng=151.1663;XCTAssertNil(MapLandmarkPhoto.matching(stop))
+        stop.lat = -33.8571;stop.lng=151.2153;stop.name="An unknown nearby place";XCTAssertNil(MapLandmarkPhoto.matching(stop))
+    }
+    func testSectionIdentityIncludesShapeRatherThanOnlyVertexCount() {
+        let a=JourneyMapSection(mode:"walk",coordinates:[.init(latitude:-33.86,longitude:151.21),.init(latitude:-33.87,longitude:151.22)])
+        let b=JourneyMapSection(mode:"walk",coordinates:[.init(latitude:-33.86,longitude:151.21),.init(latitude:-33.88,longitude:151.24)])
+        XCTAssertNotEqual(routeSectionIdentity([a]),routeSectionIdentity([b]))
+        XCTAssertNotEqual(routeSectionIdentity([a,b]),routeSectionIdentity([a]))
+    }
+
+    func testOlderHandDrawnDemoIsBlockedWithoutChangingItsSavedData() throws {
+        var value=day();value.start=Coordinate(name:"Sydney Opera House forecourt",lat:-33.8571,lng:151.2153);value.end=Coordinate(name:"Royal Botanic Garden",lat:-33.8642,lng:151.2166)
+        let step=JourneyStep(mode:"walk",line:nil,headsign:nil,from:value.start.name,to:value.end.name,departureTime:"2026-10-23T10:00:00+11:00",arrivalTime:"2026-10-23T10:20:00+11:00",realtime:false,stopCount:nil,meters:1400,seconds:1200,waitSeconds:0,platform:nil,agency:nil,geometry:[JourneyCoordinate(lat:value.start.lat,lng:value.start.lng),JourneyCoordinate(lat:value.end.lat,lng:value.end.lng)])
+        let leg=JourneyLeg(index:0,mode:"walk",from:step.from,to:step.to,departureTime:step.departureTime,arrivalTime:step.arrivalTime,staySeconds:0,steps:[step])
+        value.estimatedTransportPlan=JourneyPlan(departureTime:step.departureTime,arrivalTime:step.arrivalTime,travelSeconds:1200,elapsedSeconds:1200,meters:1400,legs:[leg],warnings:[],source:"Estimated connections · curated, not live")
+        let model=ItineraryOverview();model.loadHome(value,provider:.apple,contentSource:"open",allowEstimated:true)
+        XCTAssertNil(model.plan);XCTAssertNil(model.route);XCTAssertFalse(model.busy)
+        XCTAssertTrue(model.message?.contains("outdated")==true)
+        XCTAssertEqual(value.estimatedTransportPlan!.legs[0].steps[0].geometry.count,2)
+        XCTAssertEqual(value.estimatedTransportPlan!.arrivalTime,step.arrivalTime)
+
+    }
+
     func testWalkingFailureSurvivesSessionCleanupAndAllowsRetry() async throws {
         let roads=AppleWalkingRoads.shared;let old=roads.query;defer{roads.query=old}
         var value=day();value.start=Coordinate(name:"QA start",lat:-33.891234,lng:151.111234);value.end=Coordinate(name:"QA end",lat:-33.894567,lng:151.114567)
@@ -186,8 +297,12 @@ private final class JourneyStub:URLProtocol {
         XCTFail("Journey request did not finish")
     }
     func testTransitDataKeepsLineBoardingDirectionAndWait() throws {
+        let language=UserDefaults.standard.object(forKey:"appLanguage")
+        defer{if let language{UserDefaults.standard.set(language,forKey:"appLanguage")}else{UserDefaults.standard.removeObject(forKey:"appLanguage")}}
+        UserDefaults.standard.set("en",forKey:"appLanguage")
+
         let plan=try JSONDecoder().decode(JourneyPlan.self,from:fixture());let bus=plan.legs[0].steps[1]
-        XCTAssertEqual(bus.line,"TEST-01");XCTAssertEqual(bus.title,"公车 · TEST-01")
+        XCTAssertEqual(bus.line,"TEST-01");XCTAssertEqual(bus.title,"Bus · TEST-01")
         XCTAssertEqual(bus.from,"测试上车站 A");XCTAssertEqual(bus.to,"测试下车站 B");XCTAssertEqual(bus.stopCount,4)
         XCTAssertEqual(bus.waitSeconds,300);XCTAssertFalse(bus.realtime)
         XCTAssertEqual(journeyTime(bus.departureTime),"10:10");XCTAssertEqual(plan.sections.map(\.mode),["walk","bus","walk"])

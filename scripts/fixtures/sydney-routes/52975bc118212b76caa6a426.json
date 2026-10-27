@@ -1,0 +1,311 @@
+{
+  "url": "https://routing.openstreetmap.de/routed-foot/route/v1/driving/151.235024,-33.904247;151.235141,-33.904464?overview=full&geometries=geojson&steps=true",
+  "request": null,
+  "fetchedAt": "2026-10-27T07:55:24.944274+00:00",
+  "response": {
+    "code": "Ok",
+    "routes": [
+      {
+        "legs": [
+          {
+            "steps": [
+              {
+                "intersections": [
+                  {
+                    "out": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      67
+                    ],
+                    "location": [
+                      151.235024,
+                      -33.904247
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.235024,
+                      -33.904247
+                    ],
+                    [
+                      151.23519,
+                      -33.904189
+                    ],
+                    [
+                      151.235505,
+                      -33.904044
+                    ],
+                    [
+                      151.235623,
+                      -33.903976
+                    ],
+                    [
+                      151.235716,
+                      -33.903911
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 67,
+                  "bearing_before": 0,
+                  "location": [
+                    151.235024,
+                    -33.904247
+                  ],
+                  "type": "depart"
+                },
+                "name": "",
+                "mode": "walking",
+                "weight": 14.87,
+                "duration": 76.5,
+                "distance": 74.4
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 1,
+                    "in": 2,
+                    "entry": [
+                      true,
+                      true,
+                      false,
+                      true
+                    ],
+                    "bearings": [
+                      45,
+                      150,
+                      225,
+                      330
+                    ],
+                    "location": [
+                      151.235716,
+                      -33.903911
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.235716,
+                      -33.903911
+                    ],
+                    [
+                      151.23575,
+                      -33.903958
+                    ],
+                    [
+                      151.235806,
+                      -33.904035
+                    ],
+                    [
+                      151.235875,
+                      -33.904103
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 147,
+                  "bearing_before": 49,
+                  "location": [
+                    151.235716,
+                    -33.903911
+                  ],
+                  "modifier": "right",
+                  "type": "turn"
+                },
+                "name": "Parkes Drive",
+                "mode": "walking",
+                "weight": 2.6,
+                "duration": 20.8,
+                "distance": 26
+              },
+              {
+                "intersections": [
+                  {
+                    "out": 2,
+                    "in": 3,
+                    "entry": [
+                      true,
+                      true,
+                      true,
+                      false
+                    ],
+                    "bearings": [
+                      45,
+                      150,
+                      240,
+                      315
+                    ],
+                    "location": [
+                      151.235875,
+                      -33.904103
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.235875,
+                      -33.904103
+                    ],
+                    [
+                      151.235411,
+                      -33.904364
+                    ],
+                    [
+                      151.235141,
+                      -33.904464
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 234,
+                  "bearing_before": 139,
+                  "location": [
+                    151.235875,
+                    -33.904103
+                  ],
+                  "modifier": "right",
+                  "type": "turn"
+                },
+                "name": "Grand Drive",
+                "mode": "walking",
+                "weight": 7.91,
+                "duration": 63.2,
+                "distance": 79.1
+              },
+              {
+                "intersections": [
+                  {
+                    "in": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      66
+                    ],
+                    "location": [
+                      151.235141,
+                      -33.904464
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.235141,
+                      -33.904464
+                    ],
+                    [
+                      151.235141,
+                      -33.904464
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 0,
+                  "bearing_before": 246,
+                  "location": [
+                    151.235141,
+                    -33.904464
+                  ],
+                  "type": "arrive"
+                },
+                "name": "Grand Drive",
+                "mode": "walking",
+                "weight": 0,
+                "duration": 0,
+                "distance": 0
+              }
+            ],
+            "weight": 25.38,
+            "summary": "Parkes Drive, Grand Drive",
+            "duration": 160.5,
+            "distance": 179.4
+          }
+        ],
+        "weight_name": "routability",
+        "geometry": {
+          "coordinates": [
+            [
+              151.235024,
+              -33.904247
+            ],
+            [
+              151.23519,
+              -33.904189
+            ],
+            [
+              151.235505,
+              -33.904044
+            ],
+            [
+              151.235623,
+              -33.903976
+            ],
+            [
+              151.235716,
+              -33.903911
+            ],
+            [
+              151.23575,
+              -33.903958
+            ],
+            [
+              151.235806,
+              -33.904035
+            ],
+            [
+              151.235875,
+              -33.904103
+            ],
+            [
+              151.235411,
+              -33.904364
+            ],
+            [
+              151.235141,
+              -33.904464
+            ]
+          ],
+          "type": "LineString"
+        },
+        "weight": 25.38,
+        "duration": 160.5,
+        "distance": 179.4
+      }
+    ],
+    "waypoints": [
+      {
+        "hint": "TG5Ug5wQzIiFAQAATQEAAOcNAACCBAAAT62bQfckhUE47DFDsAhnQscAAACsAAAAJQcAAFECAAAEAAAA0KkDCYmp-v3QqQMJian6_Q4APwQAAAAA",
+        "location": [
+          151.235024,
+          -33.904247
+        ],
+        "name": "",
+        "distance": 0
+      },
+      {
+        "hint": "FDIAgCYyAIARAQAAqgAAAAYCAADOBwAAO43aQWPoh0E5CE9CBp9HQ9oAAACIAAAAngEAADwGAAAEAAAARaoDCbCo-v1FqgMJsKj6_QIAbw8AAAAA",
+        "location": [
+          151.235141,
+          -33.904464
+        ],
+        "name": "Grand Drive",
+        "distance": 0
+      }
+    ]
+  }
+}

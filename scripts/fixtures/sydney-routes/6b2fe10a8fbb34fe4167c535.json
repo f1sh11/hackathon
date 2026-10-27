@@ -1,0 +1,150 @@
+{
+  "url": "https://routing.openstreetmap.de/routed-foot/route/v1/driving/151.215714,-33.857017;151.215289,-33.856845?overview=full&geometries=geojson&steps=true",
+  "request": null,
+  "fetchedAt": "2026-10-27T07:53:52.047660+00:00",
+  "response": {
+    "code": "Ok",
+    "routes": [
+      {
+        "legs": [
+          {
+            "steps": [
+              {
+                "intersections": [
+                  {
+                    "out": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      193
+                    ],
+                    "location": [
+                      151.215714,
+                      -33.857017
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.215714,
+                      -33.857017
+                    ],
+                    [
+                      151.215714,
+                      -33.857017
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 193,
+                  "bearing_before": 0,
+                  "location": [
+                    151.215714,
+                    -33.857017
+                  ],
+                  "type": "depart"
+                },
+                "name": "",
+                "mode": "walking",
+                "weight": 0,
+                "duration": 0,
+                "distance": 0
+              },
+              {
+                "intersections": [
+                  {
+                    "in": 0,
+                    "entry": [
+                      true
+                    ],
+                    "bearings": [
+                      13
+                    ],
+                    "location": [
+                      151.215714,
+                      -33.857017
+                    ]
+                  }
+                ],
+                "driving_side": "right",
+                "geometry": {
+                  "coordinates": [
+                    [
+                      151.215714,
+                      -33.857017
+                    ],
+                    [
+                      151.215714,
+                      -33.857017
+                    ]
+                  ],
+                  "type": "LineString"
+                },
+                "maneuver": {
+                  "bearing_after": 0,
+                  "bearing_before": 193,
+                  "location": [
+                    151.215714,
+                    -33.857017
+                  ],
+                  "modifier": "straight",
+                  "type": "arrive"
+                },
+                "name": "",
+                "mode": "walking",
+                "weight": 0,
+                "duration": 0,
+                "distance": 0
+              }
+            ],
+            "weight": 0,
+            "summary": "",
+            "duration": 0,
+            "distance": 0
+          }
+        ],
+        "weight_name": "routability",
+        "geometry": {
+          "coordinates": [
+            [
+              151.215714,
+              -33.857017
+            ],
+            [
+              151.215714,
+              -33.857017
+            ]
+          ],
+          "type": "LineString"
+        },
+        "weight": 0,
+        "duration": 0,
+        "distance": 0
+      }
+    ],
+    "waypoints": [
+      {
+        "hint": "1c1TgT8k2YQjAwAAAAAAAAAAAABHBgAAuq_AQgAAAAAAAAAAd-xAQwMDAAAAAAAAAAAAAAcGAAAEAAAAYl4DCQdi-_1iXgMJB2L7_QAA3wAAAAAA",
+        "location": [
+          151.215714,
+          -33.857017
+        ],
+        "name": "",
+        "distance": 0
+      },
+      {
+        "hint": "1c1TgT8k2YQjAwAAAAAAAAAAAABHBgAAuq_AQgAAAAAAAAAAd-xAQwMDAAAAAAAAAAAAAAcGAAAEAAAAYl4DCQdi-_25XAMJs2L7_QAA3wAAAAAA",
+        "location": [
+          151.215714,
+          -33.857017
+        ],
+        "name": "",
+        "distance": 43.70488971
+      }
+    ]
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "url": "https://routing.openstreetmap.de/routed-foot/nearest/v1/driving/151.215300,-33.857100?number=1",
+  "request": null,
+  "fetchedAt": "2026-10-27T07:52:20.541591+00:00",
+  "response": {
+    "code": "Ok",
+    "waypoints": [
+      {
+        "nodes": [
+          6379772473,
+          32844642
+        ],
+        "hint": "6XMFgKwPh4YAAAAARgAAAAAAAABJAAAAAAAAAH739UAAAAAASbAIQQAAAAA9AAAAAAAAAEUAAAApBACAuVwDCbNi-_3EXAMJtGH7_QAAvwAAAAAA",
+        "location": [
+          151.215289,
+          -33.856845
+        ],
+        "name": "",
+        "distance": 28.30293673
+      }
+    ]
+  }
+}

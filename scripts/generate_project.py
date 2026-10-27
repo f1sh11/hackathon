@@ -29,7 +29,11 @@ navprod=obj('ferrostarproduct',{'isa':'XCSwiftPackageProductDependency','package
 navframework=obj('ferrostarbuild',{'isa':'PBXBuildFile','productRef':navprod})
 sources=obj('sources',{'isa':'PBXSourcesBuildPhase','buildActionMask':2147483647,'files':build_refs,'runOnlyForDeploymentPostprocessing':0})
 frameworks=obj('frameworks',{'isa':'PBXFrameworksBuildPhase','buildActionMask':2147483647,'files':[framework,navframework],'runOnlyForDeploymentPostprocessing':0})
-resources=obj('resources',{'isa':'PBXResourcesBuildPhase','buildActionMask':2147483647,'files':[obj('buildlocal',{'isa':'PBXBuildFile','fileRef':localgroup}),obj('buildkoala',{'isa':'PBXBuildFile','fileRef':koala})],'runOnlyForDeploymentPostprocessing':0})
+preset=obj('mixedtransportpreset',{'isa':'PBXFileReference','lastKnownFileType':'text.json','path':'Resources/sydney-mixed-transport.json','sourceTree':'SOURCE_ROOT'})
+presetbuild=obj('buildmixedtransportpreset',{'isa':'PBXBuildFile','fileRef':preset})
+mapphotos=obj('mapphotos',{'isa':'PBXFileReference','lastKnownFileType':'folder','path':'Resources/map-thumbnails','sourceTree':'SOURCE_ROOT'})
+mapphotosbuild=obj('buildmapphotos',{'isa':'PBXBuildFile','fileRef':mapphotos})
+resources=obj('resources',{'isa':'PBXResourcesBuildPhase','buildActionMask':2147483647,'files':[presetbuild,mapphotosbuild,obj('buildlocal',{'isa':'PBXBuildFile','fileRef':localgroup}),obj('buildkoala',{'isa':'PBXBuildFile','fileRef':koala})],'runOnlyForDeploymentPostprocessing':0})
 def configs(prefix,base,settings):
  configs=[]
  for name in ['Debug','Release']:

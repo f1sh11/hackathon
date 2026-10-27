@@ -21,10 +21,14 @@ func routeCameraBounds(_ coordinates:[CLLocationCoordinate2D])->MKMapRect {
 }
 
 // Screen points, independent of Retina scale and geographic zoom.
+func routeSectionIdentity(_ sections:[JourneyMapSection])->String {
+    sections.map{section in section.mode+":"+section.coordinates.map{String(format:"%.6f,%.6f",locale:Locale(identifier:"en_US_POSIX"),$0.latitude,$0.longitude)}.joined(separator:";")}.joined(separator:"|")
+}
+
 private func walkingDotMetrics(_ size:CGSize)->(width:CGFloat,halo:CGFloat,spacing:CGFloat) {
     let shortSide=min(size.width,size.height)
     let scale=max(0.9,min(1.15,(shortSide>0 ? shortSide : 390)/390))
-    return (4.4*scale,0.65*scale,10*scale)
+    return (2.5*scale,0.45*scale,8*scale)
 }
 
 struct GoogleRouteMap: UIViewRepresentable {
@@ -46,6 +50,7 @@ struct GoogleRouteMap: UIViewRepresentable {
         var parent: GoogleRouteMap
         var sceneKey: String?
         var cameraSceneKey: String?
+        var lastFocused=false
         var lastSelection:String?
         var lastCameraAction:UUID?
         var lastBottomInset:CGFloat?
@@ -105,7 +110,7 @@ struct GoogleRouteMap: UIViewRepresentable {
             context.coordinator.lastSelection=selectedStopID
             if let stop=day?.stops.first(where:{$0.id==selectedStopID}),let marker=context.coordinator.markers.first(where:{$0.title?.contains(uiText(stop.name))==true}){map.selectedMarker=marker;map.animate(toLocation:stop.coordinate)}
         }
-        let key=mapSceneKey(day)+"|"+AppLanguage.current.rawValue+"|"+String(overview?.coordinates.count ?? 0)+"|"+String(Int(bottomInset))+insightMarkers.map{$0.id+$0.title}.joined()
+        let key=routeSectionIdentity(sections)+"|"+mapSceneKey(day)+"|"+AppLanguage.current.rawValue+"|"+String(overview?.coordinates.count ?? 0)+"|"+String(Int(bottomInset))+insightMarkers.map{$0.id+$0.title}.joined()
         guard context.coordinator.sceneKey != key else {context.coordinator.refreshNearby(map);return}
         context.coordinator.sceneKey=key
         map.clear();context.coordinator.markers=[];context.coordinator.nearbyKey="";context.coordinator.refreshNearby(map)
@@ -140,9 +145,9 @@ struct GoogleRouteMap: UIViewRepresentable {
             }
         }
         context.coordinator.restyleWalking(map)
-        for item in sections.flatMap(\.stopPins)+overviewPins(day) {
+        for item in overviewPins(day) {
             let pin=GMSMarker(position:item.coordinate);pin.title=item.title;pin.snippet=item.subtitle
-            pin.icon=overviewBadge(item.badge);pin.groundAnchor=CGPoint(x:0.5,y:0.5);pin.zIndex=2;pin.map=map;context.coordinator.markers.append(pin)
+            pin.icon=itineraryBadge(item);pin.groundAnchor=CGPoint(x:0.5,y:0.5);pin.zIndex=2;pin.map=map;context.coordinator.markers.append(pin)
             bounds=bounds.includingCoordinate(item.coordinate)
         }
         let coordinates=(0..<path.count()).map {path.coordinate(at:$0)}
@@ -151,10 +156,13 @@ struct GoogleRouteMap: UIViewRepresentable {
             pin.groundAnchor=CGPoint(x:0.5,y:0.5);pin.zIndex=1;pin.map=map
         }
         coordinates.forEach {bounds=bounds.includingCoordinate($0)}
-        let cameraKey=mapSceneKey(day)+"|"+String(Int(bottomInset))+(viewport == nil ? "|"+String(overview?.coordinates.count ?? 0):"")
+        let focused = !sections.isEmpty && sections.reduce(0){$0+$1.coordinates.count} < (overview?.coordinates.count ?? 0)
+        let focusChanged=context.coordinator.lastFocused != focused;context.coordinator.lastFocused=focused
+        if focused,let first=sections.first?.coordinates.first{bounds=GMSCoordinateBounds(coordinate:first,coordinate:first);sections.flatMap(\.coordinates).forEach{bounds=bounds.includingCoordinate($0)}}
+        let cameraKey=routeSectionIdentity(sections)+"|"+mapSceneKey(day)+"|"+String(Int(bottomInset))+(viewport == nil ? "|"+String(overview?.coordinates.count ?? 0):"")
         guard context.coordinator.cameraSceneKey != cameraKey else {return}
         context.coordinator.cameraSceneKey=cameraKey
-        if cameraAction?.kind != .fit,!insetChanged,let saved=viewport, saved.sceneKey==mapSceneKey(day) {map.camera=GMSCameraPosition(latitude:saved.lat,longitude:saved.lng,zoom:Float(saved.zoom))}
+        if cameraAction?.kind != .fit,!insetChanged,!focusChanged,!focused,let saved=viewport, saved.sceneKey==mapSceneKey(day) {map.camera=GMSCameraPosition(latitude:saved.lat,longitude:saved.lng,zoom:Float(saved.zoom))}
         else {
             let center=CLLocationCoordinate2D(latitude:(bounds.northEast.latitude+bounds.southWest.latitude)/2,longitude:(bounds.northEast.longitude+bounds.southWest.longitude)/2)
             let latitude=650/111_000.0/2,longitude=latitude/max(0.1,cos(center.latitude * .pi/180))
@@ -232,14 +240,21 @@ private final class WalkingDotsView:UIView {
     override func draw(_ rect:CGRect) {
         guard let map,let context=UIGraphicsGetCurrentContext() else {return}
         let dots=walkingDotMetrics(bounds.size),radius=dots.width/2
-        let exclusion=map.annotations.compactMap{$0 as? ItineraryPin}.map{(map.convert($0.coordinate,toPointTo:self),$0.direction ? CGFloat(15) : CGFloat(24))}
+        let pins=map.annotations.compactMap{$0 as? ItineraryPin}
+        // Hide dots only under the actual marker body. A radius around the geographic
+        // coordinate erased the last 18 points of every route and made arrivals look broken.
+        let exclusion=pins.compactMap{pin -> CGRect? in
+            guard let view=map.view(for:pin) else{return nil}
+            let p=map.convert(pin.coordinate,toPointTo:self),size=view.bounds.size
+            return CGRect(x:p.x+view.centerOffset.x-size.width/2,y:p.y+view.centerOffset.y-size.height/2,width:size.width,height:size.height).insetBy(dx:-1,dy:-1)
+        }
         // Deduplicate nearby samples from outward/return legs using screen-space buckets.
         let separation=dots.spacing*0.65
         var buckets:[String:[CGPoint]]=[:]
         func key(_ x:Int,_ y:Int)->String {"\(x),\(y)"}
         func paint(_ point:CGPoint) {
             guard bounds.insetBy(dx:-radius,dy:-radius).contains(point),
-                  !exclusion.contains(where:{hypot($0.0.x-point.x,$0.0.y-point.y)<$0.1}) else {return}
+                  !exclusion.contains(where:{$0.contains(point)}) else {return}
             let x=Int(floor(point.x/separation)),y=Int(floor(point.y/separation))
             for dx in -1...1 {for dy in -1...1 {
                 if buckets[key(x+dx,y+dy),default:[]].contains(where:{hypot($0.x-point.x,$0.y-point.y)<separation}) {return}
@@ -267,6 +282,25 @@ private final class WalkingDotsView:UIView {
                 if remaining<0 {remaining+=dots.spacing}
             }
         }
+        // A short screen-space marker stem is not route geometry. It makes the exact
+        // mapped coordinate visible below the thumbnail instead of hiding it in the photo.
+        for pin in pins where !pin.direction {
+            let p=map.convert(pin.coordinate,toPointTo:self)
+            guard bounds.contains(p) else{continue}
+            context.setStrokeColor(UIColor.white.cgColor);context.setLineWidth(3)
+            context.move(to:CGPoint(x:p.x,y:p.y-6));context.addLine(to:p);context.strokePath()
+            context.setStrokeColor(UIColor(transportColor("walk")).cgColor);context.setLineWidth(1)
+            context.move(to:CGPoint(x:p.x,y:p.y-6));context.addLine(to:p);context.strokePath()
+            context.setFillColor(UIColor.white.cgColor);context.fillEllipse(in:CGRect(x:p.x-3.5,y:p.y-3.5,width:7,height:7))
+            context.setFillColor(UIColor(transportColor("walk")).cgColor);context.fillEllipse(in:CGRect(x:p.x-2,y:p.y-2,width:4,height:4))
+        }
+    }
+}
+
+final class CompactItineraryAnnotationView:MKAnnotationView {
+    override func point(inside point:CGPoint,with event:UIEvent?)->Bool {
+        let dx=max(0,(44-bounds.width)/2),dy=max(0,(44-bounds.height)/2)
+        return bounds.insetBy(dx:-dx,dy:-dy).contains(point)
     }
 }
 
@@ -324,7 +358,7 @@ struct NativeRouteMap:UIViewRepresentable {
                 map.setVisibleMapRect(MKMapRect(x:p.x-rect.width/2,y:p.y-rect.height/2+offset,width:rect.width,height:rect.height),animated:true)
             }
         }
-        let key=mapSceneKey(day)+"|"+AppLanguage.current.rawValue+"|"+String(overview?.coordinates.count ?? 0)+"|"+String(Int(bottomInset))+insightMarkers.map{$0.id+$0.title}.joined()
+        let key=routeSectionIdentity(sections)+"|"+mapSceneKey(day)+"|"+AppLanguage.current.rawValue+"|"+String(overview?.coordinates.count ?? 0)+"|"+String(Int(bottomInset))+insightMarkers.map{$0.id+$0.title}.joined()
         guard context.coordinator.sceneKey != key else {context.coordinator.refreshNearby(map);return}
         context.coordinator.sceneKey=key
         context.coordinator.walkingDots?.paths=sections.isEmpty ? [overview?.coordinates ?? []] : sections.filter{$0.mode == "walk"}.map(\.coordinates)
@@ -336,7 +370,7 @@ struct NativeRouteMap:UIViewRepresentable {
         let start=day?.start ?? .quay,end=day?.end ?? .central
         let coordinates=[start.location]+(day?.stops.map(\.coordinate) ?? [])+[end.location]
         if let day {
-            map.addAnnotations(sections.flatMap(\.stopPins)+overviewPins(day))
+            map.addAnnotations(overviewPins(day))
             // Keep numbered stops while loading; never draw a straight line as a walking route.
             let geometry = overview?.coordinates ?? []
             let line=MKPolyline(coordinates:geometry,count:geometry.count);line.title="walk"
@@ -351,15 +385,17 @@ struct NativeRouteMap:UIViewRepresentable {
             }}
             if sections.isEmpty {map.addAnnotations(overviewDirections(geometry))}
         }
-        let cameraKey=mapSceneKey(day)+"|"+String(Int(bottomInset))+(viewport == nil ? "|"+String(overview?.coordinates.count ?? 0):"")
+        let focused = !sections.isEmpty && sections.reduce(0){$0+$1.coordinates.count} < (overview?.coordinates.count ?? 0)
+        let focusChanged=context.coordinator.lastFocused != focused;context.coordinator.lastFocused=focused
+        let cameraKey=routeSectionIdentity(sections)+"|"+mapSceneKey(day)+"|"+String(Int(bottomInset))+(viewport == nil ? "|"+String(overview?.coordinates.count ?? 0):"")
         guard context.coordinator.cameraSceneKey != cameraKey else {return}
         context.coordinator.cameraSceneKey=cameraKey
-        if cameraAction?.kind != .fit,!insetChanged,let saved=viewport,saved.sceneKey==mapSceneKey(day) {
+        if cameraAction?.kind != .fit,!insetChanged,!focusChanged,!focused,let saved=viewport,saved.sceneKey==mapSceneKey(day) {
             let longitudeDelta=saved.longitudeDelta ?? 360/pow(2,saved.zoom)
             let latitudeDelta=saved.latitudeDelta ?? longitudeDelta*Double(max(1,map.bounds.height)/max(1,map.bounds.width))*cos(saved.lat*Double.pi/180)
             map.setRegion(MKCoordinateRegion(center:CLLocationCoordinate2D(latitude:saved.lat,longitude:saved.lng),span:MKCoordinateSpan(latitudeDelta:latitudeDelta,longitudeDelta:longitudeDelta)),animated:false)
         } else {
-            let bounds=routeCameraBounds(coordinates+(overview?.coordinates ?? []))
+            let bounds=routeCameraBounds(focused ? sections.flatMap(\.coordinates):coordinates+(overview?.coordinates ?? []))
             DispatchQueue.main.async {
                 // The first representable update can precede layout (bounds.height == 0).
                 // Calculate padding after layout so the first fit does not hide pins behind the card.
@@ -375,6 +411,7 @@ struct NativeRouteMap:UIViewRepresentable {
         fileprivate var walkingDots:WalkingDotsView?
         var sceneKey:String?
         var cameraSceneKey:String?
+        var lastFocused=false
         var lastSelection:String?
         var lastCameraAction:UUID?
         var lastBottomInset:CGFloat?
@@ -435,11 +472,17 @@ struct NativeRouteMap:UIViewRepresentable {
             }
             guard let pin=annotation as? ItineraryPin else {return nil}
             let id=pin.direction ? "direction" : "itinerary"
-            let view=mapView.dequeueReusableAnnotationView(withIdentifier:id) ?? MKAnnotationView(annotation:pin,reuseIdentifier:id)
-            view.annotation=pin;view.image=overviewBadge(pin.badge,direction:pin.direction)
-            view.canShowCallout = !pin.direction;view.displayPriority = pin.direction ? .defaultLow : .required
-            view.collisionMode = .circle;view.layer.zPosition = pin.direction ? 1 : 2
+            let view=mapView.dequeueReusableAnnotationView(withIdentifier:id) ?? CompactItineraryAnnotationView(annotation:pin,reuseIdentifier:id)
+            view.annotation=pin;view.image=itineraryBadge(pin)
+            view.centerOffset=pin.direction ? .zero:CGPoint(x:0,y:-(view.image?.size.height ?? 28)/2-4)
+            view.canShowCallout = !pin.direction;view.displayPriority = pin.direction ? .defaultLow : .defaultHigh
+            view.rightCalloutAccessoryView=pin.photo == nil ? nil:UIButton(type:.detailDisclosure)
+            view.collisionMode = .rectangle;view.layer.zPosition = pin.direction ? 1 : 2
             return view
+        }
+        func mapView(_ mapView:MKMapView,annotationView view:MKAnnotationView,calloutAccessoryControlTapped control:UIControl) {
+            guard let pin=view.annotation as? ItineraryPin,let raw=pin.photo?.sourceURL,let url=URL(string:raw),url.scheme=="https" else{return}
+            UIApplication.shared.open(url)
         }
         func mapView(_ mapView:MKMapView,rendererFor overlay:MKOverlay)->MKOverlayRenderer {
             if let tile=overlay as? MKTileOverlay {return MKTileOverlayRenderer(tileOverlay:tile)}
@@ -450,7 +493,7 @@ struct NativeRouteMap:UIViewRepresentable {
                 let renderer=MKPolylineRenderer(polyline:line)
                 renderer.strokeColor = line.title == "casing" || line.title == "walk-casing" ? .white : line.title == "walking" || line.title == "schematic" ? UIColor(Palette.route) : UIColor(transportColor(line.title ?? "walk"))
                 let dots=walkingDotMetrics(mapView.bounds.size)
-                renderer.lineWidth = line.title == "casing" ? 5 : line.title == "walk-casing" ? dots.width+2*dots.halo : line.title == "walk" ? dots.width : 3
+                renderer.lineWidth = line.title == "casing" ? 4 : line.title == "walk-casing" ? dots.width+2*dots.halo : line.title == "walk" ? dots.width : 2.3
                 renderer.lineCap = .round;renderer.lineJoin = .round
                 if line.title == "schematic" {renderer.lineDashPattern=[9,6]}
                 if line.title == "walk" || line.title == "walk-casing" {renderer.lineDashPattern=[0.1,NSNumber(value:Double(dots.spacing))]}

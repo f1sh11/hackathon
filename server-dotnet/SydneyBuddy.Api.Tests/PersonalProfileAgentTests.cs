@@ -11,6 +11,39 @@ namespace SydneyBuddy.Api.Tests;
 public sealed class PersonalProfileAgentTests
 {
     [Fact]
+    public void ConfirmationCopyUsesValidatedNewValueAndOffersNoFakeSaveShortcut()
+    {
+        var result=PersonalProfileAgentApiTests.Response("Your limit is still 6000.");
+        PersonalProfileAgent.PresentCandidates(result,new JsonArray(new JsonObject{["key"]="daily_steps",["value"]="10000",["condition"]=""}));
+        Assert.Contains("10000",result.Str("reply"));Assert.DoesNotContain("6000",result.Str("reply"));
+        Assert.DoesNotContain(PersonalProfileAgent.Replies(result),x=>x.Text.Contains("Save",StringComparison.OrdinalIgnoreCase));
+        var session=new PetSession();PersonalProfileAgent.Saved(session,new(){Key="daily_steps",Value="10000"});
+        Assert.Contains("Saved",Assert.Single(session.Messages).Text);Assert.Equal(3,session.Messages[0].QuickReplies!.Length);
+    }
+
+    [Fact]
+    public void ExplicitEnglishCorrectionCreatesCandidateEvenWhenModelOmitsIt()
+    {
+        var session=new PetSession();PersonalProfileAgent.Enable(session,new());
+        TravelProfiling.Apply(session,new JsonObject(),"Please change my usual daily walking limit from 10000 to 6000 steps.","m");
+        var fact=Assert.Single(session.Preferences);Assert.Equal("6000",fact.Value);Assert.Equal("awaiting_confirmation",fact.Status);
+        var other=new PetSession();PersonalProfileAgent.Enable(other,new());
+        TravelProfiling.Apply(other,new JsonObject(),"I usually walk between 6000 and 9000 steps.","m");Assert.Empty(other.Preferences);
+    }
+
+    [Fact]
+    public void RepeatedQuestionBecomesReviewWithoutDroppingExtractedPreference()
+    {
+        var session=new PetSession();PersonalProfileAgent.Enable(session,new());
+        session.Messages.Add(new("a","assistant","What pace do you prefer?"));
+        var result=PersonalProfileAgentApiTests.Response("Thanks! What pace do you prefer?");
+        result["preferences"]=new JsonArray(new JsonObject{["key"]="rhythm",["value"]="relaxed"});
+        PersonalProfileAgent.AvoidRepeatedQuestion(session,result);
+        Assert.DoesNotContain("?",result.Str("reply"));Assert.True(result.Bool("readyForDraft"));
+        Assert.Single(result.Array("preferences")!);Assert.Equal(3,PersonalProfileAgent.Replies(result).Length);
+    }
+
+    [Fact]
     public async Task RealModelTransportUsesPersonalSkillAndExcludesTripQuestionnaireContext()
     {
         var root=Path.Combine(Path.GetTempPath(),"personal-agent-model-"+Guid.NewGuid().ToString("N"));

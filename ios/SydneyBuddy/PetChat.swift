@@ -48,14 +48,21 @@ let travelExtraFields:[(String,String)]=[("budgetCoverage","预算包含范围")
         let (data,response)=try await loader(req)
         guard let http=response as? HTTPURLResponse,(200..<300).contains(http.statusCode) else {
             let obj=(try? JSONSerialization.jsonObject(with:data)) as? [String:Any]
-            throw NSError(domain:"Pet",code:1,userInfo:[NSLocalizedDescriptionKey:obj?["error"] as? String ?? "暂时连不上 Koko，请检查电脑上的服务。"])
+            throw NSError(domain:"Pet",code:1,userInfo:[NSLocalizedDescriptionKey:obj?["error"] as? String ?? "暂时连不上 Koko，请检查电脑上的服务。","httpStatus":(response as? HTTPURLResponse)?.statusCode ?? 0])
         }
         return try JSONDecoder().decode(T.self,from:data)
     }
     private func run(_ action:() async throws -> Void) async {
         guard !busy else{return};busy=true;error=nil
         defer{busy=false}
-        do{try await action()}catch{self.error=error.localizedDescription}
+        do{try await action()}catch{
+            let failure=error as NSError
+            if AppLanguage.current == .english,failure.domain == NSURLErrorDomain {
+                self.error=failure.code == NSURLErrorTimedOut
+                    ? "Koko took too long to reply. Please try again."
+                    : "I couldn’t reach Koko. Check your connection and try again."
+            }else{self.error=error.localizedDescription}
+        }
     }
     private var dialogueInput:[String:Any] {
         var input:[String:Any]=["profilingVersion":personalProfileAgent ? 3:2,"companionVersion":personalProfileAgent || scope=="personalProfile" ? 0:1,"nickname":UserDefaults.standard.string(forKey:"koko.nickname") ?? "","hasMetKoko":UserDefaults.standard.bool(forKey:"koko.hasMet")]
@@ -67,6 +74,17 @@ let travelExtraFields:[(String,String)]=[("budgetCoverage","预算包含范围")
         UserDefaults.standard.set(true,forKey:"koko.hasMet")
         if !dialogue.nickname.isEmpty{UserDefaults.standard.set(dialogue.nickname,forKey:"koko.nickname")}
     }
+    private func createSession(seed:[String:String],personal:UserTravelProfile?) async throws -> PetSession {
+        var body:[String:Any]=["fields":seed,"personalProfile":personal.flatMap{try? JSONSerialization.jsonObject(with:JSONEncoder().encode($0))} ?? [:]]
+        if profiling{body.merge(dialogueInput){_,new in new}}
+        return try await request("pet/sessions",method:"POST",body:body)
+    }
+    private func isMissingSession(_ error:Error)->Bool {
+        let value=error as NSError
+        if value.userInfo["httpStatus"] as? Int == 404{return true}
+        guard [400,422].contains(value.userInfo["httpStatus"] as? Int ?? 0) else{return false}
+        return ["This conversation has been cleared. Start a new one.","这段对话已清空，请开启新对话。","這段對話已清空，請開啓新對話。","這段對話已清空，請開啟新對話。"].contains(value.localizedDescription)
+    }
     func load(scope:String, seed:[String:String]=[:],personal:UserTravelProfile?=nil,profiling:Bool=false) async {
         guard !busy else{return}
         if self.scope==scope,session != nil{return}
@@ -74,12 +92,33 @@ let travelExtraFields:[(String,String)]=[("budgetCoverage","预算包含范围")
         choices=UserDefaults.standard.object(forKey:"petQuickAnswers.v3") as? Bool ?? false
         await run {
             if let id=UserDefaults.standard.string(forKey:storageKey) {
-                session=try await request("pet/sessions/"+id)
-                if (profiling || session?.dialogue != nil),session?.dialogue?.companionVersion != (personalProfileAgent || scope=="personalProfile" ? 0:1){session=try await request("pet/sessions/"+id,method:"PATCH",body:dialogueInput)}
+                do{session=try await request("pet/sessions/"+id)}
+                catch {
+                    guard isMissingSession(error) else{throw error}
+                    let restored=try await createSession(seed:seed,personal:personal)
+                    let archiveKey=storageKey+".previousIDs"
+                    var prior=UserDefaults.standard.stringArray(forKey:archiveKey) ?? []
+                    if !prior.contains(id){prior.append(id);UserDefaults.standard.set(prior,forKey:archiveKey)}
+                    session=restored;UserDefaults.standard.set(restored.id,forKey:storageKey)
+                }
+                if personalProfileAgent,session?.purpose != "personal_profile" {
+                    session=nil
+                    var body=dialogueInput
+                    body["personalProfile"]=personal.flatMap{try? JSONSerialization.jsonObject(with:JSONEncoder().encode($0))} ?? [:]
+                    let value:PetSession=try await request("pet/sessions",method:"POST",body:body)
+                    session=value;UserDefaults.standard.set(value.id,forKey:storageKey)
+                }
+                if personalProfileAgent,let personal {
+                    let habits=try JSONSerialization.jsonObject(with:JSONEncoder().encode(personal))
+                    session=try await request("pet/sessions/"+(session?.id ?? id),method:"PATCH",body:["personalProfile":habits])
+                }
+                if !personalProfileAgent,(profiling || session?.dialogue != nil),session?.dialogue?.companionVersion != (personalProfileAgent || scope=="personalProfile" ? 0:1){session=try await request("pet/sessions/"+(session?.id ?? id),method:"PATCH",body:dialogueInput)}
             } else {
-                var body:[String:Any]=["fields":seed,"personalProfile":personal.flatMap{try? JSONSerialization.jsonObject(with:JSONEncoder().encode($0))} ?? [:]]
-                if profiling{body.merge(dialogueInput){_,new in new}}
-                let value:PetSession=try await request("pet/sessions",method:"POST",body:body);session=value;UserDefaults.standard.set(value.id,forKey:storageKey)
+                let value=try await createSession(seed:seed,personal:personal);session=value;UserDefaults.standard.set(value.id,forKey:storageKey)
+            }
+            if scope=="draft",let current=session {
+                let missing=seed.filter{TravelRequirements.known($0.value) && !TravelRequirements.known(current.effectiveFields[$0.key])}
+                if !missing.isEmpty{session=try await request("pet/sessions/"+current.id,method:"PATCH",body:["fields":missing])}
             }
             if personalProfileAgent{memories=try await request("memories")}
             rememberIntroduction()
@@ -291,11 +330,12 @@ struct PetChatView:View {
     @State private var parkedMessage=""
     @State private var basicsConfirmed=false
     @State private var studioStartID:String?
+    private var canSendMessage:Bool {!chat.busy && !message.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty && message.count<=2000}
     private var scope:String {personalSetup ? "personalProfileAgent":(onboarding || draftScope) ? "draft" : (store.trip?.id ?? "draft")}
     private var faceToFace:Bool {personalSetup || onboarding || draftScope}
     private var displayedMessages:[PetMessage] {
         let messages=chat.session?.messages ?? []
-        if !onboarding && !draftScope,store.trip != nil,messages.first?.role=="assistant" {return Array(messages.dropFirst())}
+        if !personalSetup && !onboarding && !draftScope,store.trip != nil,messages.first?.role=="assistant" {return Array(messages.dropFirst())}
         return messages
     }
     private var currentTurn:[PetMessage] {
@@ -320,8 +360,8 @@ struct PetChatView:View {
     private var conversationContent:some View {
         VStack(spacing:0) {
             HStack(spacing:12){
-                Button{if personalSetup{finishPersonalSetup()}else if onboarding{store.returnToTrips(draft:liveFields)}else{dismiss()}}label:{Image(systemName:"chevron.left").font(.headline).frame(width:36,height:44)}.accessibilityLabel(uiText(onboarding ? "返回我的行程":"返回")).accessibilityIdentifier("chat-back")
-                Text(uiText(personalSetup ? "先认识一下":onboarding || draftScope ? "和 Koko 规划":"和 Koko 聊聊")).font(.headline)
+                Button{if personalSetup{finishPersonalSetup()}else if onboarding{store.returnToTrips(draft:liveFields)}else{dismiss()}}label:{Image(systemName:"chevron.left").font(.headline).frame(width:44,height:44)}.accessibilityLabel(uiText(onboarding ? "返回我的行程":"返回")).accessibilityIdentifier("chat-back")
+                Text(uiText(personalSetup ? "A little about you":onboarding || draftScope ? "和 Koko 规划":"和 Koko 聊聊")).font(.headline)
                 Spacer()
                 Menu{
                     Button(uiText("我的记忆"),systemImage:"brain.head.profile"){memories=true}
@@ -331,7 +371,7 @@ struct PetChatView:View {
                     Button(uiText("清空本次对话"),systemImage:"trash",role:.destructive){clearing=true}
                 }label:{Image(systemName:"ellipsis").frame(width:44,height:44)}.accessibilityLabel(uiText("聊天更多操作"))
             }.padding(.horizontal,12)
-            if personalSetup {Text(uiText("几个小选择认识你 · 不确定的可以留白")).font(.caption).foregroundStyle(Palette.muted).padding(.vertical,6)}else{backpack}
+            if personalSetup {Text("No right answers. Just what feels like you.").font(.caption).foregroundStyle(Palette.muted).padding(.vertical,6)}else{backpack}
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(alignment:.leading,spacing:14){
@@ -346,8 +386,8 @@ struct PetChatView:View {
                                 if composing {
                                     HStack(alignment:.top,spacing:10){PetAvatar(mood:companionMood,cue:companionCue,size:52);Text(uiText(currentSpeech)).font(.caption).fixedSize(horizontal:false,vertical:true).padding(12).frame(maxWidth:.infinity,alignment:.leading).background(.white,in:RoundedRectangle(cornerRadius:16))}
                                 }else {
-                                    PetSpeechBubble(text:currentSpeech,companionStyle:true,animateText:false,avatarBelow:true)
-                                    KokoCompanionStage(cue:companionCue,size:personalSetup ? 188:176,mood:companionMood).frame(height:personalSetup ? 188:176)
+                                    Text(uiText(currentSpeech)).font(.headline).fixedSize(horizontal:false,vertical:true).padding(18).frame(maxWidth:.infinity,alignment:.leading).background(.white,in:RoundedRectangle(cornerRadius:22))
+                                    KokoCompanionStage(cue:companionCue,size:personalSetup ? 128:176,mood:companionMood).frame(height:personalSetup ? 128:176)
                                 }
                             }else {
                                 KokoCompanionScene(mood:companionMood,cue:companionCue,ready:canPlanDirectly && !chat.busy,height:composing ? 100:canPlanDirectly ? 132:168)
@@ -385,15 +425,15 @@ struct PetChatView:View {
                             },close:{acceptedInspiration=direction;requestedInspiration=false;inspirationOverride=nil}).id("inspiration")
                         }
                         ForEach(chat.session?.pendingPreferences ?? []){preference in
-                            TravelPreferenceCard(preference:preference,busy:chat.busy,decide:{consent,ignored in Task{await chat.decidePreference(preference,consent:consent,dismiss:ignored);if personalSetup && chat.error==nil{store.memories=chat.memories}}},correct:{message=preference.label+": ";composing=true})
+                            TravelPreferenceCard(personal:personalSetup,preference:preference,busy:chat.busy,decide:{consent,ignored in Task{await chat.decidePreference(preference,consent:consent,dismiss:ignored);if personalSetup && chat.error==nil{store.memories=chat.memories}}},correct:{message=preference.label+": ";composing=true})
                         }
                         if let warning=chat.session?.memoryWarning,!warning.isEmpty{Text(uiText(warning)).font(.caption).foregroundStyle(Palette.muted)}
                         englishDisplayNotice
                         if !personalSetup,let session=chat.session,session.dnaCompleted != true,(session.pendingPreferences ?? []).isEmpty,(session.travelDna ?? []).contains(where:{$0.status=="confirmed"}) {
-                            Button(uiText("完成旅行习惯整理")){Task{await chat.completeDna();if chat.error==nil{store.showPersonalPreferences=false;UserDefaults.standard.set(true,forKey:"personalPreferences.v2.completed")}}}.buttonStyle(.borderedProminent).tint(Palette.green).disabled(chat.busy).accessibilityIdentifier("complete-travel-dna")
+                            Button(uiText("完成旅行习惯整理")){Task{await chat.completeDna();if chat.error==nil{store.showPersonalPreferences=false;UserDefaults.standard.set(true,forKey:"personalPreferences.v2.completed")}}}.buttonStyle(KokoPrimaryStyle()).tint(Palette.green).disabled(chat.busy).accessibilityIdentifier("complete-travel-dna")
                         }
                         if let s=chat.session,!s.pendingMemory.isEmpty {
-                            VStack(alignment:.leading,spacing:10){Text(uiText("以后也这样安排，好吗？")).font(.headline);Text(uiText(s.pendingMemory));HStack{Button(uiText("以后都记住")){Task{await chat.decideMemory(true)}}.buttonStyle(.borderedProminent);Button(uiText("仅限这次")){Task{await chat.decideMemory(false)}}.buttonStyle(.bordered)}}.padding(16).background(Palette.mint,in:RoundedRectangle(cornerRadius:20)).disabled(chat.busy)
+                            VStack(alignment:.leading,spacing:10){Text(uiText("以后也这样安排，好吗？")).font(.headline);Text(uiText(s.pendingMemory));HStack{Button(uiText("以后都记住")){Task{await chat.decideMemory(true)}}.buttonStyle(KokoPrimaryStyle());Button(uiText("仅限这次")){Task{await chat.decideMemory(false)}}.buttonStyle(BuddySecondaryStyle())}}.padding(16).background(Palette.mint,in:RoundedRectangle(cornerRadius:20)).disabled(chat.busy)
                         }
                         if waitingForDeferredDates && !chat.busy{
                             VStack(alignment:.leading,spacing:10){
@@ -408,6 +448,9 @@ struct PetChatView:View {
                     }.padding(20)
                 }.scrollDismissesKeyboard(.interactively)
                 .onChange(of:chat.session?.messages.count){_,_ in if !historyExpanded{withAnimation{proxy.scrollTo(personalSetup ? "companion-turn":"bottom",anchor:personalSetup ? .top:.bottom)}}}
+                .onChange(of:chat.session?.pendingPreferences?.map(\.id)){_,value in
+                    if personalSetup,!(value ?? []).isEmpty{Task{@MainActor in await Task.yield();withAnimation{proxy.scrollTo("bottom",anchor:.bottom)}}}
+                }
                 .onChange(of:chat.streaming.isEmpty){_,_ in if !historyExpanded{proxy.scrollTo(personalSetup ? "companion-turn":"bottom",anchor:personalSetup ? .top:.bottom)}}
                 .onChange(of:chat.busy){_,value in if value && !historyExpanded{proxy.scrollTo(personalSetup ? "companion-turn":"bottom",anchor:personalSetup ? .top:.bottom)}}
                 .onChange(of:composing){_,value in if value{proxy.scrollTo(personalSetup ? "companion-turn":"bottom",anchor:personalSetup ? .top:.bottom)}}
@@ -417,7 +460,7 @@ struct PetChatView:View {
                 if chat.session?.messages.contains(where:{$0.role=="user"})==true {
                     PrimaryButton(title:personalEditing ? "Done for now":"Continue to trip planning",symbol:"arrow.right"){finishPersonalSetup()}.padding(.horizontal,20).disabled(chat.busy || !message.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty).accessibilityIdentifier("personal-start-planning")
                 }
-                if !composing{Button(uiText("Finish for now")){finishPersonalSetup()}.font(.caption).frame(minHeight:40).disabled(chat.busy || !message.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty).accessibilityIdentifier("personal-skip")}
+                if !composing,chat.session?.messages.contains(where:{$0.role=="user"}) != true{Button(uiText("Finish for now")){finishPersonalSetup()}.font(.caption).frame(minHeight:40).disabled(chat.busy || !message.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty).accessibilityIdentifier("personal-skip")}
             }else if !canPlanDirectly{replyChoices.padding(.horizontal,16).padding(.vertical,6)}
             if !personalSetup,!composing,let issue=generationIssue {
                 VStack(alignment:.leading,spacing:6) {
@@ -429,9 +472,9 @@ struct PetChatView:View {
 
             HStack(alignment:.bottom){
                 if chat.busy{Text(uiText("等我一下，马上回来～")).foregroundStyle(Palette.muted).padding(12).frame(maxWidth:.infinity,alignment:.leading).background(.white,in:RoundedRectangle(cornerRadius:16))}else{TextField(uiText("也可以直接告诉我…"),text:$message,axis:.vertical).focused($composing).lineLimit(1...4).padding(12).background(Color.gray.opacity(0.07),in:RoundedRectangle(cornerRadius:22)).accessibilityIdentifier("chat-composer").disabled(chat.busy)}
-                Button{UIImpactFeedbackGenerator(style:.soft).impactOccurred();let text=message;composing=false;Task{await chat.send(text);if chat.error==nil{message=""}}}label:{Image(systemName:"arrow.up").font(.system(size:21,weight:.semibold)).foregroundStyle(.white).frame(width:46,height:46).background(chatBlue,in:Circle())}.buttonStyle(BuddyPressStyle()).accessibilityLabel(uiText("发送消息")).disabled(chat.busy || message.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty || message.count>2000)
+                Button{UIImpactFeedbackGenerator(style:.soft).impactOccurred();let text=message;composing=false;Task{await chat.send(text);if chat.error==nil{message=""}}}label:{Image(systemName:"arrow.up").font(.system(size:21,weight:.semibold)).foregroundStyle(canSendMessage ? .white:Palette.muted).frame(width:46,height:46).background(canSendMessage ? chatBlue:Palette.disabled,in:Circle())}.buttonStyle(BuddyPressStyle()).accessibilityLabel(uiText("发送消息")).disabled(chat.busy || message.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty || message.count>2000)
             }.padding(.horizontal,20).padding(.vertical,8)
-        }.background(Color(red:0.985,green:0.985,blue:0.975)).foregroundStyle(Color(red:0.09,green:0.15,blue:0.24)).tint(chatBlue)
+        }.background(Palette.cream).foregroundStyle(Palette.ink).buddySurface()
     }
     @ViewBuilder private var englishDisplayNotice:some View {
         if let warning=chat.session?.presentationWarning,!warning.isEmpty {
@@ -457,7 +500,7 @@ struct PetChatView:View {
                 }label:{Image(systemName:"ellipsis").frame(width:44,height:44)}.accessibilityLabel(uiText("聊天更多操作"))
             }.padding(.horizontal,8)
             if !basicsConfirmed || !studioBasicsReady{studioBasics}else{studioPersonalize}
-        }.background(.white).foregroundStyle(Color(red:0.09,green:0.15,blue:0.24)).tint(chatBlue)
+        }.background(Palette.cream).foregroundStyle(Palette.ink).buddySurface()
     }
     private var studioBasics:some View {
         VStack(spacing:0){
@@ -517,7 +560,7 @@ struct PetChatView:View {
                             },another:{let all=["nature","culture","food"];inspirationOverride=all[((all.firstIndex(of:direction) ?? 0)+1)%all.count]},close:{requestedInspiration=false;inspirationOverride=nil})
                         }
                         ForEach(chat.session?.pendingPreferences ?? []){preference in
-                            TravelPreferenceCard(preference:preference,busy:chat.busy,decide:{consent,ignored in Task{await chat.decidePreference(preference,consent:consent,dismiss:ignored)}},correct:{message=preference.label+": ";composing=true})
+                            TravelPreferenceCard(personal:personalSetup,preference:preference,busy:chat.busy,decide:{consent,ignored in Task{await chat.decidePreference(preference,consent:consent,dismiss:ignored)}},correct:{message=preference.label+": ";composing=true})
                         }
                         if let warning=chat.session?.memoryWarning,!warning.isEmpty{Text(uiText(warning)).font(.caption).foregroundStyle(Palette.muted)}
                         englishDisplayNotice
@@ -544,11 +587,11 @@ struct PetChatView:View {
             if waitingForDeferredDates{Button(uiText("Choose dates to generate")){basicsConfirmed=false}.font(.caption).frame(minHeight:44)}
             HStack(alignment:.bottom,spacing:10){
                 TextField(uiText("Tell Koko what makes a good day…"),text:$message,axis:.vertical).focused($composing).lineLimit(1...4).padding(14).background(Color.gray.opacity(0.055),in:RoundedRectangle(cornerRadius:20)).accessibilityIdentifier("chat-composer")
-                Button{let text=message;composing=false;Task{await chat.send(text);if chat.error==nil{message=""}}}label:{Image(systemName:"arrow.up").font(.headline).foregroundStyle(.white).frame(width:46,height:46).background(chatBlue,in:Circle())}.disabled(chat.busy || message.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty || message.count>2000).accessibilityLabel(uiText("发送消息"))
+                Button{let text=message;composing=false;Task{await chat.send(text);if chat.error==nil{message=""}}}label:{Image(systemName:"arrow.up").font(.headline).foregroundStyle(canSendMessage ? .white:Palette.muted).frame(width:46,height:46).background(canSendMessage ? chatBlue:Palette.disabled,in:Circle())}.disabled(chat.busy || message.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty || message.count>2000).accessibilityLabel(uiText("发送消息"))
             }.padding(.horizontal,20).padding(.bottom,12)
         }
     }
-    private let chatBlue=Color(red:0.20,green:0.36,blue:0.79)
+    private let chatBlue=Palette.primary
     private var waitingForDeferredDates:Bool {
         !personalSetup && chat.session?.dialogue?.dateDeferred==true &&
         ["destination","travelers","budget","budgetCurrency","budgetBasis"].allSatisfy{TravelRequirements.known(liveFields[$0])} &&
@@ -558,8 +601,8 @@ struct PetChatView:View {
         (requestedInspiration || KokoInspirationPresentation.shouldShow(session)) && acceptedInspiration != (inspirationOverride ?? KokoInspirationPresentation.direction(session))
     }
     private var replyChoices:some View {Group {
-            if !chat.busy,let session=chat.session,!session.contextualReplies.isEmpty,!canPlanDirectly,!waitingForDeferredDates,(personalSetup || !presentsInspiration(session)) {
-                KokoQuickReplies(replies:session.contextualReplies.filter{personalSetup || !presentsInspiration(session) || !["accept_direction","change_direction"].contains($0.intent)},busy:chat.busy,stacked:personalSetup,compact:composing,quiet:!personalSetup){reply in
+            if !chat.busy,let session=chat.session,!(personalSetup && !(session.pendingPreferences ?? []).isEmpty),!session.contextualReplies.isEmpty,!canPlanDirectly,!waitingForDeferredDates,(personalSetup || !presentsInspiration(session)) {
+                KokoQuickReplies(replies:session.contextualReplies.filter{personalSetup || !presentsInspiration(session) || !["accept_direction","change_direction"].contains($0.intent)},busy:chat.busy,stacked:personalSetup,compact:personalSetup || composing,quiet:!personalSetup){reply in
                     switch reply.intent {
                     case "finish_profile":finishPersonalSetup()
                     case "compose_name":message="叫我";composing=true
@@ -695,7 +738,7 @@ struct PetChatView:View {
                 if !store.pendingPersonalProfile.summary.isEmpty{Text(uiText("我记得你："+store.pendingPersonalProfile.summary)).font(.caption).foregroundStyle(Palette.green)}
                 ForEach([("海风与绿意","歌剧院外观、皇家植物园，适合喜欢自然与风景的你。"),("城市与美食","岩石区、城市街区，给逛吃留些时间。"),("艺术与故事","博物馆、美术馆，慢慢发现城市的另一面。")],id:\.0){title,detail in
                     VStack(alignment:.leading,spacing:10){Text(uiText(title)).font(.headline);Text(uiText(detail)).font(.subheadline).foregroundStyle(Palette.muted)
-                        Button(uiText("选悉尼，继续聊")){choosingDestination=false;Task{let interests=title=="海风与绿意" ? "自然、风景":title=="城市与美食" ? "城市、美食":"艺术、文化";await chat.update(["interests":interests]);if chat.error==nil{await chat.send("这次想体验"+title+"，我选悉尼",field:"destination",value:"悉尼")}}}.buttonStyle(.borderedProminent).tint(Palette.green)
+                        Button(uiText("选悉尼，继续聊")){choosingDestination=false;Task{let interests=title=="海风与绿意" ? "自然、风景":title=="城市与美食" ? "城市、美食":"艺术、文化";await chat.update(["interests":interests]);if chat.error==nil{await chat.send("这次想体验"+title+"，我选悉尼",field:"destination",value:"悉尼")}}}.buttonStyle(KokoPrimaryStyle()).tint(Palette.green)
                     }.padding(18).frame(maxWidth:.infinity,alignment:.leading).background(.white,in:RoundedRectangle(cornerRadius:18))
                 }
             }.padding(20)}.background(Palette.cream).navigationTitle(uiText("Koko 帮你选")).navigationBarTitleDisplayMode(.inline).toolbar{Button(uiText("关闭")){choosingDestination=false}}
@@ -778,7 +821,7 @@ struct PetChatView:View {
                                 if key=="budgetCoverage" {
                                     Picker(uiText(label),selection:Binding(get:{fields[key] ?? ""},set:{fields[key]=$0})){Text(uiText("待确认")).tag("");Text(uiText("活动费用")).tag("activities");Text(uiText("包含住宿或交通的总费用")).tag("totalTravel")}
                                 } else {
-                                    VStack(alignment:.leading,spacing:5){Text(uiText(label)).font(.caption).foregroundStyle(Palette.muted);TextField(uiText("暂未确定"),text:Binding(get:{fields[key] ?? ""},set:{fields[key]=$0}),axis:.vertical).textFieldStyle(.roundedBorder).accessibilityLabel(uiText(label))}
+                                    VStack(alignment:.leading,spacing:5){Text(uiText(label)).font(.caption).foregroundStyle(Palette.muted);TextField(uiText("暂未确定"),text:Binding(get:{fields[key] ?? ""},set:{fields[key]=$0}),axis:.vertical).textFieldStyle(BuddyFieldStyle()).accessibilityLabel(uiText(label))}
                                 }
                             }
                             Picker(uiText("预算范围"),selection:Binding(get:{fields["budgetBasis"] ?? ""},set:{fields["budgetBasis"]=$0})){
@@ -1242,7 +1285,7 @@ private struct PlanningBasicsRows:View {
     var language:AppLanguage
     var busy:Bool
     var edit:(Int)->Void
-    private let blue=Color(red:0.20,green:0.36,blue:0.79)
+    private let blue=Palette.primary
     private func value(_ key:String)->String? {TravelRequirements.known(fields[key]) ? fields[key]:nil}
     private var people:String {guard let count=value("travelers") else{return uiText("Choose")};return count=="1" ? uiText("Just me"):language.text("{0} people",count)}
     private var budget:String {guard let amount=value("budget"),let currency=value("budgetCurrency"),let basis=value("budgetBasis") else{return uiText("Choose")};return amount+" "+currency+" · "+uiText(TravelRequirements.optionTitle(basis,field:"budgetBasis"))}
@@ -1253,9 +1296,9 @@ private struct PlanningBasicsRows:View {
             row("Activity budget",budget,"creditcard",3);Divider().padding(.leading,42)
             row("Dates",dates,"calendar",1);Divider().padding(.leading,42)
             row("Destination",value("destination").map{uiText($0)} ?? uiText("Choose"),"mappin.and.ellipse",0)
-        }.padding(.horizontal,12).background(Color.gray.opacity(0.025),in:RoundedRectangle(cornerRadius:16)).overlay(RoundedRectangle(cornerRadius:16).stroke(Color.gray.opacity(0.14))).disabled(busy)
+        }.padding(.horizontal,12).background(Palette.surface,in:RoundedRectangle(cornerRadius:BuddyLayout.card)).overlay(RoundedRectangle(cornerRadius:BuddyLayout.card).stroke(Palette.border)).disabled(busy)
     }
     private func row(_ label:String,_ detail:String,_ symbol:String,_ stage:Int)->some View {
-        Button{edit(stage)}label:{HStack(spacing:10){Image(systemName:symbol).foregroundStyle(blue).frame(width:24);Text(uiText(label)).font(.subheadline.weight(.semibold));Spacer(minLength:6);Text(detail).font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.trailing);Image(systemName:"chevron.right").font(.caption2).foregroundStyle(.secondary)}.frame(minHeight:54).padding(.vertical,3).contentShape(Rectangle())}.buttonStyle(.plain).accessibilityIdentifier("studio-basics-"+String(stage))
+        Button{edit(stage)}label:{HStack(spacing:10){Image(systemName:symbol).foregroundStyle(blue).frame(width:24);Text(uiText(label)).font(.subheadline.weight(.semibold));Spacer(minLength:6);Text(detail).font(.caption).foregroundStyle(Palette.muted).multilineTextAlignment(.trailing);Image(systemName:"chevron.right").font(.caption2).foregroundStyle(Palette.muted)}.frame(minHeight:54).padding(.vertical,3).contentShape(Rectangle())}.buttonStyle(.plain).accessibilityIdentifier("studio-basics-"+String(stage))
     }
 }

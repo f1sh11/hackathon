@@ -329,16 +329,16 @@ struct KokoOptionButtonStyle:ButtonStyle {
     var prominent=false
     var compact=false
     var quiet=false
-    private var accent:Color {quiet ? Color(red:0.20,green:0.36,blue:0.79):Palette.green}
+    @Environment(\.isEnabled) private var enabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     func makeBody(configuration:Configuration)->some View {
-        configuration.label
-            .foregroundStyle(prominent ? .white:Palette.ink)
+        configuration.label.foregroundStyle(!enabled ? Palette.muted:prominent ? .white:Palette.ink)
             .frame(maxWidth:.infinity,minHeight:44)
-            .padding(.horizontal,16).padding(.vertical,compact ? 5:7)
-            .background(RoundedRectangle(cornerRadius:18).fill(prominent ? accent:(quiet ? .white:Palette.cream)))
-            .overlay(RoundedRectangle(cornerRadius:18).stroke(accent.opacity(quiet ? 0.3:0.8),lineWidth:quiet ? 1:1.5))
-            .background(RoundedRectangle(cornerRadius:18).fill(quiet ? .clear:accent).offset(y:configuration.isPressed ? 0:5))
-            .offset(y:configuration.isPressed ? 4:0).padding(.bottom,quiet ? 0:5)
-            .animation(.easeOut(duration:0.10),value:configuration.isPressed)
+            .padding(.horizontal,14).padding(.vertical,compact ? 4:6)
+            .background(RoundedRectangle(cornerRadius:BuddyLayout.control).fill(prominent ? Palette.primary:Palette.surface))
+            .overlay(RoundedRectangle(cornerRadius:BuddyLayout.control).stroke(prominent ? Palette.primary:Palette.border,lineWidth:1))
+            .opacity(configuration.isPressed ? 0.78:1)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.985:1)
+            .animation(reduceMotion ? nil:.easeOut(duration:0.12),value:configuration.isPressed)
     }
 }

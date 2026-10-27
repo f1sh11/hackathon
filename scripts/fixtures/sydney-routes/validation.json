@@ -1,0 +1,270 @@
+[
+  {
+    "day": 1,
+    "leg": 1,
+    "from": "Sydney Airport \u00b7 International Terminal",
+    "to": "Hotel luggage drop \u00b7 subject to availability",
+    "modes": [
+      "walk",
+      "rail",
+      "walk"
+    ],
+    "vertices": 280,
+    "meters": 11786,
+    "startGapMeters": 0.24,
+    "endGapMeters": 0.22
+  },
+  {
+    "day": 1,
+    "leg": 2,
+    "from": "Hotel luggage drop \u00b7 subject to availability",
+    "to": "The Rocks",
+    "modes": [
+      "walk"
+    ],
+    "vertices": 67,
+    "meters": 523,
+    "startGapMeters": 0.0,
+    "endGapMeters": 0.18
+  },
+  {
+    "day": 1,
+    "leg": 3,
+    "from": "The Rocks",
+    "to": "Sydney Opera House forecourt",
+    "modes": [
+      "walk"
+    ],
+    "vertices": 92,
+    "meters": 1239,
+    "startGapMeters": 0.18,
+    "endGapMeters": 0.0
+  },
+  {
+    "day": 1,
+    "leg": 4,
+    "from": "Sydney Opera House forecourt",
+    "to": "Royal Botanic Garden",
+    "modes": [
+      "walk"
+    ],
+    "vertices": 65,
+    "meters": 890,
+    "startGapMeters": 0.0,
+    "endGapMeters": 0.0
+  },
+  {
+    "day": 1,
+    "leg": 5,
+    "from": "Royal Botanic Garden",
+    "to": "Hotel check-in & recharge",
+    "modes": [
+      "walk"
+    ],
+    "vertices": 93,
+    "meters": 845,
+    "startGapMeters": 0.0,
+    "endGapMeters": 0.0
+  },
+  {
+    "day": 1,
+    "leg": 6,
+    "from": "Hotel check-in & recharge",
+    "to": "Circular Quay dinner & evening stroll",
+    "modes": [
+      "walk"
+    ],
+    "vertices": 46,
+    "meters": 549,
+    "startGapMeters": 0.0,
+    "endGapMeters": 0.0
+  },
+  {
+    "day": 1,
+    "leg": 7,
+    "from": "Circular Quay dinner & evening stroll",
+    "to": "Sydney Harbour Marriott at Circular Quay",
+    "modes": [
+      "walk"
+    ],
+    "vertices": 49,
+    "meters": 549,
+    "startGapMeters": 0.0,
+    "endGapMeters": 0.0
+  },
+  {
+    "day": 2,
+    "leg": 1,
+    "from": "Sydney Harbour Marriott at Circular Quay",
+    "to": "Centennial Park cycle hire",
+    "modes": [
+      "walk",
+      "drive",
+      "walk"
+    ],
+    "vertices": 273,
+    "meters": 6626,
+    "startGapMeters": 0.0,
+    "endGapMeters": 0.87
+  },
+  {
+    "day": 2,
+    "leg": 2,
+    "from": "Centennial Park cycle hire",
+    "to": "Centennial Park picnic",
+    "modes": [
+      "cycle"
+    ],
+    "vertices": 148,
+    "meters": 3950,
+    "startGapMeters": 0.0,
+    "endGapMeters": 0.0
+  },
+  {
+    "day": 2,
+    "leg": 3,
+    "from": "Centennial Park picnic",
+    "to": "Bondi Beach",
+    "modes": [
+      "walk",
+      "drive",
+      "walk"
+    ],
+    "vertices": 316,
+    "meters": 6450,
+    "startGapMeters": 0.87,
+    "endGapMeters": 0.0
+  },
+  {
+    "day": 2,
+    "leg": 4,
+    "from": "Bondi Beach",
+    "to": "Bondi Icebergs lookout",
+    "modes": [
+      "walk"
+    ],
+    "vertices": 35,
+    "meters": 583,
+    "startGapMeters": 0.0,
+    "endGapMeters": 0.0
+  },
+  {
+    "day": 2,
+    "leg": 5,
+    "from": "Bondi Icebergs lookout",
+    "to": "Sydney Harbour Marriott at Circular Quay",
+    "modes": [
+      "walk",
+      "walk",
+      "bus",
+      "walk",
+      "walk",
+      "walk"
+    ],
+    "vertices": 369,
+    "meters": 9116,
+    "startGapMeters": 0.64,
+    "endGapMeters": 0.0
+  },
+  {
+    "day": 3,
+    "leg": 1,
+    "from": "Sydney Harbour Marriott at Circular Quay",
+    "to": "Hotel check-out & luggage hold",
+    "modes": [
+      "walk"
+    ],
+    "vertices": 2,
+    "meters": 0,
+    "startGapMeters": 0.0,
+    "endGapMeters": 0.0
+  },
+  {
+    "day": 3,
+    "leg": 2,
+    "from": "Hotel check-out & luggage hold",
+    "to": "Circular Quay",
+    "modes": [
+      "walk"
+    ],
+    "vertices": 34,
+    "meters": 333,
+    "startGapMeters": 0.0,
+    "endGapMeters": 0.0
+  },
+  {
+    "day": 3,
+    "leg": 3,
+    "from": "Circular Quay",
+    "to": "Manly Wharf & Corso",
+    "modes": [
+      "walk",
+      "walk",
+      "ferry",
+      "walk",
+      "walk",
+      "walk"
+    ],
+    "vertices": 130,
+    "meters": 11905,
+    "startGapMeters": 0.22,
+    "endGapMeters": 0.0
+  },
+  {
+    "day": 3,
+    "leg": 4,
+    "from": "Manly Wharf & Corso",
+    "to": "Shelly Beach",
+    "modes": [
+      "walk"
+    ],
+    "vertices": 101,
+    "meters": 1429,
+    "startGapMeters": 0.0,
+    "endGapMeters": 0.0
+  },
+  {
+    "day": 3,
+    "leg": 5,
+    "from": "Shelly Beach",
+    "to": "Manly waterfront lunch",
+    "modes": [
+      "walk"
+    ],
+    "vertices": 101,
+    "meters": 1424,
+    "startGapMeters": 0.0,
+    "endGapMeters": 0.0
+  },
+  {
+    "day": 3,
+    "leg": 6,
+    "from": "Manly waterfront lunch",
+    "to": "Collect luggage at the hotel",
+    "modes": [
+      "walk",
+      "walk",
+      "ferry",
+      "walk"
+    ],
+    "vertices": 138,
+    "meters": 12036,
+    "startGapMeters": 2.56,
+    "endGapMeters": 0.22
+  },
+  {
+    "day": 3,
+    "leg": 7,
+    "from": "Collect luggage at the hotel",
+    "to": "Sydney Airport \u00b7 International Terminal",
+    "modes": [
+      "walk",
+      "rail",
+      "walk"
+    ],
+    "vertices": 296,
+    "meters": 11850,
+    "startGapMeters": 0.22,
+    "endGapMeters": 0.37
+  }
+]

@@ -71,7 +71,7 @@ struct KokoInspirationCard:View {
     var accept:()->Void
     var another:()->Void
     var close:()->Void
-    private let blue=Color(red:0.20,green:0.36,blue:0.79)
+    private let blue=Palette.primary
     var body:some View {
         VStack(alignment:.leading,spacing:12){
             HStack{Label(uiText("Koko’s little idea"),systemImage:"sparkles").font(.caption.weight(.semibold)).foregroundStyle(blue);Spacer();Button(action:close){Image(systemName:"xmark").font(.caption).frame(width:44,height:44)}.buttonStyle(.plain).accessibilityLabel(uiText("Back to planning"))}

@@ -31,6 +31,7 @@ public static class PetEndpoints
             var input=await RequestJson.ReadAsync(ctx);await store.Gate.WaitAsync(ctx.RequestAborted);
             try{var s=store.Load(id);PetResponseLanguage.Apply(s,input);
                 if(PersonalProfileAgent.Enabled(s)) {
+                    if(input.Object("personalProfile") is JsonObject updatedProfile)s.PersonalProfile=(JsonObject)updatedProfile.DeepClone();
                     if((input.Object("fields")?.Count ?? 0)>0 || input.Str("acceptedDirection").Length>0)throw new ServiceException("Trip details belong to the next step. This conversation only updates personal preferences.");
                     store.Save(s);return Results.Json(await PreparedView(s,store,ctx));
                 }
@@ -126,7 +127,7 @@ public static class PetEndpoints
                         } catch(ServiceException){s.MemoryWarning=s.Dialogue is null ? "长期偏好检索暂时不可用，本轮参考已确认的本机记录。":"长期偏好检索暂时不可用，先按这次对话继续准备。";}
                     }
                     var result=direct ?? await model.RespondAsync(s,message,confirmed,_=>Task.CompletedTask,ctx.RequestAborted);
-                    if(personal)_=PersonalProfileAgent.Replies(result); // Validate before changing facts, staging memory or saving a turn.
+                    if(personal){_=PersonalProfileAgent.Replies(result);PersonalProfileAgent.AvoidRepeatedQuestion(s,result);} // Validate before changing facts, staging memory or saving a turn.
                     dialogueResult=result;
                     mood=PetEmotion.Normalize(result.Str("mood"));
                     var changes=personal ? new JsonObject():result.Object("fields")??new();
@@ -150,7 +151,10 @@ public static class PetEndpoints
                     if(PetQuestions.UnsupportedDestination(s) && (changes.ContainsKey("destination") || message.Contains("生成") || reply.Contains("准备好"))){reply="可以先聊聊你想怎样玩，资料也会保留。目前能生成的路线是悉尼，其他城市还需要后续接入。";mood="confused";}
                     if(choice?.Intent is "skip" or "skip_name" or "use_alias" or "keep" or "draft" or "finish_profile")result.Remove("preferences");
                     var added=TravelProfiling.Apply(s,result,message,requestId);
-                    if(added.Count>0)await SyncPending(s,memory,ctx.RequestAborted);
+                    if(added.Count>0) {
+                        await SyncPending(s,memory,ctx.RequestAborted);
+                        if(personal)PersonalProfileAgent.PresentCandidates(result,added);
+                    }
                     var suggestion=s.Dialogue is not null || result.Array("preferences") is not null || !TravelProfiling.AllowLegacySuggestion(message) ? "":result.Str("memorySuggestion");if(suggestion.Length>0)s.PendingMemory=suggestion[..Math.Min(500,suggestion.Length)];
                 }
                 var assistant=PersonalProfileAgent.Enabled(s) ? PersonalProfileAgent.CompleteTurn(s,dialogueResult):KokoCompanion.RespondWithCare(s,KokoDialogue.CompleteTurn(s,dialogueResult,reply,mood),message);
@@ -211,6 +215,7 @@ public static class PetEndpoints
         candidate.Status="confirmed";candidate.Scope="long_term";candidate.MemoryId=saved.Str("id");
 
         TravelProfiling.Refresh(session,await records.ListAsync(ct));
+        if(PersonalProfileAgent.Enabled(session))PersonalProfileAgent.Saved(session,candidate);
     }
 
 }

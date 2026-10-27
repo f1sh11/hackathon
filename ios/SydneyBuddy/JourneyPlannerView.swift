@@ -11,7 +11,7 @@ struct JourneyStep: Codable, Identifiable {
     let meters:Double;let seconds:Double;let waitSeconds:Double;let platform:String?;let agency:String?
     let geometry:[JourneyCoordinate]
     var walkingDirections:[WalkingDirection]? = nil
-    var title:String {transportLabel(mode)+(mode == "walk" || mode == "drive" ? "" : " · "+(line?.isEmpty == false ? line! : "路线号码未提供"))}
+    var title:String {transportLabel(mode)+(line?.isEmpty == false ? " · "+line!:"")}
 }
 struct JourneyLeg: Codable, Identifiable {
     var id:Int {index};let index:Int;let mode:String;let from:String;let to:String
@@ -27,14 +27,16 @@ struct JourneyMapSection {
     let mode:String;let coordinates:[CLLocationCoordinate2D]
     var boarding:String="";var alighting:String="";var line:String?=nil
     var stopPins:[ItineraryPin] {
-        guard mode != "walk",mode != "drive",coordinates.count>1 else{return []}
+        guard mode != "walk",mode != "drive",mode != "cycle",coordinates.count>1 else{return []}
         let title=transportLabel(mode)+(line.map{" · "+$0} ?? "")
-        return [ItineraryPin(coordinates.first!,badge:"●",title:"上车 · "+boarding,detail:title),ItineraryPin(coordinates.last!,badge:"●",title:"下车 · "+alighting,detail:title)]
+        return [ItineraryPin(coordinates.first!,badge:"●",title:(AppLanguage.current == .english ? "Board · ":"上车 · ")+boarding,detail:title),ItineraryPin(coordinates.last!,badge:"●",title:(AppLanguage.current == .english ? "Alight · ":"下车 · ")+alighting,detail:title)]
     }
 }
-func transportLabel(_ mode:String)->String {switch mode {case "walk":return "步行";case "drive":return "开车";case "transit":return "大众运输";case "bus":return "公车";case "rail":return "火车";case "metro":return "地铁";case "tram":return "轻轨";case "ferry":return "渡轮";default:return "交通"}}
-func transportSymbol(_ mode:String)->String {switch mode {case "walk":return "figure.walk";case "drive":return "car.fill";case "bus":return "bus.fill";case "ferry":return "ferry.fill";default:return "tram.fill"}}
-func transportColor(_ mode:String)->Color {switch mode {case "walk":return Color(red:25.0/255,green:118.0/255,blue:210.0/255);case "drive":return Palette.green;default:return .blue}}
+func transportLabel(_ mode:String)->String {
+    if AppLanguage.current == .english{return ["walk":"Walk","drive":"Drive","cycle":"Cycle","transit":"Public transport","bus":"Bus","rail":"Train","metro":"Metro","tram":"Light rail","ferry":"Ferry"][mode] ?? "Transport"}
+    switch mode {case "cycle":return "骑行";case "walk":return "步行";case "drive":return "开车";case "transit":return "大众运输";case "bus":return "公车";case "rail":return "火车";case "metro":return "地铁";case "tram":return "轻轨";case "ferry":return "渡轮";default:return "交通"}}
+func transportSymbol(_ mode:String)->String {switch mode {case "walk":return "figure.walk";case "drive":return "car.fill";case "cycle":return "bicycle";case "bus":return "bus.fill";case "ferry":return "ferry.fill";default:return "tram.fill"}}
+func transportColor(_ mode:String)->Color {switch mode {case "walk":return Color(red:0.35,green:0.43,blue:0.54);case "drive":return Color(red:0.48,green:0.32,blue:0.67);case "cycle":return Color(red:0.06,green:0.58,blue:0.53);default:return .blue}}
 func journeyDate(_ raw:String)->Date? {
     let parser=ISO8601DateFormatter();parser.formatOptions=[.withInternetDateTime,.withFractionalSeconds]
     return parser.date(from:raw) ?? ISO8601DateFormatter().date(from:raw)
@@ -173,7 +175,7 @@ struct JourneyPlannerView:View {
             }
             if let error=model.error {Text(uiText(error)).font(.caption).foregroundStyle(.red).accessibilityIdentifier("journey-error").fixedSize(horizontal:false,vertical:true)}
             HStack {
-                Button(uiText(model.busy ? "正在查询交通…" : result == nil ? "规划交通路线" : "重新查询")){model.load(day:day,modes:modes,departure:departure,routingProvider:routingProvider,mapProvider:provider.rawValue,contentSource:contentSource)}.disabled(model.busy || fixture != nil).buttonStyle(.borderedProminent)
+                Button(uiText(model.busy ? "正在查询交通…" : result == nil ? "规划交通路线" : "重新查询")){model.load(day:day,modes:modes,departure:departure,routingProvider:routingProvider,mapProvider:provider.rawValue,contentSource:contentSource)}.disabled(model.busy || fixture != nil).buttonStyle(KokoPrimaryStyle())
                 if model.busy {Button(uiText("取消")){model.invalidate()}}
                 if fixture == nil,routingProvider == "open",result != nil,modes.allSatisfy({$0=="walk"}) {Button(uiText("开始步行导航")){navigation=true}}
                 Spacer()
@@ -332,13 +334,13 @@ struct AppleTripWalkingView:View {
                 else if let plan=overview.plan {
                     Label(uiText(day.hasTransit ? "步行＋公共交通 · 约 \(Int(ceil(plan.travelSeconds/60))) 分钟":"约 \(Int(plan.meters.rounded())) 米 · 步行 \(Int(ceil(plan.travelSeconds/60))) 分钟"),systemImage:day.hasTransit ? "tram.fill":"figure.walk").font(.headline).accessibilityIdentifier("apple-walking-summary")
                     Text(uiText(day.hasTransit ? "交通总计包含接驳和等车，不含游览停留；各段班次见下方。":"步行总计不含停留和等待；开始导航后跟随当前位置，偏离路线会重新查询。")).font(.caption).foregroundStyle(Palette.muted)
-                    if !day.hasTransit {Button(uiText("开始步行导航"),systemImage:"location.fill"){navigating=true}.buttonStyle(.borderedProminent)}
+                    if !day.hasTransit {Button(uiText("开始步行导航"),systemImage:"location.fill"){navigating=true}.buttonStyle(KokoPrimaryStyle())}
                     if day.hasTransit {Text(uiText(refreshed ? "这是按新出发时间查询的路线预览；尚未修改已保存日程，票价未知。":"已保存的计划班次，不能保证现在仍能赶上。出发前请刷新交通；票价未知。")).font(.caption)}
                     else if day.legs.count==plan.legs.count && zip(day.legs,plan.legs).allSatisfy({ old,new in old.source.contains("Apple") && old.minutes==Int(ceil(new.steps.reduce(0){$0+$1.seconds}/60)) }) {Label(uiText("当天安排已按 Apple 步行时间校准"),systemImage:"checkmark.circle").font(.caption).foregroundStyle(Palette.green)}
                     else {
                         Text(uiText("行程里的到达与返回时间尚未按这条道路路线校准。")).font(.caption).foregroundStyle(Palette.muted)
                         if trip.id != nil {
-                            Button(uiText("按真实步行时间更新当天安排")){Task{if await store.updateWalkingTimes(plan,original:trip,dayIndex:dayIndex){updated=true;dismiss()}else{updateError=store.adjustmentError}}}.buttonStyle(.borderedProminent).disabled(store.busy).accessibilityIdentifier("apply-walking-times")
+                            Button(uiText("按真实步行时间更新当天安排")){Task{if await store.updateWalkingTimes(plan,original:trip,dayIndex:dayIndex){updated=true;dismiss()}else{updateError=store.adjustmentError}}}.buttonStyle(KokoPrimaryStyle()).disabled(store.busy).accessibilityIdentifier("apply-walking-times")
                             Text(uiText("保留原景点与停留，计入衔接和休息；超出步数或时间上限会提示，原安排保留。")).font(.caption2).foregroundStyle(Palette.muted)
                         }else{Text(uiText("保存行程后可按最新步行时间校验安排。")).font(.caption)}
                         if let updateError{Text(uiText(updateError)).font(.caption).foregroundStyle(.red)}
@@ -355,7 +357,7 @@ struct AppleTripWalkingView:View {
                     }
                 } else if let error=overview.message {
                     Label(uiText(store.language.display(error)),systemImage:"exclamationmark.circle").font(.subheadline).foregroundStyle(Palette.muted).accessibilityIdentifier("apple-walking-error")
-                    Button(uiText("重试步行路线")){overview.load(day,provider:.apple)}.buttonStyle(.borderedProminent).accessibilityIdentifier("apple-walking-retry")
+                    Button(uiText("重试步行路线")){overview.load(day,provider:.apple)}.buttonStyle(KokoPrimaryStyle()).accessibilityIdentifier("apple-walking-retry")
                 }
                 if day.hasTransit {
                     Button(uiText(refreshedJourney.busy ? "正在查询最新班次…":"刷新交通路线")) {
@@ -363,7 +365,7 @@ struct AppleTripWalkingView:View {
                         let minute=day.planningStartMinute ?? trip.profile.startMinute
                         let scheduled=f.date(from:day.date+String(format:" %02d:%02d",minute/60,minute%60)) ?? Date()
                         refreshedJourney.load(day:day,modes:day.transportModes,departure:max(Date(),scheduled),routingProvider:"apple",mapProvider:"apple")
-                    }.buttonStyle(.borderedProminent).disabled(refreshedJourney.busy).accessibilityIdentifier("refresh-transit-route")
+                    }.buttonStyle(KokoPrimaryStyle()).disabled(refreshedJourney.busy).accessibilityIdentifier("refresh-transit-route")
                     if let error=refreshedJourney.error{Text(uiText(error)).font(.caption).foregroundStyle(.red)}
                 }
                 if overview.plan != nil {
@@ -398,6 +400,12 @@ struct AppleTripWalkingView:View {
 extension JourneyLeg {
     var walkingSummary:String {
         let meters=steps.reduce(0){$0+$1.meters};let seconds=steps.reduce(0){$0+$1.seconds+$1.waitSeconds}
+        if AppLanguage.current == .english {
+            let duration="about \(Int(ceil(seconds/60))) min"
+            if mode=="transit" {return steps.filter{$0.mode != "walk"}.map(\.title).joined(separator:" → ")+" · "+duration}
+            let distance=meters>=1000 ? String(format:"%.1f km",meters/1000):"\(Int(meters.rounded())) m"
+            return transportLabel(mode)+" · "+duration+" · "+distance
+        }
         if mode=="transit" {return steps.filter{$0.mode != "walk"}.map(\.title).joined(separator:" → ")+" · 含接驳与等车约 \(Int(ceil(seconds/60))) 分钟"}
         return meters<30 ? "同一区域内 · 约 \(Int(meters.rounded())) 米，按现场入口步行":"\(Int(meters.rounded())) 米 · 约 \(Int(ceil(seconds/60))) 分钟"
     }

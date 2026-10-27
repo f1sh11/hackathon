@@ -2,6 +2,34 @@ import XCTest
 @testable import SydneyBuddy
 
 final class PetDraftTests:XCTestCase {
+    func testConfirmedPreferenceOverridesLegacySnapshotWithoutMutatingOtherHabits() throws {
+        let base=UserTravelProfile(queueTolerance:"Can wait a moment",dailySteps:10000,energy:"Medium energy",rhythm:"Easy-going",interests:["Art"])
+        let data=Data(#"{"id":"new","summary":"Daily steps: 6000","profile":{"interests":[],"maxSteps":10000,"travelDna":{"id":"fact","key":"daily_steps","dimension":"pace","value":"6000","condition":"","scope":"long_term","source":"user_correction","status":"confirmed","confidence":1,"evidence":"6000 steps","sourceMessageId":"m","memoryId":"new","conflictingMemoryIds":[],"previousValues":[]}},"provenance":{"createdAt":"2026-10-27T01:00:00Z"}}"#.utf8)
+        let memory=try JSONDecoder().decode(Memory.self,from:data)
+        let value=UserTravelProfile.resolved(base:base,memories:[memory])
+        XCTAssertEqual(value.dailySteps,6000);XCTAssertEqual(value.energy,base.energy);XCTAssertEqual(value.interests,["Art"])
+        var pending=memory;pending.profile.travelDna?.status="awaiting_confirmation"
+        XCTAssertEqual(UserTravelProfile.resolved(base:base,memories:[pending]).dailySteps,10000)
+        pending.profile.travelDna?.status="confirmed";pending.profile.travelDna?.condition="Only for short breaks"
+        XCTAssertEqual(UserTravelProfile.resolved(base:base,memories:[pending]).dailySteps,10000)
+        XCTAssertEqual(UserTravelProfile.resolved(base:base,memories:[]),base)
+    }
+
+    @MainActor func testResumeRestoresTripFieldsWhenOnlyNotesRemainWithoutOverwritingExplicitDateChoice() {
+        let keys=["pendingTripFields","travelPlanningTask","pendingPersonalProfile"]
+        let defaults=UserDefaults.standard,prior=Dictionary(uniqueKeysWithValues:keys.map{($0,defaults.object(forKey:$0))})
+        defer{for key in keys{if let value=prior[key] ?? nil{defaults.set(value,forKey:key)}else{defaults.removeObject(forKey:key)}}}
+        let store=AppStore()
+        store.pendingTripFields=["notes":"A quiet day, please","date":""]
+        store.travelTask=TravelPlanningTask(fields:["destination":"Sydney","days":"2","date":"2026-10-28","budget":"60"])
+        store.resumePendingTrip()
+        XCTAssertEqual(store.pendingTripFields["destination"],"Sydney")
+        XCTAssertEqual(store.pendingTripFields["days"],"2")
+        XCTAssertEqual(store.pendingTripFields["budget"],"60")
+        XCTAssertEqual(store.pendingTripFields["notes"],"A quiet day, please")
+        XCTAssertEqual(store.pendingTripFields["date"],"")
+    }
+
     func testNewTripCompanionRecallAndWelcomeAreEnglish() {
         let fixtures=[
             "那这次不用努力打卡啦。我们给坐着吹风和发呆留点位置。\n我记得你确认过「轻松随意」。这次也参考它吗？想换换也可以。",
@@ -159,7 +187,7 @@ final class PetDraftTests:XCTestCase {
     }
     @MainActor func testReturningFromIncompleteChatOnlySavesDraftWithoutPlanningValidation() {
         let defaults=UserDefaults.standard
-        let keys=["pendingTripFields","onboarded"]
+        let keys=["pendingTripFields","onboarded","travelPlanningTask","pendingPersonalProfile"]
         let previous=keys.map{defaults.object(forKey:$0)}
         defer{for (key,value) in zip(keys,previous){if let value{defaults.set(value,forKey:key)}else{defaults.removeObject(forKey:key)}}}
         let store=AppStore();let personal=store.pendingPersonalProfile

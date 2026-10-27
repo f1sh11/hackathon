@@ -14,25 +14,79 @@ import GoogleMaps
         return GMSServices.provideAPIKey(key)
     }()
     var body: some Scene {
-        WindowGroup { RootView().environmentObject(store).tint(Palette.green).preferredColorScheme(.light).task { await store.reload() } }
+        WindowGroup {
+            if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil || NSClassFromString("XCTestCase") != nil {
+                Color.clear // Unit tests host their own views; do not launch live requests or onboarding.
+            } else {RootView().environmentObject(store).buddySurface().preferredColorScheme(.light).task { await store.reload() }}
+        }
     }
 }
 
 enum Palette {
-    static let coral = Color(red:0.82,green:0.43,blue:0.47)
-    static let blush = Color(red:0.98,green:0.90,blue:0.89)
-    static let ink = Color(red:0.24,green:0.18,blue:0.25)
-    static let cream = Color(red:0.99,green:0.97,blue:0.95)
-    static let muted = Color(red:0.47,green:0.41,blue:0.45)
+    // Trips is the visual baseline. Use semantic roles, not page-specific colors.
+    static let primary = Color(red:0.20,green:0.36,blue:0.79)
+    static let ink = Color(red:0.09,green:0.15,blue:0.24)
+    static let cream = Color(red:0.99,green:0.99,blue:0.98)
+    static let surface = Color.white
+    static let field = Color(red:0.96,green:0.97,blue:0.98)
+    static let muted = Color(red:0.40,green:0.44,blue:0.50)
+    static let selection = Color(red:0.93,green:0.95,blue:0.99)
+    static let border = Color(red:0.85,green:0.88,blue:0.92)
+    static let disabled = Color(red:0.92,green:0.93,blue:0.94)
+    static let success = Color(red:0.15,green:0.43,blue:0.32)
+    static let warning = Color(red:0.55,green:0.34,blue:0.08)
     static let berry = Color(red:0.64,green:0.24,blue:0.39)
-    static let berryShadow = Color(red:0.43,green:0.13,blue:0.25)
-    static let peach = Color(red:0.97,green:0.87,blue:0.78)
-    static let lavender = Color(red:0.92,green:0.89,blue:0.97)
-    static let route = Color(red:0.12,green:0.43,blue:0.83)
-    // Compatibility names for existing controls; the new accent is berry.
-    static let green = berry
-    static let mint = blush
+    static let coral = Color(red:0.82,green:0.43,blue:0.47)
+    static let blush = Color(red:0.98,green:0.92,blue:0.93)
+    static let peach = Color(red:0.98,green:0.94,blue:0.89)
+    static let lavender = Color(red:0.95,green:0.94,blue:0.98)
+    static let route = primary
+    // Compatibility for older views; primary actions now share the Trips accent.
+    static let green = primary
+    static let mint = selection
 }
+
+enum BuddyLayout {
+    static let page:CGFloat=20
+    static let card:CGFloat=20
+    static let control:CGFloat=16
+    static let tapTarget:CGFloat=44
+}
+
+struct BuddyFieldStyle:TextFieldStyle {
+    @Environment(\.isEnabled) private var enabled
+    func _body(configuration:TextField<Self._Label>)->some View {
+        configuration.padding(.horizontal,14).padding(.vertical,12).frame(minHeight:48)
+            .foregroundStyle(enabled ? Palette.ink:Palette.muted)
+            .background(Palette.field,in:RoundedRectangle(cornerRadius:BuddyLayout.control))
+            .overlay(RoundedRectangle(cornerRadius:BuddyLayout.control).stroke(Palette.border,lineWidth:1))
+    }
+}
+
+struct BuddySecondaryStyle:ButtonStyle {
+    @Environment(\.isEnabled) private var enabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    func makeBody(configuration:Configuration)->some View {
+        configuration.label.font(.subheadline.weight(.semibold)).foregroundStyle(enabled ? (configuration.role == .destructive ? Color.red:Palette.primary):Palette.muted)
+            .padding(.horizontal,16).frame(minHeight:48)
+            .background(enabled ? Palette.selection:Palette.disabled,in:RoundedRectangle(cornerRadius:BuddyLayout.control))
+            .overlay(RoundedRectangle(cornerRadius:BuddyLayout.control).stroke(Palette.border,lineWidth:1))
+            .opacity(configuration.isPressed ? 0.75:1)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.985:1)
+            .animation(reduceMotion ? nil:.easeOut(duration:0.12),value:configuration.isPressed)
+    }
+}
+
+struct BuddySurface:ViewModifier {
+    func body(content:Content)->some View {
+        content.foregroundStyle(Palette.ink).tint(Palette.primary)
+            .toolbarBackground(Palette.cream,for:.navigationBar)
+            .toolbarBackground(.visible,for:.navigationBar)
+            .presentationBackground(Palette.cream)
+            .buttonBorderShape(.roundedRectangle(radius:BuddyLayout.control))
+    }
+}
+extension View {func buddySurface()->some View {modifier(BuddySurface())}}
 
 struct PrimaryButton: View {
     @Environment(\.locale) private var interfaceLocale
@@ -199,11 +253,11 @@ struct KokoPrimaryStyle: ButtonStyle {
     @Environment(\.isEnabled) private var enabled
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     func makeBody(configuration:Configuration)->some View {
-        configuration.label.foregroundStyle(enabled ? .white:Palette.muted)
-            .background(enabled ? Palette.green:Palette.mint,in:RoundedRectangle(cornerRadius:18))
-            .offset(y:configuration.isPressed ? 3:0)
-            .background(RoundedRectangle(cornerRadius:18).fill(enabled ? Palette.berryShadow:Palette.mint).offset(y:4))
-            .padding(.bottom,4)
+        configuration.label.font(.system(.body,design:.rounded,weight:.bold))
+            .padding(.horizontal,16).frame(minHeight:52).foregroundStyle(enabled ? .white:Palette.muted)
+            .background(enabled ? (configuration.role == .destructive ? Color.red:Palette.primary):Palette.disabled,in:RoundedRectangle(cornerRadius:BuddyLayout.control))
+            .opacity(configuration.isPressed ? 0.85:1)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.985:1)
             .animation(reduceMotion ? nil:.easeOut(duration:0.12),value:configuration.isPressed)
     }
 }

@@ -128,7 +128,10 @@ struct RouteLeg: Codable {
     var meters:Int;var minutes:Int;var polyline:String;var source:String
     var mode:String? = nil;var walkingMeters:Int? = nil;var steps:[JourneyStep]? = nil
     var departureTime:String? = nil;var arrivalTime:String? = nil;var fetchedAt:String? = nil
-    var label:String {mode=="transit" ? (steps?.filter{$0.mode != "walk"}.map{transportLabel($0.mode)+($0.line.map{" "+$0} ?? "")}.joined(separator:" → ") ?? "公共交通"):"步行"}
+    var label:String {
+        let name=mode=="transit" ? (steps?.filter{$0.mode != "walk"}.map{transportLabel($0.mode)+($0.line.map{" "+$0} ?? "")}.joined(separator:" → ") ?? "Public transport"):transportLabel(mode ?? "walk")
+        return name+(source.hasPrefix("Estimated") ? " · Estimated":"")
+    }
 }
 struct StepEstimate:Codable {
     var routeSteps:Int;var activitySteps:Int;var estimatedSteps:Int
@@ -138,6 +141,7 @@ struct DayPlan: Codable, Identifiable {
     var date: String; var stops: [Stop]; var legs: [RouteLeg]; var estimatedCost: Double
     var estimatedSteps: Int; var finishTime: String; var warnings: [String]
     var start: Coordinate; var end: Coordinate
+    var estimatedTransportPlan:JourneyPlan? = nil
     var completedStops:[Stop]? = nil
     var skippedStops:[Stop]? = nil
     var planningStartMinute:Int? = nil
@@ -243,6 +247,23 @@ struct UserTravelProfile:Codable,Equatable {
     var summary:String {
         [queueTolerance,dailySteps.map{"每天约 \($0) 步"},energy,rhythm,interests?.joined(separator:"、")].compactMap{$0}.filter{!$0.isEmpty}.joined(separator:" · ")
     }
+    static func resolved(base:Self,memories:[Memory])->Self {
+        let ordered=memories.sorted{($0.provenance?.createdAt ?? "") < ($1.provenance?.createdAt ?? "")}
+        var result=ordered.last(where:{$0.profile.habits != nil})?.profile.habits ?? base
+        for memory in ordered {
+            guard let fact=memory.profile.travelDna,fact.status=="confirmed",fact.scope=="long_term",fact.condition.isEmpty else{continue}
+            switch fact.key {
+            case "daily_steps":if let steps=Int(fact.value.replacingOccurrences(of:",",with:"")),(500...60000).contains(steps){result.dailySteps=steps}
+            case "queue_tolerance_minutes":
+                if let minutes=Int(fact.value){result.queueTolerance=minutes==0 ? "Avoid queues":"Comfortable waiting up to \(minutes) minutes"}
+                else{result.queueTolerance=fact.value}
+            case "rhythm":result.rhythm=fact.value
+            case "interests":result.interests=fact.value.components(separatedBy:CharacterSet(charactersIn:",、，;")).map{$0.trimmingCharacters(in:.whitespacesAndNewlines)}.filter{!$0.isEmpty}
+            default:break
+            }
+        }
+        return result
+    }
     var seed:[String:String] {
         var result:[String:String]=[:]
         if let interests,!interests.isEmpty{result["interests"]=interests.joined(separator:"、")}
@@ -279,9 +300,60 @@ struct TravelPlanningTask:Codable {
 
 enum PlanningRunScope { @TaskLocal static var id:String? }
 
+enum DemoMode {
+    static let key="sydneybuddy.demo.enabled"
+    static var enabled:Bool {UserDefaults.standard.bool(forKey:key)}
+    static func trip(profile:TripProfile) throws -> Trip {
+        guard (1...3).contains(profile.days) else{throw NSError(domain:"Demo",code:1,userInfo:[NSLocalizedDescriptionKey:"The Sydney demo supports 1, 2 or 3 days. Choose a shorter trip or turn Demo mode off."])}
+        guard let url=Bundle.main.url(forResource:"sydney-mixed-transport",withExtension:"json") else{throw NSError(domain:"Demo",code:2,userInfo:[NSLocalizedDescriptionKey:"The demo itinerary is missing. Turn Demo mode off to use normal planning."])}
+        var raw=try JSONSerialization.jsonObject(with:Data(contentsOf:url)) as! [String:Any]
+        let templates=raw["days"] as! [[String:Any]]
+        let zone=TimeZone(identifier:"Australia/Sydney")!;var calendar=Calendar(identifier:.gregorian);calendar.timeZone=zone
+        let date=DateFormatter();date.timeZone=zone;date.dateFormat="yyyy-MM-dd"
+        guard let start=date.date(from:profile.date) else{throw URLError(.cannotParseResponse)}
+        let iso=ISO8601DateFormatter();iso.timeZone=zone
+        var days:[[String:Any]]=[]
+        for index in 0..<profile.days {
+            let template=templates[profile.days==1 ? 1:index],old=template["date"] as! String
+            let day=calendar.date(byAdding:.day,value:index,to:start)!,dayText=date.string(from:day)
+            func shift(_ value:Any)->Any {
+                if let text=value as? String,text.hasPrefix(old) {
+                    if text==old{return dayText}
+                    if let time=iso.date(from:text),let moved=calendar.date(bySettingHour:calendar.component(.hour,from:time),minute:calendar.component(.minute,from:time),second:calendar.component(.second,from:time),of:day){return iso.string(from:moved)}
+                }
+                if let values=value as? [String:Any]{return values.mapValues{shift($0)}}
+                if let values=value as? [Any]{return values.map{shift($0)}}
+                return value
+            }
+            days.append(shift(template) as! [String:Any])
+        }
+        var input=try JSONSerialization.jsonObject(with:JSONEncoder().encode(profile)) as! [String:Any]
+        input["start"]=templates[0]["start"];input["end"]=days.last?["end"];input["startMinute"]=days.first?["planningStartMinute"];input["start"]=days.first?["start"];input["hotel"]=(raw["profile"] as? [String:Any])?["hotel"];input["accommodationStatus"]="selected"
+        if var stays=raw["accommodationSuggestions"] as? [[String:Any]],!stays.isEmpty {
+            let nights=max(0,profile.days-1)
+            stays[0]["priceLabel"]=nights==0 ? "Suggested day base · not booked":"Rate to confirm · \(nights) night(s) · not booked"
+            stays[0]["reason"]="Illustrative hotel base for this preset only. No room or luggage storage has been booked."
+            raw["accommodationSuggestions"]=stays
+        }
+        raw["profile"]=input;raw["days"]=days;raw["mode"]="demo";raw["recommendationStatus"]="partial"
+        raw["title"]=profile.days==3 ? "Sydney, from arrival to goodbye":"Harbour, parks & coast";raw["createdAt"]=iso.string(from:Date())
+        raw["explanation"]="Demo mode: a curated Sydney itinerary with an illustrative stay at Sydney Harbour Marriott at Circular Quay. The three-day plan connects airport arrival, hotel nights, harbour walks, cycling, Bondi and Manly, then returns to the airport. Road and transit shapes are cached from providers; departures are illustrative. Accommodation and luggage storage are unconfirmed; no bookings were made. Review before saving."
+        raw["warnings"]=(raw["warnings"] as? [String] ?? [])+["Demo preset: personal constraints and requested places have not been verified. No bookings or real-time transport checks were made."]
+        return try JSONDecoder().decode(Trip.self,from:JSONSerialization.data(withJSONObject:raw))
+    }
+}
+
 @MainActor final class AppStore: ObservableObject {
-    @Published var personalProfile=UserTravelProfile.load() {
-        didSet{if let data=try? JSONEncoder().encode(personalProfile){UserDefaults.standard.set(data,forKey:"userTravelProfile")}}
+    @Published var demoEnabled=DemoMode.enabled {
+        didSet{UserDefaults.standard.set(demoEnabled,forKey:DemoMode.key)}
+    }
+
+    @Published private var basePersonalProfile=UserTravelProfile.load() {
+        didSet{if let data=try? JSONEncoder().encode(basePersonalProfile){UserDefaults.standard.set(data,forKey:"userTravelProfile")}}
+    }
+    var personalProfile:UserTravelProfile {
+        get{UserTravelProfile.resolved(base:basePersonalProfile,memories:memories)}
+        set{basePersonalProfile=newValue}
     }
     @Published var pendingPersonalProfile=UserTravelProfile.load(key:"pendingPersonalProfile") {
         didSet{if let data=try? JSONEncoder().encode(pendingPersonalProfile){UserDefaults.standard.set(data,forKey:"pendingPersonalProfile")}}
@@ -473,12 +545,12 @@ enum PlanningRunScope { @TaskLocal static var id:String? }
             var planned=try await roadPlan(raw,profile:p,replanExisting:false)
             try Task.checkCancellation()
             if planned.recommendationStatus == "partial" {
-                planned.id=nil;planned.revision=nil;planned.title=planned.suggestedTitle
+                planned.id=nil;planned.revision=nil;if !demoEnabled{planned.title=planned.suggestedTitle}
                 proposalIsSuggestion=true;proposal=planned;proposalFromNewTrip=true;agentText=planned.explanation
                 return
             }
             canCancelOperation=false
-            planned.id=nil;planned.revision=nil;planned.title=planned.suggestedTitle
+            planned.id=nil;planned.revision=nil;if !demoEnabled{planned.title=planned.suggestedTitle}
             planningStage=2
             operationTitle="正在保存到我的行程…";operationDetail="保存后可以查看地图、编辑日程和导航。"
             let body:[String:Any]=["trip":try JSONSerialization.jsonObject(with:JSONEncoder().encode(planned)),"expectedRevision":0]
@@ -506,6 +578,10 @@ enum PlanningRunScope { @TaskLocal static var id:String? }
     var roadLegs:([DayPlan]) async throws -> [WalkingObservation] = {try await AppleWalkingRoads.shared.legs($0)}
     private var remainingRequest:[String:Any]?
     private func roadPlan(_ raw:[String:Any],profile:TripProfile,replanExisting:Bool=true,background:Bool=false) async throws -> Trip {
+        if demoEnabled {
+            guard !replanExisting || trip==nil else{throw NSError(domain:"Demo",code:3,userInfo:[NSLocalizedDescriptionKey:"Demo mode creates a new preset trip. Turn it off to recalculate an existing itinerary."])}
+            try Task.checkCancellation();return try DemoMode.trip(profile:profile)
+        }
         return try await PlanningRunScope.$id.withValue(UUID().uuidString.lowercased()) {
             try await correlatedRoadPlan(raw,profile:profile,replanExisting:replanExisting,background:background)
         }
@@ -738,9 +814,11 @@ enum PlanningRunScope { @TaskLocal static var id:String? }
         planningTask=Task {defer{planningTask=nil};await generatePendingTrip()}
     }
     private func restorePlanningFieldsIfNeeded() {
-        if pendingTripFields.isEmpty,let task=travelTask,task.status != "completed" {
-            pendingTripFields=task.fields
-            if let personal=task.personalProfile{pendingPersonalProfile=personal}
+        if let task=travelTask,task.status != "completed" {
+            let wasEmpty=pendingTripFields.isEmpty
+            let missing=task.fields.filter{pendingTripFields[$0.key]==nil}
+            if !missing.isEmpty{pendingTripFields.merge(missing){current,_ in current}}
+            if wasEmpty,let personal=task.personalProfile{pendingPersonalProfile=personal}
         }
     }
     func cancelPendingGeneration(){if canCancelPlanning{planningTask?.cancel()}}
@@ -770,7 +848,7 @@ enum PlanningRunScope { @TaskLocal static var id:String? }
             var raw=try JSONSerialization.jsonObject(with:JSONEncoder().encode(p)) as! [String:Any]
             raw["mode"]=live ? (health?.googleConfigured == true ? "live":"assisted"):"demo"
             var planned=try await roadPlan(raw,profile:p,replanExisting:false,background:true)
-            try Task.checkCancellation();planned.id=nil;planned.revision=nil;planned.title=planned.suggestedTitle
+            try Task.checkCancellation();planned.id=nil;planned.revision=nil;if !demoEnabled{planned.title=planned.suggestedTitle}
             if planned.recommendationStatus=="partial" {
                 travelTask?.status="review";travelTask?.draft=planned;travelTask?.message="部分需求还需要确认，点开看看草案。";return
             }
@@ -793,6 +871,12 @@ enum PlanningRunScope { @TaskLocal static var id:String? }
     }
     func returnToTrips(draft:[String:String]) {
         pendingTripFields=draft
+        // An explicit chat draft is the current snapshot, not a patch over an older attempt.
+        if var task=travelTask,["draft","paused","failed"].contains(task.status),task.fields != draft {
+            task.fields=draft;task.personalProfile=pendingPersonalProfile
+            task.status="draft";task.progress=nil;task.message=nil
+            travelTask=task
+        }
         showOnboarding=false;UserDefaults.standard.set(true,forKey:"onboarded");tab=1
     }
     func resumePendingTrip() {
@@ -800,7 +884,7 @@ enum PlanningRunScope { @TaskLocal static var id:String? }
         restorePlanningFieldsIfNeeded()
         trip=nil;proposal=nil;showOnboarding=true
     }
-    func newTrip() { guard !isGeneratingTrip else{return};UserDefaults.standard.removeObject(forKey:"petComposer.draft"); tripToOpen=nil;pendingPersonalProfile=personalProfile;UserDefaults.standard.removeObject(forKey:"petSession.draft");pendingTripFields=[:];travelTask=nil;UserDefaults.standard.removeObject(forKey:"travelPlanningTask");trip=nil;proposal=nil;profile=TripProfile();showOnboarding=true }
+    func newTrip() { guard !isGeneratingTrip else{return};UserDefaults.standard.removeObject(forKey:"petComposer.draft"); tripToOpen=nil;pendingPersonalProfile=personalProfile;UserDefaults.standard.removeObject(forKey:"petSession.draft");pendingTripFields=demoEnabled ? ["days":"3"]:[:];travelTask=nil;UserDefaults.standard.removeObject(forKey:"travelPlanningTask");trip=nil;proposal=nil;profile=TripProfile();showOnboarding=true }
 
     func saveMemory() async {
         do {
