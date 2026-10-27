@@ -73,7 +73,7 @@ public sealed class MultimodalPlanningTests:IDisposable
         var opera=new JsonObject{["id"]="apple:opera",["name"]="悉尼歌剧院",["lat"]=-33.8568,["lng"]=151.2153};
         var restaurant=new JsonObject{["id"]="apple:restaurant",["name"]="Restaurant",["lat"]=-33.88,["lng"]=151.2};
         TravelConstraints.Apply(profile,[opera,restaurant]);
-        Assert.Equal("apple:opera",Assert.Single(profile.Array("mustVisit")!).GetValue<string>());
+        var mustVisit=profile.Array("mustVisit")!;Assert.Equal("apple:opera",Assert.Single(mustVisit)!.GetValue<string>());
     }
     [Fact]public async Task AgentShortAliasesReturnRealIdsAndUnknownAliasesStillFailClosed() {
         var secrets=Secrets();File.WriteAllText(Path.Combine(root,".secrets.json"),"{\"NVIDIA_API_KEY\":\"test-not-a-real-secret\"}");
